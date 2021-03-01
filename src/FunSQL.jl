@@ -82,7 +82,7 @@ struct Join <: SQLCore
     is_lateral::Bool
 
     Join(::Type{SQLCore}, is_left::Bool, is_right::Bool, is_lateral::Bool) =
-        new(is_left,is_right, is_lateral)
+        new(is_left, is_right, is_lateral)
 end
 
 struct Group <: SQLCore
@@ -133,6 +133,38 @@ struct Placeholder <: SQLCore
 
     Placeholder(::Type{SQLCore}, pos::Int) =
         new(pos)
+end
+
+struct SelectClause <: SQLCore
+    distinct::Bool
+
+    SelectClause(::Type{SQLCore}, distinct::Bool=false) =
+        new(distinct)
+end
+
+struct FromClause <: SQLCore
+    FromClause(::Type{SQLCore}) =
+        new()
+end
+
+struct JoinClause <: SQLCore
+    is_left::Bool
+    is_right::Bool
+
+    JoinClause(::Type{SQLCore}, is_left::Bool, is_right::Bool) =
+        new(is_left, is_right)
+end
+
+struct WhereClause <: SQLCore
+    is_having::Bool
+
+    WhereClause(::Type{SQLCore}, is_having=false) =
+        new(is_having)
+end
+
+struct GroupClause <: SQLCore
+    GroupClause(::Type{SQLCore}) =
+        new()
 end
 
 #
@@ -374,7 +406,7 @@ function lookup(::Where, n, name, default)
     base_alias === nothing ?
         lookup(base, name, default) :
     base_alias === name ?
-        base :
+        base.args[1] :
         default
 end
 
@@ -384,10 +416,10 @@ function lookup(::Join, n, name, default)
     left_alias = alias(left)
     right_alias = alias(right)
     if name === left_alias
-        return left
+        return left.args[1]
     end
     if name === right_alias
-        return right
+        return right.args[1]
     end
     if left_alias === nothing
         l = lookup(left, name, nothing)
@@ -408,7 +440,7 @@ function lookup(::Group, n, name, default)
     base = n.args[1]
     base_alias = alias(base)
     if name === base_alias
-        return base
+        return base.args[1]
     end
     list = @view n.args[2:end]
     for arg in list
@@ -437,8 +469,9 @@ end
 function collect_refs!(n::SQLNode, refs)
     if n.core isa Lookup || n.core isa AggCall
         push!(refs, n)
+    else
+        collect_refs!(n.args, refs)
     end
-    collect_refs!(n.args, refs)
 end
 
 function collect_refs!(ns::AbstractVector{SQLNode}, refs)
@@ -507,7 +540,7 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode})
                 base_alias = alias(base)
                 if base_alias !== nothing
                     if base_alias === core.name
-                        return base
+                        return base.args[1]
                     end
                 else
                     n′ = lookup(base, core.name, nothing)
@@ -549,7 +582,7 @@ function normalize(core::Select, n, refs)
     repl = Dict{SQLNode,SQLNode}()
     for ref in refs
         ref_core = ref.core
-        if ref_core isa Lookup && ref.args[1].core === core
+        if ref_core isa Lookup && ref.args[1] === n
             repl[ref] = n′ |> Lookup(ref_core.name)
         end
     end
@@ -630,8 +663,8 @@ function normalize(core::Group, n, refs)
     base_refs = collect_refs(list)
     for ref in refs
         ref_core = ref.core
-        if ref_core isa AggCall && (ref.args[1].core === core || ref.args[1].core === FromNothing.core)
-            collect_refs!(ref.args, base_refs)
+        if ref_core isa AggCall && (ref.args[1] === n || ref.args[1].core isa Unit)
+            collect_refs!(@view(ref.args[2:end]), base_refs)
         end
     end
     base′, base_repl = normalize(base, base_refs)
@@ -643,10 +676,10 @@ function normalize(core::Group, n, refs)
     pos = 0
     for ref in refs
         ref_core = ref.core
-        if ref_core isa Lookup && ref.args[1].core === core
+        if ref_core isa Lookup && ref.args[1] === n
             pos += 1
             repl[ref] = s |> Lookup(ref_core.name)
-        elseif ref_core isa AggCall && (ref.args[1].core === core || ref.args[1].core === FromNothing.core)
+        elseif ref_core isa AggCall && (ref.args[1] === n || ref.args[1].core isa Unit)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = s |> Lookup(name)
@@ -718,6 +751,22 @@ end
 
 function to_sql!(ctx, core::FunCall{:(=)}, n)
     to_sql!(ctx, n.args, " = ")
+end
+
+function to_sql!(ctx, core::FunCall{:(>)}, n)
+    to_sql!(ctx, n.args, " > ")
+end
+
+function to_sql!(ctx, core::FunCall{:(>=)}, n)
+    to_sql!(ctx, n.args, " >= ")
+end
+
+function to_sql!(ctx, core::FunCall{:(<)}, n)
+    to_sql!(ctx, n.args, " < ")
+end
+
+function to_sql!(ctx, core::FunCall{:(<=)}, n)
+    to_sql!(ctx, n.args, " <= ")
 end
 
 function to_sql!(ctx, core::FunCall{:(&&)}, n)
@@ -815,6 +864,9 @@ function to_sql!(ctx, core::Group, n)
     to_sql!(ctx, ctx.aliases[base])
     print(ctx, " GROUP BY ")
     to_sql!(ctx, list, ", ", "", "")
+    if isempty(list)
+        print(ctx, "()")
+    end
 end
 
 function to_sql!(ctx, ::Missing)

@@ -30,22 +30,31 @@ println(to_sql(normalize(q)))
 
 q = patient |>
     Group(Get.sex) |>
-    Select(Get.sex, Agg.count())
+    Select(Get.sex, Agg.Count())
 println(to_sql(normalize(q)))
 
 q = patient |>
     Join(:encounter => (encounter |> Group(Get.patient_id)),
          Fun."="(Get.id, Get.encounter.patient_id),
          is_left=true) |>
-    Join(:condition => (encounter |> Group(Get.patient_id)),
+    Select(
+        Get.mrn,
+        "date of the first encounter" => Agg.Min(Get.encounter.date, over=Get.encounter),
+        "# encounters" => Agg.Count())
+println(to_sql(normalize(q)))
+
+q = patient |>
+    Join(:encounter => (encounter |> Group(Get.patient_id)),
+         Fun."="(Get.id, Get.encounter.patient_id),
+         is_left=true) |>
+    Join(:condition => (condition |> Group(Get.patient_id)),
          Fun."="(Get.id, Get.condition.patient_id),
          is_left=true) |>
     Where(Fun."="(Get.sex, "male")) |>
     Select(
         Get.mrn,
-        "date of the first encounter" => Agg.Min(Get.encounter.date),
+        "date of the first encounter" => Agg.Min(Get.encounter.date, over=Get.encounter),
         "# encounters" => Agg.Count(over=Get.encounter),
         "# conditions" => Agg.Count(over=Get.condition))
-
 println(to_sql(normalize(q)))
 
