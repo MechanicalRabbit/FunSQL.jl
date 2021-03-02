@@ -652,93 +652,107 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode})
 end
 
 function normalize(n::SQLNode)
-    n′, repl = normalize(n, default_list(n))
+    n′, repl = normalize(n, default_list(n), :_)
     n′
 end
 
-normalize(n::SQLNode, refs) =
-    normalize(n.core, n, refs)
+normalize(n::SQLNode, refs, as) =
+    normalize(n.core, n, refs, as)
 
-normalize(::As, n, refs) =
-    normalize(n.args[1], refs)
+normalize(::As, n, refs, as) =
+    normalize(n.args[1], refs, as)
 
-function normalize(core::Select, n, refs)
+function normalize(core::Select, n, refs, as)
     base = n.args[1]
     list = resolve(@view(n.args[2:end]), [base])
     base_refs = collect_refs(list)
-    base′, base_repl = normalize(base, base_refs)
-    list′ = replace_refs(list, base_repl)
-    list′ = SQLNode[l.core isa As ? l : l |> As(alias(l)) for l in list′]
-    n′ = base′ |> Select(list′)
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as)
+    list′ = SQLNode[]
+    seen = Set{Symbol}()
+    for l in list
+        name = alias(l)
+        if name in seen
+            name = gensym(name)
+        end
+        push!(seen, name)
+        l = (l.core isa As ? l.args[1] : l) |> As(name)
+        push!(list′, l)
+    end
+    list′ = replace_refs(list′, base_repl)
+    n′ = base′ |> As(base_as) |> FromClause() |> SelectClause(list′)
     repl = Dict{SQLNode,SQLNode}()
     for ref in refs
         ref_core = ref.core
         if ref_core isa Lookup && ref.args[1] === n
-            repl[ref] = n′ |> Lookup(ref_core.name)
+            repl[ref] = Literal((as, ref_core.name))
         end
     end
     n′, repl
 end
 
-function normalize(::Where, n, refs)
+function normalize(::Where, n, refs, as)
     base, pred = n.args
     pred = resolve(pred, [base])
     base_refs = collect_refs(pred)
     for ref in refs
         push!(base_refs, ref)
     end
-    base′, base_repl = normalize(base, base_refs)
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as)
     pred′ = replace_refs(pred, base_repl)
-    n′ = base′ |> Where(pred′)
-    s = n′ |> Select()
+    n′ = base′ |> As(base_as) |> FromClause() |> WhereClause(pred′) |> SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
     for ref in refs
         if ref in keys(base_repl)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
-            repl[ref] = s |> Lookup(name)
-            push!(s.args, base_repl[ref] |> As(name))
+            repl[ref] = Literal((as, name))
+            push!(n′.args, base_repl[ref] |> As(name))
         end
     end
-    s, repl
+    n′, repl
 end
 
-function normalize(::Join, n, refs)
+function normalize(::Join, n, refs, as)
     left, right, on = n.args
     on = resolve(on, [left, right])
     all_refs = collect_refs(on)
     for ref in refs
         push!(all_refs, ref)
     end
-    left′, left_repl = normalize(left, all_refs)
-    right′, right_repl = normalize(right, all_refs)
+    left_as = gensym()
+    left′, left_repl = normalize(left, all_refs, left_as)
+    right_as = gensym()
+    right′, right_repl = normalize(right, all_refs, right_as)
     all_repl = merge(left_repl, right_repl)
     on′ = replace_refs(on, all_repl)
-    n′ = left′ |> Join(right′, on′)
-    s = n′ |> Select()
+    n′ = left′ |> As(left_as) |> FromClause() |> JoinClause(right′ |> As(right_as), on′) |> SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
     for ref in refs
         if ref in keys(all_repl)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
-            repl[ref] = s |> Lookup(name)
-            push!(s.args, all_repl[ref] |> As(name))
+            repl[ref] = Literal((as, name))
+            push!(n′.args, all_repl[ref] |> As(name))
         end
     end
-    s, repl
+    n′, repl
 end
 
-function normalize(core::From, n, refs)
-    s = n |> Select()
+function normalize(core::From, n, refs, as)
+    s = Literal((core.tbl.scm, core.tbl.name)) |>
+        FromClause() |>
+        SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     seen = Set{Symbol}()
     for ref in refs
         ref_core = ref.core
         if ref_core isa Lookup && ref.args[1].core === core
             name = ref_core.name
-            repl[ref] = s |> Lookup(name)
+            repl[ref] = Literal((as, name))
             if !(name in seen)
                 push!(s.args, Literal(name))
                 push!(seen, name)
@@ -748,7 +762,7 @@ function normalize(core::From, n, refs)
     s, repl
 end
 
-function normalize(core::Group, n, refs)
+function normalize(core::Group, n, refs, as)
     base = n.args[1]
     list = resolve(@view(n.args[2:end]), [base])
     base_refs = collect_refs(list)
@@ -761,26 +775,26 @@ function normalize(core::Group, n, refs)
             collect_refs!(ref_args, base_refs)
         end
     end
-    base′, base_repl = normalize(base, base_refs)
-    list′ = replace_refs(list, base_repl)
-    list′ = SQLNode[l.core isa As ? l : l |> As(alias(l)) for l in list′]
-    c′ = base′ |> Group(SQLNode[Literal(k) for k = 1:length(list)])
-    s = c′ |> Select(list′)
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as)
+    list′ = SQLNode[l.core isa As ? l : l |> As(alias(l)) for l in list]
+    list′ = replace_refs(list′, base_repl)
+    n′ = base′ |> As(base_as) |> FromClause() |> GroupClause(SQLNode[Literal(k) for k = 1:length(list)]) |> SelectClause(list′)
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
     for ref in refs
         ref_core = ref.core
         if ref_core isa Lookup && ref.args[1] === n
             pos += 1
-            repl[ref] = s |> Lookup(ref_core.name)
+            repl[ref] = Literal((as, ref_core.name))
         elseif ref_core isa AggCall && ref.args[1] === n
             pos += 1
             name = Symbol(alias(ref), "_", pos)
-            repl[ref] = s |> Lookup(name)
-            push!(s.args, SQLNode(ref_core, SQLNode[c′, replace_refs(popfirst!(refs_args), base_repl)...]) |> As(name))
+            repl[ref] = Literal((as, name))
+            push!(n′.args, SQLNode(ref_core, SQLNode[Literal(as), replace_refs(popfirst!(refs_args), base_repl)...]) |> As(name))
         end
     end
-    s, repl
+    n′, repl
 end
 
 Base.@kwdef mutable struct ToSQLContext <: IO
@@ -949,58 +963,6 @@ function to_sql!(ctx, core::GroupClause, n)
         print(ctx, "()")
     else
         to_sql!(ctx, list, ", ", "", "")
-    end
-end
-
-function to_sql!(ctx, core::From, n)
-    tbl = core.tbl
-    print(ctx, " FROM ")
-    to_sql!(ctx, (tbl.scm, tbl.name))
-end
-
-function to_sql!(ctx, ::Unit, n)
-end
-
-function to_sql!(ctx, ::Where, n)
-    base, pred = n.args
-    print(ctx, " FROM (")
-    to_sql!(ctx, base)
-    print(ctx, ") AS ")
-    to_sql!(ctx, ctx.aliases[base])
-    print(ctx, " WHERE ")
-    to_sql!(ctx, pred)
-end
-
-function to_sql!(ctx, core::Join, n)
-    left, right, on = n.args
-    print(ctx, " FROM (")
-    to_sql!(ctx, left)
-    print(ctx, ") AS ")
-    to_sql!(ctx, ctx.aliases[left])
-    print(ctx, " JOIN (")
-    to_sql!(ctx, right)
-    print(ctx, ") AS ")
-    to_sql!(ctx, ctx.aliases[right])
-    print(ctx, " ON (")
-    to_sql!(ctx, on)
-    print(ctx, ")")
-end
-
-function to_sql!(ctx, core::Select, n)
-    base = n.args[1]
-    list = @view n.args[2:end]
-    if isempty(ctx.aliases)
-        populate_aliases!(ctx, n)
-    end
-    print(ctx, "SELECT ")
-    to_sql!(ctx, list, ", ", "", "")
-    if base.core isa Select
-        print(ctx, " FROM (")
-        to_sql!(ctx, base)
-        print(ctx, ") AS ")
-        to_sql!(ctx, ctx.aliases[base])
-    else
-        to_sql!(ctx, base)
     end
 end
 
