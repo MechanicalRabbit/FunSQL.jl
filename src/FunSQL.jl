@@ -454,6 +454,38 @@ function lookup(::Group, n, name, default)
     default
 end
 
+function lookup_group(n::SQLNode)
+    l = lookup_group(n, nothing)
+    l !== nothing || error("cannot find a Group node")
+    l
+end
+
+lookup_group(n::SQLNode, default::T) where {T} =
+    lookup_group(n.core, n, default)::Union{SQLNode,T}
+
+lookup_group(::SQLCore, n, default) =
+    default
+
+lookup_group(::Union{As,Select,Where}, n, default) =
+    lookup_group(n.args[1], default)
+
+function lookup_group(::Join, n, default)
+    left = n.args[1]
+    right = n.args[2]
+    l = lookup_group(left, nothing)
+    if l !== nothing
+        return l
+    end
+    l = lookup_group(right, nothing)
+    if l !== nothing
+        return l
+    end
+    default
+end
+
+lookup_group(::Group, n, default) =
+    n
+
 operation_name(core::FunCall{S}) where {S} =
     S
 
@@ -555,6 +587,22 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode})
             parent′ = resolve(parent, bases)
             return lookup(parent′, core.name)
         end
+    elseif core isa AggCall
+        over = n.args[1]
+        if over.core isa Unit
+            for base in bases
+                over′ = lookup_group(base, nothing)
+                if over′ !== nothing
+                    over = over′
+                    break
+                end
+            end
+        else
+            over′ = resolve(over, bases)
+        end
+        args′ = copy(n.args)
+        args′[1] = over′
+        return SQLNode(core, args′)
     else
         SQLNode(core, resolve(n.args, bases))
     end
@@ -661,10 +709,13 @@ function normalize(core::Group, n, refs)
     base = n.args[1]
     list = resolve(@view(n.args[2:end]), [base])
     base_refs = collect_refs(list)
+    refs_args = Vector{SQLNode}[]
     for ref in refs
         ref_core = ref.core
-        if ref_core isa AggCall && (ref.args[1] === n || ref.args[1].core isa Unit)
-            collect_refs!(@view(ref.args[2:end]), base_refs)
+        if ref_core isa AggCall && ref.args[1] === n
+            ref_args = resolve(@view(ref.args[2:end]), [base])
+            push!(refs_args, ref_args)
+            collect_refs!(ref_args, base_refs)
         end
     end
     base′, base_repl = normalize(base, base_refs)
@@ -679,11 +730,11 @@ function normalize(core::Group, n, refs)
         if ref_core isa Lookup && ref.args[1] === n
             pos += 1
             repl[ref] = s |> Lookup(ref_core.name)
-        elseif ref_core isa AggCall && (ref.args[1] === n || ref.args[1].core isa Unit)
+        elseif ref_core isa AggCall && ref.args[1] === n
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = s |> Lookup(name)
-            push!(s.args, SQLNode(ref_core, SQLNode[c′, replace_refs(@view(ref.args[2:end]), base_repl)...]) |> As(name))
+            push!(s.args, SQLNode(ref_core, SQLNode[c′, replace_refs(popfirst!(refs_args), base_repl)...]) |> As(name))
         end
     end
     s, repl
