@@ -156,10 +156,13 @@ struct JoinClause <: SQLCore
 end
 
 struct WhereClause <: SQLCore
-    is_having::Bool
+    WhereClause(::Type{SQLCore}) =
+        new()
+end
 
-    WhereClause(::Type{SQLCore}, is_having=false) =
-        new(is_having)
+struct HavingClause <: SQLCore
+    HavingClause(::Type{SQLCore}) =
+        new()
 end
 
 struct GroupClause <: SQLCore
@@ -337,6 +340,46 @@ const Max = Agg.MAX
 
 Placeholder(pos) =
     SQLNode(SQLCore(Placeholder, pos))
+
+# From Clause
+
+FromClause() =
+    SQLNodeClosure(SQLCore(FromClause))
+
+# Select Clause
+
+SelectClause(list::Vector{SQLNode}; distinct::Bool=false) =
+    SQLNodeClosure(SQLCore(SelectClause, distinct), list)
+
+SelectClause(list::AbstractVector; distinct::Bool=false) =
+    SQLNodeClosure(SQLCore(SelectClause, distinct), SQLNode[list...])
+
+SelectClause(list...; distinct::Bool=false) =
+    SQLNodeClosure(SQLCore(SelectClause, distinct), SQLNode[list...])
+
+# Where and Having Clauses
+
+WhereClause(pred) =
+    SQLNodeClosure(SQLCore(WhereClause), SQLNode[pred])
+
+HavingClause(pred) =
+    SQLNodeClosure(SQLCore(HavingClause), SQLNode[pred])
+
+# Join Clause
+
+JoinClause(right, on; is_left::Bool=false, is_right::Bool=false) =
+    SQLNodeClosure(SQLCore(JoinClause, is_left, is_right), SQLNode[right, on])
+
+# Group Clause
+
+GroupClause(list::Vector{SQLNode}) =
+    SQLNodeClosure(SQLCore(GroupClause), list)
+
+GroupClause(list::AbstractVector) =
+    SQLNodeClosure(SQLCore(GroupClause), SQLNode[list...])
+
+GroupClause(list...) =
+    SQLNodeClosure(SQLCore(GroupClause), SQLNode[list...])
 
 # Aliases
 
@@ -743,6 +786,7 @@ end
 Base.@kwdef mutable struct ToSQLContext <: IO
     io::IOBuffer = IOBuffer()
     aliases::Dict{Any,Symbol} = Dict{Any,Symbol}()  # Dict{Select,Symbol}
+    nested::Bool = false
 end
 
 Base.write(ctx::ToSQLContext, octet::UInt8) =
@@ -838,6 +882,74 @@ function to_sql!(ctx, core::As, n)
     to_sql!(ctx, arg)
     print(ctx, " AS ")
     to_sql!(ctx, core.name)
+end
+
+function to_sql!(ctx, core::FromClause, n)
+    base, = n.args
+    print(ctx, " FROM ")
+    to_sql!(ctx, base)
+end
+
+function to_sql!(ctx, core::SelectClause, n)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    if ctx.nested
+        print(ctx, "(")
+    end
+    print(ctx, "SELECT ")
+    if core.distinct
+        print(ctx, "DISTINCT ")
+    end
+    orig_nested = ctx.nested
+    ctx.nested = true
+    to_sql!(ctx, list, ", ", "", "")
+    to_sql!(ctx, base)
+    ctx.nested = orig_nested
+    if ctx.nested
+        print(ctx, ")")
+    end
+end
+
+function to_sql!(ctx, core::WhereClause, n)
+    base, pred = n.args
+    to_sql!(ctx, base)
+    print(ctx, " WHERE ")
+    to_sql!(ctx, pred)
+end
+
+function to_sql!(ctx, core::HavingClause, n)
+    base, pred = n.args
+    to_sql!(ctx, base)
+    print(ctx, " HAVING ")
+    to_sql!(ctx, pred)
+end
+
+function to_sql!(ctx, core::JoinClause, n)
+    left, right, on = n.args
+    to_sql!(ctx, left)
+    if core.is_left && core.is_right
+        print(ctx, " FULL")
+    elseif core.is_left
+        print(ctx, " LEFT")
+    elseif core.is_right
+        print(ctx, " RIGHT")
+    end
+    print(ctx, " JOIN ")
+    to_sql!(ctx, right)
+    print(ctx, " ON ")
+    to_sql!(ctx, on)
+end
+
+function to_sql!(ctx, core::GroupClause, n)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    to_sql!(ctx, base)
+    print(ctx, " GROUP BY ")
+    if isempty(list)
+        print(ctx, "()")
+    else
+        to_sql!(ctx, list, ", ", "", "")
+    end
 end
 
 function to_sql!(ctx, core::From, n)

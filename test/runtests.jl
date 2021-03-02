@@ -1,10 +1,82 @@
 #!/usr/bin/env julia
 
-using FunSQL: SQLTable, From, Select, Where, Join, Group, Fun, Get, Agg, to_sql, normalize
+using FunSQL: SQLTable, FromClause, SelectClause, WhereClause, HavingClause, GroupClause, JoinClause, From, Select, Where, Join, Group, Fun, Get, Agg, Literal, As, to_sql, normalize
 
 patient = SQLTable(:public, :patient, [:id, :mrn, :sex])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
 condition = SQLTable(:public, :condition, [:id, :patient_id, :code, :date])
+
+# Constructing SQL syntax.
+
+q = Literal(:patient) |>
+    FromClause() |>
+    SelectClause(Literal(:mrn))
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    FromClause() |>
+    SelectClause(Literal(:sex), distinct=true)
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    WhereClause(Fun."="(Literal((:p, :sex)), "male")) |>
+    SelectClause(Literal((:p, :mrn)))
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    JoinClause(Literal(:encounter) |> As(:e),
+               Fun."="(Literal((:p, :id)), Literal((:e, :patient_id)))) |>
+    SelectClause(Literal((:p, :mrn)), Literal((:e, :date)))
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    WhereClause(Fun."="(Literal((:p, :sex)), "male")) |>
+    SelectClause(Literal((:p, :id)), Literal((:p, :mrn))) |>
+    As(:p) |>
+    FromClause() |>
+    JoinClause(Literal(:encounter) |> As(:e),
+               Fun."="(Literal((:p, :id)), Literal((:e, :patient_id)))) |>
+    SelectClause(Literal((:p, :mrn)), Literal((:e, :date)))
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    GroupClause(Literal((:p, :sex))) |>
+    SelectClause(Literal((:p, :sex)), Agg.Count())
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    GroupClause(Literal((:p, :sex))) |>
+    HavingClause(Fun.">"(Agg.Count(), 2)) |>
+    SelectClause(Literal((:p, :sex)), Agg.Count())
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    JoinClause(Literal(:encounter) |>
+               As(:e) |>
+               FromClause() |>
+               GroupClause(Literal((:e, :patient_id))) |>
+               SelectClause(Literal((:e, :patient_id)),
+                            Agg.Count() |> As(:count)) |>
+               As(:e_grp),
+               Fun."="(Literal((:p, :id)), Literal((:e_grp, :patient_id))),
+               is_left=true) |>
+    SelectClause(Literal((:p, :mrn)),
+                 Fun.Coalesce(Literal((:e_grp, :count)), 0))
+println(to_sql(q))
+
+# Semantic operators.
 
 q = From(patient)
 println(to_sql(normalize(q)))
@@ -34,26 +106,26 @@ q = patient |>
 println(to_sql(normalize(q)))
 
 q = patient |>
-    Join(:encounter => (encounter |> Group(Get.patient_id)),
+    Join(:encounter => encounter |> Group(Get.patient_id),
          Fun."="(Get.id, Get.encounter.patient_id),
          is_left=true) |>
     Select(
         Get.mrn,
-        "date of the first encounter" => Agg.Min(Get.encounter.date, over=Get.encounter),
+        "date of the first encounter" => Agg.Min(Get.date, over=Get.encounter),
         "# encounters" => Agg.Count())
 println(to_sql(normalize(q)))
 
 q = patient |>
-    Join(:encounter => (encounter |> Group(Get.patient_id)),
+    Join(:encounter => encounter |> Group(Get.patient_id),
          Fun."="(Get.id, Get.encounter.patient_id),
          is_left=true) |>
-    Join(:condition => (condition |> Group(Get.patient_id)),
+    Join(:condition => condition |> Group(Get.patient_id),
          Fun."="(Get.id, Get.condition.patient_id),
          is_left=true) |>
     Where(Fun."="(Get.sex, "male")) |>
     Select(
         Get.mrn,
-        "date of the first encounter" => Agg.Min(Get.encounter.date, over=Get.encounter),
+        "date of the first encounter" => Agg.Min(Get.date, over=Get.encounter),
         "# encounters" => Agg.Count(over=Get.encounter),
         "# conditions" => Agg.Count(over=Get.condition))
 println(to_sql(normalize(q)))
