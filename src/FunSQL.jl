@@ -799,8 +799,7 @@ end
 
 Base.@kwdef mutable struct ToSQLContext <: IO
     io::IOBuffer = IOBuffer()
-    aliases::Dict{Any,Symbol} = Dict{Any,Symbol}()  # Dict{Select,Symbol}
-    nested::Bool = false
+    level::Int = -1
 end
 
 Base.write(ctx::ToSQLContext, octet::UInt8) =
@@ -808,6 +807,21 @@ Base.write(ctx::ToSQLContext, octet::UInt8) =
 
 Base.unsafe_write(ctx::ToSQLContext, input::Ptr{UInt8}, nbytes::UInt) =
     unsafe_write(ctx.io, input, nbytes)
+
+function newline(ctx::ToSQLContext)
+    print(ctx, "\n")
+    for k = 1:ctx.level
+        print(ctx, "  ")
+    end
+end
+
+function nest!(ctx::ToSQLContext)
+    ctx.level += 1
+end
+
+function unnest!(ctx::ToSQLContext)
+    ctx.level -= 1
+end
 
 function to_sql(n::SQLNode)
     ctx = ToSQLContext()
@@ -834,9 +848,6 @@ end
 
 to_sql!(ctx, core::Literal, n) =
     to_sql!(ctx, core.val)
-
-to_sql!(ctx, core::Lookup, n) =
-    to_sql!(ctx, (ctx.aliases[n.args[1]], core.name))
 
 function to_sql!(ctx, @nospecialize(core::AggCall{S}), n) where {S}
     print(ctx, S)
@@ -900,26 +911,28 @@ end
 
 function to_sql!(ctx, core::FromClause, n)
     base, = n.args
-    print(ctx, " FROM ")
+    newline(ctx)
+    print(ctx, "FROM ")
     to_sql!(ctx, base)
 end
 
 function to_sql!(ctx, core::SelectClause, n)
     base = n.args[1]
     list = @view n.args[2:end]
-    if ctx.nested
+    nest!(ctx)
+    if ctx.level > 0
         print(ctx, "(")
+        newline(ctx)
     end
     print(ctx, "SELECT ")
     if core.distinct
         print(ctx, "DISTINCT ")
     end
-    orig_nested = ctx.nested
-    ctx.nested = true
     to_sql!(ctx, list, ", ", "", "")
     to_sql!(ctx, base)
-    ctx.nested = orig_nested
-    if ctx.nested
+    unnest!(ctx)
+    if ctx.level >= 0
+        newline(ctx)
         print(ctx, ")")
     end
 end
@@ -927,28 +940,32 @@ end
 function to_sql!(ctx, core::WhereClause, n)
     base, pred = n.args
     to_sql!(ctx, base)
-    print(ctx, " WHERE ")
+    newline(ctx)
+    print(ctx, "WHERE ")
     to_sql!(ctx, pred)
 end
 
 function to_sql!(ctx, core::HavingClause, n)
     base, pred = n.args
     to_sql!(ctx, base)
-    print(ctx, " HAVING ")
+    newline(ctx)
+    print(ctx, "HAVING ")
     to_sql!(ctx, pred)
 end
 
 function to_sql!(ctx, core::JoinClause, n)
     left, right, on = n.args
     to_sql!(ctx, left)
+    newline(ctx)
     if core.is_left && core.is_right
-        print(ctx, " FULL")
+        print(ctx, "FULL JOIN ")
     elseif core.is_left
-        print(ctx, " LEFT")
+        print(ctx, "LEFT JOIN ")
     elseif core.is_right
-        print(ctx, " RIGHT")
+        print(ctx, "RIGHT JOIN ")
+    else
+        print(ctx, "JOIN ")
     end
-    print(ctx, " JOIN ")
     to_sql!(ctx, right)
     print(ctx, " ON ")
     to_sql!(ctx, on)
@@ -958,39 +975,12 @@ function to_sql!(ctx, core::GroupClause, n)
     base = n.args[1]
     list = @view n.args[2:end]
     to_sql!(ctx, base)
-    print(ctx, " GROUP BY ")
+    newline(ctx)
+    print(ctx, "GROUP BY ")
     if isempty(list)
         print(ctx, "()")
     else
         to_sql!(ctx, list, ", ", "", "")
-    end
-end
-
-function populate_aliases!(ctx, ns::Vector{SQLNode})
-    for n in ns
-        populate_aliases!(ctx, n)
-    end
-end
-
-function populate_aliases!(ctx, n::SQLNode)
-    base_core = n.core
-    if base_core isa Select
-        ctx.aliases[n] = gensym()
-    end
-    populate_aliases!(ctx, n.args)
-end
-
-function to_sql!(ctx, core::Group, n)
-    base = n.args[1]
-    list = @view n.args[2:end]
-    print(ctx, " FROM (")
-    to_sql!(ctx, base)
-    print(ctx, ") AS ")
-    to_sql!(ctx, ctx.aliases[base])
-    print(ctx, " GROUP BY ")
-    to_sql!(ctx, list, ", ", "", "")
-    if isempty(list)
-        print(ctx, "()")
     end
 end
 
