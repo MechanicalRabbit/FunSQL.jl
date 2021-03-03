@@ -1,8 +1,11 @@
 #!/usr/bin/env julia
 
-using FunSQL: SQLTable, FromClause, SelectClause, WhereClause, HavingClause, GroupClause, JoinClause, From, Select, Where, Join, Group, Fun, Get, Agg, Literal, As, to_sql, normalize
+using FunSQL:
+    SQLTable, FromClause, SelectClause, WhereClause, HavingClause, GroupClause,
+    JoinClause, UnionClause, From, Select, Where, Join, Group, Append, Fun,
+    Get, Agg, Literal, As, to_sql, normalize
 
-patient = SQLTable(:public, :patient, [:id, :mrn, :sex])
+patient = SQLTable(:public, :patient, [:id, :mrn, :sex, :father_id, :mother_id])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
 condition = SQLTable(:public, :condition, [:id, :patient_id, :code, :date])
 
@@ -74,6 +77,23 @@ q = Literal(:patient) |>
                is_left=true) |>
     SelectClause(Literal((:p, :mrn)),
                  Fun.Coalesce(Literal((:e_grp, :count)), 0))
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    WhereClause(Fun."="(Literal((:p, :id)), 1)) |>
+    SelectClause(Literal((:p, :mrn))) |>
+    UnionClause(
+        Literal(:patient) |>
+        As(:c) |>
+        FromClause() |>
+        WhereClause(Fun."OR"(Fun."="(Literal((:c, :father_id)), 1),
+                             Fun."="(Literal((:c, :mother_id)), 1))) |>
+        SelectClause(Literal((:c, :mrn)))) |>
+    As(:n) |>
+    FromClause() |>
+    SelectClause(Literal((:n, :mrn)))
 println(to_sql(q))
 
 # Semantic operators.

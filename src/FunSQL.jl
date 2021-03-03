@@ -90,6 +90,11 @@ struct Group <: SQLCore
         new()
 end
 
+struct Append <: SQLCore
+    Append(::Type{SQLCore}) =
+        new()
+end
+
 struct As <: SQLCore
     name::Symbol
 
@@ -170,6 +175,14 @@ struct GroupClause <: SQLCore
         new()
 end
 
+struct UnionClause <: SQLCore
+    all::Bool
+
+    UnionClause(::Type{SQLCore}, all::Bool=true) =
+        new(all)
+end
+
+
 #
 # Constructors.
 #
@@ -218,6 +231,17 @@ Group(list::AbstractVector) =
 
 Group(list...) =
     SQLNodeClosure(SQLCore(Group), SQLNode[list...])
+
+# Append (UNION ALL)
+
+Append(list::Vector{SQLNode}) =
+    SQLNodeClosure(SQLCore(Append), list)
+
+Append(list::AbstractVector) =
+    SQLNodeClosure(SQLCore(Append), SQLNode[list...])
+
+Append(list...) =
+    SQLNodeClosure(SQLCore(Append), SQLNode[list...])
 
 # Aliases
 
@@ -381,6 +405,17 @@ GroupClause(list::AbstractVector) =
 GroupClause(list...) =
     SQLNodeClosure(SQLCore(GroupClause), SQLNode[list...])
 
+# Union Clause
+
+UnionClause(list::Vector{SQLNode}; all::Bool=true) =
+    SQLNodeClosure(SQLCore(UnionClause, all), list)
+
+UnionClause(list::AbstractVector; all::Bool=true) =
+    SQLNodeClosure(SQLCore(UnionClause, all), SQLNode[list...])
+
+UnionClause(list...; all::Bool=true) =
+    SQLNodeClosure(SQLCore(UnionClause, all), SQLNode[list...])
+
 # Aliases
 
 alias(n::SQLNode) =
@@ -497,6 +532,15 @@ function lookup(::Group, n, name, default)
     default
 end
 
+function lookup(::Append, n, name, default)
+    for arg in n.args
+        if lookup(arg, name, nothing) === nothing
+            return default
+        end
+    end
+    return n |> Lookup(name)
+end
+
 function lookup_group(n::SQLNode)
     l = lookup_group(n, nothing)
     l !== nothing || error("cannot find a Group node")
@@ -560,7 +604,7 @@ function replace_refs(n::SQLNode, repl)
         return get(repl, n, n)
     end
     args′ = replace_refs(n.args, repl)
-    SQLNode(n.core, args′)
+    args′ != n.args ? SQLNode(n.core, args′) : n
 end
 
 replace_refs(ns::AbstractVector{SQLNode}, repl) =
@@ -579,7 +623,7 @@ default_list(::Select, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
 
 function default_list(::Where, n)
-    base, = n
+    base, pred = n.args
     default_list(base)
 end
 
@@ -603,6 +647,16 @@ end
 
 default_list(::Group, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
+
+function default_list(::Append, n)
+    list = default_list(n.args[1])
+    for arg in @view n.args[2:end]
+        arg_list = default_list(arg)
+        seen = Set{Symbol}([alias(l) for l in arg_list])
+        list = SQLNode[l for l in list if alias(l) in seen]
+    end
+    SQLNode[n |> Lookup(alias(l)) for l in list]
+end
 
 resolve(ns::AbstractVector{SQLNode}, bases::AbstractVector{SQLNode}) =
     SQLNode[resolve(n, bases) for n in ns]
@@ -647,7 +701,8 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode})
         args′[1] = over′
         return SQLNode(core, args′)
     else
-        SQLNode(core, resolve(n.args, bases))
+        args′ = resolve(n.args, bases)
+        args′ != n.args ? SQLNode(core, args′) : n
     end
 end
 
@@ -750,7 +805,7 @@ function normalize(core::From, n, refs, as)
     seen = Set{Symbol}()
     for ref in refs
         ref_core = ref.core
-        if ref_core isa Lookup && ref.args[1].core === core
+        if ref_core isa Lookup && ref.args[1] === n
             name = ref_core.name
             repl[ref] = Literal((as, name))
             if !(name in seen)
@@ -797,9 +852,37 @@ function normalize(core::Group, n, refs, as)
     n′, repl
 end
 
+function normalize(::Append, n, refs, as)
+    bases′ = SQLNode[]
+    for arg in n.args
+        arg_refs = SQLNode[]
+        for ref in refs
+            ref_core = ref.core
+            if ref_core isa Lookup && ref.args[1] === n
+                arg_ref = lookup(arg, ref_core.name)::SQLNode
+                push!(arg_refs, arg_ref)
+            end
+        end
+        arg_as = gensym()
+        arg′, arg_repl = normalize(arg, arg_refs, arg_as)
+        base′ = arg′ |> As(arg_as) |> FromClause() |> SelectClause(SQLNode[arg_repl[arg_ref] |> As(arg_ref.core.name) for arg_ref in arg_refs])
+        push!(bases′, base′)
+    end
+    n′ = bases′[1] |> UnionClause(@view bases′[2:end])
+    repl = Dict{SQLNode,SQLNode}()
+    for ref in refs
+        ref_core = ref.core
+        if ref_core isa Lookup && ref.args[1] === n
+            repl[ref] = Literal((as, ref_core.name))
+        end
+    end
+    n′, repl
+end
+
 Base.@kwdef mutable struct ToSQLContext <: IO
     io::IOBuffer = IOBuffer()
-    level::Int = -1
+    level::Int = 0              # indentation level
+    nested::Bool = false        # SELECT needs parenthesis
 end
 
 Base.write(ctx::ToSQLContext, octet::UInt8) =
@@ -813,14 +896,6 @@ function newline(ctx::ToSQLContext)
     for k = 1:ctx.level
         print(ctx, "  ")
     end
-end
-
-function nest!(ctx::ToSQLContext)
-    ctx.level += 1
-end
-
-function unnest!(ctx::ToSQLContext)
-    ctx.level -= 1
 end
 
 function to_sql(n::SQLNode)
@@ -889,12 +964,27 @@ function to_sql!(ctx, core::FunCall{:(<=)}, n)
     to_sql!(ctx, n.args, " <= ")
 end
 
-function to_sql!(ctx, core::FunCall{:(&&)}, n)
+function to_sql!(ctx, core::Union{FunCall{:AND}}, n)
     if isempty(n.args)
         print(ctx, "TRUE")
     else
         to_sql!(ctx, n.args, " AND ")
     end
+end
+
+function to_sql!(ctx, core::Union{FunCall{:OR}}, n)
+    if isempty(n.args)
+        print(ctx, "FALSE")
+    else
+        to_sql!(ctx, n.args, " OR ")
+    end
+end
+
+function to_sql!(ctx, core::Union{FunCall{:ISNULL},FunCall{:IS_NULL},FunCall{Symbol("IS NULL")}}, n)
+    arg, = n.args
+    print(ctx, "(")
+    to_sql!(ctx, arg)
+    print(ctx, " IS NULL)")
 end
 
 function to_sql!(ctx, core::Placeholder, n)
@@ -919,19 +1009,49 @@ end
 function to_sql!(ctx, core::SelectClause, n)
     base = n.args[1]
     list = @view n.args[2:end]
-    nest!(ctx)
-    if ctx.level > 0
+    nested = ctx.nested
+    if nested
+        ctx.level += 1
         print(ctx, "(")
         newline(ctx)
     end
+    ctx.nested = true
     print(ctx, "SELECT ")
     if core.distinct
         print(ctx, "DISTINCT ")
     end
     to_sql!(ctx, list, ", ", "", "")
     to_sql!(ctx, base)
-    unnest!(ctx)
-    if ctx.level >= 0
+    ctx.nested = nested
+    if nested
+        ctx.level -= 1
+        newline(ctx)
+        print(ctx, ")")
+    end
+end
+
+function to_sql!(ctx, core::UnionClause, n)
+    nested = ctx.nested
+    if nested
+        ctx.level += 1
+        print(ctx, "(")
+        newline(ctx)
+    end
+    ctx.nested = false
+    first = true
+    for arg in n.args
+        if !first
+            newline(ctx)
+            print(ctx, core.all ? "UNION ALL" : "UNION")
+            newline(ctx)
+        else
+            first = false
+        end
+        to_sql!(ctx, arg)
+    end
+    ctx.nested = nested
+    if nested
+        ctx.level -= 1
         newline(ctx)
         print(ctx, ")")
     end
