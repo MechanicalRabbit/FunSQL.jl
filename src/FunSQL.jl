@@ -735,7 +735,10 @@ function normalize(core::Select, n, refs, as)
         push!(list′, l)
     end
     list′ = replace_refs(list′, base_repl)
-    n′ = base′ |> As(base_as) |> FromClause() |> SelectClause(list′)
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         SelectClause(list′)
     repl = Dict{SQLNode,SQLNode}()
     for ref in refs
         ref_core = ref.core
@@ -756,7 +759,11 @@ function normalize(::Where, n, refs, as)
     base_as = gensym()
     base′, base_repl = normalize(base, base_refs, base_as)
     pred′ = replace_refs(pred, base_repl)
-    n′ = base′ |> As(base_as) |> FromClause() |> WhereClause(pred′) |> SelectClause()
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         WhereClause(pred′) |>
+         SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
     for ref in refs
@@ -770,7 +777,7 @@ function normalize(::Where, n, refs, as)
     n′, repl
 end
 
-function normalize(::Join, n, refs, as)
+function normalize(core::Join, n, refs, as)
     left, right, on = n.args
     on = resolve(on, [left, right])
     all_refs = collect_refs(on)
@@ -783,7 +790,11 @@ function normalize(::Join, n, refs, as)
     right′, right_repl = normalize(right, all_refs, right_as)
     all_repl = merge(left_repl, right_repl)
     on′ = replace_refs(on, all_repl)
-    n′ = left′ |> As(left_as) |> FromClause() |> JoinClause(right′ |> As(right_as), on′) |> SelectClause()
+    n′ = left′ |>
+         As(left_as) |>
+         FromClause() |>
+         JoinClause(right′ |> As(right_as), on′, is_left=core.is_left, is_right=core.is_right) |>
+         SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
     for ref in refs
@@ -834,7 +845,11 @@ function normalize(core::Group, n, refs, as)
     base′, base_repl = normalize(base, base_refs, base_as)
     list′ = SQLNode[l.core isa As ? l : l |> As(alias(l)) for l in list]
     list′ = replace_refs(list′, base_repl)
-    n′ = base′ |> As(base_as) |> FromClause() |> GroupClause(SQLNode[Literal(k) for k = 1:length(list)]) |> SelectClause(list′)
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         GroupClause(SQLNode[Literal(k) for k = 1:length(list)]) |>
+         SelectClause(list′)
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
     for ref in refs
@@ -856,23 +871,32 @@ function normalize(::Append, n, refs, as)
     bases′ = SQLNode[]
     for arg in n.args
         arg_refs = SQLNode[]
+        seen = Set{Symbol}()
         for ref in refs
             ref_core = ref.core
             if ref_core isa Lookup && ref.args[1] === n
+                !(ref_core.name in seen) || continue
+                push!(seen, ref_core.name)
                 arg_ref = lookup(arg, ref_core.name)::SQLNode
                 push!(arg_refs, arg_ref)
             end
         end
         arg_as = gensym()
         arg′, arg_repl = normalize(arg, arg_refs, arg_as)
-        base′ = arg′ |> As(arg_as) |> FromClause() |> SelectClause(SQLNode[arg_repl[arg_ref] |> As(arg_ref.core.name) for arg_ref in arg_refs])
+        base′ = arg′ |>
+                As(arg_as) |>
+                FromClause() |>
+                SelectClause(SQLNode[arg_repl[arg_ref] |> As(arg_ref.core.name) for arg_ref in arg_refs])
         push!(bases′, base′)
     end
     n′ = bases′[1] |> UnionClause(@view bases′[2:end])
     repl = Dict{SQLNode,SQLNode}()
     for ref in refs
         ref_core = ref.core
+        seen = Set{Symbol}()
         if ref_core isa Lookup && ref.args[1] === n
+                !(ref_core.name in seen) || continue
+                push!(seen, ref_core.name)
             repl[ref] = Literal((as, ref_core.name))
         end
     end
