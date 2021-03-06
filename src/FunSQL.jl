@@ -73,6 +73,11 @@ struct Select <: SQLCore
         new()
 end
 
+struct Define <: SQLCore
+    Define(::Type{SQLCore}) =
+        new()
+end
+
 struct Where <: SQLCore
     Where(::Type{SQLCore}) =
         new()
@@ -234,6 +239,17 @@ Select(list::AbstractVector) =
 
 Select(list...) =
     SQLNodeClosure(SQLCore(Select), SQLNode[list...])
+
+# Define
+
+Define(list::Vector{SQLNode}) =
+    SQLNodeClosure(SQLCore(Define), list)
+
+Define(list::AbstractVector) =
+    SQLNodeClosure(SQLCore(Define), SQLNode[list...])
+
+Define(list...) =
+    SQLNodeClosure(SQLCore(Define), SQLNode[list...])
 
 # Where
 
@@ -518,6 +534,17 @@ function lookup(::Select, n, name, default)
     default
 end
 
+function lookup(::Define, n, name, default)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    for arg in list
+        if alias(arg) === name
+            return n |> Lookup(name)
+        end
+    end
+    lookup(base, name, default)
+end
+
 function lookup(::Where, n, name, default)
     base = n.args[1]
     base_alias = alias(base)
@@ -603,7 +630,7 @@ lookup_group(n::SQLNode, default::T) where {T} =
 lookup_group(::SQLCore, n, default) =
     default
 
-lookup_group(::Union{As,Select,Where}, n, default) =
+lookup_group(::Union{As,Select,Define,Where}, n, default) =
     lookup_group(n.args[1], default)
 
 function lookup_group(::Join, n, default)
@@ -672,8 +699,8 @@ default_list(core::From, n) =
 default_list(::Select, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
 
-function default_list(::Union{Where,Window}, n)
-    base, pred = n.args
+function default_list(::Union{Define,Where,Window}, n)
+    base = n.args[1]
     default_list(base)
 end
 
@@ -794,6 +821,50 @@ function normalize(core::Select, n, refs, as)
         ref_core = ref.core
         if ref_core isa Lookup && ref.args[1] === n
             repl[ref] = Literal((as, ref_core.name))
+        end
+    end
+    n′, repl
+end
+
+function normalize(core::Define, n, refs, as)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    seen = Set{Symbol}()
+    base_refs = SQLNode[]
+    for ref in refs
+        ref_core = ref.core
+        if ref_core isa Lookup && ref.args[1] === n
+            push!(seen, ref_core.name)
+        else
+            push!(base_refs, ref)
+        end
+    end
+    list = SQLNode[l for l in list if alias(l) in seen]
+    if isempty(list)
+        return normalize(base, refs, as)
+    end
+    list = resolve(list, [base])
+    for ref in collect_refs(list)
+        push!(base_refs, ref)
+    end
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as)
+    list′ = replace_refs(list, base_repl)
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         SelectClause(list′)
+    repl = Dict{SQLNode,SQLNode}()
+    pos = length(list′)
+    for ref in refs
+        ref_core = ref.core
+        if ref_core isa Lookup && ref.args[1] === n
+            repl[ref] = Literal((as, ref_core.name))
+        elseif ref in keys(base_repl)
+            pos += 1
+            name = Symbol(alias(ref), "_", pos)
+            repl[ref] = Literal((as, name))
+            push!(n′.args, base_repl[ref] |> As(name))
         end
     end
     n′, repl
@@ -1110,6 +1181,24 @@ function to_sql!(ctx, core::Union{FunCall{:ISNULL},FunCall{:IS_NULL},FunCall{Sym
     print(ctx, "(")
     to_sql!(ctx, arg)
     print(ctx, " IS NULL)")
+end
+
+function to_sql!(ctx, core::FunCall{:CASE}, n)
+    args = n.args
+    pos = 1
+    print(ctx, "CASE")
+    while pos <= length(args)
+        if iseven(pos)
+            print(ctx, " THEN ")
+        elseif pos == length(n.args)
+            print(ctx, " ELSE ")
+        else
+            print(ctx, " WHEN ")
+        end
+        to_sql!(ctx, args[pos])
+        pos += 1
+    end
+    print(ctx, " END")
 end
 
 function to_sql!(ctx, core::Placeholder, n)
