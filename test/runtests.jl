@@ -2,8 +2,8 @@
 
 using FunSQL:
     SQLTable, FromClause, SelectClause, WhereClause, HavingClause, GroupClause,
-    JoinClause, UnionClause, From, Select, Where, Join, Group, Append, Fun,
-    Get, Agg, Literal, As, to_sql, normalize
+    WindowClause, JoinClause, UnionClause, From, Select, Where, Join, Group,
+    Window, Append, Fun, Get, Agg, Literal, As, to_sql, normalize
 
 patient = SQLTable(:public, :patient, [:id, :mrn, :sex, :father_id, :mother_id])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
@@ -96,6 +96,16 @@ q = Literal(:patient) |>
     SelectClause(Literal((:n, :mrn)))
 println(to_sql(q))
 
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    WindowClause(Literal((:p, :sex))) |>
+    As(:w) |>
+    SelectClause(Literal((:p, :mrn)),
+                 Agg.Count(over=Literal(:w)),
+                 Agg.Row_Number(over=Literal(:w)))
+println(to_sql(q))
+
 # Semantic operators.
 
 q = From(patient)
@@ -148,5 +158,10 @@ q = patient |>
         "date of the first encounter" => Agg.Min(Get.date, over=Get.encounter),
         "# encounters" => Agg.Count(over=Get.encounter),
         "# conditions" => Agg.Count(over=Get.condition))
+println(to_sql(normalize(q)))
+
+q = patient |>
+    Window(Get.sex, order=[Get.mrn]) |>
+    Select(Get.mrn, Agg.Count(), Agg.Row_Number())
 println(to_sql(normalize(q)))
 

@@ -1,5 +1,7 @@
 module FunSQL
 
+using Dates
+
 #
 # SQL table.
 #
@@ -90,6 +92,16 @@ struct Group <: SQLCore
         new()
 end
 
+struct Window <: SQLCore
+    order_length::Int
+    frame_start::Symbol
+    frame_end::Symbol
+    frame_exclusion::Symbol
+
+    Window(::Type{SQLCore}, order_length) =
+        new(order_length, :_, :_, :_)
+end
+
 struct Append <: SQLCore
     Append(::Type{SQLCore}) =
         new()
@@ -129,8 +141,10 @@ struct FunCall{S} <: SQLCore
 end
 
 struct AggCall{S} <: SQLCore
-    AggCall{S}(::Type{SQLCore}) where {S} =
-        new{S}()
+    distinct::Bool
+
+    AggCall{S}(::Type{SQLCore}, distinct::Bool) where {S} =
+        new{S}(distinct)
 end
 
 struct Placeholder <: SQLCore
@@ -173,6 +187,16 @@ end
 struct GroupClause <: SQLCore
     GroupClause(::Type{SQLCore}) =
         new()
+end
+
+struct WindowClause <: SQLCore
+    order_length::Int
+    frame_start::Symbol
+    frame_end::Symbol
+    frame_exclusion::Symbol
+
+    WindowClause(::Type{SQLCore}, order_length) =
+        new(order_length, :_, :_, :_)
 end
 
 struct UnionClause <: SQLCore
@@ -232,6 +256,14 @@ Group(list::AbstractVector) =
 Group(list...) =
     SQLNodeClosure(SQLCore(Group), SQLNode[list...])
 
+# Window
+
+Window(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
+    SQLNodeClosure(SQLCore(Window, length(order)), SQLNode[list..., order...])
+
+Window(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
+    SQLNodeClosure(SQLCore(Window, length(order)), SQLNode[list..., order...])
+
 # Append (UNION ALL)
 
 Append(list::Vector{SQLNode}) =
@@ -262,7 +294,7 @@ Base.convert(::Type{SQLNode}, p::Pair{<:AbstractString}) =
 Literal(val::T) where {T} =
     SQLNode(SQLCore(Literal{T}, val))
 
-Base.convert(::Type{SQLNode}, val::Union{Bool,Number,AbstractString}) =
+Base.convert(::Type{SQLNode}, val::Union{Bool,Number,AbstractString,Dates.AbstractTime}) =
     Literal(val)
 
 # Bound columns
@@ -341,11 +373,11 @@ end
 
 const Agg = AggNamespace()
 
-(agg::AggNamespace)(name::Symbol, args...; over=FromNothing) =
-    SQLNode(SQLCore(AggCall{Symbol(uppercase(String(name)))}), SQLNode[over, args...])
+(agg::AggNamespace)(name::Symbol, args...; over=FromNothing, distinct::Bool=false) =
+    SQLNode(SQLCore(AggCall{Symbol(uppercase(String(name)))}, distinct), SQLNode[over, args...])
 
-(agg::AggNamespace)(name::AbstractString, args...; over=FromNothing) =
-    SQLNode(SQLCore(AggCall{Symbol(name)}), SQLNode[over, args...])
+(agg::AggNamespace)(name::AbstractString, args...; over=FromNothing, distinct::Bool=false) =
+    SQLNode(SQLCore(AggCall{Symbol(name)}, distinct), SQLNode[over, args...])
 
 Base.getproperty(agg::AggNamespace, name::Symbol) =
     AggClosure(Symbol(uppercase(String(name))))
@@ -353,8 +385,8 @@ Base.getproperty(agg::AggNamespace, name::Symbol) =
 Base.getproperty(agg::AggNamespace, name::AbstractString) =
     AggClosure(Symbol(name))
 
-(agg::AggClosure)(args...; over=FromNothing) =
-    SQLNode(SQLCore(AggCall{agg.name}), SQLNode[over, args...])
+(agg::AggClosure)(args...; over=FromNothing, distinct::Bool=false) =
+    SQLNode(SQLCore(AggCall{agg.name}, distinct), SQLNode[over, args...])
 
 const Count = Agg.COUNT
 
@@ -404,6 +436,14 @@ GroupClause(list::AbstractVector) =
 
 GroupClause(list...) =
     SQLNodeClosure(SQLCore(GroupClause), SQLNode[list...])
+
+# Window Clause
+
+WindowClause(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
+    SQLNodeClosure(SQLCore(WindowClause, length(order)), SQLNode[list..., order...])
+
+WindowClause(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
+    SQLNodeClosure(SQLCore(WindowClause, length(order)), SQLNode[list..., order...])
 
 # Union Clause
 
@@ -532,6 +572,16 @@ function lookup(::Group, n, name, default)
     default
 end
 
+function lookup(::Window, n, name, default)
+    base = n.args[1]
+    base_alias = alias(base)
+    base_alias === nothing ?
+        lookup(base, name, default) :
+    base_alias === name ?
+        base.args[1] :
+        default
+end
+
 function lookup(::Append, n, name, default)
     for arg in n.args
         if lookup(arg, name, nothing) === nothing
@@ -570,7 +620,7 @@ function lookup_group(::Join, n, default)
     default
 end
 
-lookup_group(::Group, n, default) =
+lookup_group(::Union{Group,Window}, n, default) =
     n
 
 operation_name(core::FunCall{S}) where {S} =
@@ -622,7 +672,7 @@ default_list(core::From, n) =
 default_list(::Select, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
 
-function default_list(::Where, n)
+function default_list(::Union{Where,Window}, n)
     base, pred = n.args
     default_list(base)
 end
@@ -861,7 +911,51 @@ function normalize(core::Group, n, refs, as)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = Literal((as, name))
-            push!(n′.args, SQLNode(ref_core, SQLNode[Literal(as), replace_refs(popfirst!(refs_args), base_repl)...]) |> As(name))
+            push!(n′.args, SQLNode(ref_core, SQLNode[FromNothing, replace_refs(popfirst!(refs_args), base_repl)...]) |> As(name))
+        end
+    end
+    n′, repl
+end
+
+function normalize(core::Window, n, refs, as)
+    base = n.args[1]
+    list = resolve(@view(n.args[2:end]), [base])
+    base_refs = collect_refs(list)
+    refs_args = Vector{SQLNode}[]
+    for ref in refs
+        ref_core = ref.core
+        if ref_core isa AggCall && ref.args[1] === n
+            ref_args = resolve(@view(ref.args[2:end]), [base])
+            push!(refs_args, ref_args)
+            collect_refs!(ref_args, base_refs)
+        else
+            push!(base_refs, ref)
+        end
+    end
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as)
+    list′ = replace_refs(list, base_repl)
+    win_as = gensym()
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         WindowClause(list′[1:end-core.order_length], order=list′[end-core.order_length+1:end]) |>
+         As(win_as) |>
+         SelectClause()
+    repl = Dict{SQLNode,SQLNode}()
+    pos = 0
+    for ref in refs
+        ref_core = ref.core
+        if ref_core isa AggCall && ref.args[1] === n
+            pos += 1
+            name = Symbol(alias(ref), "_", pos)
+            repl[ref] = Literal((as, name))
+            push!(n′.args, SQLNode(ref_core, SQLNode[Literal(win_as), replace_refs(popfirst!(refs_args), base_repl)...]) |> As(name))
+        else
+            pos += 1
+            name = Symbol(alias(ref), "_", pos)
+            repl[ref] = Literal((as, name))
+            push!(n′.args, base_repl[ref] |> As(name))
         end
     end
     n′, repl
@@ -949,17 +1043,16 @@ to_sql!(ctx, core::Literal, n) =
     to_sql!(ctx, core.val)
 
 function to_sql!(ctx, @nospecialize(core::AggCall{S}), n) where {S}
+    over = n.args[1]
     print(ctx, S)
-    to_sql!(ctx, @view(n.args[2:end]))
-end
-
-function to_sql!(ctx, core::AggCall{:COUNT}, n)
-    print(ctx, :COUNT)
-    args = @view(n.args[2:end])
-    if !isempty(args)
-        to_sql!(ctx, args)
-    else
-        to_sql!(ctx, SQLNode[true])
+    args = @view n.args[2:end]
+    if isempty(args) && S === :COUNT
+        args = SQLNode[true]
+    end
+    to_sql!(ctx, args, ", ", (core.distinct ? "(DISTINCT " : "("))
+    if !(over.core isa Unit)
+        print(ctx, " OVER ")
+        to_sql!(ctx, over)
     end
 end
 
@@ -986,6 +1079,14 @@ end
 
 function to_sql!(ctx, core::FunCall{:(<=)}, n)
     to_sql!(ctx, n.args, " <= ")
+end
+
+function to_sql!(ctx, core::FunCall{:(+)}, n)
+    to_sql!(ctx, n.args, " + ")
+end
+
+function to_sql!(ctx, core::FunCall{:(-)}, n)
+    to_sql!(ctx, n.args, " - ")
 end
 
 function to_sql!(ctx, core::Union{FunCall{:AND}}, n)
@@ -1018,9 +1119,13 @@ end
 
 function to_sql!(ctx, core::As, n)
     arg, = n.args
-    to_sql!(ctx, arg)
-    print(ctx, " AS ")
-    to_sql!(ctx, core.name)
+    if arg.core isa WindowClause
+        to_sql!(ctx, arg.core, arg, core.name)
+    else
+        to_sql!(ctx, arg)
+        print(ctx, " AS ")
+        to_sql!(ctx, core.name)
+    end
 end
 
 function to_sql!(ctx, core::FromClause, n)
@@ -1128,6 +1233,34 @@ function to_sql!(ctx, core::GroupClause, n)
     end
 end
 
+function to_sql!(ctx, core::WindowClause, n, name)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    partition = list[1:end-core.order_length]
+    order = list[end-core.order_length+1:end]
+    to_sql!(ctx, base)
+    newline(ctx)
+    print(ctx, "WINDOW ")
+    to_sql!(ctx, name)
+    print(ctx, " AS (")
+    first = true
+    if !isempty(partition)
+        first = false
+        print(ctx, "PARTITION BY ")
+        to_sql!(ctx, partition, ", ", "", "")
+    end
+    if !isempty(order)
+        if !first
+            print(ctx, " ")
+        else
+            first = false
+        end
+        print(ctx, "ORDER BY ")
+        to_sql!(ctx, order, ", ", "", "")
+    end
+    print(ctx, ")")
+end
+
 function to_sql!(ctx, ::Missing)
     print(ctx, "NULL")
 end
@@ -1142,6 +1275,11 @@ end
 
 function to_sql!(ctx, s::AbstractString)
     print(ctx, '\'', replace(s, '\'' => "''"), '\'')
+end
+
+function to_sql!(ctx, d::Dates.Day)
+    to_sql!(ctx, string(d))
+    print(ctx, "::INTERVAL")
 end
 
 function to_sql!(ctx, n::Symbol)
