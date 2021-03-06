@@ -1,9 +1,10 @@
 #!/usr/bin/env julia
 
 using FunSQL:
-    SQLTable, FromClause, SelectClause, WhereClause, HavingClause, GroupClause,
-    WindowClause, JoinClause, UnionClause, From, Select, Where, Join, Group,
-    Window, Append, Fun, Get, Agg, Literal, As, to_sql, normalize
+    SQLTable, UnitClause, FromClause, SelectClause, WhereClause, HavingClause,
+    GroupClause, WindowClause, JoinClause, UnionClause, From, Select, Where,
+    Bind, Join, Group, Window, Append, Fun, Get, Agg, Literal, As, to_sql,
+    normalize
 
 patient = SQLTable(:public, :patient, [:id, :mrn, :sex, :father_id, :mother_id])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
@@ -106,6 +107,41 @@ q = Literal(:patient) |>
                  Agg.Row_Number(over=Literal(:w)))
 println(to_sql(q))
 
+#=
+    SELECT EXISTS(SELECT TRUE FROM patient)
+=#
+
+q = UnitClause() |>
+    SelectClause(Fun.Exists(Literal(:patient) |>
+                            FromClause() |>
+                            SelectClause(true)))
+println(to_sql(q))
+
+#=
+    SELECT p.mrn
+    FROM patient p
+    WHERE EXISTS(
+        SELECT TRUE
+        FROM patient c
+        WHERE c.father_id = p.id OR c.mother_id = p.id)
+=#
+
+q = Literal(:patient) |>
+    As(:p) |>
+    FromClause() |>
+    WhereClause(
+        Fun.Exists(
+            Literal(:patient) |>
+            As(:c) |>
+            FromClause() |>
+            WhereClause(
+                Fun.Or(Fun."="(Literal((:c, :father_id)), Literal((:p, :id))),
+                       Fun."="(Literal((:c, :mother_id)), Literal((:p, :id))))) |>
+            SelectClause(true))) |>
+    SelectClause(Literal((:p, :mrn)))
+println(to_sql(q))
+
+
 # Semantic operators.
 
 q = From(patient)
@@ -164,4 +200,52 @@ q = patient |>
     Window(Get.sex, order=[Get.mrn]) |>
     Select(Get.mrn, Agg.Count(), Agg.Row_Number())
 println(to_sql(normalize(q)))
+
+
+#=
+    SELECT EXISTS(SELECT TRUE FROM patient)
+=#
+
+q = From(nothing)
+println(to_sql(normalize(q)))
+
+q = From(nothing) |>
+    Select(Fun.Exists(From(patient)))
+println(to_sql(normalize(q)))
+
+#=
+    SELECT p.mrn
+    FROM patient p
+    WHERE EXISTS(
+        SELECT TRUE
+        FROM patient c
+        WHERE c.father_id = p.id OR c.mother_id = p.id)
+=#
+
+subq(parent_id) =
+    From(patient) |>
+    Where(Fun.Or(Fun."="(Get.father_id, Get.parent_id),
+                 Fun."="(Get.mother_id, Get.parent_id))) |>
+    Bind(:parent_id => parent_id)
+
+q = subq(1)
+println(to_sql(normalize(q)))
+
+q = subq(1) |> Select(Get.mrn)
+println(to_sql(normalize(q)))
+
+q = patient |>
+    Where(Fun.Exists(subq(Get.id)))
+println(to_sql(normalize(q)))
+
+#=
+    SELECT p.mrn, c.mrn
+    FROM patient p
+    LEFT JOIN LATERAL (
+        SELECT c.mrn
+        FROM patient c
+        WHERE c.father_id = p.id OR c.mother_id = p.id
+        LIMIT 1
+    ) ON (TRUE) AS c
+=#
 
