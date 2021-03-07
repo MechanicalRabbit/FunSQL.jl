@@ -249,3 +249,8 @@ println(to_sql(normalize(q)))
     ) ON (TRUE) AS c
 =#
 
+q = patient |>
+    Join(:child => subq(Get.id), true) |>
+    Select(Get.mrn, Get.child.mrn)
+println(to_sql(normalize(q)))
+

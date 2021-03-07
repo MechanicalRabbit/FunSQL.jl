@@ -91,10 +91,9 @@ end
 struct Join <: SQLCore
     is_left::Bool
     is_right::Bool
-    is_lateral::Bool
 
-    Join(::Type{SQLCore}, is_left::Bool, is_right::Bool, is_lateral::Bool) =
-        new(is_left, is_right, is_lateral)
+    Join(::Type{SQLCore}, is_left::Bool, is_right::Bool) =
+        new(is_left, is_right)
 end
 
 struct Group <: SQLCore
@@ -184,9 +183,10 @@ end
 struct JoinClause <: SQLCore
     is_left::Bool
     is_right::Bool
+    is_lateral::Bool
 
-    JoinClause(::Type{SQLCore}, is_left::Bool, is_right::Bool) =
-        new(is_left, is_right)
+    JoinClause(::Type{SQLCore}, is_left::Bool, is_right::Bool, is_lateral::Bool) =
+        new(is_left, is_right, is_lateral)
 end
 
 struct WhereClause <: SQLCore
@@ -279,8 +279,8 @@ Where(pred) =
 
 # Join
 
-Join(right, on; is_left::Bool=false, is_right::Bool=false, is_lateral::Bool=false) =
-    SQLNodeClosure(SQLCore(Join, is_left, is_right, is_lateral), SQLNode[right, on])
+Join(right, on; is_left::Bool=false, is_right::Bool=false) =
+    SQLNodeClosure(SQLCore(Join, is_left, is_right), SQLNode[right, on])
 
 # Group
 
@@ -465,8 +465,8 @@ HavingClause(pred) =
 
 # Join Clause
 
-JoinClause(right, on; is_left::Bool=false, is_right::Bool=false) =
-    SQLNodeClosure(SQLCore(JoinClause, is_left, is_right), SQLNode[right, on])
+JoinClause(right, on; is_left::Bool=false, is_right::Bool=false, is_lateral::Bool=false) =
+    SQLNodeClosure(SQLCore(JoinClause, is_left, is_right, is_lateral), SQLNode[right, on])
 
 # Group Clause
 
@@ -691,6 +691,7 @@ end
 function collect_refs!(n::SQLNode, refs)
     if n.core isa Lookup || n.core isa AggCall
         push!(refs, n)
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Append}
     elseif n.core isa Bind
         collect_refs!(@view(n.args[2:end]), refs)
     else
@@ -704,26 +705,32 @@ function collect_refs!(ns::AbstractVector{SQLNode}, refs)
     end
 end
 
-function replace_refs(n::SQLNode, repl, bindings)
+function replace_refs(n::SQLNode, repl, bindings, apply_normalize=true)
     if n.core isa Lookup || n.core isa AggCall
         return get(repl, n, n)
     elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Append}
-        n′, repl′ = normalize(n, SQLNode[], gensym(), bindings)
-        return n′
+        if apply_normalize
+            n′, repl′ = normalize(n, SQLNode[], gensym(), bindings)
+            return n′
+        else
+            return n
+        end
     elseif n.core isa Bind
         base = n.args[1]
         list = @view n.args[2:end]
-        list′ = replace_refs(list, repl, bindings)
+        list′ = replace_refs(list, repl, bindings, apply_normalize)
         n′ = SQLNode(n.core, SQLNode[base, list′...])
-        n′, repl′ = normalize(n′, SQLNode[], gensym(), bindings)
+        if apply_normalize
+            n′, repl′ = normalize(n′, SQLNode[], gensym(), bindings)
+        end
         return n′
     end
-    args′ = replace_refs(n.args, repl, bindings)
+    args′ = replace_refs(n.args, repl, bindings, apply_normalize)
     args′ != n.args ? SQLNode(n.core, args′) : n
 end
 
-replace_refs(ns::AbstractVector{SQLNode}, repl, bindings) =
-    SQLNode[replace_refs(n, repl, bindings) for n in ns]
+replace_refs(ns::AbstractVector{SQLNode}, repl, bindings, apply_normalize=true) =
+    SQLNode[replace_refs(n, repl, bindings, apply_normalize) for n in ns]
 
 default_list(n::SQLNode) =
     default_list(n.core, n)::Vector{SQLNode}
@@ -958,21 +965,40 @@ end
 
 function normalize(core::Join, n, refs, as, bindings)
     left, right, on = n.args
+    right = resolve(right, [left], bindings)
     on = resolve(on, [left, right], bindings)
     all_refs = collect_refs(on)
     for ref in refs
         push!(all_refs, ref)
     end
     left_as = gensym()
-    left′, left_repl = normalize(left, all_refs, left_as, bindings)
     right_as = gensym()
-    right′, right_repl = normalize(right, all_refs, right_as, bindings)
-    all_repl = merge(left_repl, right_repl)
+    right_binds = collect_refs(right)
+    if isempty(right_binds)
+        left′, left_repl = normalize(left, all_refs, left_as, bindings)
+        right′, right_repl = normalize(right, all_refs, right_as, bindings)
+        all_repl = merge(left_repl, right_repl)
+        is_lateral = false
+    else
+        left_refs = copy(all_refs)
+        for ref in right_binds
+            push!(left_refs, ref)
+        end
+        left′, left_repl = normalize(left, left_refs, left_as, bindings)
+        right = replace_refs(right, left_repl, bindings, false)
+        right′, right_repl = normalize(right, all_refs, right_as, bindings)
+        all_repl = merge(left_repl, right_repl)
+        is_lateral = true
+    end
     on′ = replace_refs(on, all_repl, bindings)
     n′ = left′ |>
          As(left_as) |>
          FromClause() |>
-         JoinClause(right′ |> As(right_as), on′, is_left=core.is_left, is_right=core.is_right) |>
+         JoinClause(right′ |> As(right_as),
+                    on′,
+                    is_left=core.is_left,
+                    is_right=core.is_right,
+                    is_lateral=is_lateral) |>
          SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     pos = 0
@@ -1374,6 +1400,9 @@ function to_sql!(ctx, core::JoinClause, n)
         print(ctx, "RIGHT JOIN ")
     else
         print(ctx, "JOIN ")
+    end
+    if core.is_lateral
+        print(ctx, "LATERAL ")
     end
     to_sql!(ctx, right)
     print(ctx, " ON ")
