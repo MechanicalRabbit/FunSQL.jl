@@ -96,6 +96,11 @@ struct Join <: SQLCore
         new(is_left, is_right)
 end
 
+struct Order <: SQLCore
+    Order(::Type{SQLCore}) =
+        new()
+end
+
 struct Group <: SQLCore
     Group(::Type{SQLCore}) =
         new()
@@ -109,6 +114,13 @@ struct Window <: SQLCore
 
     Window(::Type{SQLCore}, order_length) =
         new(order_length, :_, :_, :_)
+end
+
+struct Distinct <: SQLCore
+    order_length::Int
+
+    Distinct(::Type{SQLCore}, order_length) =
+        new(order_length)
 end
 
 struct Limit <: SQLCore
@@ -172,9 +184,9 @@ struct Placeholder <: SQLCore
 end
 
 struct SelectClause <: SQLCore
-    distinct::Bool
+    distinct::Union{Bool,Int}
 
-    SelectClause(::Type{SQLCore}, distinct::Bool=false) =
+    SelectClause(::Type{SQLCore}, distinct=false) =
         new(distinct)
 end
 
@@ -204,6 +216,11 @@ end
 
 struct HavingClause <: SQLCore
     HavingClause(::Type{SQLCore}) =
+        new()
+end
+
+struct OrderClause <: SQLCore
+    OrderClause(::Type{SQLCore}) =
         new()
 end
 
@@ -304,6 +321,17 @@ Where(pred) =
 Join(right, on; is_left::Bool=false, is_right::Bool=false) =
     SQLNodeClosure(SQLCore(Join, is_left, is_right), SQLNode[right, on])
 
+# Order
+
+Order(list::Vector{SQLNode}) =
+    SQLNodeClosure(SQLCore(Order), list)
+
+Order(list::AbstractVector) =
+    SQLNodeClosure(SQLCore(Order), SQLNode[list...])
+
+Order(list...) =
+    SQLNodeClosure(SQLCore(Order), SQLNode[list...])
+
 # Group
 
 Group(list::Vector{SQLNode}) =
@@ -322,6 +350,14 @@ Window(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
 
 Window(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
     SQLNodeClosure(SQLCore(Window, length(order)), SQLNode[list..., order...])
+
+# Distinct
+
+Distinct(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
+    SQLNodeClosure(SQLCore(Distinct, length(order)), SQLNode[list..., order...])
+
+Distinct(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
+    SQLNodeClosure(SQLCore(Distinct, length(order)), SQLNode[list..., order...])
 
 # Limit
 
@@ -479,14 +515,26 @@ FromClause() =
 
 # Select Clause
 
-SelectClause(list::Vector{SQLNode}; distinct::Bool=false) =
-    SQLNodeClosure(SQLCore(SelectClause, distinct), list)
+SelectClause(list::Vector{SQLNode}; distinct=false) =
+    if distinct isa AbstractVector
+        SQLNodeClosure(SQLCore(SelectClause, length(distinct)), SQLNode[distinct..., list...])
+    else
+        SQLNodeClosure(SQLCore(SelectClause, distinct), list)
+    end
 
-SelectClause(list::AbstractVector; distinct::Bool=false) =
-    SQLNodeClosure(SQLCore(SelectClause, distinct), SQLNode[list...])
+SelectClause(list::AbstractVector; distinct=false) =
+    if distinct isa AbstractVector
+        SQLNodeClosure(SQLCore(SelectClause, length(distinct)), SQLNode[distinct..., list...])
+    else
+        SQLNodeClosure(SQLCore(SelectClause, distinct), SQLNode[list...])
+    end
 
-SelectClause(list...; distinct::Bool=false) =
-    SQLNodeClosure(SQLCore(SelectClause, distinct), SQLNode[list...])
+SelectClause(list...; distinct=false) =
+    if distinct isa AbstractVector
+        SQLNodeClosure(SQLCore(SelectClause, length(distinct)), SQLNode[distinct..., list...])
+    else
+        SQLNodeClosure(SQLCore(SelectClause, distinct), SQLNode[list...])
+    end
 
 # Where and Having Clauses
 
@@ -500,6 +548,17 @@ HavingClause(pred) =
 
 JoinClause(right, on; is_left::Bool=false, is_right::Bool=false, is_lateral::Bool=false) =
     SQLNodeClosure(SQLCore(JoinClause, is_left, is_right, is_lateral), SQLNode[right, on])
+
+# Order Clause
+
+OrderClause(list::Vector{SQLNode}) =
+    SQLNodeClosure(SQLCore(OrderClause), list)
+
+OrderClause(list::AbstractVector) =
+    SQLNodeClosure(SQLCore(OrderClause), SQLNode[list...])
+
+OrderClause(list...) =
+    SQLNodeClosure(SQLCore(OrderClause), SQLNode[list...])
 
 # Group Clause
 
@@ -612,7 +671,7 @@ function lookup(::Define, n, name, default)
     lookup(base, name, default)
 end
 
-function lookup(::Union{Bind,Where,Limit}, n, name, default)
+function lookup(::Union{Bind,Where,Limit,Order,Window,Distinct}, n, name, default)
     base = n.args[1]
     base_alias = alias(base)
     base_alias === nothing ?
@@ -666,16 +725,6 @@ function lookup(::Group, n, name, default)
     default
 end
 
-function lookup(::Window, n, name, default)
-    base = n.args[1]
-    base_alias = alias(base)
-    base_alias === nothing ?
-        lookup(base, name, default) :
-    base_alias === name ?
-        base.args[1] :
-        default
-end
-
 function lookup(::Append, n, name, default)
     for arg in n.args
         if lookup(arg, name, nothing) === nothing
@@ -697,7 +746,7 @@ lookup_group(n::SQLNode, default::T) where {T} =
 lookup_group(::SQLCore, n, default) =
     default
 
-lookup_group(::Union{As,Select,Define,Bind,Where,Limit}, n, default) =
+lookup_group(::Union{As,Select,Define,Bind,Where,Limit,Order,Distinct}, n, default) =
     lookup_group(n.args[1], default)
 
 function lookup_group(::Join, n, default)
@@ -732,7 +781,7 @@ end
 function collect_refs!(n::SQLNode, refs)
     if n.core isa Lookup || n.core isa AggCall
         push!(refs, n)
-    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Limit,Window,Append}
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Limit,Window,Distinct,Append}
     elseif n.core isa Bind
         collect_refs!(@view(n.args[2:end]), refs)
     else
@@ -749,7 +798,7 @@ end
 function replace_refs(n::SQLNode, repl, bindings, apply_normalize=true)
     if n.core isa Lookup || n.core isa AggCall
         return get(repl, n, n)
-    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Limit,Window,Append}
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Limit,Window,Distinct,Append}
         if apply_normalize
             n′, repl′ = normalize(n, SQLNode[], gensym(), bindings)
             return n′
@@ -785,7 +834,7 @@ default_list(core::From, n) =
 default_list(::Select, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
 
-function default_list(::Union{Define,Bind,Where,Limit,Window}, n)
+function default_list(::Union{Define,Bind,Where,Order,Limit,Window,Distinct}, n)
     base = n.args[1]
     default_list(base)
 end
@@ -866,7 +915,7 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode}, bindings)
         args′ = copy(n.args)
         args′[1] = over′
         return SQLNode(core, args′)
-    elseif core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Limit,Append}
+    elseif core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Window,Distinct,Limit,Append}
         return n
     elseif core isa Bind
         base = n.args[1]
@@ -1080,6 +1129,35 @@ function normalize(core::From, n, refs, as, bindings)
     n′, repl
 end
 
+function normalize(::Order, n, refs, as, bindings)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    list = resolve(list, [base], bindings)
+    base_refs = collect_refs(list)
+    for ref in refs
+        push!(base_refs, ref)
+    end
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as, bindings)
+    list′ = replace_refs(list, base_repl, bindings)
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         OrderClause(list′) |>
+         SelectClause()
+    repl = Dict{SQLNode,SQLNode}()
+    pos = 0
+    for ref in refs
+        if ref in keys(base_repl)
+            pos += 1
+            name = Symbol(alias(ref), "_", pos)
+            repl[ref] = Literal((as, name))
+            push!(n′.args, base_repl[ref] |> As(name))
+        end
+    end
+    n′, repl
+end
+
 function normalize(core::Group, n, refs, as, bindings)
     base = n.args[1]
     list = resolve(@view(n.args[2:end]), [base], bindings)
@@ -1154,6 +1232,35 @@ function normalize(core::Window, n, refs, as, bindings)
             repl[ref] = Literal((as, name))
             push!(n′.args, SQLNode(ref_core, SQLNode[Literal(win_as), replace_refs(popfirst!(refs_args), base_repl, bindings)...]) |> As(name))
         else
+            pos += 1
+            name = Symbol(alias(ref), "_", pos)
+            repl[ref] = Literal((as, name))
+            push!(n′.args, base_repl[ref] |> As(name))
+        end
+    end
+    n′, repl
+end
+
+function normalize(core::Distinct, n, refs, as, bindings)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    list = resolve(list, [base], bindings)
+    base_refs = collect_refs(list)
+    for ref in refs
+        push!(base_refs, ref)
+    end
+    base_as = gensym()
+    base′, base_repl = normalize(base, base_refs, base_as, bindings)
+    list′ = replace_refs(list, base_repl, bindings)
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause() |>
+         OrderClause(list′) |>
+         SelectClause(distinct=SQLNode[list′[1:end-core.order_length]...])
+    repl = Dict{SQLNode,SQLNode}()
+    pos = 0
+    for ref in refs
+        if ref in keys(base_repl)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = Literal((as, name))
@@ -1398,7 +1505,13 @@ function to_sql!(ctx, core::SelectClause, n)
     end
     ctx.nested = true
     print(ctx, "SELECT ")
-    if core.distinct
+    distinct = core.distinct
+    if distinct isa Int
+        print(ctx, "DISTINCT ON ")
+        to_sql!(ctx, list[1:distinct])
+        print(ctx, " ")
+        list = list[distinct+1:end]
+    elseif distinct
         print(ctx, "DISTINCT ")
     end
     if isempty(list)
@@ -1477,6 +1590,19 @@ function to_sql!(ctx, core::JoinClause, n)
     to_sql!(ctx, right)
     print(ctx, " ON ")
     to_sql!(ctx, on)
+end
+
+function to_sql!(ctx, core::OrderClause, n)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    to_sql!(ctx, base)
+    newline(ctx)
+    print(ctx, "ORDER BY ")
+    if isempty(list)
+        print(ctx, "()")
+    else
+        to_sql!(ctx, list, ", ", "", "")
+    end
 end
 
 function to_sql!(ctx, core::GroupClause, n)

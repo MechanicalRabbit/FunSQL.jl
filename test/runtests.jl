@@ -2,9 +2,10 @@
 
 using FunSQL:
     SQLTable, UnitClause, FromClause, SelectClause, WhereClause, HavingClause,
-    GroupClause, WindowClause, JoinClause, LimitClause, OffsetClause,
-    UnionClause, From, Select, Where, Bind, Join, Group, Window, Limit, Append,
-    Fun, Get, Agg, Literal, As, to_sql, normalize
+    OrderClause, GroupClause, WindowClause, JoinClause, LimitClause,
+    OffsetClause, UnionClause, From, Select, Where, Bind, Join, Order, Group,
+    Window, Distinct, Limit, Append, Fun, Get, Agg, Literal, As, to_sql,
+    normalize
 
 patient = SQLTable(:public, :patient, [:id, :mrn, :sex, :father_id, :mother_id])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
@@ -113,6 +114,13 @@ q = Literal(:patient) |>
     OffsetClause(20) |>
     SelectClause(Literal(:mrn))
 println(to_sql(q))
+
+q = Literal(:patient) |>
+    FromClause() |>
+    OrderClause(Literal(:id)) |>
+    SelectClause(Literal(:mrn), Literal(:sex), distinct=[Literal(:id)])
+println(to_sql(q))
+
 
 #=
     SELECT EXISTS(SELECT TRUE FROM patient)
@@ -273,8 +281,16 @@ println(to_sql(normalize(q)))
 q = patient |> Limit(start=2, count=3)
 println(to_sql(normalize(q)))
 
+q = patient |> Order(Get.mrn)
+println(to_sql(normalize(q)))
+
 q = patient |>
     Select(Get.mrn) |>
     Limit(start=2, count=3)
+println(to_sql(normalize(q)))
+
+q = patient |>
+    Distinct(Get.sex, order=[Get.mrn]) |>
+    Select(Get.mrn, Get.sex)
 println(to_sql(normalize(q)))
 
