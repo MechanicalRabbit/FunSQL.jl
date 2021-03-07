@@ -111,6 +111,14 @@ struct Window <: SQLCore
         new(order_length, :_, :_, :_)
 end
 
+struct Limit <: SQLCore
+    start::Union{Int,Nothing}
+    count::Union{Int,Nothing}
+
+    Limit(::Type{SQLCore}, start, count) =
+        new(start, count)
+end
+
 struct Append <: SQLCore
     Append(::Type{SQLCore}) =
         new()
@@ -214,6 +222,20 @@ struct WindowClause <: SQLCore
         new(order_length, :_, :_, :_)
 end
 
+struct LimitClause <: SQLCore
+    count::Int
+
+    LimitClause(::Type{SQLCore}, count) =
+        new(count)
+end
+
+struct OffsetClause <: SQLCore
+    start::Int
+
+    OffsetClause(::Type{SQLCore}, start) =
+        new(start)
+end
+
 struct UnionClause <: SQLCore
     all::Bool
 
@@ -300,6 +322,17 @@ Window(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
 
 Window(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
     SQLNodeClosure(SQLCore(Window, length(order)), SQLNode[list..., order...])
+
+# Limit
+
+Limit(; start=nothing, count=nothing) =
+    SQLNodeClosure(SQLCore(Limit, start, count))
+
+Limit(r::UnitRange) =
+    SQLNodeClosure(SQLCore(Limit, first(r), length(r)))
+
+Limit(count::Int) =
+    SQLNodeClosure(SQLCore(Limit, nothing, count))
 
 # Append (UNION ALL)
 
@@ -487,6 +520,14 @@ WindowClause(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
 WindowClause(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
     SQLNodeClosure(SQLCore(WindowClause, length(order)), SQLNode[list..., order...])
 
+# Limit and Offset Clauses
+
+LimitClause(count) =
+    SQLNodeClosure(SQLCore(LimitClause, count))
+
+OffsetClause(start) =
+    SQLNodeClosure(SQLCore(OffsetClause, start))
+
 # Union Clause
 
 UnionClause(list::Vector{SQLNode}; all::Bool=true) =
@@ -571,7 +612,7 @@ function lookup(::Define, n, name, default)
     lookup(base, name, default)
 end
 
-function lookup(::Union{Bind,Where}, n, name, default)
+function lookup(::Union{Bind,Where,Limit}, n, name, default)
     base = n.args[1]
     base_alias = alias(base)
     base_alias === nothing ?
@@ -656,7 +697,7 @@ lookup_group(n::SQLNode, default::T) where {T} =
 lookup_group(::SQLCore, n, default) =
     default
 
-lookup_group(::Union{As,Select,Define,Bind,Where}, n, default) =
+lookup_group(::Union{As,Select,Define,Bind,Where,Limit}, n, default) =
     lookup_group(n.args[1], default)
 
 function lookup_group(::Join, n, default)
@@ -691,7 +732,7 @@ end
 function collect_refs!(n::SQLNode, refs)
     if n.core isa Lookup || n.core isa AggCall
         push!(refs, n)
-    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Append}
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Limit,Window,Append}
     elseif n.core isa Bind
         collect_refs!(@view(n.args[2:end]), refs)
     else
@@ -708,7 +749,7 @@ end
 function replace_refs(n::SQLNode, repl, bindings, apply_normalize=true)
     if n.core isa Lookup || n.core isa AggCall
         return get(repl, n, n)
-    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Append}
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Group,Limit,Window,Append}
         if apply_normalize
             n′, repl′ = normalize(n, SQLNode[], gensym(), bindings)
             return n′
@@ -744,7 +785,7 @@ default_list(core::From, n) =
 default_list(::Select, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
 
-function default_list(::Union{Define,Bind,Where,Window}, n)
+function default_list(::Union{Define,Bind,Where,Limit,Window}, n)
     base = n.args[1]
     default_list(base)
 end
@@ -825,7 +866,7 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode}, bindings)
         args′ = copy(n.args)
         args′[1] = over′
         return SQLNode(core, args′)
-    elseif core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Append}
+    elseif core isa Union{Unit,From,Select,Define,Where,Join,Group,Window,Limit,Append}
         return n
     elseif core isa Bind
         base = n.args[1]
@@ -1113,6 +1154,35 @@ function normalize(core::Window, n, refs, as, bindings)
             repl[ref] = Literal((as, name))
             push!(n′.args, SQLNode(ref_core, SQLNode[Literal(win_as), replace_refs(popfirst!(refs_args), base_repl, bindings)...]) |> As(name))
         else
+            pos += 1
+            name = Symbol(alias(ref), "_", pos)
+            repl[ref] = Literal((as, name))
+            push!(n′.args, base_repl[ref] |> As(name))
+        end
+    end
+    n′, repl
+end
+
+function normalize(core::Limit, n, refs, as, bindings)
+    base, = n.args
+    base_as = gensym()
+    base′, base_repl = normalize(base, refs, base_as, bindings)
+    n′ = base′ |>
+         As(base_as) |>
+         FromClause()
+    start = core.start
+    if start !== nothing && start != 1
+        n′ = n′ |> OffsetClause(start - 1)
+    end
+    count = core.count
+    if count !== nothing
+        n′ = n′ |> LimitClause(count)
+    end
+    n′ = n′ |> SelectClause()
+    repl = Dict{SQLNode,SQLNode}()
+    pos = 0
+    for ref in refs
+        if ref in keys(base_repl)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = Literal((as, name))
@@ -1448,6 +1518,20 @@ function to_sql!(ctx, core::WindowClause, n, name)
         to_sql!(ctx, order, ", ", "", "")
     end
     print(ctx, ")")
+end
+
+function to_sql!(ctx, core::LimitClause, n)
+    base, = n.args
+    to_sql!(ctx, base)
+    newline(ctx)
+    print(ctx, "LIMIT ", core.count)
+end
+
+function to_sql!(ctx, core::OffsetClause, n)
+    base, = n.args
+    to_sql!(ctx, base)
+    newline(ctx)
+    print(ctx, "OFFSET ", core.start)
 end
 
 function to_sql!(ctx, ::Missing)

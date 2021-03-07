@@ -2,9 +2,9 @@
 
 using FunSQL:
     SQLTable, UnitClause, FromClause, SelectClause, WhereClause, HavingClause,
-    GroupClause, WindowClause, JoinClause, UnionClause, From, Select, Where,
-    Bind, Join, Group, Window, Append, Fun, Get, Agg, Literal, As, to_sql,
-    normalize
+    GroupClause, WindowClause, JoinClause, LimitClause, OffsetClause,
+    UnionClause, From, Select, Where, Bind, Join, Group, Window, Limit, Append,
+    Fun, Get, Agg, Literal, As, to_sql, normalize
 
 patient = SQLTable(:public, :patient, [:id, :mrn, :sex, :father_id, :mother_id])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
@@ -105,6 +105,13 @@ q = Literal(:patient) |>
     SelectClause(Literal((:p, :mrn)),
                  Agg.Count(over=Literal(:w)),
                  Agg.Row_Number(over=Literal(:w)))
+println(to_sql(q))
+
+q = Literal(:patient) |>
+    FromClause() |>
+    LimitClause(10) |>
+    OffsetClause(20) |>
+    SelectClause(Literal(:mrn))
 println(to_sql(q))
 
 #=
@@ -252,5 +259,22 @@ println(to_sql(normalize(q)))
 q = patient |>
     Join(:child => subq(Get.id), true) |>
     Select(Get.mrn, Get.child.mrn)
+println(to_sql(normalize(q)))
+
+q = patient |> Limit(2:4)
+println(to_sql(normalize(q)))
+
+q = patient |> Limit(start=2)
+println(to_sql(normalize(q)))
+
+q = patient |> Limit(count=3)
+println(to_sql(normalize(q)))
+
+q = patient |> Limit(start=2, count=3)
+println(to_sql(normalize(q)))
+
+q = patient |>
+    Select(Get.mrn) |>
+    Limit(start=2, count=3)
 println(to_sql(normalize(q)))
 
