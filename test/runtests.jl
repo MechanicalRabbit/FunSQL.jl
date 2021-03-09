@@ -3,9 +3,9 @@
 using FunSQL:
     SQLTable, UnitClause, FromClause, SelectClause, WhereClause, HavingClause,
     OrderClause, GroupClause, WindowClause, JoinClause, LimitClause,
-    OffsetClause, UnionClause, From, Select, Where, Bind, Join, Order, Group,
-    Window, Distinct, Limit, Append, Fun, Get, Agg, Literal, As, to_sql,
-    normalize
+    OffsetClause, UnionClause, WithClause, From, Select, Define, Where, Bind,
+    Join, Order, Group, Window, Distinct, Limit, Append, AppendRecursive, Fun,
+    Get, Agg, Literal, As, to_sql, normalize
 
 patient = SQLTable(:public, :patient, [:id, :mrn, :sex, :father_id, :mother_id])
 encounter = SQLTable(:public, :encounter, [:id, :patient_id, :code, :date])
@@ -157,6 +157,37 @@ q = Literal(:patient) |>
 println(to_sql(q))
 
 
+#=
+    WITH males AS (
+        SELECT id, mrn
+        FROM patient
+        WHERE sex = 'male'
+    )
+    females AS (
+        SELECT id, mrn
+        FROM patient
+        WHERE sex = 'female'
+    )
+    SELECT COUNT(TRUE)
+    FROM males
+=#
+
+q = Literal(:males) |>
+    FromClause() |>
+    SelectClause(Agg.Count()) |>
+    WithClause(:males =>
+                    Literal(:patient) |>
+                    FromClause() |>
+                    WhereClause(Fun."="(Literal(:sex), "male")) |>
+                    SelectClause(Literal(:id), Literal(:mrn)),
+               :females =>
+                    Literal(:patient) |>
+                    FromClause() |>
+                    WhereClause(Fun."="(Literal(:sex), "male")) |>
+                    SelectClause(Literal(:id), Literal(:mrn)))
+println(to_sql(q))
+
+
 # Semantic operators.
 
 q = From(patient)
@@ -292,5 +323,58 @@ println(to_sql(normalize(q)))
 q = patient |>
     Distinct(Get.sex, order=[Get.mrn]) |>
     Select(Get.mrn, Get.sex)
+println(to_sql(normalize(q)))
+
+base = From(nothing) |>
+       Select(:n => 1)
+next(q) =
+    q |>
+    Where(Fun."<"(Get.n, 10)) |>
+    Select(:n => Fun."+"(Get.n, 1))
+q = base |>
+    AppendRecursive(next(base))
+println(to_sql(normalize(q)))
+
+base = From(nothing) |>
+       Define(:n => 1) |>
+       Define(:x => 0, :y => 0)
+q = base |>
+    AppendRecursive(
+        base |>
+        As(:child) |>
+        Where(Fun."<"(Get.child.n, 10)) |>
+        Define(:n => Fun."+"(Get.child.n, 1)) |>
+        Define(:x => Get.child.y, :y => Fun."+"(Get.child.x, 1))) |>
+    Select(Get.n, Get.x)
+println(to_sql(normalize(q)))
+
+base =
+    patient |>
+    Where(Fun."="(Get.id, 4)) |>
+    Define(:tree => Get.mrn)
+
+parent_of(base) =
+    patient |>
+    Join(:child => base,
+         Fun."="(Get.id, Get.child.father_id)) |>
+    Define(:tree => Fun.Concat(Get.child.tree, " -> ", Get.mrn))
+
+q = base |>
+    Append(
+        parent_of(base)) |>
+    Select(Get.tree)
+println(to_sql(normalize(q)))
+
+q = base |>
+    Append(
+        parent_of(base),
+        parent_of(parent_of(base)),
+        parent_of(parent_of(parent_of(base)))) |>
+    Select(Get.tree)
+println(to_sql(normalize(q)))
+
+q = base |>
+    AppendRecursive(parent_of(base)) |>
+    Select(Get.tree)
 println(to_sql(normalize(q)))
 

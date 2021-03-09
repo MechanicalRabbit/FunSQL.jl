@@ -136,6 +136,11 @@ struct Append <: SQLCore
         new()
 end
 
+struct AppendRecursive <: SQLCore
+    AppendRecursive(::Type{SQLCore}) =
+        new()
+end
+
 struct As <: SQLCore
     name::Symbol
 
@@ -260,6 +265,13 @@ struct UnionClause <: SQLCore
         new(all)
 end
 
+struct WithClause <: SQLCore
+    recursive::Bool
+
+    WithClause(::Type{SQLCore}, recursive::Bool=false) =
+        new(recursive)
+end
+
 
 #
 # Constructors.
@@ -380,6 +392,11 @@ Append(list::AbstractVector) =
 
 Append(list...) =
     SQLNodeClosure(SQLCore(Append), SQLNode[list...])
+
+# Append Recursive
+
+AppendRecursive(step) =
+    SQLNodeClosure(SQLCore(AppendRecursive), SQLNode[step])
 
 # Aliases
 
@@ -598,6 +615,17 @@ UnionClause(list::AbstractVector; all::Bool=true) =
 UnionClause(list...; all::Bool=true) =
     SQLNodeClosure(SQLCore(UnionClause, all), SQLNode[list...])
 
+# With Clause
+
+WithClause(list::Vector{SQLNode}; recursive::Bool=false) =
+    SQLNodeClosure(SQLCore(WithClause, recursive), list)
+
+WithClause(list::AbstractVector; recursive::Bool=false) =
+    SQLNodeClosure(SQLCore(WithClause, recursive), SQLNode[list...])
+
+WithClause(list...; recursive::Bool=false) =
+    SQLNodeClosure(SQLCore(WithClause, recursive), SQLNode[list...])
+
 # Aliases
 
 alias(n::SQLNode) =
@@ -725,7 +753,7 @@ function lookup(::Group, n, name, default)
     default
 end
 
-function lookup(::Append, n, name, default)
+function lookup(::Union{Append,AppendRecursive}, n, name, default)
     for arg in n.args
         if lookup(arg, name, nothing) === nothing
             return default
@@ -781,7 +809,7 @@ end
 function collect_refs!(n::SQLNode, refs)
     if n.core isa Lookup || n.core isa AggCall
         push!(refs, n)
-    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Limit,Window,Distinct,Append}
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Limit,Window,Distinct,Append,AppendRecursive}
     elseif n.core isa Bind
         collect_refs!(@view(n.args[2:end]), refs)
     else
@@ -795,12 +823,12 @@ function collect_refs!(ns::AbstractVector{SQLNode}, refs)
     end
 end
 
-function replace_refs(n::SQLNode, repl, bindings, apply_normalize=true)
+function replace_refs(n::SQLNode, repl, bindings, carry, apply_normalize=true)
     if n.core isa Lookup || n.core isa AggCall
         return get(repl, n, n)
-    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Limit,Window,Distinct,Append}
+    elseif n.core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Limit,Window,Distinct,Append,AppendRecursive}
         if apply_normalize
-            n′, repl′ = normalize(n, SQLNode[], gensym(), bindings)
+            n′, repl′ = normalize(n, SQLNode[], gensym(), bindings, carry)
             return n′
         else
             return n
@@ -808,19 +836,19 @@ function replace_refs(n::SQLNode, repl, bindings, apply_normalize=true)
     elseif n.core isa Bind
         base = n.args[1]
         list = @view n.args[2:end]
-        list′ = replace_refs(list, repl, bindings, apply_normalize)
+        list′ = replace_refs(list, repl, bindings, carry, apply_normalize)
         n′ = SQLNode(n.core, SQLNode[base, list′...])
         if apply_normalize
-            n′, repl′ = normalize(n′, SQLNode[], gensym(), bindings)
+            n′, repl′ = normalize(n′, SQLNode[], gensym(), bindings, carry)
         end
         return n′
     end
-    args′ = replace_refs(n.args, repl, bindings, apply_normalize)
+    args′ = replace_refs(n.args, repl, bindings, carry, apply_normalize)
     args′ != n.args ? SQLNode(n.core, args′) : n
 end
 
-replace_refs(ns::AbstractVector{SQLNode}, repl, bindings, apply_normalize=true) =
-    SQLNode[replace_refs(n, repl, bindings, apply_normalize) for n in ns]
+replace_refs(ns::AbstractVector{SQLNode}, repl, bindings, carry, apply_normalize=true) =
+    SQLNode[replace_refs(n, repl, bindings, carry, apply_normalize) for n in ns]
 
 default_list(n::SQLNode) =
     default_list(n.core, n)::Vector{SQLNode}
@@ -860,7 +888,7 @@ end
 default_list(::Group, n) =
     SQLNode[n |> Lookup(alias(l)) for l in @view n.args[2:end]]
 
-function default_list(::Append, n)
+function default_list(::Union{Append,AppendRecursive}, n)
     list = default_list(n.args[1])
     for arg in @view n.args[2:end]
         arg_list = default_list(arg)
@@ -870,10 +898,10 @@ function default_list(::Append, n)
     SQLNode[n |> Lookup(alias(l)) for l in list]
 end
 
-resolve(ns::AbstractVector{SQLNode}, bases::AbstractVector{SQLNode}, bindings::Dict{Symbol,SQLNode}) =
-    SQLNode[resolve(n, bases, bindings) for n in ns]
+resolve(ns::AbstractVector{SQLNode}, bases::AbstractVector{SQLNode}, bindings::Dict{Symbol,SQLNode}, carry) =
+    SQLNode[resolve(n, bases, bindings, carry) for n in ns]
 
-function resolve(n::SQLNode, bases::AbstractVector{SQLNode}, bindings)
+function resolve(n::SQLNode, bases::AbstractVector{SQLNode}, bindings, carry)
     core = n.core
     if core isa GetCall
         if isempty(n.args)
@@ -896,7 +924,7 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode}, bindings)
             error("cannot resolve $(core.name)")
         else
             parent, = n.args
-            parent′ = resolve(parent, bases, bindings)
+            parent′ = resolve(parent, bases, bindings, carry)
             return lookup(parent′, core.name)
         end
     elseif core isa AggCall
@@ -910,41 +938,60 @@ function resolve(n::SQLNode, bases::AbstractVector{SQLNode}, bindings)
                 end
             end
         else
-            over′ = resolve(over, bases, bindings)
+            over′ = resolve(over, bases, bindings, carry)
         end
         args′ = copy(n.args)
         args′[1] = over′
         return SQLNode(core, args′)
-    elseif core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Window,Distinct,Limit,Append}
+    elseif core isa Union{Unit,From,Select,Define,Where,Join,Order,Group,Window,Distinct,Limit,Append,AppendRecursive}
         return n
     elseif core isa Bind
         base = n.args[1]
         list = @view n.args[2:end]
-        list′ = resolve(list, bases, bindings)
+        list′ = resolve(list, bases, bindings, carry)
         return SQLNode(core, SQLNode[base, list′...])
     else
-        args′ = resolve(n.args, bases, bindings)
+        args′ = resolve(n.args, bases, bindings, carry)
         args′ != n.args ? SQLNode(core, args′) : n
     end
 end
 
 function normalize(n::SQLNode)
-    n′, repl = normalize(n, default_list(n), :_, Dict{Symbol,SQLNode}())
+    n′, repl = normalize(n, default_list(n), :_, Dict{Symbol,SQLNode}(), Dict{SQLNode,Any}())
     n′
 end
 
-normalize(n::SQLNode, refs, as, bindings) =
-    normalize(n.core, n, refs, as, bindings)
+function normalize(n::SQLNode, refs, as, bindings, carry)
+    if n in keys(carry)
+        n′, carry_names, more = carry[n]
+        repl′ = Dict{SQLNode,SQLNode}()
+        for ref in refs
+            ref_core = ref.core
+            if ref_core isa Lookup
+                n1, repl1 = normalize(n.core, n, Set{SQLNode}([ref]), as, bindings, carry)
+                if ref in keys(repl1)
+                    repl′[ref] = Literal((as, ref_core.name))
+                    if !(ref_core.name in carry_names)
+                        push!(more, ref_core.name)
+                    end
+                end
+            end
+        end
+        n′, repl′
+    else
+        normalize(n.core, n, refs, as, bindings, carry)
+    end
+end
 
-normalize(::As, n, refs, as, bindings) =
-    normalize(n.args[1], refs, as, bindings)
+normalize(::As, n, refs, as, bindings, carry) =
+    normalize(n.args[1], refs, as, bindings, carry)
 
-function normalize(core::Select, n, refs, as, bindings)
+function normalize(core::Select, n, refs, as, bindings, carry)
     base = n.args[1]
-    list = resolve(@view(n.args[2:end]), [base], bindings)
+    list = resolve(@view(n.args[2:end]), [base], bindings, carry)
     base_refs = collect_refs(list)
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
     list′ = SQLNode[]
     seen = Set{Symbol}()
     for l in list
@@ -956,7 +1003,7 @@ function normalize(core::Select, n, refs, as, bindings)
         l = (l.core isa As ? l.args[1] : l) |> As(name)
         push!(list′, l)
     end
-    list′ = replace_refs(list′, base_repl, bindings)
+    list′ = replace_refs(list′, base_repl, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause() |>
@@ -971,7 +1018,7 @@ function normalize(core::Select, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(core::Define, n, refs, as, bindings)
+function normalize(core::Define, n, refs, as, bindings, carry)
     base = n.args[1]
     list = @view n.args[2:end]
     seen = Set{Symbol}()
@@ -986,15 +1033,15 @@ function normalize(core::Define, n, refs, as, bindings)
     end
     list = SQLNode[l for l in list if alias(l) in seen]
     if isempty(list)
-        return normalize(base, refs, as, bindings)
+        return normalize(base, refs, as, bindings, carry)
     end
-    list = resolve(list, [base], bindings)
+    list = resolve(list, [base], bindings, carry)
     for ref in collect_refs(list)
         push!(base_refs, ref)
     end
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
-    list′ = replace_refs(list, base_repl, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
+    list′ = replace_refs(list, base_repl, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause() |>
@@ -1015,26 +1062,26 @@ function normalize(core::Define, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(::Bind, n, refs, as, bindings)
+function normalize(::Bind, n, refs, as, bindings, carry)
     base = n.args[1]
     list = @view n.args[2:end]
     bindings′ = copy(bindings)
     for l in list
         bindings′[alias(l)] = l.core isa As ? l.args[1] : l
     end
-    return normalize(base, refs, as, bindings′)
+    return normalize(base, refs, as, bindings′, carry)
 end
 
-function normalize(::Where, n, refs, as, bindings)
+function normalize(::Where, n, refs, as, bindings, carry)
     base, pred = n.args
-    pred = resolve(pred, [base], bindings)
+    pred = resolve(pred, [base], bindings, carry)
     base_refs = collect_refs(pred)
     for ref in refs
         push!(base_refs, ref)
     end
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
-    pred′ = replace_refs(pred, base_repl, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
+    pred′ = replace_refs(pred, base_repl, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause() |>
@@ -1053,10 +1100,10 @@ function normalize(::Where, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(core::Join, n, refs, as, bindings)
+function normalize(core::Join, n, refs, as, bindings, carry)
     left, right, on = n.args
-    right = resolve(right, [left], bindings)
-    on = resolve(on, [left, right], bindings)
+    right = resolve(right, [left], bindings, carry)
+    on = resolve(on, [left, right], bindings, carry)
     all_refs = collect_refs(on)
     for ref in refs
         push!(all_refs, ref)
@@ -1065,8 +1112,8 @@ function normalize(core::Join, n, refs, as, bindings)
     right_as = gensym()
     right_binds = collect_refs(right)
     if isempty(right_binds)
-        left′, left_repl = normalize(left, all_refs, left_as, bindings)
-        right′, right_repl = normalize(right, all_refs, right_as, bindings)
+        left′, left_repl = normalize(left, all_refs, left_as, bindings, carry)
+        right′, right_repl = normalize(right, all_refs, right_as, bindings, carry)
         all_repl = merge(left_repl, right_repl)
         is_lateral = false
     else
@@ -1074,13 +1121,13 @@ function normalize(core::Join, n, refs, as, bindings)
         for ref in right_binds
             push!(left_refs, ref)
         end
-        left′, left_repl = normalize(left, left_refs, left_as, bindings)
-        right = replace_refs(right, left_repl, bindings, false)
-        right′, right_repl = normalize(right, all_refs, right_as, bindings)
+        left′, left_repl = normalize(left, left_refs, left_as, bindings, carry)
+        right = replace_refs(right, left_repl, bindings, carry, false)
+        right′, right_repl = normalize(right, all_refs, right_as, bindings, carry)
         all_repl = merge(left_repl, right_repl)
         is_lateral = true
     end
-    on′ = replace_refs(on, all_repl, bindings)
+    on′ = replace_refs(on, all_repl, bindings, carry)
     n′ = left′ |>
          As(left_as) |>
          FromClause() |>
@@ -1103,13 +1150,13 @@ function normalize(core::Join, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(::Unit, n, refs, as, bindings)
+function normalize(::Unit, n, refs, as, bindings, carry)
     n′ = UnitClause() |> SelectClause()
     repl = Dict{SQLNode,SQLNode}()
     n′, repl
 end
 
-function normalize(core::From, n, refs, as, bindings)
+function normalize(core::From, n, refs, as, bindings, carry)
     n′ = Literal((core.tbl.scm, core.tbl.name)) |>
          FromClause() |>
          SelectClause()
@@ -1129,17 +1176,17 @@ function normalize(core::From, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(::Order, n, refs, as, bindings)
+function normalize(::Order, n, refs, as, bindings, carry)
     base = n.args[1]
     list = @view n.args[2:end]
-    list = resolve(list, [base], bindings)
+    list = resolve(list, [base], bindings, carry)
     base_refs = collect_refs(list)
     for ref in refs
         push!(base_refs, ref)
     end
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
-    list′ = replace_refs(list, base_repl, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
+    list′ = replace_refs(list, base_repl, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause() |>
@@ -1158,23 +1205,23 @@ function normalize(::Order, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(core::Group, n, refs, as, bindings)
+function normalize(core::Group, n, refs, as, bindings, carry)
     base = n.args[1]
-    list = resolve(@view(n.args[2:end]), [base], bindings)
+    list = resolve(@view(n.args[2:end]), [base], bindings, carry)
     base_refs = collect_refs(list)
     refs_args = Vector{SQLNode}[]
     for ref in refs
         ref_core = ref.core
         if ref_core isa AggCall && ref.args[1] === n
-            ref_args = resolve(@view(ref.args[2:end]), [base], bindings)
+            ref_args = resolve(@view(ref.args[2:end]), [base], bindings, carry)
             push!(refs_args, ref_args)
             collect_refs!(ref_args, base_refs)
         end
     end
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
     list′ = SQLNode[l.core isa As ? l : l |> As(alias(l)) for l in list]
-    list′ = replace_refs(list′, base_repl, bindings)
+    list′ = replace_refs(list′, base_repl, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause() |>
@@ -1191,21 +1238,21 @@ function normalize(core::Group, n, refs, as, bindings)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = Literal((as, name))
-            push!(n′.args, SQLNode(ref_core, SQLNode[FromNothing, replace_refs(popfirst!(refs_args), base_repl, bindings)...]) |> As(name))
+            push!(n′.args, SQLNode(ref_core, SQLNode[FromNothing, replace_refs(popfirst!(refs_args), base_repl, bindings, carry)...]) |> As(name))
         end
     end
     n′, repl
 end
 
-function normalize(core::Window, n, refs, as, bindings)
+function normalize(core::Window, n, refs, as, bindings, carry)
     base = n.args[1]
-    list = resolve(@view(n.args[2:end]), [base], bindings)
+    list = resolve(@view(n.args[2:end]), [base], bindings, carry)
     base_refs = collect_refs(list)
     refs_args = Vector{SQLNode}[]
     for ref in refs
         ref_core = ref.core
         if ref_core isa AggCall && ref.args[1] === n
-            ref_args = resolve(@view(ref.args[2:end]), [base], bindings)
+            ref_args = resolve(@view(ref.args[2:end]), [base], bindings, carry)
             push!(refs_args, ref_args)
             collect_refs!(ref_args, base_refs)
         else
@@ -1213,8 +1260,8 @@ function normalize(core::Window, n, refs, as, bindings)
         end
     end
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
-    list′ = replace_refs(list, base_repl, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
+    list′ = replace_refs(list, base_repl, bindings, carry)
     win_as = gensym()
     n′ = base′ |>
          As(base_as) |>
@@ -1230,7 +1277,7 @@ function normalize(core::Window, n, refs, as, bindings)
             pos += 1
             name = Symbol(alias(ref), "_", pos)
             repl[ref] = Literal((as, name))
-            push!(n′.args, SQLNode(ref_core, SQLNode[Literal(win_as), replace_refs(popfirst!(refs_args), base_repl, bindings)...]) |> As(name))
+            push!(n′.args, SQLNode(ref_core, SQLNode[Literal(win_as), replace_refs(popfirst!(refs_args), base_repl, bindings, carry)...]) |> As(name))
         else
             pos += 1
             name = Symbol(alias(ref), "_", pos)
@@ -1241,17 +1288,17 @@ function normalize(core::Window, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(core::Distinct, n, refs, as, bindings)
+function normalize(core::Distinct, n, refs, as, bindings, carry)
     base = n.args[1]
     list = @view n.args[2:end]
-    list = resolve(list, [base], bindings)
+    list = resolve(list, [base], bindings, carry)
     base_refs = collect_refs(list)
     for ref in refs
         push!(base_refs, ref)
     end
     base_as = gensym()
-    base′, base_repl = normalize(base, base_refs, base_as, bindings)
-    list′ = replace_refs(list, base_repl, bindings)
+    base′, base_repl = normalize(base, base_refs, base_as, bindings, carry)
+    list′ = replace_refs(list, base_repl, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause() |>
@@ -1270,10 +1317,10 @@ function normalize(core::Distinct, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(core::Limit, n, refs, as, bindings)
+function normalize(core::Limit, n, refs, as, bindings, carry)
     base, = n.args
     base_as = gensym()
-    base′, base_repl = normalize(base, refs, base_as, bindings)
+    base′, base_repl = normalize(base, refs, base_as, bindings, carry)
     n′ = base′ |>
          As(base_as) |>
          FromClause()
@@ -1299,7 +1346,7 @@ function normalize(core::Limit, n, refs, as, bindings)
     n′, repl
 end
 
-function normalize(::Append, n, refs, as, bindings)
+function normalize(::Append, n, refs, as, bindings, carry)
     bases′ = SQLNode[]
     for arg in n.args
         arg_refs = SQLNode[]
@@ -1314,7 +1361,7 @@ function normalize(::Append, n, refs, as, bindings)
             end
         end
         arg_as = gensym()
-        arg′, arg_repl = normalize(arg, arg_refs, arg_as, bindings)
+        arg′, arg_repl = normalize(arg, arg_refs, arg_as, bindings, carry)
         base′ = arg′ |>
                 As(arg_as) |>
                 FromClause() |>
@@ -1332,6 +1379,75 @@ function normalize(::Append, n, refs, as, bindings)
             repl[ref] = Literal((as, ref_core.name))
         end
     end
+    n′, repl
+end
+
+function normalize(::AppendRecursive, n, refs, as, bindings, carry)
+    more_refs = copy(refs)
+    bases′ = SQLNode[]
+    rec_as = gensym()
+    more = Set{Symbol}()
+    repeat = true
+    while repeat
+        repeat = false
+        first = true
+        for arg in n.args
+            arg_refs = SQLNode[]
+            seen = Set{Symbol}()
+            for ref in more_refs
+                ref_core = ref.core
+                if ref_core isa Lookup && ref.args[1] === n
+                    !(ref_core.name in seen) || continue
+                    push!(seen, ref_core.name)
+                    arg_ref = lookup(arg, ref_core.name)::SQLNode
+                    push!(arg_refs, arg_ref)
+                end
+            end
+            arg_as = gensym()
+            arg′, arg_repl = normalize(arg, arg_refs, arg_as, bindings, carry)
+            base′ = arg′ |>
+                    As(arg_as) |>
+                    FromClause() |>
+                    SelectClause(SQLNode[arg_repl[arg_ref] |> As(arg_ref.core.name) for arg_ref in arg_refs])
+            push!(bases′, base′)
+            if first
+                carry_names = Set{Symbol}()
+                for key in keys(arg_repl)
+                    key_core = key.core
+                    if key_core isa Lookup
+                        push!(carry_names, key_core.name)
+                    end
+                end
+                carry[arg] = Literal(rec_as), carry_names, more
+                first = false
+            end
+        end
+        delete!(carry, n.args[1])
+        if !isempty(more)
+            for name in more
+                push!(more_refs, n |> Lookup(name))
+            end
+            empty!(more)
+            empty!(bases′)
+            repeat = true
+        end
+    end
+    rec = bases′[1] |> UnionClause(@view(bases′[2:end])) |> As(rec_as)
+    n′ = Literal(rec_as) |>
+         FromClause() |>
+         SelectClause()
+    repl = Dict{SQLNode,SQLNode}()
+    for ref in refs
+        ref_core = ref.core
+        seen = Set{Symbol}()
+        if ref_core isa Lookup && ref.args[1] === n
+                !(ref_core.name in seen) || continue
+                push!(seen, ref_core.name)
+            repl[ref] = Literal((as, ref_core.name))
+            push!(n′.args, Literal((rec_as, ref_core.name)))
+        end
+    end
+    n′ = n′ |> WithClause(rec, recursive=true)
     n′, repl
 end
 
@@ -1547,6 +1663,45 @@ function to_sql!(ctx, core::UnionClause, n)
         end
         to_sql!(ctx, arg)
     end
+    ctx.nested = nested
+    if nested
+        ctx.level -= 1
+        newline(ctx)
+        print(ctx, ")")
+    end
+end
+
+function to_sql!(ctx, core::WithClause, n)
+    nested = ctx.nested
+    if nested
+        ctx.level += 1
+        print(ctx, "(")
+        newline(ctx)
+    end
+    ctx.nested = true
+    first = true
+    for arg in @view n.args[2:end]
+        if first
+            first = false
+            print(ctx, "WITH ")
+            if core.recursive
+                print(ctx, "RECURSIVE ")
+            end
+        else
+            print(ctx, ",")
+            newline(ctx)
+        end
+        arg_core = arg.core
+        if arg_core isa As
+            to_sql!(ctx, arg_core.name)
+            print(ctx, " AS ")
+            arg = arg.args[1]
+        end
+        to_sql!(ctx, arg)
+    end
+    newline(ctx)
+    ctx.nested = false
+    to_sql!(ctx, n.args[1])
     ctx.nested = nested
     if nested
         ctx.level -= 1
