@@ -434,7 +434,9 @@ Base.convert(::Type{SQLNode}, p::Pair{<:AbstractString}) =
 Literal(val::T) where {T} =
     SQLNode(SQLCore(Literal{T}, val))
 
-Base.convert(::Type{SQLNode}, val::Union{Bool,Number,AbstractString,Dates.AbstractTime}) =
+const SQLLiteralType = Union{Bool,Number,AbstractString,Dates.AbstractTime}
+
+Base.convert(::Type{SQLNode}, val::SQLLiteralType) =
     Literal(val)
 
 # Bound columns
@@ -501,6 +503,35 @@ Base.getproperty(fun::FunNamespace, name::AbstractString) =
 
 (fun::FunClosure)(args...) =
     SQLNode(SQLCore(FunCall{fun.name}), SQLNode[args...])
+
+# Broadcasting sugar
+
+struct FunStyle <: Base.BroadcastStyle
+end
+
+#Base.BroadcastStyle(::Type{Union{SQLNode,GetClosure}}) =
+#    FunStyle()
+
+Base.BroadcastStyle(::Type{SQLNode}) =
+    FunStyle()
+
+Base.BroadcastStyle(::FunStyle, ::Base.Broadcast.DefaultArrayStyle{0}) =
+    FunStyle()
+
+Base.broadcastable(n::SQLNode) =
+    n
+
+Base.broadcastable(c::GetClosure) =
+    convert(SQLNode, c)
+
+Base.Broadcast.instantiate(bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    bc
+
+Base.copy(bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    SQLNode(SQLCore(FunCall{bc.f}), SQLNode[bc.args...])
+
+Base.convert(::Type{SQLNode}, ref::Base.RefValue{T}) where {T} =
+    convert(SQLNode, ref.x)
 
 # Aggregate operations
 
@@ -1532,35 +1563,35 @@ function to_sql!(ctx, @nospecialize(core::FunCall{S}), n) where {S}
     to_sql!(ctx, n.args)
 end
 
-function to_sql!(ctx, core::FunCall{:(=)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(=)},FunCall{==}}, n)
     to_sql!(ctx, n.args, " = ")
 end
 
-function to_sql!(ctx, core::FunCall{:(>)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(>)},FunCall{>}}, n)
     to_sql!(ctx, n.args, " > ")
 end
 
-function to_sql!(ctx, core::FunCall{:(>=)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(>=)},FunCall{>=}}, n)
     to_sql!(ctx, n.args, " >= ")
 end
 
-function to_sql!(ctx, core::FunCall{:(<)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(<)},FunCall{<}}, n)
     to_sql!(ctx, n.args, " < ")
 end
 
-function to_sql!(ctx, core::FunCall{:(<=)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(<=)},FunCall{<=}}, n)
     to_sql!(ctx, n.args, " <= ")
 end
 
-function to_sql!(ctx, core::FunCall{:(+)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(+)},FunCall{+}}, n)
     to_sql!(ctx, n.args, " + ")
 end
 
-function to_sql!(ctx, core::FunCall{:(-)}, n)
+function to_sql!(ctx, core::Union{FunCall{:(-)},FunCall{-}}, n)
     to_sql!(ctx, n.args, " - ")
 end
 
-function to_sql!(ctx, core::Union{FunCall{:AND}}, n)
+function to_sql!(ctx, core::Union{FunCall{:AND},FunCall{&}}, n)
     if isempty(n.args)
         print(ctx, "TRUE")
     else
@@ -1568,7 +1599,7 @@ function to_sql!(ctx, core::Union{FunCall{:AND}}, n)
     end
 end
 
-function to_sql!(ctx, core::Union{FunCall{:OR}}, n)
+function to_sql!(ctx, core::Union{FunCall{:OR},FunCall{|}}, n)
     if isempty(n.args)
         print(ctx, "FALSE")
     else
@@ -1576,7 +1607,7 @@ function to_sql!(ctx, core::Union{FunCall{:OR}}, n)
     end
 end
 
-function to_sql!(ctx, core::Union{FunCall{:ISNULL},FunCall{:IS_NULL},FunCall{Symbol("IS NULL")}}, n)
+function to_sql!(ctx, core::Union{FunCall{:ISNULL},FunCall{:IS_NULL},FunCall{Symbol("IS NULL")},FunCall{ismissing}}, n)
     arg, = n.args
     print(ctx, "(")
     to_sql!(ctx, arg)

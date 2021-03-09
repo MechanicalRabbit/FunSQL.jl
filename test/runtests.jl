@@ -201,13 +201,13 @@ q = From(patient) |>
 println(to_sql(normalize(q)))
 
 q = patient |>
-    Where(Fun."="(Get.sex, "male")) |>
+    Where(Get.sex .== "male") |>
     Select(Get.mrn)
 println(to_sql(normalize(q)))
 
 q = patient |>
     Join(:encounter => encounter,
-         Fun."="(Get.id, Get.encounter.patient_id),
+         Get.id .== Get.encounter.patient_id,
          is_left=true) |>
     Select(Get.mrn, Get.encounter.date)
 println(to_sql(normalize(q)))
@@ -219,7 +219,7 @@ println(to_sql(normalize(q)))
 
 q = patient |>
     Join(:encounter => encounter |> Group(Get.patient_id),
-         Fun."="(Get.id, Get.encounter.patient_id),
+         Get.id .== Get.encounter.patient_id,
          is_left=true) |>
     Select(
         Get.mrn,
@@ -229,12 +229,12 @@ println(to_sql(normalize(q)))
 
 q = patient |>
     Join(:encounter => encounter |> Group(Get.patient_id),
-         Fun."="(Get.id, Get.encounter.patient_id),
+         Get.id .== Get.encounter.patient_id,
          is_left=true) |>
     Join(:condition => condition |> Group(Get.patient_id),
-         Fun."="(Get.id, Get.condition.patient_id),
+         Get.id .== Get.condition.patient_id,
          is_left=true) |>
-    Where(Fun."="(Get.sex, "male")) |>
+    Where(Get.sex .== "male") |>
     Select(
         Get.mrn,
         "date of the first encounter" => Agg.Min(Get.date, over=Get.encounter),
@@ -270,8 +270,8 @@ println(to_sql(normalize(q)))
 
 subq(parent_id) =
     From(patient) |>
-    Where(Fun.Or(Fun."="(Get.father_id, Get.parent_id),
-                 Fun."="(Get.mother_id, Get.parent_id))) |>
+    Where(Fun.Or(Get.father_id .== Get.parent_id,
+                 Get.mother_id .== Get.parent_id)) |>
     Bind(:parent_id => parent_id)
 
 q = subq(1)
@@ -328,8 +328,8 @@ println(to_sql(normalize(q)))
 base = From(nothing) |>
        Select(:n => 1)
 next =
-    Where(Fun."<"(Get.n, 10)) |>
-    Select(:n => Fun."+"(Get.n, 1))
+    Where(Get.n .< 10) |>
+    Select(:n => Get.n .+ 1)
 q = base |>
     AppendRecursive(next(base))
 println(to_sql(normalize(q)))
@@ -341,9 +341,10 @@ q = base |>
     AppendRecursive(
         base |>
         As(:child) |>
-        Where(Fun."<"(Get.child.n, 10)) |>
-        Define(:n => Fun."+"(Get.child.n, 1)) |>
-        Define(:x => Get.child.y, :y => Fun."+"(Get.child.x, 1))) |>
+        Where(Get.child.n .< 10) |>
+        Define(:n => Get.child.n .+ 1) |>
+        Define(:x => Get.child.y,
+               :y => Get.child.x .+ 1)) |>
     Select(Get.n, Get.x)
 println(to_sql(normalize(q)))
 
@@ -355,8 +356,8 @@ base =
 parent_of(base) =
     patient |>
     Join(:child => base,
-         Fun.Or(Fun."="(Get.id, Get.child.father_id),
-                Fun."="(Get.id, Get.child.mother_id))) |>
+         Fun.Or(Get.id .== Get.child.father_id,
+                Get.id .== Get.child.mother_id)) |>
     Define(:tree => Fun.Concat(Get.child.tree, " -> ", Get.mrn))
 
 q = base |>
