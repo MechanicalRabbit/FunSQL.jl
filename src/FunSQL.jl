@@ -36,15 +36,31 @@ SQLNode(core::SQLCore, arg::SQLNode) =
 #
 
 struct SQLNodeClosure
+    base::Union{SQLNodeClosure,Nothing}
     core::SQLCore
     args::Vector{SQLNode}
 end
 
 SQLNodeClosure(core::SQLCore) =
-    SQLNodeClosure(core, [])
+    SQLNodeClosure(nothing, core, [])
 
-(c::SQLNodeClosure)(n::SQLNode) =
-    SQLNode(c.core, [n, c.args...])
+SQLNodeClosure(core::SQLCore, args) =
+    SQLNodeClosure(nothing, core, args)
+
+function (c::SQLNodeClosure)(n::SQLNode)
+    base = c.base
+    n′ = base !== nothing ? base(n) : n
+    SQLNode(c.core, [n′, c.args...])
+end
+
+function (c::SQLNodeClosure)(c0::SQLNodeClosure)
+    base = c.base
+    if base === nothing
+        SQLNodeClosure(c0, c.core, c.args)
+    else
+        SQLNodeClosure(base(c0), c.core, c.args)
+    end
+end
 
 (c::SQLNodeClosure)(n) =
     c(convert(SQLNode, n))
@@ -289,6 +305,7 @@ const FromNothing = From(nothing)
 
 Base.convert(::Type{SQLNode}, tbl::SQLTable) =
     From(tbl)
+
 
 # Select
 

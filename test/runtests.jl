@@ -327,8 +327,7 @@ println(to_sql(normalize(q)))
 
 base = From(nothing) |>
        Select(:n => 1)
-next(q) =
-    q |>
+next =
     Where(Fun."<"(Get.n, 10)) |>
     Select(:n => Fun."+"(Get.n, 1))
 q = base |>
@@ -356,7 +355,8 @@ base =
 parent_of(base) =
     patient |>
     Join(:child => base,
-         Fun."="(Get.id, Get.child.father_id)) |>
+         Fun.Or(Fun."="(Get.id, Get.child.father_id),
+                Fun."="(Get.id, Get.child.mother_id))) |>
     Define(:tree => Fun.Concat(Get.child.tree, " -> ", Get.mrn))
 
 q = base |>
