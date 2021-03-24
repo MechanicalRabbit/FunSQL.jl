@@ -1,6 +1,7 @@
 module FunSQL
 
 using Dates
+import PrettyPrinting: pprint, quoteof, tile_expr
 
 #
 # SQL table.
@@ -11,6 +12,15 @@ mutable struct SQLTable
     name::Symbol
     cols::Vector{Symbol}
 end
+
+Base.show(io::IO, n::SQLTable) =
+    print(io, "SQLTable object ($(sprint(to_sql!, n.scm)).$(sprint(to_sql!, n.name)))")
+
+Base.show(io::IO, ::MIME"text/plain", n::SQLTable) =
+    pprint(io, n)
+
+quoteof(n::SQLTable) =
+    Expr(:call, nameof(SQLTable), quoteof(n.scm), quoteof(n.name), n.cols)
 
 #
 # SQL Nodes.
@@ -30,6 +40,15 @@ SQLNode(core::SQLCore) =
 
 SQLNode(core::SQLCore, arg::SQLNode) =
     SQLNode(core, [arg])
+
+Base.show(io::IO, n::SQLNode) =
+    print(io, "SQLNode object ($(nameof(typeof(n.core))))")
+
+Base.show(io::IO, ::MIME"text/plain", n::SQLNode) =
+    pprint(io, n)
+
+quoteof(n::SQLNode) =
+    quoteof(n.core, n)
 
 #
 # Closure for incremental construction.
@@ -306,6 +325,12 @@ const FromNothing = From(nothing)
 Base.convert(::Type{SQLNode}, tbl::SQLTable) =
     From(tbl)
 
+quoteof(core::Unit, n::SQLNode) =
+    Expr(:call, nameof(From), nothing)
+
+quoteof(core::From, n::SQLNode) =
+    Expr(:call, nameof(From), core.tbl.name)
+
 
 # Select
 
@@ -317,6 +342,12 @@ Select(list::AbstractVector) =
 
 Select(list...) =
     SQLNodeClosure(SQLCore(Select), SQLNode[list...])
+
+function quoteof(core::Union{Select,Define,Bind,Where,Order,Group,Append,AppendRecursive}, n::SQLNode)
+    base = n.args[1]
+    list = @view n.args[2:end]
+    Expr(:call, :|>, quoteof(base), Expr(:call, nameof(typeof(core)), list...))
+end
 
 # Define
 
@@ -350,6 +381,18 @@ Where(pred) =
 Join(right, on; is_left::Bool=false, is_right::Bool=false) =
     SQLNodeClosure(SQLCore(Join, is_left, is_right), SQLNode[right, on])
 
+function quoteof(core::Join, n::SQLNode)
+    left, right, on = n.args
+    rex = Expr(:call, nameof(Join), right, on)
+    if core.is_left
+        push!(rex.args, Expr(:kw, :is_left, true))
+    end
+    if core.is_right
+        push!(rex.args, Expr(:kw, :is_right, true))
+    end
+    Expr(:call, :|>, quoteof(left), rex)
+end
+
 # Order
 
 Order(list::Vector{SQLNode}) =
@@ -380,6 +423,17 @@ Window(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
 Window(list...; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
     SQLNodeClosure(SQLCore(Window, length(order)), SQLNode[list..., order...])
 
+function quoteof(core::Union{Window,Distinct}, n::SQLNode)
+    base = n.args[1]
+    list = @view n.args[2:end-core.order_length]
+    order = @view n.args[end-core.order_length+1:end]
+    rex = Expr(:call, nameof(typeof(core)), list...)
+    if !isempty(order)
+        push!(rex.args, Expr(:kw, :order, SQLNode[order...]))
+    end
+    Expr(:call, :|>, quoteof(base), rex)
+end
+
 # Distinct
 
 Distinct(list::AbstractVector; order::AbstractVector=EMPTY_SQLNODE_VECTOR) =
@@ -398,6 +452,19 @@ Limit(r::UnitRange) =
 
 Limit(count::Int) =
     SQLNodeClosure(SQLCore(Limit, nothing, count))
+
+function quoteof(core::Limit, n::SQLNode)
+    base = n.args[1]
+    rex = Expr(:call, nameof(Limit))
+    if core.start !== nothing && core.count !== nothing
+        push!(rex.args, Expr(:call, :(:), core.start, core.count))
+    elseif core.start !== nothing
+        push!(rex.args, Expr(:kw, :start, core.start))
+    elseif core.count !== nothing
+        push!(rex.args, core.count)
+    end
+    Expr(:call, :|>, quoteof(base), rex)
+end
 
 # Append (UNION ALL)
 
@@ -429,6 +496,12 @@ Base.convert(::Type{SQLNode}, p::Pair{Symbol}) =
 Base.convert(::Type{SQLNode}, p::Pair{<:AbstractString}) =
     convert(SQLNode, Symbol(first(p)) => last(p))
 
+function quoteof(core::As, n::SQLNode)
+    base = n.args[1]
+    Expr(:call, :|>, quoteof(base), Expr(:call, nameof(As), QuoteNode(core.name)))
+end
+
+
 # Constants
 
 Literal(val::T) where {T} =
@@ -439,10 +512,18 @@ const SQLLiteralType = Union{Bool,Number,AbstractString,Dates.AbstractTime}
 Base.convert(::Type{SQLNode}, val::SQLLiteralType) =
     Literal(val)
 
+quoteof(core::Literal, n::SQLNode) =
+    Expr(:call, nameof(Literal), quoteof(core.val))
+
 # Bound columns
 
 Lookup(name::Symbol) =
     SQLNodeClosure(SQLCore(Lookup, name))
+
+function quoteof(core::Lookup, n::SQLNode)
+    base = n.args[1]
+    Expr(:call, :|>, quoteof(base), Expr(:call, nameof(Lookup), QuoteNode(core.name)))
+end
 
 # Lookup
 
@@ -478,6 +559,15 @@ Base.getproperty(nav::Union{GetNamespace,GetClosure}, name::AbstractString) =
 Base.convert(::Type{SQLNode}, nav::GetClosure) =
     getfield(nav, :base)
 
+function quoteof(core::GetCall, n::SQLNode)
+    if isempty(n.args)
+        return Expr(:(.), :Get, QuoteNode(core.name))
+    else
+        base = n.args[1]
+        return Expr(:(.), base, QuoteNode(core.name))
+    end
+end
+
 # Operations
 
 struct FunNamespace
@@ -503,6 +593,15 @@ Base.getproperty(fun::FunNamespace, name::AbstractString) =
 
 (fun::FunClosure)(args...) =
     SQLNode(SQLCore(FunCall{fun.name}), SQLNode[args...])
+
+function quoteof(core::FunCall{N}, n::SQLNode) where {N}
+    if N isa Symbol
+        name = Meta.isidentifier(N) ? N : string(N)
+        Expr(:call, Expr(:(.), :Fun, QuoteNode(name)), n.args...)
+    else
+        Expr(:(.), nameof(N), Expr(:tuple, n.args...))
+    end
+end
 
 # Broadcasting sugar
 
@@ -558,6 +657,20 @@ Base.getproperty(agg::AggNamespace, name::AbstractString) =
 
 (agg::AggClosure)(args...; over=FromNothing, distinct::Bool=false) =
     SQLNode(SQLCore(AggCall{agg.name}, distinct), SQLNode[over, args...])
+
+function quoteof(core::AggCall{N}, n::SQLNode) where {N}
+    name = Meta.isidentifier(N) ? N : string(N)
+    over = n.args[1]
+    list = n.args[2:end]
+    ex = Expr(:call, Expr(:(.), :Agg, QuoteNode(name)), list...)
+    if !(over.core isa Unit)
+        push!(ex.args, Expr(:kw, :over, over))
+    end
+    if core.distinct
+        push!(ex.args, Expr(:kw, :distinct, core.distinct))
+    end
+    ex
+end
 
 const Count = Agg.COUNT
 

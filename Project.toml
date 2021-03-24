@@ -5,3 +5,7 @@ version = "0.1.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+PrettyPrinting = "54e16d92-306c-5ea0-a30b-337be88ac337"
+
+[compat]
+PrettyPrinting = "0.3"
