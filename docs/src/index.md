@@ -5,6 +5,14 @@
 
 ### SQL Entities
 
-```@docs
-FunSQL.SQLTable
+```@autodocs
+Modules = [FunSQL]
+Pages = ["entities.jl"]
+```
+
+### Syntactic Structure
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses.jl"]
 ```

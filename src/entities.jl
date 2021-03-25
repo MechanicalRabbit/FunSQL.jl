@@ -15,13 +15,31 @@ column names, and, optionally, the name of the table `schema`.  A name can be
 provided as a `Symbol` or `String` value.
 
 # Examples
-```julia-repl
-julia> SQLTable(:location,
-                :location_id, :address_1, :address_2, :city, :state, :zip);
 
-julia> SQLTable(schema = "public",
-                name = "person",
-                columns = ["person_id", "birth_datetime", "location_id"]);
+```julia-repl
+julia> t = SQLTable(:location,
+                    :location_id, :address_1, :address_2, :city, :state, :zip);
+
+julia> show(t.name)
+:location
+
+julia> show(t.columns)
+[:location_id, :address_1, :address_2, :city, :state, :zip]
+```
+
+```julia-repl
+julia> t = SQLTable(schema = "public",
+                    name = "person",
+                    columns = ["person_id", "birth_datetime", "location_id"]);
+
+julia> show(t.schema)
+:public
+
+julia> show(t.name)
+:person
+
+julia> show(t.columns)
+[:person_id, :birth_datetime, :location_id]
 ```
 """
 struct SQLTable
