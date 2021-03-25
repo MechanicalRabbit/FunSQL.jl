@@ -46,18 +46,23 @@ SQLTable(name; schema = nothing, columns) =
 SQLTable(name, columns...; schema = nothing) =
     SQLTable(schema = schema, name = name, columns = [columns...])
 
-function Base.show(io::IO, tbl::SQLTable)
-    name = replace(string(tbl.name), '"' => "\"\"")
-    print(io, "SQLTable \"$name\"")
-end
+Base.show(io::IO, tbl::SQLTable) =
+    print(io, quoteof(tbl, limit = true))
 
 Base.show(io::IO, ::MIME"text/plain", tbl::SQLTable) =
     pprint(io, tbl)
 
-PrettyPrinting.quoteof(tbl::SQLTable) =
-    Expr(:call,
-         nameof(SQLTable),
-         (tbl.schema !== nothing ? Any[Expr(:kw, :schema, quoteof(tbl.schema))] : [])...,
-         quoteof(tbl.name),
-         Any[quoteof(col) for col in tbl.columns]...)
+function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
+    ex = Expr(:call, nameof(SQLTable))
+    push!(ex.args, quoteof(tbl.name))
+    if tbl.schema !== nothing
+        push!(ex.args, Expr(:kw, :schema, quoteof(tbl.schema)))
+    end
+    if !limit
+        push!(ex.args, Expr(:kw, :columns, tbl.columns))
+    else
+        push!(ex.args, :…)
+    end
+    ex
+end
 

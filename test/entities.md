@@ -13,37 +13,32 @@ either as a `Symbol` or as a `String` value.
                         name = :location,
                         columns = [:location_id, :address_1, :address_2,
                                    :city, :state, :zip])
-    #-> SQLTable "location"
+    #-> SQLTable(:location, schema = :public, …)
 
     person = SQLTable(name = "person",
                       columns = ["person_id", "birth_datetime", "location_id"])
-    #-> SQLTable "person"
+    #-> SQLTable(:person, …)
 
 The table and the column names could be provided as positional arguments.
 
     vocabulary = SQLTable(:vocabulary,
                           columns = [:vocabulary_id, :vocabulary_name])
-    #-> SQLTable "vocabulary"
+    #-> SQLTable(:vocabulary, …)
 
     concept = SQLTable("concept", "concept_id", "concept_name", "vocabulary_id")
-    #-> SQLTable "concept"
+    #-> SQLTable(:concept, …)
 
 A `SQLTable` object is displayed as a Julia expression that created
 the object.
 
     display(location)
     #=>
-    SQLTable(schema = :public,
-             :location,
-             :location_id,
-             :address_1,
-             :address_2,
-             :city,
-             :state,
-             :zip)
+    SQLTable(:location,
+             schema = :public,
+             columns = [:location_id, :address_1, :address_2, :city, :state, :zip])
     =#
 
     display(person)
     #=>
-    SQLTable(:person, :person_id, :birth_datetime, :location_id)
+    SQLTable(:person, columns = [:person_id, :birth_datetime, :location_id])
     =#
