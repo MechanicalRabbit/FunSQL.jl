@@ -9,3 +9,9 @@ PrettyPrinting = "54e16d92-306c-5ea0-a30b-337be88ac337"
 
 [compat]
 PrettyPrinting = "0.3"
+
+[extras]
+NarrativeTest = "9563631e-acd4-5dd8-bebb-4cf36518960d"
+
+[targets]
+test = ["NarrativeTest"]

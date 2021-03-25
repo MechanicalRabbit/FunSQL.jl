@@ -2,6 +2,6 @@
 
 module FunSQL
 
-include("tables.jl")
+include("entities.jl")
 
 end

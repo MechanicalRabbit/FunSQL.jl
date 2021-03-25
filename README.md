@@ -12,7 +12,7 @@
 
 [doc-rel-img]: https://img.shields.io/badge/docs-stable-green.svg
 [doc-rel-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/
-[doc-dev-img]: https://img.shields.io/badge/doc-dev-blue.svg
+[doc-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [doc-dev-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/
 [ci-img]: https://github.com/MechanicalRabbit/FunSQL.jl/workflows/CI/badge.svg
 [ci-url]: https://github.com/MechanicalRabbit/FunSQL.jl/actions?query=workflow%3ACI+branch%3Amaster

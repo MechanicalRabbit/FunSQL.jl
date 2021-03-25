@@ -1,4 +1,4 @@
-# Structure of a SQL table.
+# Representation of SQL entities.
 
 using PrettyPrinting: PrettyPrinting, pprint, quoteof
 
