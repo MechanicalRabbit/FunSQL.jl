@@ -231,18 +231,19 @@ rebase(c::AsClause, c′) =
 # FROM clause.
 
 mutable struct FromClause <: AbstractSQLClause
-    over::SQLClause
+    over::Union{SQLClause, Nothing}
+    modifier::Union{SQLClause, Nothing}
 
-    FromClause(; over = nothing) =
-        new(over)
+    FromClause(; over = nothing, modifier = nothing) =
+        new(over, modifier)
 end
 
-FromClause(over) =
-    FromClause(over = over)
+FromClause(over; modifier = nothing) =
+    FromClause(over = over, modifier = modifier)
 
 """
-    FROM(; over = nothing)
-    FROM(over)
+    FROM(; over = nothing, modifier = nothing)
+    FROM(over; modifier = nothing)
 
 A `FROM` clause.
 
@@ -288,31 +289,32 @@ rebase(c::FromClause, c′) =
 
 mutable struct SelectClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
-    distinct::Union{Bool, Vector{SQLClause}}
+    distinct::Bool
+    modifier::Union{SQLClause, Nothing}
     list::Vector{SQLClause}
 
     SelectClause(;
                  over = nothing,
-                 distinct::Union{Bool, AbstractVector} = false,
+                 distinct::Bool = false,
+                 modifier = nothing,
                  list::AbstractVector) =
         new(over,
-            !isa(distinct, Union{Bool, Vector{SQLClause}}) ?
-                SQLClause[item for item in distinct] : distinct,
+            distinct,
+            modifier,
             !isa(list, Vector{SQLClause}) ?
                 SQLClause[item for item in list] : list)
 end
 
-SelectClause(list...; over = nothing, distinct = false) =
-    SelectClause(over = over, distinct = distinct, list = SQLClause[list...])
+SelectClause(list...; over = nothing, distinct = false, modifier = nothing) =
+    SelectClause(over = over, distinct = distinct, modifier = modifier, list = SQLClause[list...])
 
 """
-    SELECT(; over = nothing, distinct = false, list)
-    SELECT(list...; over = nothing, distinct = false)
+    SELECT(; over = nothing, distinct = false, modifier = nothing, list)
+    SELECT(list...; over = nothing, distinct = false, modifier = nothing)
 
 A `SELECT` clause.
 
-Set `distinct` to `true` to add a `DISTINCT` modifier, or provide a vector to
-add a `DISTINCT ON` subclause.
+Set `distinct` to `true` to add a `DISTINCT` modifier.
 
 # Examples
 
@@ -343,7 +345,7 @@ FROM person
 
 ```julia-repl
 julia> c = FROM(:location) |>
-           SELECT(distinct = true, ID(:zip));
+           SELECT(distinct = true, :zip);
 
 julia> print(render(c))
 SELECT DISTINCT zip
@@ -357,11 +359,10 @@ function PrettyPrinting.quoteof(c::SelectClause; limit::Bool = false, wrap::Bool
     ex = Expr(:call, wrap ? nameof(SELECT) : nameof(SelectClause))
     if !limit
         if c.distinct !== false
-            distinct_ex =
-                c.distinct !== true ?
-                Expr(:vect, Any[quoteof(item) for item in c.distinct]...) :
-                c.distinct
-            push!(ex.args, Expr(:kw, :distinct, distinct_ex))
+            push!(ex.args, Expr(:kw, :distinct, c.distinct))
+        end
+        if c.modifier !== nothing
+            push!(ex.args, Expr(:kw, :modifier, quoteof(c.modifier)))
         end
         list_exs = Any[quoteof(item) for item in c.list]
         if isempty(c.list)
@@ -379,4 +380,4 @@ function PrettyPrinting.quoteof(c::SelectClause; limit::Bool = false, wrap::Bool
 end
 
 rebase(c::SelectClause, c′) =
-    SelectClause(over = rebase(c.over, c′), distinct = c.distinct, list = c.list)
+    SelectClause(over = rebase(c.over, c′), distinct = c.distinct, modifier = c.modifier, list = c.list)
