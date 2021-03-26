@@ -26,6 +26,9 @@ An opaque wrapper over an arbitrary SQL clause.
 """
 struct SQLClause <: AbstractSQLClause
     content::AbstractSQLClause
+
+    SQLClause(@nospecialize content::AbstractSQLClause) =
+        new(content)
 end
 
 Base.getindex(c::SQLClause) =
@@ -34,9 +37,11 @@ Base.getindex(c::SQLClause) =
 Base.convert(::Type{SQLClause}, c::SQLClause) =
     c
 
-Base.convert(::Type{SQLClause}, c::AbstractSQLClause) =
-    c |> SQLClause
+Base.convert(::Type{SQLClause}, @nospecialize c::AbstractSQLClause) =
+    SQLClause(c)
 
+Base.convert(::Type{SQLClause}, obj) =
+    convert(SQLClause, convert(AbstractSQLClause, obj)::AbstractSQLClause)
 
 PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, wrap::Bool = false) =
     quoteof(c.content, limit = limit, wrap = true)
@@ -48,7 +53,7 @@ PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, wrap::Bool = false) =
     rebase(c, c′)
 
 rebase(c::SQLClause, c′) =
-    convert(SQLClause, rebase(c[], c′))::SQLClause
+    convert(SQLClause, rebase(c.content, c′))
 
 rebase(::Nothing, c′) =
     convert(SQLClause, c′)
@@ -94,8 +99,8 @@ julia> print(render(c))
 LITERAL(val) =
     LiteralClause(val) |> SQLClause
 
-Base.convert(::Type{SQLClause}, val::SQLLiteralType) =
-    LITERAL(val)
+Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
+    LiteralClause(val)
 
 PrettyPrinting.quoteof(c::LiteralClause; limit::Bool = false, wrap::Bool = false) =
     wrap && c.val isa SQLLiteralType ?
@@ -202,8 +207,8 @@ julia> print(render(c))
 AS(args...; kws...) =
     AsClause(args...; kws...) |> SQLClause
 
-Base.convert(::Type{SQLClause}, p::Pair{<:Union{Symbol, AbstractString}}) =
-    AS(name = first(p), over = convert(SQLClause, last(p)))
+Base.convert(::Type{AbstractSQLClause}, p::Pair{<:Union{Symbol, AbstractString}}) =
+    AsClause(name = first(p), over = convert(SQLClause, last(p)))
 
 function PrettyPrinting.quoteof(c::AsClause; limit::Bool = false, wrap::Bool = false)
     ex = Expr(:call, wrap ? nameof(AS) : nameof(AsClause), quoteof(c.name))
