@@ -83,13 +83,6 @@ NULL
 ```
 
 ```julia-repl
-julia> c = LITERAL(true);
-
-julia> print(render(c))
-TRUE
-```
-
-```julia-repl
 julia> c = LITERAL("SQL is fun!");
 
 julia> print(render(c))
@@ -140,13 +133,6 @@ julia> print(render(c))
 
 ```julia-repl
 julia> c = ID(:p) |> ID(:birth_datetime);
-
-julia> print(render(c))
-"p"."birth_datetime"
-```
-
-```julia-repl
-julia> c = ID(over = ID("p"), name = "birth_datetime");
 
 julia> print(render(c))
 "p"."birth_datetime"
@@ -202,13 +188,6 @@ julia> c = ID(:person) |> AS(:p);
 julia> print(render(c))
 "person" AS "p"
 ```
-
-```julia-repl
-julia> c = AS(over = ID("person"), name = "p");
-
-julia> print(render(c))
-"person" AS "p"
-```
 """
 AS(args...; kws...) =
     AsClause(args...; kws...) |> SQLClause
@@ -251,20 +230,6 @@ A `FROM` clause.
 
 ```julia-repl
 julia> c = ID(:person) |> AS(:p) |> FROM();
-
-julia> print(render(c))
-FROM "person" AS "p"
-```
-
-```julia-repl
-julia> c = FROM(ID(:person) |> AS(:p));
-
-julia> print(render(c))
-FROM "person" AS "p"
-```
-
-```julia-repl
-julia> c = FROM(over = ID(:person) |> AS(:p));
 
 julia> print(render(c))
 FROM "person" AS "p"
@@ -323,24 +288,6 @@ julia> c = SELECT(true);
 
 julia> print(render(c))
 SELECT TRUE
-```
-
-```julia-repl
-julia> c = FROM(ID(:person)) |>
-           SELECT(ID(:person_id), ID(:birth_datetime));
-
-julia> print(render(c))
-SELECT person_id, birth_datetime
-FROM person
-```
-
-```julia-repl
-julia> c = SELECT(over = FROM(ID(:person)),
-                  list = [ID(:person_id), ID(:birth_datetime)]);
-
-julia> print(render(c))
-SELECT person_id, birth_datetime
-FROM person
 ```
 
 ```julia-repl
