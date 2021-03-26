@@ -155,6 +155,12 @@ julia> print(render(c))
 ID(args...; kws...) =
     IdentifierClause(args...; kws...) |> SQLClause
 
+Base.convert(::Type{AbstractSQLClause}, name::Symbol) =
+    IdentifierClause(name)
+
+Base.convert(::Type{AbstractSQLClause}, qname::Tuple{Symbol, Symbol}) =
+    IdentifierClause(qname[2], over = IdentifierClause(qname[1]))
+
 function PrettyPrinting.quoteof(c::IdentifierClause; limit::Bool = false, wrap::Bool = false)
     ex = Expr(:call, wrap ? nameof(ID) : nameof(IdentifierClause), quoteof(c.name))
     if c.over !== nothing
