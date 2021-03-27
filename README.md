@@ -9,6 +9,9 @@
 [![Open Issues][issues-img]][issues-url]
 [![MIT License][license-img]][license-url]
 
+For a complete prototype, see
+https://github.com/MechanicalRabbit/FunSQL.jl/tree/prototype.
+
 
 [doc-rel-img]: https://img.shields.io/badge/docs-stable-green.svg
 [doc-rel-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/
