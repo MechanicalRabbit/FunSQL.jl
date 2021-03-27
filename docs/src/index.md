@@ -3,6 +3,13 @@
 
 ## API Reference
 
+### SQL Dialects
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["dialects.jl"]
+```
+
 ### SQL Entities
 
 ```@autodocs
@@ -14,5 +21,13 @@ Pages = ["entities.jl"]
 
 ```@autodocs
 Modules = [FunSQL]
-Pages = ["clauses.jl"]
+Pages = [
+    "clauses.jl",
+    "clauses/as.jl",
+    "clauses/from.jl",
+    "clauses/identifier.jl",
+    "clauses/literal.jl",
+    "clauses/select.jl",
+    "clauses/where.jl",
+]
 ```

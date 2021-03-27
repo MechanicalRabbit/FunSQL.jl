@@ -56,3 +56,15 @@ end
 rebase(c::IdentifierClause, c′) =
     IdentifierClause(over = rebase(c.over, c′), name = c.name)
 
+function render(ctx, c::IdentifierClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+        print(ctx, '.')
+    end
+    render(ctx, c.name)
+end
+
+render(ctx, name::Symbol) =
+    print(ctx, '"', replace(string(name), '"' => "\"\""), '"')
+

@@ -1,6 +1,6 @@
 # SQL Clauses
 
-    using FunSQL: AS, ID, LITERAL, FROM, SELECT, WHERE
+    using FunSQL: AS, ID, LITERAL, FROM, SELECT, WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -20,6 +20,14 @@ using the indexing operator.
 
     c[]
     #-> (…) |> SelectClause(…)
+
+To generate SQL, we use function `render()`.
+
+    print(render(c))
+    #=>
+    SELECT "person_id", "birth_datetime"
+    FROM "person"
+    =#
 
 
 ## SQL Literals
@@ -42,6 +50,8 @@ literals when they are used in the context of a SQL clause.
     display(c)
     #-> SELECT(LITERAL(missing), LITERAL(true), LITERAL(42), LITERAL("SQL is fun!"))
 
+    print(render(c))
+    #-> SELECT NULL, TRUE, 42, 'SQL is fun!'
 
 ## SQL Identifiers
 
@@ -56,6 +66,9 @@ A SQL identifier is created with `ID()` constructor.
     c[]
     #-> IdentifierClause(:person)
 
+    print(render(c))
+    #-> "person"
+
 A quoted identifier is created using pipeline notation.
 
     c = ID(:person) |> ID(:birth_datetime)
@@ -67,12 +80,21 @@ A quoted identifier is created using pipeline notation.
     c[]
     #-> (…) |> IdentifierClause(:birth_datetime)
 
+    print(render(c))
+    #-> "person"."birth_datetime"
+
 Symbols and pairs of symbols are automatically converted to SQL identifiers
 when they are used in the context of a SQL clause.
 
-    c = FROM(:p) |> SELECT((:p, :person_id))
+    c = FROM(:p => :person) |> SELECT((:p, :person_id))
     display(c)
-    #-> ID(:p) |> FROM() |> SELECT(ID(:p) |> ID(:person_id))
+    #-> ID(:person) |> AS(:p) |> FROM() |> SELECT(ID(:p) |> ID(:person_id))
+
+    print(render(c))
+    #=>
+    SELECT "p"."person_id"
+    FROM "person" AS "p"
+    =#
 
 
 ## `AS` Clause
@@ -88,11 +110,20 @@ An `AS` clause is created with `AS()` constructor.
     c[]
     #-> (…) |> AsClause(:p)
 
+    print(render(c))
+    #-> "person" AS "p"
+
 A pair expression is automatically converted to an `AS` clause.
 
     c = FROM(:p => :person)
     display(c)
     #-> ID(:person) |> AS(:p) |> FROM()
+
+    print(render(c))
+    #=>
+
+    FROM "person" AS "p"
+    =#
 
 
 ## `FROM` Clause
@@ -107,6 +138,12 @@ A `FROM` clause is created with `FROM()` constructor.
 
     c[]
     #-> (…) |> FromClause()
+
+    print(render(c))
+    #=>
+
+    FROM "person"
+    =#
 
 
 ## `SELECT` Clause
@@ -124,6 +161,12 @@ at the end of a clause chain.
     c[]
     #-> (…) |> SelectClause(…)
 
+    print(render(c))
+    #=>
+    SELECT "person_id", "birth_datetime"
+    FROM "person"
+    =#
+
 
 ## `WHERE` Clause
 
@@ -137,4 +180,11 @@ A `WHERE` clause is created with `WHERE()` constructor.
 
     c[]
     #-> (…) |> WhereClause(…)
+
+    print(render(c))
+    #=>
+
+    FROM "person"
+    WHERE TRUE
+    =#
 

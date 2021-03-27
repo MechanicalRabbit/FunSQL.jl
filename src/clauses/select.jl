@@ -77,3 +77,30 @@ end
 rebase(c::SelectClause, c′) =
     SelectClause(over = rebase(c.over, c′), distinct = c.distinct, modifier = c.modifier, list = c.list)
 
+function render(ctx, c::SelectClause)
+    nested = ctx.nested
+    if nested
+        ctx.level += 1
+        print(ctx, '(')
+        newline(ctx)
+    end
+    ctx.nested = true
+    print(ctx, "SELECT")
+    if c.distinct
+        print(ctx, " DISTINCT")
+    end
+    if !isempty(c.list)
+        render(ctx, c.list, left = " ", right = "")
+    end
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    ctx.nested = nested
+    if nested
+        ctx.level -= 1
+        newline(ctx)
+        print(ctx, ')')
+    end
+end
+

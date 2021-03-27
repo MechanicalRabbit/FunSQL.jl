@@ -45,3 +45,12 @@ end
 rebase(c::AsClause, c′) =
     AsClause(over = rebase(c.over, c′), name = c.name)
 
+function render(ctx, c::AsClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+        print(ctx, " AS ")
+    end
+    render(ctx, c.name)
+end
+

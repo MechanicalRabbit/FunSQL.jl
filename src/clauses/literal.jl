@@ -40,3 +40,18 @@ Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
 PrettyPrinting.quoteof(c::LiteralClause; limit::Bool = false, wrap::Bool = false) =
     Expr(:call, wrap ? nameof(LITERAL) : nameof(LiteralClause), c.val)
 
+render(ctx, c::LiteralClause) =
+    render(ctx, c.val)
+
+render(ctx, ::Missing) =
+    print(ctx, "NULL")
+
+render(ctx, val::Bool) =
+    print(ctx, val ? "TRUE" : "FALSE")
+
+render(ctx, val::Number) =
+    print(ctx, val)
+
+render(ctx, val::AbstractString) =
+    print(ctx, '\'', replace(val, '\'' => "''"), '\'')
+
