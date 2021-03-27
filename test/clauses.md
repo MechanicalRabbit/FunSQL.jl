@@ -1,0 +1,140 @@
+# SQL Clauses
+
+    using FunSQL: AS, ID, LITERAL, FROM, SELECT, WHERE
+
+The syntactic structure of a SQL query is represented as a tree of `SQLClause`
+objects.  Different types of clauses are created by specialized constructors
+and connected using the chain (`|>`) operator.
+
+    c = FROM(:person) |>
+        SELECT(:person_id, :birth_datetime)
+    #-> (…) |> SELECT(…)
+
+Displaying a `SQLClause` object shows how it was constructed.
+
+    display(c)
+    #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:birth_datetime))
+
+A `SQLClause` object wraps a concrete clause object, which can be accessed
+using the indexing operator.
+
+    c[]
+    #-> (…) |> SelectClause(…)
+
+
+## SQL Literals
+
+A SQL literal is created using a `LITERAL()` constructor.
+
+    c = LITERAL("SQL is fun!")
+    #-> LITERAL(…)
+
+    display(c)
+    #-> LITERAL("SQL is fun!")
+
+    c[]
+    #-> LiteralClause("SQL is fun!")
+
+Values of certain Julia data types are automatically converted to SQL
+literals when they are used in the context of a SQL clause.
+
+    c = SELECT(missing, true, 42, "SQL is fun!")
+    display(c)
+    #-> SELECT(LITERAL(missing), LITERAL(true), LITERAL(42), LITERAL("SQL is fun!"))
+
+
+## SQL Identifiers
+
+A SQL identifier is created with `ID()` constructor.
+
+    c = ID(:person)
+    #-> ID(:person)
+
+    display(c)
+    #-> ID(:person)
+
+    c[]
+    #-> IdentifierClause(:person)
+
+A quoted identifier is created using pipeline notation.
+
+    c = ID(:person) |> ID(:birth_datetime)
+    #-> (…) |> ID(:birth_datetime)
+
+    display(c)
+    #-> ID(:person) |> ID(:birth_datetime)
+
+    c[]
+    #-> (…) |> IdentifierClause(:birth_datetime)
+
+Symbols and pairs of symbols are automatically converted to SQL identifiers
+when they are used in the context of a SQL clause.
+
+    c = FROM(:p) |> SELECT((:p, :person_id))
+    display(c)
+    #-> ID(:p) |> FROM() |> SELECT(ID(:p) |> ID(:person_id))
+
+
+## `AS` Clause
+
+An `AS` clause is created with `AS()` constructor.
+
+    c = ID(:person) |> AS(:p)
+    #-> (…) |> AS(:p)
+
+    display(c)
+    #-> ID(:person) |> AS(:p)
+
+    c[]
+    #-> (…) |> AsClause(:p)
+
+A pair expression is automatically converted to an `AS` clause.
+
+    c = FROM(:p => :person)
+    display(c)
+    #-> ID(:person) |> AS(:p) |> FROM()
+
+
+## `FROM` Clause
+
+A `FROM` clause is created with `FROM()` constructor.
+
+    c = FROM(:person)
+    #-> (…) |> FROM()
+
+    display(c)
+    #-> ID(:person) |> FROM()
+
+    c[]
+    #-> (…) |> FromClause()
+
+
+## `SELECT` Clause
+
+A `SELECT` clause is created with `SELECT()` constructor.  While in SQL,
+`SELECT` typically opens a query, in FunSQL, `SELECT()` should be placed
+at the end of a clause chain.
+
+    c = FROM(:person) |> SELECT(:person_id, :birth_datetime)
+    #-> (…) |> SELECT(…)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:birth_datetime))
+
+    c[]
+    #-> (…) |> SelectClause(…)
+
+
+## `WHERE` Clause
+
+A `WHERE` clause is created with `WHERE()` constructor.
+
+    c = FROM(:person) |> WHERE(true)
+    #-> (…) |> WHERE(…)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> WHERE(LITERAL(true))
+
+    c[]
+    #-> (…) |> WhereClause(…)
+

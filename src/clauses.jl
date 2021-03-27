@@ -96,9 +96,7 @@ Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
     LiteralClause(val)
 
 PrettyPrinting.quoteof(c::LiteralClause; limit::Bool = false, wrap::Bool = false) =
-    wrap && c.val isa SQLLiteralType ?
-        c.val :
-        Expr(:call, wrap ? nameof(LITERAL) : nameof(LiteralClause), c.val)
+    Expr(:call, wrap ? nameof(LITERAL) : nameof(LiteralClause), c.val)
 
 
 # SQL identifier (possibly qualified).
@@ -240,6 +238,9 @@ FROM(args...; kws...) =
 
 function PrettyPrinting.quoteof(c::FromClause; limit::Bool = false, wrap::Bool = false)
     ex = Expr(:call, wrap ? nameof(FROM) : nameof(FromClause))
+    if c.modifier !== nothing
+        push!(ex.args, Expr(:kw, :modifier, !limit ? quoteof(c.modifier) : :…))
+    end
     if c.over !== nothing
         ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
     end
