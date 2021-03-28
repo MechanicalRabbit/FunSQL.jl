@@ -30,11 +30,11 @@ function newline(ctx::RenderContext)
 end
 
 """
-    render(clause; dialect = :ansi) :: String
+    render(clause; dialect = :default) :: String
 
 Convert the given SQL clause object to a SQL string.
 """
-function render(clause; dialect = :ansi)
+function render(clause; dialect = :default)
     ctx = RenderContext(dialect)
     render(ctx, convert(SQLClause, clause))
     String(take!(ctx.io))
@@ -81,7 +81,7 @@ Base.convert(::Type{SQLClause}, obj) =
     convert(SQLClause, convert(AbstractSQLClause, obj)::AbstractSQLClause)
 
 PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, wrap::Bool = false) =
-    quoteof(c.content, limit = limit, wrap = true)
+    quoteof(c[], limit = limit, wrap = true)
 
 (c::AbstractSQLClause)(c′) =
     c(convert(SQLClause, c′))
@@ -90,13 +90,13 @@ PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, wrap::Bool = false) =
     rebase(c, c′)
 
 rebase(c::SQLClause, c′) =
-    convert(SQLClause, rebase(c.content, c′))
+    convert(SQLClause, rebase(c[], c′))
 
 rebase(::Nothing, c′) =
-    convert(SQLClause, c′)
+    c′
 
 render(ctx, c::SQLClause) =
-    render(ctx, c.content)
+    render(ctx, c[])
 
 function render(ctx, cs::AbstractVector{SQLClause}; sep = ", ", left = "(", right = ")")
     print(ctx, left)

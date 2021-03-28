@@ -3,39 +3,34 @@
 mutable struct SelectClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     distinct::Bool
-    modifier::Union{SQLClause, Nothing}
     list::Vector{SQLClause}
 
     SelectClause(;
                  over = nothing,
-                 distinct::Bool = false,
-                 modifier = nothing,
-                 list::AbstractVector) =
-        new(over,
-            distinct,
-            modifier,
-            !isa(list, Vector{SQLClause}) ?
-                SQLClause[item for item in list] : list)
+                 distinct = false,
+                 list) =
+        new(over, distinct, list)
 end
 
-SelectClause(list...; over = nothing, distinct = false, modifier = nothing) =
-    SelectClause(over = over, distinct = distinct, modifier = modifier, list = SQLClause[list...])
+SelectClause(list...; over = nothing, distinct = false) =
+    SelectClause(over = over, distinct = distinct, list = SQLClause[list...])
 
 """
-    SELECT(; over = nothing, distinct = false, modifier = nothing, list)
-    SELECT(list...; over = nothing, distinct = false, modifier = nothing)
+    SELECT(; over = nothing, distinct = false, list)
+    SELECT(list...; over = nothing, distinct = false)
 
-A `SELECT` clause.
+A `SELECT` clause.  Unlike raw SQL, `SELECT()` should be placed at the end of a
+clause chain.
 
 Set `distinct` to `true` to add a `DISTINCT` modifier.
 
 # Examples
 
 ```julia-repl
-julia> c = SELECT(true);
+julia> c = SELECT(true, false);
 
 julia> print(render(c))
-SELECT TRUE
+SELECT TRUE, FALSE
 ```
 
 ```julia-repl
@@ -56,9 +51,6 @@ function PrettyPrinting.quoteof(c::SelectClause; limit::Bool = false, wrap::Bool
         if c.distinct !== false
             push!(ex.args, Expr(:kw, :distinct, c.distinct))
         end
-        if c.modifier !== nothing
-            push!(ex.args, Expr(:kw, :modifier, quoteof(c.modifier)))
-        end
         list_exs = Any[quoteof(item) for item in c.list]
         if isempty(c.list)
             push!(ex.args, Expr(:kw, :list, Expr(:vect, list_exs...)))
@@ -75,7 +67,7 @@ function PrettyPrinting.quoteof(c::SelectClause; limit::Bool = false, wrap::Bool
 end
 
 rebase(c::SelectClause, c′) =
-    SelectClause(over = rebase(c.over, c′), distinct = c.distinct, modifier = c.modifier, list = c.list)
+    SelectClause(over = rebase(c.over, c′), distinct = c.distinct, list = c.list)
 
 function render(ctx, c::SelectClause)
     nested = ctx.nested

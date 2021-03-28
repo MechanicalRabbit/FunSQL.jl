@@ -2,18 +2,17 @@
 
 mutable struct FromClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
-    modifier::Union{SQLClause, Nothing}
 
-    FromClause(; over = nothing, modifier = nothing) =
-        new(over, modifier)
+    FromClause(; over = nothing) =
+        new(over)
 end
 
-FromClause(over; modifier = nothing) =
-    FromClause(over = over, modifier = modifier)
+FromClause(over) =
+    FromClause(over = over)
 
 """
-    FROM(; over = nothing, modifier = nothing)
-    FROM(over; modifier = nothing)
+    FROM(; over = nothing)
+    FROM(over)
 
 A `FROM` clause.
 
@@ -31,9 +30,6 @@ FROM(args...; kws...) =
 
 function PrettyPrinting.quoteof(c::FromClause; limit::Bool = false, wrap::Bool = false)
     ex = Expr(:call, wrap ? nameof(FROM) : nameof(FromClause))
-    if c.modifier !== nothing
-        push!(ex.args, !limit ? Expr(:kw, :modifier, quoteof(c.modifier)) : :…)
-    end
     if c.over !== nothing
         ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
     end

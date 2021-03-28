@@ -5,8 +5,8 @@ mutable struct WhereClause <: AbstractSQLClause
     condition::SQLClause
 
     WhereClause(;
-                 over = nothing,
-                 condition) =
+                over = nothing,
+                condition) =
         new(over, condition)
 end
 
