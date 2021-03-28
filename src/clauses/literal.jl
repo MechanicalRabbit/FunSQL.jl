@@ -1,8 +1,5 @@
 # Literal value.
 
-const SQLLiteralType =
-    Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
-
 mutable struct LiteralClause <: AbstractSQLClause
     val
 end

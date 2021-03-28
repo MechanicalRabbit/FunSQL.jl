@@ -1,8 +1,5 @@
 # Syntactic structure of a SQL query.
 
-using Dates
-using PrettyPrinting: PrettyPrinting, pprint, quoteof
-
 
 # Rendering SQL.
 
@@ -115,10 +112,10 @@ end
 
 # Concrete clause types.
 
-include("clauses/literal.jl")
-include("clauses/identifier.jl")
 include("clauses/as.jl")
 include("clauses/from.jl")
+include("clauses/identifier.jl")
+include("clauses/literal.jl")
 include("clauses/select.jl")
 include("clauses/where.jl")
 
