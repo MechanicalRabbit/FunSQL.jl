@@ -145,6 +145,7 @@ end
 # Concrete node types.
 
 include("nodes/as.jl")
+include("nodes/call.jl")
 include("nodes/from.jl")
 include("nodes/get.jl")
 include("nodes/literal.jl")

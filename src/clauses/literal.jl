@@ -52,3 +52,6 @@ render(ctx, val::Number) =
 render(ctx, val::AbstractString) =
     print(ctx, '\'', replace(val, '\'' => "''"), '\'')
 
+render(ctx, val::Dates.Date) =
+    print(ctx, '\'', val, '\'')
+

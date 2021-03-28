@@ -115,6 +115,7 @@ include("clauses/as.jl")
 include("clauses/from.jl")
 include("clauses/identifier.jl")
 include("clauses/literal.jl")
+include("clauses/operator.jl")
 include("clauses/select.jl")
 include("clauses/where.jl")
 

@@ -38,13 +38,15 @@ function resolve(n::FromNode, req)
             end
         end
     end
-    list = SQLClause[ID(col)
+    as = allocate_alias(req.ctx, n.table.name)
+    list = SQLClause[ID(over = as, name = col)
                      for col in n.table.columns
                      if col in output_columns]
     if isempty(list)
         push!(list, true)
     end
-    c = SELECT(over = FROM(n.table.name), list = list)
+    c = SELECT(over = FROM(AS(over = n.table.name, name = as)),
+               list = list)
     repl = Dict{SQLNode, Symbol}()
     for ref in req.refs
         core = ref[]
