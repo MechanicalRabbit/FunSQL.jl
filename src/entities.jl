@@ -46,16 +46,21 @@ struct SQLTable
     schema::Union{Symbol, Nothing}
     name::Symbol
     columns::Vector{Symbol}
+    column_set::Set{Symbol}
 
-    SQLTable(;
-             schema::Union{Symbol, AbstractString, Nothing} = nothing,
-             name::Union{Symbol, AbstractString},
-             columns::AbstractVector{<:Union{Symbol, AbstractString}}) =
-        new(schema !== nothing ? Symbol(schema) : nothing,
-            Symbol(name),
+    function SQLTable(;
+                      schema::Union{Symbol, AbstractString, Nothing} = nothing,
+                      name::Union{Symbol, AbstractString},
+                      columns::AbstractVector{<:Union{Symbol, AbstractString}})
+        schema = schema !== nothing ? Symbol(schema) : nothing
+        name = Symbol(name)
+        columns =
             !isa(columns, Vector{Symbol}) ?
                 Symbol[Symbol(col) for col in columns] :
-                columns)
+                columns
+        column_set = Set{Symbol}(columns)
+        new(schema, name, columns, column_set)
+    end
 end
 
 SQLTable(name; schema = nothing, columns) =

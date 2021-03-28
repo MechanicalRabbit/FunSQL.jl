@@ -35,3 +35,60 @@ end
 rebase(n::SelectNode, n′) =
     SelectNode(over = rebase(n.over, n′), list = n.list)
 
+alias(n::SelectNode) =
+    alias(n.over)
+
+star(n::SelectNode) =
+    SQLNode[Get(over = n, name = alias(col)) for col in n.list]
+
+function resolve(n::SelectNode, req)
+    aliases = Symbol[alias(col) for col in n.list]
+    indexes = Dict{Symbol, Int}()
+    for (i, alias) in enumerate(aliases)
+        !(alias in keys(indexes)) || error("duplicate alias $alias")
+        indexes[alias] = i
+    end
+    base_refs = SQLNode[]
+    output_indexes = Set{Int}()
+    for ref in req.refs
+        core = ref[]
+        if core isa GetNode && (core.over === nothing || core.over[] === n)
+            if core.name in keys(indexes)
+                push!(output_indexes, indexes[core.name])
+            end
+        end
+    end
+    for (i, col) in enumerate(n.list)
+        if i in output_indexes
+            gather!(base_refs, col)
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    base_res = resolve(n.over, base_req)
+    base_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in base_res.repl
+        subs[ref] = ID(over = base_as, name = name)
+    end
+    list = SQLClause[]
+    for (i, col) in enumerate(n.list)
+        i in output_indexes || continue
+        push!(list, AS(over = translate(col, subs), name = aliases[i]))
+    end
+    if isempty(list)
+        push!(list, true)
+    end
+    c = SELECT(over = FROM(AS(over = base_res.clause, name = base_as)),
+               list = list)
+    repl = Dict{SQLNode, Symbol}()
+    for ref in req.refs
+        core = ref[]
+        if core isa GetNode && (core.over === nothing || core.over[] === n)
+            if core.name in keys(indexes)
+                repl[ref] = core.name
+            end
+        end
+    end
+    ResolveResult(c, repl)
+end
+

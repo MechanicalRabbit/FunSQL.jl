@@ -26,18 +26,6 @@ function newline(ctx::RenderContext)
     end
 end
 
-"""
-    render(clause; dialect = :default) :: String
-
-Convert the given SQL clause object to a SQL string.
-"""
-function render(clause; dialect = :default)
-    ctx = RenderContext(dialect)
-    render(ctx, convert(SQLClause, clause))
-    String(take!(ctx.io))
-end
-
-
 # Base type.
 
 """
@@ -51,6 +39,17 @@ Base.show(io::IO, c::AbstractSQLClause) =
 
 Base.show(io::IO, ::MIME"text/plain", c::AbstractSQLClause) =
     pprint(io, c)
+
+"""
+    render(clause; dialect = :default) :: String
+
+Convert the given SQL clause object to a SQL string.
+"""
+function render(c::AbstractSQLClause; dialect = :default)
+    ctx = RenderContext(dialect)
+    render(ctx, convert(SQLClause, c))
+    String(take!(ctx.io))
+end
 
 
 # Opaque wrapper that serves as a specialization barrier.

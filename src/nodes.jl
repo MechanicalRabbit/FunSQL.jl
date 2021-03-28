@@ -53,6 +53,95 @@ rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))
 
 
+# Converting to SQL syntax.
+
+struct ResolveContext
+    dialect::SQLDialect
+    aliases::Dict{Symbol, Int}
+
+    ResolveContext(dialect) =
+        new(dialect, Dict{Symbol, Int}())
+end
+
+struct ResolveRequest
+    ctx::ResolveContext
+    refs::Vector{SQLNode}
+    top::Bool
+
+    ResolveRequest(ctx; refs = SQLNode[], top = false) =
+        new(ctx, refs, top)
+end
+
+struct ResolveResult
+    clause::SQLClause
+    repl::Dict{SQLNode, Symbol}
+end
+
+"""
+Convert the node to a SELECT statement.
+"""
+function resolve(n; dialect = :default)
+    ctx = ResolveContext(dialect)
+    req = ResolveRequest(ctx, refs = star(n), top = true)
+    resolve(convert(SQLNode, n), req)
+end
+
+function render(n; dialect = :default)
+    res = resolve(n, dialect = dialect)
+    render(res.clause, dialect = dialect)
+end
+
+function allocate_alias(ctx::ResolveContext, alias::Symbol)
+    n = get(ctx.aliases, alias, 0) + 1
+    ctx.aliases[alias] = n
+    Symbol(alias, '_', n)
+end
+
+allocate_alias(ctx::ResolveContext, n) =
+    allocate_alias(ctx, alias(n))
+
+alias(n::SQLNode) =
+    alias(n[])::Symbol
+
+alias(::Nothing) =
+    :_
+
+star(n::SQLNode) =
+    star(n[])::Vector{SQLNode}
+
+star(n) =
+    SQLNode[]
+
+function gather!(refs::Vector{SQLNode}, n::SQLNode)
+    gather!(refs, n[])
+    refs
+end
+
+function gather!(refs::Vector{SQLNode}, ns::Vector{SQLNode})
+    for n in ns
+        gather!(refs, n)
+    end
+    refs
+end
+
+gather!(refs::Vector{SQLNode}, ::AbstractSQLNode) =
+    refs
+
+translate(n::SQLNode, subs) =
+    n in keys(subs) ?
+        subs[n] :
+        convert(SQLClause, translate(n[], subs))
+
+resolve(n::SQLNode, req) =
+    resolve(n[], req)::ResolveResult
+
+function resolve(::Nothing, req)
+    c = SELECT(list = SQLClause[true])
+    repl = Dict{SQLNode, Symbol}()
+    ResolveResult(c, repl)
+end
+
+
 # Concrete node types.
 
 include("nodes/as.jl")

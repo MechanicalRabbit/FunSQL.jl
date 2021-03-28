@@ -13,3 +13,9 @@ Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
 PrettyPrinting.quoteof(n::LiteralNode; limit::Bool = false, wrap::Bool = false) =
     Expr(:call, wrap ? nameof(Literal) : nameof(LiteralNode), n.val)
 
+alias(n::LiteralNode) =
+    :_
+
+translate(n::LiteralNode, subs) =
+    LiteralClause(n.val)
+
