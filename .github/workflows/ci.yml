@@ -14,12 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - name: Julia LTS / Linux 64bit
-          version: '1.0'
+        - name: Julia 1.4 / Linux 64bit
+          version: '1.4'
           os: ubuntu-latest
           arch: x64
-        - name: Julia LTS / Linux 32bit
-          version: '1.0'
+        - name: Julia 1.4 / Linux 32bit
+          version: '1.4'
           os: ubuntu-latest
           arch: x86
         - name: Julia Stable / Linux 64bit
