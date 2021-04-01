@@ -12,6 +12,9 @@ mutable struct SQLTable
     cols::Vector{Symbol}
 end
 
+SQLTable(name; schema = :public, columns) =
+    SQLTable(schema, name, columns)
+
 #
 # SQL Nodes.
 #
@@ -350,6 +353,9 @@ Where(pred) =
 Join(right, on; is_left::Bool=false, is_right::Bool=false) =
     SQLNodeClosure(SQLCore(Join, is_left, is_right), SQLNode[right, on])
 
+Join(joinee; on, is_left::Bool=false, left::Bool=false, is_right::Bool=false, right::Bool=false) =
+    SQLNodeClosure(SQLCore(Join, is_left || left, is_right || right), SQLNode[joinee, on])
+
 # Order
 
 Order(list::Vector{SQLNode}) =
@@ -530,6 +536,9 @@ Base.Broadcast.instantiate(bc::Base.Broadcast.Broadcasted{FunStyle}) =
 Base.copy(bc::Base.Broadcast.Broadcasted{FunStyle}) =
     SQLNode(SQLCore(FunCall{bc.f}), SQLNode[bc.args...])
 
+Base.convert(::Type{SQLNode}, bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    SQLNode(SQLCore(FunCall{bc.f}), SQLNode[bc.args...])
+
 Base.convert(::Type{SQLNode}, ref::Base.RefValue{T}) where {T} =
     convert(SQLNode, ref.x)
 
@@ -558,6 +567,12 @@ Base.getproperty(agg::AggNamespace, name::AbstractString) =
 
 (agg::AggClosure)(args...; over=FromNothing, distinct::Bool=false) =
     SQLNode(SQLCore(AggCall{agg.name}, distinct), SQLNode[over, args...])
+
+function (n::SQLNode)(over::GetClosure)
+    core = n.core
+    core isa AggCall || error()
+    SQLNode(core, SQLNode[over, n.args[2:end]...])
+end
 
 const Count = Agg.COUNT
 
