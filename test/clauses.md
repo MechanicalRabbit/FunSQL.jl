@@ -189,6 +189,19 @@ A `SELECT` clause with an empty list can be created explicitly.
     display(c)
     #-> SELECT(list = [])
 
+Rendering a nested `SELECT` clause adds parentheses around it.
+
+    c = :location |> FROM() |> SELECT(:state, :zip) |> FROM() |> SELECT(:zip)
+
+    print(render(c))
+    #=>
+    SELECT "zip"
+    FROM (
+      SELECT "state", "zip"
+      FROM "location"
+    )
+    =#
+
 
 ## `WHERE` Clause
 
