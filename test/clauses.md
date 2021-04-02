@@ -1,6 +1,6 @@
 # SQL Clauses
 
-    using FunSQL: AS, ID, LITERAL, FROM, SELECT, WHERE, render
+    using FunSQL: AS, ID, LIT, FROM, SELECT, WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -32,13 +32,13 @@ To generate SQL, we use function `render()`.
 
 ## SQL Literals
 
-A SQL literal is created using a `LITERAL()` constructor.
+A SQL literal is created using a `LIT()` constructor.
 
-    c = LITERAL("SQL is fun!")
-    #-> LITERAL(…)
+    c = LIT("SQL is fun!")
+    #-> LIT(…)
 
     display(c)
-    #-> LITERAL("SQL is fun!")
+    #-> LIT("SQL is fun!")
 
     c[]
     #-> LiteralClause("SQL is fun!")
@@ -48,7 +48,7 @@ literals when they are used in the context of a SQL clause.
 
     c = SELECT(missing, true, 42, "SQL is fun!")
     display(c)
-    #-> SELECT(LITERAL(missing), LITERAL(true), LITERAL(42), LITERAL("SQL is fun!"))
+    #-> SELECT(LIT(missing), LIT(true), LIT(42), LIT("SQL is fun!"))
 
     print(render(c))
     #-> SELECT NULL, TRUE, 42, 'SQL is fun!'
@@ -176,7 +176,7 @@ A `WHERE` clause is created with `WHERE()` constructor.
     #-> (…) |> WHERE(…)
 
     display(c)
-    #-> ID(:person) |> FROM() |> WHERE(LITERAL(true))
+    #-> ID(:person) |> FROM() |> WHERE(LIT(true))
 
     c[]
     #-> (…) |> WhereClause(…)
