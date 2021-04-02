@@ -1,6 +1,6 @@
 # SQL Clauses
 
-    using FunSQL: AS, ID, LIT, FROM, SELECT, WHERE, render
+    using FunSQL: AS, ID, LIT, FROM, OP, SELECT, WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -60,6 +60,32 @@ literals when they are used in the context of a SQL clause.
 
     print(render(c))
     #-> SELECT NULL, TRUE, 42, 'SQL is fun!', '2000-01-01'
+
+
+## SQL Operators
+
+An application of a SQL operator is created with `OP()` constructor.
+
+    c = OP("NOT", OP("=", :zip, "60614"))
+    #-> OP("NOT", …)
+
+    display(c)
+    #-> OP("NOT", OP("=", ID(:zip), LIT("60614")))
+
+    c[]
+    #-> OperatorClause("NOT", …)
+
+    print(render(c))
+    #-> (NOT ("zip" = '60614'))
+
+An operator without arguments can be constructed, if necessary.
+
+    c = OP("CURRENT_TIMESTAMP", args = [])
+    display(c)
+    #-> OP("CURRENT_TIMESTAMP", args = [])
+
+    print(render(c))
+    #-> CURRENT_TIMESTAMP
 
 
 ## SQL Identifiers
@@ -128,9 +154,9 @@ A pair expression is automatically converted to an `AS` clause.
     display(c)
     #-> ID(:person) |> AS(:p) |> FROM()
 
-    print(render(c))
+    print(render(c |> SELECT((:p, :person_id))))
     #=>
-
+    SELECT "p"."person_id"
     FROM "person" AS "p"
     =#
 
@@ -148,9 +174,9 @@ A `FROM` clause is created with `FROM()` constructor.
     c[]
     #-> (…) |> FromClause()
 
-    print(render(c))
+    print(render(c |> SELECT(:person_id)))
     #=>
-
+    SELECT "person_id"
     FROM "person"
     =#
 
@@ -216,19 +242,19 @@ Rendering a nested `SELECT` clause adds parentheses around it.
 
 A `WHERE` clause is created with `WHERE()` constructor.
 
-    c = FROM(:person) |> WHERE(true)
+    c = FROM(:person) |> WHERE(OP(">", :year_of_birth, 2000))
     #-> (…) |> WHERE(…)
 
     display(c)
-    #-> ID(:person) |> FROM() |> WHERE(LIT(true))
+    #-> ID(:person) |> FROM() |> WHERE(OP(">", ID(:year_of_birth), LIT(2000)))
 
     c[]
     #-> (…) |> WhereClause(…)
 
-    print(render(c))
+    print(render(c |> SELECT(:person_id)))
     #=>
-
+    SELECT "person_id"
     FROM "person"
-    WHERE TRUE
+    WHERE ("year_of_birth" > 2000)
     =#
 

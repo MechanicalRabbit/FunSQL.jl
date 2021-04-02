@@ -19,10 +19,10 @@ A `FROM` clause.
 # Examples
 
 ```jldoctest
-julia> c = ID(:person) |> AS(:p) |> FROM();
+julia> c = ID(:person) |> AS(:p) |> FROM() |> SELECT((:p, :person_id));
 
 julia> print(render(c))
-
+SELECT "p"."person_id"
 FROM "person" AS "p"
 ```
 """

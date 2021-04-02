@@ -11,7 +11,7 @@ DocMeta.setdocmeta!(
         using FunSQL:
             SQLTable,
             Call, From, Get, Select, Where,
-            AS, FROM, ID, LITERAL, OP, SELECT, WHERE,
+            AS, FROM, ID, LIT, OP, SELECT, WHERE,
             render
     end)
 
