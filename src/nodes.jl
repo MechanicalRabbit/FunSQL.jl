@@ -82,11 +82,14 @@ end
 
 Convert the node to a SELECT clause.
 """
-function resolve(n; dialect = :default)
+function resolve(n::SQLNode; dialect = :default)
     ctx = ResolveContext(dialect)
     req = ResolveRequest(ctx, refs = star(n), top = true)
     resolve(convert(SQLNode, n), req)
 end
+
+resolve(n; kws...) =
+    resolve(convert(SQLNode, n); kws...)
 
 function render(n; dialect = :default)
     res = resolve(n, dialect = dialect)

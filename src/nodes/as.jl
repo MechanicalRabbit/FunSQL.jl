@@ -52,10 +52,8 @@ function split_get(n::SQLNode, stop::Symbol, base::SQLNode)
     over′ = split_get(core.over, stop, base)
     if over′ === nothing
         nothing
-    elseif over′ !== core.over
-        Get(over = over′, name = core.name)
     else
-        n
+        Get(over = over′, name = core.name)
     end
 end
 

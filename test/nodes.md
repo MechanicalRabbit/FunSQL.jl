@@ -1,7 +1,8 @@
 # SQL Nodes
 
     using FunSQL:
-        As, Call, From, Get, Literal, SQLTable, Select, Where, render, resolve
+        As, Call, From, Get, Literal, SQLNode, SQLTable, Select, Where, render,
+        resolve
 
 We start with specifying the database model.
 
@@ -105,6 +106,17 @@ Alternatively, use shorthand notation.
     Get["person_id"]
     #-> Get.person_id
 
+Hierarchical notation is supported.
+
+    e = Get.p.person_id
+    #-> Get.p.person_id
+
+    e[]
+    #-> (…) |> GetNode(:person_id)
+
+    Get.p |> Get.person_id
+    #-> Get.p.person_id
+
 `Get` can also create bound references.
 
     q = From(person)
@@ -142,6 +154,20 @@ Alternatively, use shorthand notation.
     ) AS "p_1"
     =#
 
+When `Get` refers to an unknown attribute, an error is reported.
+
+    q = Select(Get.person_id)
+
+    print(render(q))
+    #-> ERROR: unknown name person_id
+
+    q = From(person) |>
+        As(:p) |>
+        Select(Get.q.person_id)
+
+    print(render(q))
+    #-> ERROR: unknown name person_id
+
 
 ## Operations
 
@@ -156,10 +182,26 @@ A function or an operator invocation is created with the `Call` constructor.
     e[]
     #-> CallNode(">", …)
 
+A vector of arguments could be passed directly.
+
+    Call(">", args = SQLNode[Get.year_of_birth, 2000])
+    #-> Call(">", …)
+
+In a `SELECT` clause, operator calls get an alias from their name.
+
+    print(render(From(person) |> Select(e)))
+    #=>
+    SELECT ("person_2"."year_of_birth" > 2000) AS ">"
+    FROM (
+      SELECT "person_1"."year_of_birth"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    =#
+
 
 ## `As`
 
-The `As` constructor is used to add an alias to attributes and subqueries.
+An alias to an expression can be added with the `As` constructor.
 
     e = 42 |> As(:integer)
     #-> (…) |> As(:integer)
@@ -169,6 +211,39 @@ The `As` constructor is used to add an alias to attributes and subqueries.
 
     e[]
     #-> (…) |> AsNode(:integer)
+
+    print(render(Select(e)))
+    #=>
+    SELECT 42 AS "integer"
+    FROM (
+      SELECT TRUE
+    ) AS "__1"
+    =#
+
+`As` is also used to create an alias for a subquery.
+
+    q = From(person) |>
+        As(:p) |>
+        Select(Get.p.person_id)
+
+    print(render(q))
+    #=>
+    SELECT "p_1"."person_id"
+    FROM (
+      SELECT "person_1"."person_id"
+      FROM "person" AS "person_1"
+    ) AS "p_1"
+    =#
+
+`As` blocks the default output columns.
+
+    q = From(person) |> As(:p)
+
+    print(render(q))
+    #=>
+    SELECT TRUE
+    FROM "person" AS "person_1"
+    =#
 
 
 ## `From`
@@ -193,6 +268,40 @@ By default, `From` selects all columns from the table.
     FROM "person" AS "person_1"
     =#
 
+In a suitable context, a `SQLTable` object is automatically converted to a
+`From` subquery.
+
+    print(render(person))
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    =#
+
+`From` and other subqueries generate a correct `SELECT` clause when the table
+has no columns.
+
+    empty = SQLTable(:empty, columns = Symbol[])
+
+    q = From(empty) |>
+        Where(true) |>
+        Select(list = [])
+
+    display(q)
+    #-> From(SQLTable(:empty, …)) |> Where(Literal(true)) |> Select(list = [])
+
+    print(render(q))
+    #=>
+    SELECT TRUE
+    FROM (
+      SELECT TRUE
+      FROM (
+        SELECT TRUE
+        FROM "empty" AS "empty_1"
+      ) AS "empty_2"
+      WHERE TRUE
+    ) AS "empty_3"
+    =#
+
 
 ## `Select`
 
@@ -215,6 +324,25 @@ The `Select` constructor creates a subquery that fixes the output columns.
       SELECT "person_1"."person_id"
       FROM "person" AS "person_1"
     ) AS "person_2"
+    =#
+
+`Select` does not have to be the last subquery in a chain.
+
+    q = From(person) |>
+        Select(Get.year_of_birth) |>
+        Where(Call(">", Get.year_of_birth, 2000))
+
+    print(render(q))
+    #=>
+    SELECT "person_3"."year_of_birth"
+    FROM (
+      SELECT "person_2"."year_of_birth"
+      FROM (
+        SELECT "person_1"."year_of_birth"
+        FROM "person" AS "person_1"
+      ) AS "person_2"
+    ) AS "person_3"
+    WHERE ("person_3"."year_of_birth" > 2000)
     =#
 
 
