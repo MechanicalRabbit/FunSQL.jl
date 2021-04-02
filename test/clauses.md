@@ -46,12 +46,21 @@ A SQL literal is created using a `LIT()` constructor.
 Values of certain Julia data types are automatically converted to SQL
 literals when they are used in the context of a SQL clause.
 
-    c = SELECT(missing, true, 42, "SQL is fun!")
+    using Dates
+
+    c = SELECT(missing, true, 42, "SQL is fun!", Date(2000))
     display(c)
-    #-> SELECT(LIT(missing), LIT(true), LIT(42), LIT("SQL is fun!"))
+    #=>
+    SELECT(LIT(missing),
+           LIT(true),
+           LIT(42),
+           LIT("SQL is fun!"),
+           LIT(Dates.Date("2000-01-01")))
+    =#
 
     print(render(c))
-    #-> SELECT NULL, TRUE, 42, 'SQL is fun!'
+    #-> SELECT NULL, TRUE, 42, 'SQL is fun!', '2000-01-01'
+
 
 ## SQL Identifiers
 
