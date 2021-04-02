@@ -78,7 +78,9 @@ struct ResolveResult
 end
 
 """
-Convert the node to a SELECT statement.
+    resolve(node; dialect = :default)
+
+Convert the node to a SELECT clause.
 """
 function resolve(n; dialect = :default)
     ctx = ResolveContext(dialect)

@@ -11,6 +11,32 @@ end
 SelectNode(list...; over = nothing) =
     SelectNode(over = over, list = SQLNode[list...])
 
+"""
+    Select(; over; list)
+    Select(list...; over)
+
+A subquery that fixes the `list` of output columns.
+
+```sql
+SELECT \$list... FROM \$over
+```
+
+# Examples
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           Select(Get.person_id);
+
+julia> print(render(q))
+SELECT "person_2"."person_id"
+FROM (
+  SELECT "person_1"."person_id"
+  FROM "person" AS "person_1"
+) AS "person_2"
+```
+"""
 Select(args...; kws...) =
     SelectNode(args...; kws...) |> SQLNode
 
@@ -73,7 +99,11 @@ function resolve(n::SelectNode, req)
     list = SQLClause[]
     for (i, col) in enumerate(n.list)
         i in output_indexes || continue
-        push!(list, AS(over = translate(col, subs), name = aliases[i]))
+        c = translate(col, subs)
+        if !(core = c[]; core isa IdentifierClause && core.name === aliases[i])
+            c = AS(over = c, name = aliases[i])
+        end
+        push!(list, c)
     end
     if isempty(list)
         push!(list, true)

@@ -21,7 +21,7 @@ A `WHERE` clause.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = FROM(:location) |>
            WHERE(OP("=", :zip, "60614")) |>
            SELECT(:location_id);
@@ -29,7 +29,7 @@ julia> c = FROM(:location) |>
 julia> print(render(c))
 SELECT "location_id"
 FROM "location"
-WHERE "zip" = '60614'
+WHERE ("zip" = '60614')
 ```
 """
 WHERE(args...; kws...) =

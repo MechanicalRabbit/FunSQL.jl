@@ -22,14 +22,14 @@ identifier.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = ID(:person);
 
 julia> print(render(c))
 "person"
 ```
 
-```julia-repl
+```jldoctest
 julia> c = ID(:p) |> ID(:birth_datetime);
 
 julia> print(render(c))

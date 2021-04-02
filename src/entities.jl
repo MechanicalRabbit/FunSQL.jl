@@ -16,9 +16,10 @@ provided as a `Symbol` or `String` value.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> t = SQLTable(:location,
                     :location_id, :address_1, :address_2, :city, :state, :zip);
+
 
 julia> show(t.name)
 :location
@@ -27,7 +28,7 @@ julia> show(t.columns)
 [:location_id, :address_1, :address_2, :city, :state, :zip]
 ```
 
-```julia-repl
+```jldoctest
 julia> t = SQLTable(schema = "public",
                     name = "person",
                     columns = ["person_id", "birth_datetime", "location_id"]);

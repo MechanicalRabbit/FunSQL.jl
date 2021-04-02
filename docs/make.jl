@@ -3,6 +3,18 @@
 using Documenter
 using FunSQL
 
+# Setup for doctests.
+DocMeta.setdocmeta!(
+    FunSQL,
+    :DocTestSetup,
+    quote
+        using FunSQL:
+            SQLTable,
+            Call, From, Get, Select, Where,
+            AS, FROM, ID, LITERAL, OP, SELECT, WHERE,
+            render
+    end)
+
 # Highlight indented code blocks as Julia code.
 using Documenter.Expanders: ExpanderPipeline, Selectors, Markdown, iscode
 abstract type DefaultLanguage <: ExpanderPipeline end

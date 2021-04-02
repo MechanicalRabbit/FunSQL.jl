@@ -26,20 +26,20 @@ Set `distinct` to `true` to add a `DISTINCT` modifier.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = SELECT(true, false);
 
 julia> print(render(c))
 SELECT TRUE, FALSE
 ```
 
-```julia-repl
+```jldoctest
 julia> c = FROM(:location) |>
            SELECT(distinct = true, :zip);
 
 julia> print(render(c))
-SELECT DISTINCT zip
-FROM location
+SELECT DISTINCT "zip"
+FROM "location"
 ```
 """
 SELECT(args...; kws...) =

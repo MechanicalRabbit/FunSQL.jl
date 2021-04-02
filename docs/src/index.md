@@ -3,6 +3,11 @@
 
 ## API Reference
 
+```@docs
+FunSQL.render
+```
+
+
 ### SQL Dialects
 
 ```@autodocs
@@ -17,6 +22,20 @@ Modules = [FunSQL]
 Pages = ["entities.jl"]
 ```
 
+
+### Semantic Structure
+
+```@autodocs
+Modules = [FunSQL]
+Pages = [
+    "nodes.jl",
+    "nodes/from.jl",
+    "nodes/select.jl",
+    "nodes/where.jl",
+]
+```
+
+
 ### Syntactic Structure
 
 ```@autodocs
@@ -27,6 +46,7 @@ Pages = [
     "clauses/from.jl",
     "clauses/identifier.jl",
     "clauses/literal.jl",
+    "clauses/operator.jl",
     "clauses/select.jl",
     "clauses/where.jl",
 ]

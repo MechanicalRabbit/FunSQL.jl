@@ -40,11 +40,6 @@ Base.show(io::IO, c::AbstractSQLClause) =
 Base.show(io::IO, ::MIME"text/plain", c::AbstractSQLClause) =
     pprint(io, c)
 
-"""
-    render(clause; dialect = :default) :: String
-
-Convert the given SQL clause object to a SQL string.
-"""
 function render(c::AbstractSQLClause; dialect = :default)
     ctx = RenderContext(dialect)
     render(ctx, convert(SQLClause, c))

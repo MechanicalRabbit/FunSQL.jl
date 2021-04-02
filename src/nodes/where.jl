@@ -11,6 +11,33 @@ end
 WhereNode(condition; over = nothing) =
     WhereNode(over = over, condition = condition)
 
+"""
+    Where(; over = nothing, condition)
+    Where(condition; over = nothing)
+
+A subquery that filters by the given `condition`.
+
+```sql
+SELECT ... FROM \$over WHERE \$condition
+```
+
+# Examples
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           Where(Call(">", Get.year_of_birth, 2000));
+
+julia> print(render(q))
+SELECT "person_2"."person_id", "person_2"."year_of_birth"
+FROM (
+  SELECT "person_1"."person_id", "person_1"."year_of_birth"
+  FROM "person" AS "person_1"
+) AS "person_2"
+WHERE ("person_2"."year_of_birth" > 2000)
+```
+"""
 Where(args...; kws...) =
     WhereNode(args...; kws...) |> SQLNode
 
@@ -81,7 +108,7 @@ function resolve(n::WhereNode, req)
             !(name in seen) || continue
             push!(seen, name)
             id = ID(over = base_as, name = name)
-            push!(list, AS(over = id, name = name))
+            push!(list, id)
         end
     end
     if isempty(list)

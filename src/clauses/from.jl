@@ -18,10 +18,11 @@ A `FROM` clause.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = ID(:person) |> AS(:p) |> FROM();
 
 julia> print(render(c))
+
 FROM "person" AS "p"
 ```
 """

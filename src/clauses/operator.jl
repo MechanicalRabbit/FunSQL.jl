@@ -25,7 +25,7 @@ An application of a SQL operator.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = OP("NOT", OP("=", :zip, "60614"));
 
 julia> print(render(c))

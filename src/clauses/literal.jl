@@ -14,14 +14,15 @@ are automatically converted to SQL literals.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = LITERAL(missing);
+
 
 julia> print(render(c))
 NULL
 ```
 
-```julia-repl
+```jldoctest
 julia> c = LITERAL("SQL is fun!");
 
 julia> print(render(c))

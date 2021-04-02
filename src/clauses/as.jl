@@ -21,7 +21,7 @@ An `AS` clause.
 
 # Examples
 
-```julia-repl
+```jldoctest
 julia> c = ID(:person) |> AS(:p);
 
 julia> print(render(c))
