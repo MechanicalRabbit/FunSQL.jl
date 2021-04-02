@@ -7,13 +7,13 @@ objects.  Different types of clauses are created by specialized constructors
 and connected using the chain (`|>`) operator.
 
     c = FROM(:person) |>
-        SELECT(:person_id, :birth_datetime)
+        SELECT(:person_id, :year_of_birth)
     #-> (…) |> SELECT(…)
 
 Displaying a `SQLClause` object shows how it was constructed.
 
     display(c)
-    #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:birth_datetime))
+    #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth))
 
 A `SQLClause` object wraps a concrete clause object, which can be accessed
 using the indexing operator.
@@ -25,7 +25,7 @@ To generate SQL, we use function `render()`.
 
     print(render(c))
     #=>
-    SELECT "person_id", "birth_datetime"
+    SELECT "person_id", "year_of_birth"
     FROM "person"
     =#
 
@@ -71,17 +71,17 @@ A SQL identifier is created with `ID()` constructor.
 
 A quoted identifier is created using pipeline notation.
 
-    c = ID(:person) |> ID(:birth_datetime)
-    #-> (…) |> ID(:birth_datetime)
+    c = ID(:person) |> ID(:year_of_birth)
+    #-> (…) |> ID(:year_of_birth)
 
     display(c)
-    #-> ID(:person) |> ID(:birth_datetime)
+    #-> ID(:person) |> ID(:year_of_birth)
 
     c[]
-    #-> (…) |> IdentifierClause(:birth_datetime)
+    #-> (…) |> IdentifierClause(:year_of_birth)
 
     print(render(c))
-    #-> "person"."birth_datetime"
+    #-> "person"."year_of_birth"
 
 Symbols and pairs of symbols are automatically converted to SQL identifiers
 when they are used in the context of a SQL clause.
@@ -152,18 +152,18 @@ A `SELECT` clause is created with `SELECT()` constructor.  While in SQL,
 `SELECT` typically opens a query, in FunSQL, `SELECT()` should be placed
 at the end of a clause chain.
 
-    c = FROM(:person) |> SELECT(:person_id, :birth_datetime)
+    c = FROM(:person) |> SELECT(:person_id, :year_of_birth)
     #-> (…) |> SELECT(…)
 
     display(c)
-    #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:birth_datetime))
+    #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth))
 
     c[]
     #-> (…) |> SelectClause(…)
 
     print(render(c))
     #=>
-    SELECT "person_id", "birth_datetime"
+    SELECT "person_id", "year_of_birth"
     FROM "person"
     =#
 

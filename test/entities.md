@@ -16,7 +16,7 @@ either as a `Symbol` or as a `String` value.
     #-> SQLTable(:location, schema = :public, …)
 
     person = SQLTable(name = "person",
-                      columns = ["person_id", "birth_datetime", "location_id"])
+                      columns = ["person_id", "year_of_birth", "location_id"])
     #-> SQLTable(:person, …)
 
 The table and the column names could be provided as positional arguments.
@@ -40,5 +40,5 @@ the object.
 
     display(person)
     #=>
-    SQLTable(:person, columns = [:person_id, :birth_datetime, :location_id])
+    SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
     =#
