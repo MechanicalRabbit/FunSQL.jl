@@ -35,7 +35,7 @@ To generate SQL, we use function `render()`.
 A SQL literal is created using a `LIT()` constructor.
 
     c = LIT("SQL is fun!")
-    #-> LIT(…)
+    #-> LIT("SQL is fun!")
 
     display(c)
     #-> LIT("SQL is fun!")
@@ -152,7 +152,7 @@ A `SELECT` clause is created with `SELECT()` constructor.  While in SQL,
 `SELECT` typically opens a query, in FunSQL, `SELECT()` should be placed
 at the end of a clause chain.
 
-    c = FROM(:person) |> SELECT(:person_id, :year_of_birth)
+    c = :person |> FROM() |> SELECT(:person_id, :year_of_birth)
     #-> (…) |> SELECT(…)
 
     display(c)
@@ -166,6 +166,28 @@ at the end of a clause chain.
     SELECT "person_id", "year_of_birth"
     FROM "person"
     =#
+
+The `DISTINCT` modifier can be added from the constructor.
+
+    c = FROM(:location) |> SELECT(distinct = true, :zip)
+    #-> (…) |> SELECT(…)
+
+    display(c)
+    #-> ID(:location) |> FROM() |> SELECT(distinct = true, ID(:zip))
+
+    print(render(c))
+    #=>
+    SELECT DISTINCT "zip"
+    FROM "location"
+    =#
+
+A `SELECT` clause with an empty list can be created explicitly.
+
+    c = SELECT(list = [])
+    #-> SELECT(…)
+
+    display(c)
+    #-> SELECT(list = [])
 
 
 ## `WHERE` Clause
