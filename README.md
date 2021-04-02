@@ -26,7 +26,7 @@ For a fully functional prototype, see the [prototype] branch.
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
 [docs-dev-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/
 [chat-img]: https://img.shields.io/badge/chat-julia--zulip-blue
-[chat-url]: https://julialang.zulipchat.com/#narrow/stream/284102-FunSQL.2Ejl
+[chat-url]: https://julialang.zulipchat.com/#narrow/stream/284102-funsql.2Ejl
 [issues-img]: https://img.shields.io/github/issues/MechanicalRabbit/FunSQL.jl.svg
 [issues-url]: https://github.com/MechanicalRabbit/FunSQL.jl/issues
 [ci-img]: https://github.com/MechanicalRabbit/FunSQL.jl/workflows/CI/badge.svg
