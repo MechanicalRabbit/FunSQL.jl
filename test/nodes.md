@@ -121,11 +121,16 @@ Hierarchical notation is supported.
 
     q = From(person)
 
-    e = Get(over = q, :person_id)
-    #-> (…) |> Get.person_id
+    e = Get(over = q, :year_of_birth)
+    #-> (…) |> Get.year_of_birth
 
     display(e)
-    #-> From(SQLTable(:person, …)) |> Get.person_id
+    #-> From(SQLTable(:person, …)) |> Get.year_of_birth
+
+    q = q |> Where(Call(">", e, 2000))
+
+    e = Get(over = q, :person_id)
+    #-> (…) |> Get.person_id
 
     q.person_id
     #-> (…) |> Get.person_id
@@ -138,6 +143,21 @@ Hierarchical notation is supported.
 
     q["person_id"]
     #-> (…) |> Get.person_id
+
+    q = q |> Select(e)
+
+    print(render(q))
+    #=>
+    SELECT "person_3"."person_id"
+    FROM (
+      SELECT "person_2"."person_id"
+      FROM (
+        SELECT "person_1"."person_id", "person_1"."year_of_birth"
+        FROM "person" AS "person_1"
+      ) AS "person_2"
+      WHERE ("person_2"."year_of_birth" > 2000)
+    ) AS "person_3"
+    =#
 
 `Get` is used for dereferencing an alias created with `As`.
 
