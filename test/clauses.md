@@ -37,9 +37,6 @@ A SQL literal is created using a `LIT()` constructor.
     c = LIT("SQL is fun!")
     #-> LIT("SQL is fun!")
 
-    display(c)
-    #-> LIT("SQL is fun!")
-
     c[]
     #-> LiteralClause("SQL is fun!")
 
@@ -62,32 +59,6 @@ literals when they are used in the context of a SQL clause.
 
     print(render(c))
     #-> SELECT NULL, TRUE, 42, 'SQL is fun!', '2000-01-01'
-
-
-## SQL Operators
-
-An application of a SQL operator is created with `OP()` constructor.
-
-    c = OP("NOT", OP("=", :zip, "60614"))
-    #-> OP("NOT", …)
-
-    display(c)
-    #-> OP("NOT", OP("=", ID(:zip), LIT("60614")))
-
-    c[]
-    #-> OperatorClause("NOT", …)
-
-    print(render(c))
-    #-> (NOT ("zip" = '60614'))
-
-An operator without arguments can be constructed, if necessary.
-
-    c = OP("CURRENT_TIMESTAMP", args = [])
-    display(c)
-    #-> OP("CURRENT_TIMESTAMP", args = [])
-
-    print(render(c))
-    #-> CURRENT_TIMESTAMP
 
 
 ## SQL Identifiers
@@ -132,6 +103,32 @@ when they are used in the context of a SQL clause.
     SELECT "p"."person_id"
     FROM "person" AS "p"
     =#
+
+
+## SQL Operators
+
+An application of a SQL operator is created with `OP()` constructor.
+
+    c = OP("NOT", OP("=", :zip, "60614"))
+    #-> OP("NOT", …)
+
+    display(c)
+    #-> OP("NOT", OP("=", ID(:zip), LIT("60614")))
+
+    c[]
+    #-> OperatorClause("NOT", …)
+
+    print(render(c))
+    #-> (NOT ("zip" = '60614'))
+
+An operator without arguments can be constructed, if necessary.
+
+    c = OP("CURRENT_TIMESTAMP", args = [])
+    display(c)
+    #-> OP("CURRENT_TIMESTAMP", args = [])
+
+    print(render(c))
+    #-> CURRENT_TIMESTAMP
 
 
 ## `AS` Clause
