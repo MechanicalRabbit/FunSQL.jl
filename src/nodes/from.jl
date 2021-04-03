@@ -67,7 +67,8 @@ function resolve(n::FromNode, req)
     if isempty(list)
         push!(list, true)
     end
-    c = SELECT(over = FROM(AS(over = n.table.name, name = as)),
+    tbl = ID(over = n.table.schema, name = n.table.name)
+    c = SELECT(over = FROM(AS(over = tbl, name = as)),
                list = list)
     repl = Dict{SQLNode, Symbol}()
     for ref in req.refs

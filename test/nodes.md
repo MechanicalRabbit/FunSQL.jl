@@ -288,6 +288,20 @@ By default, `From` selects all columns from the table.
     FROM "person" AS "person_1"
     =#
 
+`From` adds the schema qualifier when the table has the schema.
+
+    concept = SQLTable(schema = :public,
+                       :concept,
+                       columns = [:concept_id, :description])
+
+    q = From(concept)
+
+    print(render(q))
+    #=>
+    SELECT "concept_1"."concept_id", "concept_1"."description"
+    FROM "public"."concept" AS "concept_1"
+    =#
+
 In a suitable context, a `SQLTable` object is automatically converted to a
 `From` subquery.
 
