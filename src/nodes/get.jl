@@ -13,6 +13,32 @@ end
 GetNode(name; over = nothing) =
     GetNode(over = over, name = name)
 
+"""
+    Get(; over, name)
+    Get(name; over)
+    Get.name        Get."name"      Get[name]       Get["name"]
+    over.name       over."name"     over[name]      over["name"]
+
+A reference to a table column, or an aliased expression or subquery.
+
+# Examples
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           As(:p) |>
+           Select(Get.p.person_id);
+```
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person);
+
+julia> q = q |> Select(q.person_id);
+```
+"""
 Get(args...; kws...) =
     GetNode(args...; kws...) |> SQLNode
 

@@ -13,6 +13,23 @@ end
 AsNode(name; over = nothing) =
     AsNode(over = over, name = name)
 
+"""
+    As(; over = nothing; name)
+    As(name; over = nothing)
+    name => over
+
+An alias for a subquery or an expression.
+
+# Examples
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           As(:p) |>
+           Select(:birth_year => Get.p.year_of_birth);
+```
+"""
 As(args...; kws...) =
     AsNode(args...; kws...) |> SQLNode
 

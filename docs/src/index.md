@@ -29,7 +29,11 @@ Pages = ["entities.jl"]
 Modules = [FunSQL]
 Pages = [
     "nodes.jl",
+    "nodes/as.jl",
+    "nodes/call.jl",
     "nodes/from.jl",
+    "nodes/get.jl",
+    "nodes/literal.jl",
     "nodes/select.jl",
     "nodes/where.jl",
 ]
