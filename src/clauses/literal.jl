@@ -35,8 +35,8 @@ LIT(val) =
 Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
     LiteralClause(val)
 
-PrettyPrinting.quoteof(c::LiteralClause; limit::Bool = false, wrap::Bool = false) =
-    Expr(:call, wrap ? nameof(LIT) : nameof(LiteralClause), c.val)
+PrettyPrinting.quoteof(c::LiteralClause, ::SQLClauseQuoteContext) =
+    Expr(:call, nameof(LIT), c.val)
 
 render(ctx, c::LiteralClause) =
     render(ctx, c.val)

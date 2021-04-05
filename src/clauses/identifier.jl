@@ -45,10 +45,10 @@ Base.convert(::Type{AbstractSQLClause}, name::Symbol) =
 Base.convert(::Type{AbstractSQLClause}, qname::Tuple{Symbol, Symbol}) =
     IdentifierClause(qname[2], over = IdentifierClause(qname[1]))
 
-function PrettyPrinting.quoteof(c::IdentifierClause; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call, wrap ? nameof(ID) : nameof(IdentifierClause), quoteof(c.name))
+function PrettyPrinting.quoteof(c::IdentifierClause, qctx::SQLClauseQuoteContext)
+    ex = Expr(:call, nameof(ID), quoteof(c.name))
     if c.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
     ex
 end

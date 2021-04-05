@@ -35,19 +35,12 @@ julia> print(render(c))
 OP(args...; kws...) =
     OperatorClause(args...; kws...) |> SQLClause
 
-function PrettyPrinting.quoteof(c::OperatorClause; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call,
-              wrap ? nameof(OP) : nameof(OperatorClause),
-              string(c.name))
-    if !limit
-        args_exs = Any[quoteof(arg) for arg in c.args]
-        if isempty(c.args)
-            push!(ex.args, Expr(:kw, :args, Expr(:vect, args_exs...)))
-        else
-            append!(ex.args, args_exs)
-        end
+function PrettyPrinting.quoteof(c::OperatorClause, qctx::SQLClauseQuoteContext)
+    ex = Expr(:call, nameof(OP), string(c.name))
+    if isempty(c.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        push!(ex.args, :…)
+        append!(ex.args, quoteof(c.args, qctx))
     end
     ex
 end

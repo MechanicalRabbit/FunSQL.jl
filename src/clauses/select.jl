@@ -45,23 +45,18 @@ FROM "location"
 SELECT(args...; kws...) =
     SelectClause(args...; kws...) |> SQLClause
 
-function PrettyPrinting.quoteof(c::SelectClause; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call, wrap ? nameof(SELECT) : nameof(SelectClause))
-    if !limit
-        if c.distinct !== false
-            push!(ex.args, Expr(:kw, :distinct, c.distinct))
-        end
-        list_exs = Any[quoteof(item) for item in c.list]
-        if isempty(c.list)
-            push!(ex.args, Expr(:kw, :list, Expr(:vect, list_exs...)))
-        else
-            append!(ex.args, list_exs)
-        end
+function PrettyPrinting.quoteof(c::SelectClause, qctx::SQLClauseQuoteContext)
+    ex = Expr(:call, nameof(SELECT))
+    if c.distinct !== false
+        push!(ex.args, Expr(:kw, :distinct, c.distinct))
+    end
+    if isempty(c.list)
+        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        push!(ex.args, :…)
+        append!(ex.args, quoteof(c.list, qctx))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
     ex
 end

@@ -26,6 +26,7 @@ function newline(ctx::RenderContext)
     end
 end
 
+
 # Base type.
 
 """
@@ -33,12 +34,6 @@ A part of a SQL query.
 """
 abstract type AbstractSQLClause
 end
-
-Base.show(io::IO, c::AbstractSQLClause) =
-    print(io, quoteof(c, limit = true))
-
-Base.show(io::IO, ::MIME"text/plain", c::AbstractSQLClause) =
-    pprint(io, c)
 
 function render(c::AbstractSQLClause; dialect = :default)
     ctx = RenderContext(dialect)
@@ -71,9 +66,6 @@ Base.convert(::Type{SQLClause}, @nospecialize c::AbstractSQLClause) =
 Base.convert(::Type{SQLClause}, obj) =
     convert(SQLClause, convert(AbstractSQLClause, obj)::AbstractSQLClause)
 
-PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, wrap::Bool = false) =
-    quoteof(c[], limit = limit, wrap = true)
-
 (c::AbstractSQLClause)(c′) =
     c(convert(SQLClause, c′))
 
@@ -102,6 +94,44 @@ function render(ctx, cs::AbstractVector{SQLClause}; sep = ", ", left = "(", righ
     end
     print(ctx, right)
 end
+
+
+# Pretty-printing.
+
+Base.show(io::IO, c::AbstractSQLClause) =
+    print(io, quoteof(c, limit = true))
+
+Base.show(io::IO, ::MIME"text/plain", c::AbstractSQLClause) =
+    pprint(io, c)
+
+struct SQLClauseQuoteContext
+    limit::Bool
+
+    SQLClauseQuoteContext(; limit = false) =
+        new(limit)
+end
+
+PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
+    quoteof(SQLClause(c), limit = limit, content = true)
+
+function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, content::Bool = false)
+    qctx = SQLClauseQuoteContext(limit = limit)
+    ex = quoteof(c[], qctx)
+    if content
+        ex = Expr(:ref, ex)
+    end
+    ex
+end
+
+PrettyPrinting.quoteof(c::SQLClause, qctx::SQLClauseQuoteContext) =
+    !qctx.limit ? quoteof(c[], qctx) : :…
+
+PrettyPrinting.quoteof(cs::Vector{SQLClause}, qctx::SQLClauseQuoteContext) =
+    isempty(cs) ?
+        Any[] :
+    !qctx.limit ?
+        Any[quoteof(c, qctx) for c in cs] :
+        Any[:…]
 
 
 # Concrete clause types.

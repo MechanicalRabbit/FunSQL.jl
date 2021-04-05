@@ -35,12 +35,10 @@ WHERE ("zip" = '60614')
 WHERE(args...; kws...) =
     WhereClause(args...; kws...) |> SQLClause
 
-function PrettyPrinting.quoteof(c::WhereClause; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call,
-              wrap ? nameof(WHERE) : nameof(WhereClause),
-              !limit ? quoteof(c.condition) : :…)
+function PrettyPrinting.quoteof(c::WhereClause, qctx::SQLClauseQuoteContext)
+    ex = Expr(:call, nameof(WHERE), quoteof(c.condition, qctx))
     if c.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
     ex
 end

@@ -19,7 +19,7 @@ A `SQLClause` object wraps a concrete clause object, which can be accessed
 using the indexing operator.
 
     c[]
-    #-> (…) |> SelectClause(…)
+    #-> ((…) |> SELECT(…))[]
 
 To generate SQL, we use function `render()`.
 
@@ -36,9 +36,6 @@ A SQL literal is created using a `LIT()` constructor.
 
     c = LIT("SQL is fun!")
     #-> LIT("SQL is fun!")
-
-    c[]
-    #-> LiteralClause("SQL is fun!")
 
 Values of certain Julia data types are automatically converted to SQL
 literals when they are used in the context of a SQL clause.
@@ -71,9 +68,6 @@ A SQL identifier is created with `ID()` constructor.
     display(c)
     #-> ID(:person)
 
-    c[]
-    #-> IdentifierClause(:person)
-
     print(render(c))
     #-> "person"
 
@@ -84,9 +78,6 @@ A quoted identifier is created using pipeline notation.
 
     display(c)
     #-> ID(:person) |> ID(:year_of_birth)
-
-    c[]
-    #-> (…) |> IdentifierClause(:year_of_birth)
 
     print(render(c))
     #-> "person"."year_of_birth"
@@ -115,16 +106,12 @@ An application of a SQL operator is created with `OP()` constructor.
     display(c)
     #-> OP("NOT", OP("=", ID(:zip), LIT("60614")))
 
-    c[]
-    #-> OperatorClause("NOT", …)
-
     print(render(c))
     #-> (NOT ("zip" = '60614'))
 
 An operator without arguments can be constructed, if necessary.
 
     c = OP("CURRENT_TIMESTAMP", args = [])
-    display(c)
     #-> OP("CURRENT_TIMESTAMP", args = [])
 
     print(render(c))
@@ -140,9 +127,6 @@ An `AS` clause is created with `AS()` constructor.
 
     display(c)
     #-> ID(:person) |> AS(:p)
-
-    c[]
-    #-> (…) |> AsClause(:p)
 
     print(render(c))
     #-> "person" AS "p"
@@ -170,9 +154,6 @@ A `FROM` clause is created with `FROM()` constructor.
     display(c)
     #-> ID(:person) |> FROM()
 
-    c[]
-    #-> (…) |> FromClause()
-
     print(render(c |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
@@ -191,9 +172,6 @@ at the end of a clause chain.
 
     display(c)
     #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth))
-
-    c[]
-    #-> (…) |> SelectClause(…)
 
     print(render(c))
     #=>
@@ -220,9 +198,6 @@ A `SELECT` clause with an empty list can be created explicitly.
     c = SELECT(list = [])
     #-> SELECT(…)
 
-    display(c)
-    #-> SELECT(list = [])
-
 Rendering a nested `SELECT` clause adds parentheses around it.
 
     c = :location |> FROM() |> SELECT(:state, :zip) |> FROM() |> SELECT(:zip)
@@ -246,9 +221,6 @@ A `WHERE` clause is created with `WHERE()` constructor.
 
     display(c)
     #-> ID(:person) |> FROM() |> WHERE(OP(">", ID(:year_of_birth), LIT(2000)))
-
-    c[]
-    #-> (…) |> WhereClause(…)
 
     print(render(c |> SELECT(:person_id)))
     #=>

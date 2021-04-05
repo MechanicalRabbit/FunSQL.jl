@@ -34,10 +34,10 @@ AS(args...; kws...) =
 Base.convert(::Type{AbstractSQLClause}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsClause(name = first(p), over = convert(SQLClause, last(p)))
 
-function PrettyPrinting.quoteof(c::AsClause; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call, wrap ? nameof(AS) : nameof(AsClause), quoteof(c.name))
+function PrettyPrinting.quoteof(c::AsClause, qctx::SQLClauseQuoteContext)
+    ex = Expr(:call, nameof(AS), quoteof(c.name))
     if c.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
     ex
 end

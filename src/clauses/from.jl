@@ -29,10 +29,10 @@ FROM "person" AS "p"
 FROM(args...; kws...) =
     FromClause(args...; kws...) |> SQLClause
 
-function PrettyPrinting.quoteof(c::FromClause; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call, wrap ? nameof(FROM) : nameof(FromClause))
+function PrettyPrinting.quoteof(c::FromClause, qctx::SQLClauseQuoteContext)
+    ex = Expr(:call, nameof(FROM))
     if c.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(c.over), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
     ex
 end
