@@ -9,12 +9,6 @@ A SQL operation.
 abstract type AbstractSQLNode
 end
 
-Base.show(io::IO, n::AbstractSQLNode) =
-    print(io, quoteof(n, limit = true))
-
-Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
-    pprint(io, n)
-
 
 # Specialization barrier node.
 
@@ -22,14 +16,14 @@ Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
 An opaque wrapper over an arbitrary SQL node.
 """
 struct SQLNode <: AbstractSQLNode
-    content::AbstractSQLNode
+    core::AbstractSQLNode
 
-    SQLNode(@nospecialize content::AbstractSQLNode) =
-        new(content)
+    SQLNode(@nospecialize core::AbstractSQLNode) =
+        new(core)
 end
 
 Base.getindex(n::SQLNode) =
-    getfield(n, :content)
+    getfield(n, :core)
 
 Base.convert(::Type{SQLNode}, n::SQLNode) =
     n
@@ -39,9 +33,6 @@ Base.convert(::Type{SQLNode}, @nospecialize n::AbstractSQLNode) =
 
 Base.convert(::Type{SQLNode}, obj) =
     convert(SQLNode, convert(AbstractSQLNode, obj)::AbstractSQLNode)
-
-PrettyPrinting.quoteof(n::SQLNode; limit::Bool = false, wrap::Bool = false) =
-    quoteof(n[], limit = limit, wrap = true)
 
 (n::AbstractSQLNode)(n′) =
     n(convert(SQLNode, n′))
@@ -145,6 +136,58 @@ function resolve(::Nothing, req)
     repl = Dict{SQLNode, Symbol}()
     ResolveResult(c, repl)
 end
+
+
+# Pretty-printing.
+
+Base.show(io::IO, n::AbstractSQLNode) =
+    print(io, quoteof(n, limit = true))
+
+Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
+    pprint(io, n)
+
+struct SQLNodeQuoteContext
+    limit::Bool
+    defs::Vector{Any}
+    seen::Set{SQLNode}
+    vars::IdDict{SQLNode, Symbol}
+
+    SQLNodeQuoteContext(; limit = false) =
+        new(limit, Any[], Set{SQLNode}(), IdDict{SQLNode, Symbol}())
+end
+
+PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
+    quoteof(SQLNode(n), limit = limit, core = true)
+
+function PrettyPrinting.quoteof(n::SQLNode; limit::Bool = false, core::Bool = false)
+    qctx = SQLNodeQuoteContext(limit = limit)
+    ex = quoteof(n[], qctx)
+    if core
+        ex = Expr(:ref, ex)
+    end
+    ex
+end
+
+PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext) =
+    if !qctx.limit
+        var = get(qctx.vars, n, nothing)
+        if var !== nothing
+            var
+        else
+            quoteof(n[], qctx)
+        end
+    else
+        :…
+    end
+
+PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
+    if isempty(ns)
+        Any[]
+    elseif !qctx.limit
+        Any[quoteof(n, qctx) for n in ns]
+    else
+        Any[:…]
+    end
 
 
 # Concrete node types.

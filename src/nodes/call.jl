@@ -43,18 +43,8 @@ WHERE (NOT ("person_2"."person_id" > 2000))
 Call(args...; kws...) =
     CallNode(args...; kws...) |> SQLNode
 
-function PrettyPrinting.quoteof(n::CallNode; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call,
-              wrap ? nameof(Call) : nameof(CallNode),
-              string(n.name))
-    if !limit || isempty(n.args)
-        args_exs = Any[quoteof(arg) for arg in n.args]
-        append!(ex.args, args_exs)
-    else
-        push!(ex.args, :…)
-    end
-    ex
-end
+PrettyPrinting.quoteof(n::CallNode, qctx::SQLNodeQuoteContext) =
+    Expr(:call, nameof(Call), string(n.name), quoteof(n.args, qctx)...)
 
 alias(n::CallNode) =
     n.name

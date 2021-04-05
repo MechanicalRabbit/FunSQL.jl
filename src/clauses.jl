@@ -48,14 +48,14 @@ end
 An opaque wrapper over an arbitrary SQL clause.
 """
 struct SQLClause <: AbstractSQLClause
-    content::AbstractSQLClause
+    core::AbstractSQLClause
 
-    SQLClause(@nospecialize content::AbstractSQLClause) =
-        new(content)
+    SQLClause(@nospecialize core::AbstractSQLClause) =
+        new(core)
 end
 
 Base.getindex(c::SQLClause) =
-    c.content
+    c.core
 
 Base.convert(::Type{SQLClause}, c::SQLClause) =
     c
@@ -112,26 +112,32 @@ struct SQLClauseQuoteContext
 end
 
 PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
-    quoteof(SQLClause(c), limit = limit, content = true)
+    quoteof(SQLClause(c), limit = limit, core = true)
 
-function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, content::Bool = false)
+function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, core::Bool = false)
     qctx = SQLClauseQuoteContext(limit = limit)
     ex = quoteof(c[], qctx)
-    if content
+    if core
         ex = Expr(:ref, ex)
     end
     ex
 end
 
 PrettyPrinting.quoteof(c::SQLClause, qctx::SQLClauseQuoteContext) =
-    !qctx.limit ? quoteof(c[], qctx) : :…
+    if !qctx.limit
+        quoteof(c[], qctx)
+    else
+        :…
+    end
 
 PrettyPrinting.quoteof(cs::Vector{SQLClause}, qctx::SQLClauseQuoteContext) =
-    isempty(cs) ?
-        Any[] :
-    !qctx.limit ?
-        Any[quoteof(c, qctx) for c in cs] :
+    if isempty(cs)
+        Any[]
+    elseif !qctx.limit
+        Any[quoteof(c, qctx) for c in cs]
+    else
         Any[:…]
+    end
 
 
 # Concrete clause types.

@@ -38,11 +38,8 @@ From(args...; kws...) =
 Base.convert(::Type{AbstractSQLNode}, table::SQLTable) =
     FromNode(table)
 
-function PrettyPrinting.quoteof(n::FromNode; limit::Bool = false, wrap::Bool = false)
-    Expr(:call,
-         wrap ? nameof(From) : nameof(FromNode),
-         !limit ? quoteof(n.table, limit=true) : :…)
-end
+PrettyPrinting.quoteof(n::FromNode, qctx::SQLNodeQuoteContext) =
+    Expr(:call, nameof(From), quoteof(n.table, limit=true))
 
 alias(n::FromNode) =
     n.table.name

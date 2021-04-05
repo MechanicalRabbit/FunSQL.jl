@@ -30,7 +30,7 @@ Each node wraps a concrete node object, which can be accessed using the
 indexing operator.
 
     q[]
-    #-> (…) |> SelectNode(…)
+    #-> ((…) |> Select(…))[]
 
 The SQL query is generated using the function `render()`.
 
@@ -54,9 +54,6 @@ A SQL value is created with `Literal()` constructor.
 
     e = Literal("SQL is fun!")
     #-> Literal("SQL is fun!")
-
-    e[]
-    #-> LiteralNode("SQL is fun!")
 
 In a `SELECT` clause, bare literal expressions get an alias `"_"`.
 
@@ -89,9 +86,6 @@ To reference a table attribute, we use the `Get` constructor.
     e = Get(:person_id)
     #-> Get.person_id
 
-    e[]
-    #-> GetNode(:person_id)
-
 Alternatively, use shorthand notation.
 
     Get.person_id
@@ -110,9 +104,6 @@ Hierarchical notation is supported.
 
     e = Get.p.person_id
     #-> Get.p.person_id
-
-    e[]
-    #-> (…) |> GetNode(:person_id)
 
     Get.p |> Get.person_id
     #-> Get.p.person_id
@@ -199,9 +190,6 @@ A function or an operator invocation is created with the `Call` constructor.
     display(e)
     #-> Call(">", Get.year_of_birth, Literal(2000))
 
-    e[]
-    #-> CallNode(">", …)
-
 A vector of arguments could be passed directly.
 
     Call(">", args = SQLNode[Get.year_of_birth, 2000])
@@ -228,9 +216,6 @@ An alias to an expression can be added with the `As` constructor.
 
     display(e)
     #-> Literal(42) |> As(:integer)
-
-    e[]
-    #-> (…) |> AsNode(:integer)
 
     print(render(Select(e)))
     #=>
@@ -276,9 +261,6 @@ given table.
 
     display(q)
     #-> From(SQLTable(:person, …))
-
-    q[]
-    #-> FromNode(…)
 
 By default, `From` selects all columns from the table.
 
@@ -348,9 +330,6 @@ The `Select` constructor creates a subquery that fixes the output columns.
     display(q)
     #-> From(SQLTable(:person, …)) |> Select(Get.person_id)
 
-    q[]
-    #-> (…) |> SelectNode(…)
-
     print(render(q))
     #=>
     SELECT "person_2"."person_id"
@@ -393,9 +372,6 @@ The `Where` constructor creates a subquery that filters by the given condition.
     From(SQLTable(:person, …)) |>
     Where(Call(">", Get.year_of_birth, Literal(2000)))
     =#
-
-    q[]
-    #-> (…) |> WhereNode(…)
 
     print(render(q))
     #=>

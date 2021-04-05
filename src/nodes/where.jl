@@ -41,12 +41,10 @@ WHERE ("person_2"."year_of_birth" > 2000)
 Where(args...; kws...) =
     WhereNode(args...; kws...) |> SQLNode
 
-function PrettyPrinting.quoteof(n::WhereNode; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call,
-              wrap ? nameof(Where) : nameof(WhereNode),
-              !limit ? quoteof(n.condition) : :…)
+function PrettyPrinting.quoteof(n::WhereNode, qctx::SQLNodeQuoteContext)
+    ex = Expr(:call, nameof(Where), quoteof(n.condition, qctx))
     if n.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(n.over), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
     end
     ex
 end

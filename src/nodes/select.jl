@@ -40,20 +40,15 @@ FROM (
 Select(args...; kws...) =
     SelectNode(args...; kws...) |> SQLNode
 
-function PrettyPrinting.quoteof(n::SelectNode; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call, wrap ? nameof(Select) : nameof(SelectNode))
-    if !limit
-        list_exs = Any[quoteof(item) for item in n.list]
-        if isempty(n.list)
-            push!(ex.args, Expr(:kw, :list, Expr(:vect, list_exs...)))
-        else
-            append!(ex.args, list_exs)
-        end
+function PrettyPrinting.quoteof(n::SelectNode, qctx::SQLNodeQuoteContext)
+    ex = Expr(:call, nameof(Select))
+    if isempty(n.list)
+        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        push!(ex.args, :…)
+        append!(ex.args, quoteof(n.list, qctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(n.over), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
     end
     ex
 end

@@ -36,10 +36,10 @@ As(args...; kws...) =
 Base.convert(::Type{AbstractSQLNode}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsNode(name = first(p), over = convert(SQLNode, last(p)))
 
-function PrettyPrinting.quoteof(n::AsNode; limit::Bool = false, wrap::Bool = false)
-    ex = Expr(:call, wrap ? nameof(As) : nameof(AsNode), quoteof(n.name))
+function PrettyPrinting.quoteof(n::AsNode, qctx::SQLNodeQuoteContext)
+    ex = Expr(:call, nameof(As), quoteof(n.name))
     if n.over !== nothing
-        ex = Expr(:call, :|>, limit ? :… : quoteof(n.over), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
     end
     ex
 end
