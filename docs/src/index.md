@@ -33,6 +33,7 @@ Pages = [
     "nodes/call.jl",
     "nodes/from.jl",
     "nodes/get.jl",
+    "nodes/highlight.jl",
     "nodes/literal.jl",
     "nodes/select.jl",
     "nodes/where.jl",

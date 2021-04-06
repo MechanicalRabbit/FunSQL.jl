@@ -42,7 +42,15 @@ HighlightNode(color; over = nothing) =
     Highlight(; over = nothing; color)
     Highlight(color; over = nothing)
 
-Highlight the nested node with the given `color`.
+Highlight `over` with the given `color`.
+
+Available colors can be found in `Base.text_colors`.
+
+# Examples
+
+```jldoctest
+julia> q = Get.person_id |> Highlight(:bold);
+```
 """
 Highlight(args...; kws...) =
     HighlightNode(args...; kws...) |> SQLNode

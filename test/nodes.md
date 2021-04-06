@@ -1,8 +1,8 @@
 # SQL Nodes
 
     using FunSQL:
-        As, Call, From, Get, Literal, SQLNode, SQLTable, Select, Where, render,
-        resolve
+        As, Call, From, Get, Highlight, Literal, SQLNode, SQLTable, Select,
+        Where, render, resolve
 
 We start with specifying the database model.
 
@@ -430,5 +430,43 @@ The `Where` constructor creates a subquery that filters by the given condition.
       FROM "person" AS "person_1"
     ) AS "person_2"
     WHERE ("person_2"."year_of_birth" > 2000)
+    =#
+
+
+## Highlighting
+
+To highlight a node on the output, wrap it with `Highlight`.
+
+    q = From(person) |> Highlight(:green) |>
+        Where(Call(">", Get.year_of_birth |> Highlight(:bold), 2000) |>
+              Highlight(:white)) |>
+        Select(Get.person_id)
+
+When the query is displayed on a color terminal, the affected node is
+highlighted.
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000))),
+        q3 = q2 |> Select(Get.person_id)
+        q3
+    end
+    =#
+
+The `Highlight` node does not otherwise affect processing of the query.
+
+    print(render(q))
+    #=>
+    SELECT "person_3"."person_id"
+    FROM (
+      SELECT "person_2"."person_id"
+      FROM (
+        SELECT "person_1"."person_id", "person_1"."year_of_birth"
+        FROM "person" AS "person_1"
+      ) AS "person_2"
+      WHERE ("person_2"."year_of_birth" > 2000)
+    ) AS "person_3"
     =#
 
