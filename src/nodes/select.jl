@@ -82,7 +82,11 @@ function resolve(n::SelectNode, req)
     aliases = Symbol[alias(col) for col in n.list]
     indexes = Dict{Symbol, Int}()
     for (i, alias) in enumerate(aliases)
-        !(alias in keys(indexes)) || error("duplicate alias $alias")
+        if alias in keys(indexes)
+            ex = DuplicateAliasError(alias)
+            push!(ex.stack, n.list[i])
+            throw(ex)
+        end
         indexes[alias] = i
     end
     base_refs = SQLNode[]

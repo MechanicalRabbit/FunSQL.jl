@@ -389,6 +389,21 @@ The `Select` constructor creates a subquery that fixes the output columns.
     WHERE ("person_3"."year_of_birth" > 2000)
     =#
 
+`Select` requires all columns in the list to have unique aliases.
+
+    q = From(person) |>
+        Select(Get.person_id, Get.person_id)
+
+    print(render(q))
+    #=>
+    ERROR: DuplicateAliasError: person_id in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Select(Get.person_id, Get.person_id)
+        q2
+    end
+    =#
+
 
 ## `Where`
 

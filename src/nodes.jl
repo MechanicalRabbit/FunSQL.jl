@@ -100,7 +100,13 @@ struct ResolveResult
     repl::Dict{SQLNode, Symbol}
 end
 
-struct GetError <: Exception
+abstract type FunSQLError <: Exception
+end
+
+abstract type ErrorWithStack <: FunSQLError
+end
+
+struct GetError <: ErrorWithStack
     name::Symbol
     stack::Vector{SQLNode}
 
@@ -110,8 +116,25 @@ end
 
 function Base.showerror(io::IO, ex::GetError)
     print(io, "GetError: cannot find $(ex.name)")
-    if !isempty(ex.stack)
-        q = highlight(ex.stack)
+    showstack(io, ex.stack)
+end
+
+struct DuplicateAliasError <: ErrorWithStack
+    name::Symbol
+    stack::Vector{SQLNode}
+
+    DuplicateAliasError(name) =
+        new(name, SQLNode[])
+end
+
+function Base.showerror(io::IO, ex::DuplicateAliasError)
+    print(io, "DuplicateAliasError: $(ex.name)")
+    showstack(io, ex.stack)
+end
+
+function showstack(io, stack::Vector{SQLNode})
+    if !isempty(stack)
+        q = highlight(stack)
         println(io, " in:")
         pprint(io, q)
     end
@@ -187,7 +210,7 @@ function translate(n::SQLNode, subs)
             subs[n] :
             convert(SQLClause, translate(n[], subs))
     catch ex
-        if ex isa GetError
+        if ex isa ErrorWithStack
             push!(ex.stack, n)
         end
         rethrow()
@@ -198,7 +221,7 @@ function resolve(n::SQLNode, req)
     try
         resolve(n[], req)::ResolveResult
     catch ex
-        if ex isa GetError
+        if ex isa ErrorWithStack
             push!(ex.stack, n)
         end
         rethrow()
