@@ -47,6 +47,9 @@ end
 rebase(n::AsNode, n′) =
     AsNode(over = rebase(n.over, n′), name = n.name)
 
+visit(f, n::AsNode) =
+    visit(f, n.over)
+
 alias(n::AsNode) =
     n.name
 

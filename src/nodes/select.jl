@@ -56,6 +56,11 @@ end
 rebase(n::SelectNode, n′) =
     SelectNode(over = rebase(n.over, n′), list = n.list)
 
+function visit(f, n::SelectNode)
+    visit(f, n.over)
+    visit(f, n.list)
+end
+
 alias(n::SelectNode) =
     alias(n.over)
 

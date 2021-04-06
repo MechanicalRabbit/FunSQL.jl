@@ -67,7 +67,12 @@ function PrettyPrinting.quoteof(n::GetNode, qctx::SQLNodeQuoteContext)
         push!(path, nested.name)
         over = nested.over
     end
-    ex = nameof(Get)
+    if over !== nothing && over in keys(qctx.vars)
+        ex = qctx.vars[over]
+        over = nothing
+    else
+        ex = nameof(Get)
+    end
     while !isempty(path)
         name = pop!(path)
         ex = Expr(:., ex, quoteof(name))
@@ -80,6 +85,9 @@ end
 
 rebase(n::GetNode, n′) =
     GetNode(over = rebase(n.over, n′), name = n.name)
+
+visit(f, n::GetNode) =
+    visit(f, n.over)
 
 alias(n::GetNode) =
     n.name

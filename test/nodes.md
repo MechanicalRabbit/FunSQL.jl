@@ -21,9 +21,12 @@ Displaying a `SQLNode` object shows how it was constructed.
 
     display(q)
     #=>
-    From(SQLTable(:person, …)) |>
-    Where(Call(">", Get.year_of_birth, Literal(2000))) |>
-    Select(Get.person_id)
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000))),
+        q3 = q2 |> Select(Get.person_id)
+        q3
+    end
     =#
 
 Each node wraps a concrete node object, which can be accessed using the
@@ -116,7 +119,12 @@ Hierarchical notation is supported.
     #-> (…) |> Get.year_of_birth
 
     display(e)
-    #-> From(SQLTable(:person, …)) |> Get.year_of_birth
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person)
+        q1.year_of_birth
+    end
+    =#
 
     q = q |> Where(Call(">", e, 2000))
 
@@ -303,7 +311,14 @@ has no columns.
         Select(list = [])
 
     display(q)
-    #-> From(SQLTable(:empty, …)) |> Where(Literal(true)) |> Select(list = [])
+    #=>
+    let empty = SQLTable(:empty, …),
+        q1 = From(empty),
+        q2 = q1 |> Where(Literal(true)),
+        q3 = q2 |> Select(list = [])
+        q3
+    end
+    =#
 
     print(render(q))
     #=>
@@ -328,7 +343,13 @@ The `Select` constructor creates a subquery that fixes the output columns.
     #-> (…) |> Select(…)
 
     display(q)
-    #-> From(SQLTable(:person, …)) |> Select(Get.person_id)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Select(Get.person_id)
+        q2
+    end
+    =#
 
     print(render(q))
     #=>
@@ -369,8 +390,11 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
     display(q)
     #=>
-    From(SQLTable(:person, …)) |>
-    Where(Call(">", Get.year_of_birth, Literal(2000)))
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000)))
+        q2
+    end
     =#
 
     print(render(q))

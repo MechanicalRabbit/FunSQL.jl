@@ -52,6 +52,11 @@ end
 rebase(n::WhereNode, n′) =
     WhereNode(over = rebase(n.over, n′), condition = n.condition)
 
+function visit(f, n::WhereNode)
+    visit(f, n.over)
+    visit(f, n.condition)
+end
+
 alias(n::WhereNode) =
     alias(n.over)
 

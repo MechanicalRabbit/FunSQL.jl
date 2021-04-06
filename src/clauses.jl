@@ -112,12 +112,12 @@ struct SQLClauseQuoteContext
 end
 
 PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
-    quoteof(SQLClause(c), limit = limit, core = true)
+    quoteof(SQLClause(c), limit = limit, unwrap = true)
 
-function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, core::Bool = false)
+function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, unwrap::Bool = false)
     qctx = SQLClauseQuoteContext(limit = limit)
     ex = quoteof(c[], qctx)
-    if core
+    if unwrap
         ex = Expr(:ref, ex)
     end
     ex

@@ -9,6 +9,12 @@ A SQL operation.
 abstract type AbstractSQLNode
 end
 
+visit(f, @nospecialize n::AbstractSQLNode) =
+    nothing
+
+visit(f, ::Nothing) =
+    nothing
+
 
 # Specialization barrier node.
 
@@ -42,6 +48,18 @@ Base.convert(::Type{SQLNode}, obj) =
 
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))
+
+function visit(f, n::SQLNode)
+    visit(f, n[])
+    f(n)
+    nothing
+end
+
+function visit(f, ns::Vector{SQLNode})
+    for n in ns
+        visit(f, n)
+    end
+end
 
 
 # Converting to SQL syntax.
@@ -148,22 +166,69 @@ Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
 
 struct SQLNodeQuoteContext
     limit::Bool
-    defs::Vector{Any}
-    seen::Set{SQLNode}
-    vars::IdDict{SQLNode, Symbol}
+    vars::IdDict{Any, Symbol}
 
-    SQLNodeQuoteContext(; limit = false) =
-        new(limit, Any[], Set{SQLNode}(), IdDict{SQLNode, Symbol}())
+    SQLNodeQuoteContext(; limit = false, vars = IdDict{Any, Symbol}()) =
+        new(limit, vars)
 end
 
-PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
-    quoteof(SQLNode(n), limit = limit, core = true)
 
-function PrettyPrinting.quoteof(n::SQLNode; limit::Bool = false, core::Bool = false)
-    qctx = SQLNodeQuoteContext(limit = limit)
-    ex = quoteof(n[], qctx)
-    if core
+
+PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
+    quoteof(SQLNode(n), limit = limit, unwrap = true)
+
+function PrettyPrinting.quoteof(n::SQLNode; limit::Bool = false, unwrap::Bool = false)
+    if limit
+        qctx = SQLNodeQuoteContext(limit = true)
+        ex = quoteof(n[], qctx)
+        if unwrap
+            ex = Expr(:ref, ex)
+        end
+        return ex
+    end
+    tables_ordered = SQLTable[]
+    tables_seen = Set{SQLTable}()
+    queries_ordered = SQLNode[]
+    queries_seen = Set{SQLNode}()
+    visit(n) do n
+        core = n[]
+        if core isa FromNode
+            if !(core.table in tables_seen)
+                push!(tables_ordered, core.table)
+                push!(tables_seen, core.table)
+            end
+        end
+        if core isa Union{FromNode, SelectNode, WhereNode}
+            if !(n in queries_seen)
+                push!(queries_ordered, n)
+                push!(queries_seen, n)
+            end
+        end
+    end
+    qctx = SQLNodeQuoteContext()
+    defs = Any[]
+    if length(queries_ordered) >= 2 || (length(queries_ordered) == 1 && queries_ordered[1] !== n)
+        for t in tables_ordered
+            def = quoteof(t, limit = true)
+            name = t.name
+            push!(defs, Expr(:(=), name, def))
+            qctx.vars[t] = name
+        end
+        qidx = 0
+        for n in queries_ordered
+            def = quoteof(n, qctx)
+            qidx += 1
+            name = Symbol('q', qidx)
+            push!(defs, Expr(:(=), name, def))
+            qctx.vars[n] = name
+        end
+    end
+    ex = quoteof(n, qctx)
+    if unwrap
         ex = Expr(:ref, ex)
+    end
+    if !isempty(defs)
+        ex = Expr(:let, Expr(:block, defs...), ex)
     end
     ex
 end

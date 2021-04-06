@@ -46,6 +46,9 @@ Call(args...; kws...) =
 PrettyPrinting.quoteof(n::CallNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Call), string(n.name), quoteof(n.args, qctx)...)
 
+visit(f, n::CallNode) =
+    visit(f, n.args)
+
 alias(n::CallNode) =
     n.name
 
