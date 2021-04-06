@@ -21,6 +21,9 @@ using the indexing operator.
     c[]
     #-> ((…) |> SELECT(…))[]
 
+    display(c[])
+    #-> (ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth)))[]
+
 To generate SQL, we use function `render()`.
 
     print(render(c))

@@ -4,19 +4,10 @@
 # Base node type.
 
 """
-A SQL operation.
+A SQL expression.
 """
 abstract type AbstractSQLNode
 end
-
-visit(f, @nospecialize n::AbstractSQLNode) =
-    nothing
-
-visit(f, ::Nothing) =
-    nothing
-
-substitute(n::AbstractSQLNode, c, c′) =
-    n
 
 
 # Specialization barrier node.
@@ -52,16 +43,63 @@ Base.convert(::Type{SQLNode}, obj) =
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))
 
+@generated function visit(f, n::AbstractSQLNode)
+    exs = Expr[]
+    for f in fieldnames(n)
+        t = fieldtype(n, f)
+        if t === SQLNode || t === Union{SQLNode, Nothing} || t === Vector{SQLNode}
+            ex = quote
+                visit(f, n.$(f))
+            end
+            push!(exs, ex)
+        end
+    end
+    push!(exs, :(return nothing))
+    Expr(:block, exs...)
+end
+
 function visit(f, n::SQLNode)
     visit(f, n[])
     f(n)
     nothing
 end
 
+visit(f, ::Nothing) =
+    nothing
+
 function visit(f, ns::Vector{SQLNode})
     for n in ns
         visit(f, n)
     end
+end
+
+@generated function substitute(n::AbstractSQLNode, c::SQLNode, c′::SQLNode)
+    exs = Expr[]
+    fs = fieldnames(n)
+    for f in fs
+        t = fieldtype(n, f)
+        if t === SQLNode || t === Union{SQLNode, Nothing}
+            ex = quote
+                if n.$(f) === c
+                    return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(c′))
+                                    for f′ in fs]...))
+                end
+            end
+            push!(exs, ex)
+        elseif t === Vector{SQLNode}
+            ex = quote
+                let cs′ = substitute(n.$(f), c, c′)
+                    if cs′ !== n.$(f)
+                        return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(cs′))
+                                        for f′ in fs]...))
+                    end
+                end
+            end
+            push!(exs, ex)
+        end
+    end
+    push!(exs, :(return n))
+    Expr(:block, exs...)
 end
 
 substitute(n::SQLNode, c::SQLNode, c′::SQLNode) =
@@ -76,29 +114,110 @@ function substitute(ns::Vector{SQLNode}, c::SQLNode, c′::SQLNode)
 end
 
 
-# Converting to SQL syntax.
+# Pretty-printing.
 
-struct ResolveContext
-    dialect::SQLDialect
-    aliases::Dict{Symbol, Int}
+Base.show(io::IO, n::AbstractSQLNode) =
+    print(io, quoteof(n, limit = true))
 
-    ResolveContext(dialect) =
-        new(dialect, Dict{Symbol, Int}())
+Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
+    pprint(io, n)
+
+struct SQLNodeQuoteContext
+    limit::Bool
+    vars::IdDict{Any, Symbol}
+    colors::Vector{Symbol}
+
+    SQLNodeQuoteContext(;
+                        limit = false,
+                        vars = IdDict{Any, Symbol}(),
+                        colors = [:normal]) =
+        new(limit, vars, colors)
 end
 
-struct ResolveRequest
-    ctx::ResolveContext
-    refs::Vector{SQLNode}
-    top::Bool
+PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
+    quoteof(SQLNode(n), limit = limit, unwrap = true)
 
-    ResolveRequest(ctx; refs = SQLNode[], top = false) =
-        new(ctx, refs, top)
+function PrettyPrinting.quoteof(n::SQLNode;
+                                limit::Bool = false,
+                                unwrap::Bool = false)
+    if limit
+        qctx = SQLNodeQuoteContext(limit = true)
+        ex = quoteof(n[], qctx)
+        if unwrap
+            ex = Expr(:ref, ex)
+        end
+        return ex
+    end
+    tables_ordered = SQLTable[]
+    tables_seen = Set{SQLTable}()
+    queries_ordered = SQLNode[]
+    queries_seen = Set{SQLNode}()
+    visit(n) do n
+        core = n[]
+        if core isa FromNode
+            if !(core.table in tables_seen)
+                push!(tables_ordered, core.table)
+                push!(tables_seen, core.table)
+            end
+        end
+        if core isa Union{FromNode, SelectNode, WhereNode}
+            if !(n in queries_seen)
+                push!(queries_ordered, n)
+                push!(queries_seen, n)
+            end
+        end
+    end
+    qctx = SQLNodeQuoteContext()
+    defs = Any[]
+    if length(queries_ordered) >= 2 || (length(queries_ordered) == 1 && queries_ordered[1] !== n)
+        for t in tables_ordered
+            def = quoteof(t, limit = true)
+            name = t.name
+            push!(defs, Expr(:(=), name, def))
+            qctx.vars[t] = name
+        end
+        qidx = 0
+        for n in queries_ordered
+            def = quoteof(n, qctx)
+            qidx += 1
+            name = Symbol('q', qidx)
+            push!(defs, Expr(:(=), name, def))
+            qctx.vars[n] = name
+        end
+    end
+    ex = quoteof(n, qctx)
+    if unwrap
+        ex = Expr(:ref, ex)
+    end
+    if !isempty(defs)
+        ex = Expr(:let, Expr(:block, defs...), ex)
+    end
+    ex
 end
 
-struct ResolveResult
-    clause::SQLClause
-    repl::Dict{SQLNode, Symbol}
-end
+PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext) =
+    if !qctx.limit
+        var = get(qctx.vars, n, nothing)
+        if var !== nothing
+            var
+        else
+            quoteof(n[], qctx)
+        end
+    else
+        :…
+    end
+
+PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
+    if isempty(ns)
+        Any[]
+    elseif !qctx.limit
+        Any[quoteof(n, qctx) for n in ns]
+    else
+        Any[:…]
+    end
+
+
+# Translation errors.
 
 abstract type FunSQLError <: Exception
 end
@@ -147,6 +266,31 @@ function highlight(stack::Vector{SQLNode}, color = Base.error_color())
         n = substitute(stack[k], stack[k-1], n)
     end
     n
+end
+
+
+# Converting to SQL syntax.
+
+struct ResolveContext
+    dialect::SQLDialect
+    aliases::Dict{Symbol, Int}
+
+    ResolveContext(dialect) =
+        new(dialect, Dict{Symbol, Int}())
+end
+
+struct ResolveRequest
+    ctx::ResolveContext
+    refs::Vector{SQLNode}
+    top::Bool
+
+    ResolveRequest(ctx; refs = SQLNode[], top = false) =
+        new(ctx, refs, top)
+end
+
+struct ResolveResult
+    clause::SQLClause
+    repl::Dict{SQLNode, Symbol}
 end
 
 """
@@ -233,110 +377,6 @@ function resolve(::Nothing, req)
     repl = Dict{SQLNode, Symbol}()
     ResolveResult(c, repl)
 end
-
-
-# Pretty-printing.
-
-Base.show(io::IO, n::AbstractSQLNode) =
-    print(io, quoteof(n, limit = true))
-
-Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
-    pprint(io, n)
-
-struct SQLNodeQuoteContext
-    limit::Bool
-    vars::IdDict{Any, Symbol}
-    colors::Vector{Symbol}
-
-    SQLNodeQuoteContext(;
-                        limit = false,
-                        vars = IdDict{Any, Symbol}(),
-                        colors = [:normal]) =
-        new(limit, vars, colors)
-end
-
-PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
-    quoteof(SQLNode(n), limit = limit, unwrap = true)
-
-function PrettyPrinting.quoteof(n::SQLNode;
-                                limit::Bool = false,
-                                unwrap::Bool = false)
-    if limit
-        qctx = SQLNodeQuoteContext(limit = true)
-        ex = quoteof(n[], qctx)
-        if unwrap
-            ex = Expr(:ref, ex)
-        end
-        return ex
-    end
-    tables_ordered = SQLTable[]
-    tables_seen = Set{SQLTable}()
-    queries_ordered = SQLNode[]
-    queries_seen = Set{SQLNode}()
-    visit(n) do n
-        core = n[]
-        if core isa FromNode
-            if !(core.table in tables_seen)
-                push!(tables_ordered, core.table)
-                push!(tables_seen, core.table)
-            end
-        end
-        if core isa Union{FromNode, SelectNode, WhereNode}
-            if !(n in queries_seen)
-                push!(queries_ordered, n)
-                push!(queries_seen, n)
-            end
-        end
-    end
-    qctx = SQLNodeQuoteContext()
-    defs = Any[]
-    if length(queries_ordered) >= 2 || (length(queries_ordered) == 1 && queries_ordered[1] !== n)
-        for t in tables_ordered
-            def = quoteof(t, limit = true)
-            name = t.name
-            push!(defs, Expr(:(=), name, def))
-            qctx.vars[t] = name
-        end
-        qidx = 0
-        for n in queries_ordered
-            def = quoteof(n, qctx)
-            qidx += 1
-            name = Symbol('q', qidx)
-            push!(defs, Expr(:(=), name, def))
-            qctx.vars[n] = name
-        end
-    end
-    ex = quoteof(n, qctx)
-    if unwrap
-        ex = Expr(:ref, ex)
-    end
-    if !isempty(defs)
-        ex = Expr(:let, Expr(:block, defs...), ex)
-    end
-    ex
-end
-
-function PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext)
-    if qctx.limit
-        return :…
-    end
-    var = get(qctx.vars, n, nothing)
-    if var !== nothing
-        ex = var
-    else
-        ex = quoteof(n[], qctx)
-    end
-    ex
-end
-
-PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
-    if isempty(ns)
-        Any[]
-    elseif !qctx.limit
-        Any[quoteof(n, qctx) for n in ns]
-    else
-        Any[:…]
-    end
 
 
 # Concrete node types.

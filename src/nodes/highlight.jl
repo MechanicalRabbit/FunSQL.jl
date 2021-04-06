@@ -72,14 +72,6 @@ end
 rebase(n::HighlightNode, n′) =
     HighlightNode(over = rebase(n.over, n′), color = n.color)
 
-visit(f, n::HighlightNode) =
-    visit(f, n.over)
-
-substitute(n::HighlightNode, c::SQLNode, c′::SQLNode) =
-    c === n.over ?
-        HighlightNode(over = c′, color = n.color) :
-        n
-
 alias(n::HighlightNode) =
     alias(n.over)
 

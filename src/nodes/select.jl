@@ -56,22 +56,6 @@ end
 rebase(n::SelectNode, n′) =
     SelectNode(over = rebase(n.over, n′), list = n.list)
 
-function visit(f, n::SelectNode)
-    visit(f, n.over)
-    visit(f, n.list)
-end
-
-function substitute(n::SelectNode, c::SQLNode, c′::SQLNode)
-    if c === n.over
-        SelectNode(over = c′, list = n.list)
-    else
-        list′ = substitute(n.list, c, c′)
-        list′ !== n.list ?
-            SelectNode(over = n.over, list = list′) :
-            n
-    end
-end
-
 alias(n::SelectNode) =
     alias(n.over)
 

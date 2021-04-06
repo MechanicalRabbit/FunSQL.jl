@@ -78,23 +78,6 @@ rebase(c::SQLClause, c′) =
 rebase(::Nothing, c′) =
     c′
 
-render(ctx, c::SQLClause) =
-    render(ctx, c[])
-
-function render(ctx, cs::AbstractVector{SQLClause}; sep = ", ", left = "(", right = ")")
-    print(ctx, left)
-    first = true
-    for c in cs
-        if !first
-            print(ctx, sep)
-        else
-            first = false
-        end
-        render(ctx, c)
-    end
-    print(ctx, right)
-end
-
 
 # Pretty-printing.
 
@@ -138,6 +121,26 @@ PrettyPrinting.quoteof(cs::Vector{SQLClause}, qctx::SQLClauseQuoteContext) =
     else
         Any[:…]
     end
+
+
+# Rendering SQL.
+
+render(ctx, c::SQLClause) =
+    render(ctx, c[])
+
+function render(ctx, cs::AbstractVector{SQLClause}; sep = ", ", left = "(", right = ")")
+    print(ctx, left)
+    first = true
+    for c in cs
+        if !first
+            print(ctx, sep)
+        else
+            first = false
+        end
+        render(ctx, c)
+    end
+    print(ctx, right)
+end
 
 
 # Concrete clause types.
