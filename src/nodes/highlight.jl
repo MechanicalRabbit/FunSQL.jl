@@ -56,6 +56,13 @@ Highlight(args...; kws...) =
     HighlightNode(args...; kws...) |> SQLNode
 
 function PrettyPrinting.quoteof(n::HighlightNode, qctx::SQLNodeQuoteContext)
+    if qctx.limit
+        ex = Expr(:call, nameof(Highlight), quoteof(n.color))
+        if n.over !== nothing
+            ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        end
+        return ex
+    end
     push!(qctx.colors, n.color)
     ex = quoteof(n.over, qctx)
     pop!(qctx.colors)
@@ -75,6 +82,9 @@ substitute(n::HighlightNode, c::SQLNode, c′::SQLNode) =
 
 alias(n::HighlightNode) =
     alias(n.over)
+
+star(n::HighlightNode) =
+    star(n.over)
 
 gather!(refs::Vector{SQLNode}, n::HighlightNode) =
     gather!(refs, n.over)

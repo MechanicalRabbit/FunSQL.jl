@@ -35,6 +35,16 @@ indexing operator.
     q[]
     #-> ((…) |> Select(…))[]
 
+    display(q[])
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000))),
+        q3 = q2 |> Select(Get.person_id)
+        q3[]
+    end
+    =#
+
 The SQL query is generated using the function `render()`.
 
     print(render(q))
@@ -437,10 +447,12 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
 To highlight a node on the output, wrap it with `Highlight`.
 
-    q = From(person) |> Highlight(:green) |>
+    q = From(person) |>
         Where(Call(">", Get.year_of_birth |> Highlight(:bold), 2000) |>
               Highlight(:white)) |>
-        Select(Get.person_id)
+        Select(Get.person_id) |>
+        Highlight(:green)
+    #-> (…) |> Highlight(:green)
 
 When the query is displayed on a color terminal, the affected node is
 highlighted.
