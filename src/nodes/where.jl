@@ -1,6 +1,6 @@
 # Where node.
 
-mutable struct WhereNode <: AbstractSQLNode
+mutable struct WhereNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     condition::SQLNode
 

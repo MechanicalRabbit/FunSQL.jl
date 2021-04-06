@@ -9,6 +9,9 @@ A SQL expression.
 abstract type AbstractSQLNode
 end
 
+abstract type SubqueryNode <: AbstractSQLNode
+end
+
 
 # Specialization barrier node.
 
@@ -160,7 +163,7 @@ function PrettyPrinting.quoteof(n::SQLNode;
                 push!(tables_seen, core.table)
             end
         end
-        if core isa Union{FromNode, SelectNode, WhereNode}
+        if core isa SubqueryNode
             if !(n in queries_seen)
                 push!(queries_ordered, n)
                 push!(queries_seen, n)

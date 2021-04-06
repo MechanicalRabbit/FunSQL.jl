@@ -1,6 +1,6 @@
 # Selecting.
 
-mutable struct SelectNode <: AbstractSQLNode
+mutable struct SelectNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
 
