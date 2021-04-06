@@ -448,6 +448,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
 To highlight a node on the output, wrap it with `Highlight`.
 
     q = From(person) |>
+        Highlight(:underline) |>
         Where(Call(">", Get.year_of_birth |> Highlight(:bold), 2000) |>
               Highlight(:white)) |>
         Select(Get.person_id) |>
