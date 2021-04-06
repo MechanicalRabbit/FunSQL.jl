@@ -97,5 +97,5 @@ function gather!(refs::Vector{SQLNode}, n::GetNode)
 end
 
 translate(n::GetNode, subs) =
-    error("unknown name $(n.name)")
+    throw(GetError(n.name))
 

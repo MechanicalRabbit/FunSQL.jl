@@ -86,6 +86,22 @@ struct ResolveResult
     repl::Dict{SQLNode, Symbol}
 end
 
+struct GetError <: Exception
+    name::Symbol
+    stack::Vector{SQLNode}
+
+    GetError(name) =
+        new(name, SQLNode[])
+end
+
+function Base.showerror(io::IO, ex::GetError)
+    print(io, "GetError: cannot find $(ex.name)")
+    if !isempty(ex.stack)
+        println(io, " in:")
+        pprint(io, ex.stack[end])
+    end
+end
+
 """
     resolve(node; dialect = :default)
 
@@ -141,13 +157,29 @@ end
 gather!(refs::Vector{SQLNode}, ::AbstractSQLNode) =
     refs
 
-translate(n::SQLNode, subs) =
-    n in keys(subs) ?
-        subs[n] :
-        convert(SQLClause, translate(n[], subs))
+function translate(n::SQLNode, subs)
+    try
+        n in keys(subs) ?
+            subs[n] :
+            convert(SQLClause, translate(n[], subs))
+    catch ex
+        if ex isa GetError
+            push!(ex.stack, n)
+        end
+        rethrow()
+    end
+end
 
-resolve(n::SQLNode, req) =
-    resolve(n[], req)::ResolveResult
+function resolve(n::SQLNode, req)
+    try
+        resolve(n[], req)::ResolveResult
+    catch ex
+        if ex isa GetError
+            push!(ex.stack, n)
+        end
+        rethrow()
+    end
+end
 
 function resolve(::Nothing, req)
     c = SELECT(list = SQLClause[true])

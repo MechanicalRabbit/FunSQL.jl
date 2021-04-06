@@ -178,14 +178,24 @@ When `Get` refers to an unknown attribute, an error is reported.
     q = Select(Get.person_id)
 
     print(render(q))
-    #-> ERROR: unknown name person_id
+    #=>
+    ERROR: GetError: cannot find person_id in:
+    Select(Get.person_id)
+    =#
 
     q = From(person) |>
         As(:p) |>
         Select(Get.q.person_id)
 
     print(render(q))
-    #-> ERROR: unknown name person_id
+    #=>
+    ERROR: GetError: cannot find person_id in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> As(:p) |> Select(Get.q.person_id)
+        q2
+    end
+    =#
 
 
 ## Operations
