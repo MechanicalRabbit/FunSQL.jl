@@ -89,6 +89,11 @@ rebase(n::GetNode, n′) =
 visit(f, n::GetNode) =
     visit(f, n.over)
 
+substitute(n::GetNode, c::SQLNode, c′::SQLNode) =
+    c === n.over ?
+        GetNode(over = c′, name = n.name) :
+        n
+
 alias(n::GetNode) =
     n.name
 

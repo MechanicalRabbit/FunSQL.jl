@@ -3,7 +3,7 @@
 module FunSQL
 
 using Dates
-using PrettyPrinting: PrettyPrinting, pprint, quoteof
+using PrettyPrinting: PrettyPrinting, pprint, quoteof, tile_expr, literal
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}

@@ -57,6 +57,13 @@ function visit(f, n::WhereNode)
     visit(f, n.condition)
 end
 
+substitute(n::WhereNode, c::SQLNode, c′::SQLNode) =
+    c === n.over ?
+        WhereNode(over = c′, condition = n.condition) :
+    c === n.condition ?
+        WhereNode(over = n.over, condition = c′) :
+        n
+
 alias(n::WhereNode) =
     alias(n.over)
 

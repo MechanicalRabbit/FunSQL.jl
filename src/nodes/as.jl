@@ -50,6 +50,11 @@ rebase(n::AsNode, n′) =
 visit(f, n::AsNode) =
     visit(f, n.over)
 
+substitute(n::AsNode, c::SQLNode, c′::SQLNode) =
+    c === n.over ?
+        AsNode(over = c′, name = n.name) :
+        n
+
 alias(n::AsNode) =
     n.name
 

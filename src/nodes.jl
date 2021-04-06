@@ -15,6 +15,9 @@ visit(f, @nospecialize n::AbstractSQLNode) =
 visit(f, ::Nothing) =
     nothing
 
+substitute(n::AbstractSQLNode, c, c′) =
+    n
+
 
 # Specialization barrier node.
 
@@ -61,6 +64,17 @@ function visit(f, ns::Vector{SQLNode})
     end
 end
 
+substitute(n::SQLNode, c::SQLNode, c′::SQLNode) =
+    SQLNode(substitute(n[], c, c′))
+
+function substitute(ns::Vector{SQLNode}, c::SQLNode, c′::SQLNode)
+    i = findfirst(isequal(c), ns)
+    i !== nothing || return ns
+    ns′ = copy(ns)
+    ns′[i] = c′
+    ns′
+end
+
 
 # Converting to SQL syntax.
 
@@ -97,9 +111,19 @@ end
 function Base.showerror(io::IO, ex::GetError)
     print(io, "GetError: cannot find $(ex.name)")
     if !isempty(ex.stack)
+        q = highlight(ex.stack)
         println(io, " in:")
-        pprint(io, ex.stack[end])
+        pprint(io, q)
     end
+end
+
+function highlight(stack::Vector{SQLNode}, color = Base.error_color())
+    @assert !isempty(stack)
+    n = Highlight(over = stack[1], color = color)
+    for k = 2:lastindex(stack)
+        n = substitute(stack[k], stack[k-1], n)
+    end
+    n
 end
 
 """
@@ -199,17 +223,21 @@ Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
 struct SQLNodeQuoteContext
     limit::Bool
     vars::IdDict{Any, Symbol}
+    colors::Vector{Symbol}
 
-    SQLNodeQuoteContext(; limit = false, vars = IdDict{Any, Symbol}()) =
-        new(limit, vars)
+    SQLNodeQuoteContext(;
+                        limit = false,
+                        vars = IdDict{Any, Symbol}(),
+                        colors = [:normal]) =
+        new(limit, vars, colors)
 end
-
-
 
 PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
     quoteof(SQLNode(n), limit = limit, unwrap = true)
 
-function PrettyPrinting.quoteof(n::SQLNode; limit::Bool = false, unwrap::Bool = false)
+function PrettyPrinting.quoteof(n::SQLNode;
+                                limit::Bool = false,
+                                unwrap::Bool = false)
     if limit
         qctx = SQLNodeQuoteContext(limit = true)
         ex = quoteof(n[], qctx)
@@ -265,17 +293,18 @@ function PrettyPrinting.quoteof(n::SQLNode; limit::Bool = false, unwrap::Bool = 
     ex
 end
 
-PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext) =
-    if !qctx.limit
-        var = get(qctx.vars, n, nothing)
-        if var !== nothing
-            var
-        else
-            quoteof(n[], qctx)
-        end
-    else
-        :…
+function PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext)
+    if qctx.limit
+        return :…
     end
+    var = get(qctx.vars, n, nothing)
+    if var !== nothing
+        ex = var
+    else
+        ex = quoteof(n[], qctx)
+    end
+    ex
+end
 
 PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
     if isempty(ns)
@@ -293,6 +322,7 @@ include("nodes/as.jl")
 include("nodes/call.jl")
 include("nodes/from.jl")
 include("nodes/get.jl")
+include("nodes/highlight.jl")
 include("nodes/literal.jl")
 include("nodes/select.jl")
 include("nodes/where.jl")

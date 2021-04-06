@@ -49,6 +49,13 @@ PrettyPrinting.quoteof(n::CallNode, qctx::SQLNodeQuoteContext) =
 visit(f, n::CallNode) =
     visit(f, n.args)
 
+function substitute(n::CallNode, c::SQLNode, c′::SQLNode)
+    args′ = substitute(n.args, c, c′)
+    args′ !== n.args ?
+        CallNode(name = n.name, args = args′) :
+        n
+end
+
 alias(n::CallNode) =
     n.name
 
