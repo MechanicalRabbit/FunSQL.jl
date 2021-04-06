@@ -1,4 +1,4 @@
-# Release Nodes
+# Release Notes
 
 
 ## v0.1.1
