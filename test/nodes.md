@@ -397,6 +397,20 @@ The `Where` constructor creates a subquery that filters by the given condition.
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
 
+Several `Where` operations in a row are collapsed in a single `WHERE` clause.
+
+    q = From(person) |>
+        Where(Call(">", Get.year_of_birth, 2000)) |>
+        Where(Call("<", Get.year_of_birth, 2020)) |>
+        Where(Call("<>", Get.year_of_birth, 2010))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    WHERE ((("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020)) AND ("person_1"."year_of_birth" <> 2010))
+    =#
+
 
 ## Highlighting
 
