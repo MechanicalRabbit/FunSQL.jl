@@ -39,6 +39,9 @@ julia> print(render(c))
 ID(args...; kws...) =
     IdentifierClause(args...; kws...) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(ID), pats::Vector{Any}) =
+    dissect(scr, IdentifierClause, pats)
+
 Base.convert(::Type{AbstractSQLClause}, name::Symbol) =
     IdentifierClause(name)
 

@@ -49,15 +49,9 @@ The SQL query is generated using the function `render()`.
 
     print(render(q))
     #=>
-    SELECT "person_3"."person_id"
-    FROM (
-      SELECT "person_2"."person_id"
-      FROM (
-        SELECT "person_1"."person_id", "person_1"."year_of_birth"
-        FROM "person" AS "person_1"
-      ) AS "person_2"
-      WHERE ("person_2"."year_of_birth" > 2000)
-    ) AS "person_3"
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 2000)
     =#
 
 
@@ -75,9 +69,6 @@ In a `SELECT` clause, bare literal expressions get an alias `"_"`.
     print(render(q))
     #=>
     SELECT 'SQL is fun!' AS "_"
-    FROM (
-      SELECT TRUE
-    ) AS "__1"
     =#
 
 Values of certain Julia data types are automatically converted to SQL
@@ -157,15 +148,9 @@ Hierarchical notation is supported.
 
     print(render(q))
     #=>
-    SELECT "person_3"."person_id"
-    FROM (
-      SELECT "person_2"."person_id"
-      FROM (
-        SELECT "person_1"."person_id", "person_1"."year_of_birth"
-        FROM "person" AS "person_1"
-      ) AS "person_2"
-      WHERE ("person_2"."year_of_birth" > 2000)
-    ) AS "person_3"
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 2000)
     =#
 
 `Get` is used for dereferencing an alias created with `As`.
@@ -176,11 +161,8 @@ Hierarchical notation is supported.
 
     print(render(q))
     #=>
-    SELECT "p_1"."person_id"
-    FROM (
-      SELECT "person_1"."person_id"
-      FROM "person" AS "person_1"
-    ) AS "p_1"
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
     =#
 
 When `Get` refers to an unknown attribute, an error is reported.
@@ -227,11 +209,8 @@ In a `SELECT` clause, operator calls get an alias from their name.
 
     print(render(From(person) |> Select(e)))
     #=>
-    SELECT ("person_2"."year_of_birth" > 2000) AS ">"
-    FROM (
-      SELECT "person_1"."year_of_birth"
-      FROM "person" AS "person_1"
-    ) AS "person_2"
+    SELECT ("person_1"."year_of_birth" > 2000) AS ">"
+    FROM "person" AS "person_1"
     =#
 
 
@@ -248,9 +227,6 @@ An alias to an expression can be added with the `As` constructor.
     print(render(Select(e)))
     #=>
     SELECT 42 AS "integer"
-    FROM (
-      SELECT TRUE
-    ) AS "__1"
     =#
 
 `As` is also used to create an alias for a subquery.
@@ -261,11 +237,8 @@ An alias to an expression can be added with the `As` constructor.
 
     print(render(q))
     #=>
-    SELECT "p_1"."person_id"
-    FROM (
-      SELECT "person_1"."person_id"
-      FROM "person" AS "person_1"
-    ) AS "p_1"
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
     =#
 
 `As` blocks the default output columns.
@@ -343,14 +316,8 @@ has no columns.
     print(render(q))
     #=>
     SELECT TRUE
-    FROM (
-      SELECT TRUE
-      FROM (
-        SELECT TRUE
-        FROM "empty" AS "empty_1"
-      ) AS "empty_2"
-      WHERE TRUE
-    ) AS "empty_3"
+    FROM "empty" AS "empty_1"
+    WHERE TRUE
     =#
 
 
@@ -373,11 +340,8 @@ The `Select` constructor creates a subquery that fixes the output columns.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id"
-    FROM (
-      SELECT "person_1"."person_id"
-      FROM "person" AS "person_1"
-    ) AS "person_2"
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
     =#
 
 `Select` does not have to be the last subquery in a chain.
@@ -388,15 +352,9 @@ The `Select` constructor creates a subquery that fixes the output columns.
 
     print(render(q))
     #=>
-    SELECT "person_3"."year_of_birth"
-    FROM (
-      SELECT "person_2"."year_of_birth"
-      FROM (
-        SELECT "person_1"."year_of_birth"
-        FROM "person" AS "person_1"
-      ) AS "person_2"
-    ) AS "person_3"
-    WHERE ("person_3"."year_of_birth" > 2000)
+    SELECT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 2000)
     =#
 
 `Select` requires all columns in the list to have unique aliases.
@@ -434,12 +392,23 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id", "person_2"."year_of_birth"
-    FROM (
-      SELECT "person_1"."person_id", "person_1"."year_of_birth"
-      FROM "person" AS "person_1"
-    ) AS "person_2"
-    WHERE ("person_2"."year_of_birth" > 2000)
+    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 2000)
+    =#
+
+Several `Where` operations in a row are collapsed in a single `WHERE` clause.
+
+    q = From(person) |>
+        Where(Call(">", Get.year_of_birth, 2000)) |>
+        Where(Call("<", Get.year_of_birth, 2020)) |>
+        Where(Call("<>", Get.year_of_birth, 2010))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
     =#
 
 
@@ -472,14 +441,8 @@ The `Highlight` node does not otherwise affect processing of the query.
 
     print(render(q))
     #=>
-    SELECT "person_3"."person_id"
-    FROM (
-      SELECT "person_2"."person_id"
-      FROM (
-        SELECT "person_1"."person_id", "person_1"."year_of_birth"
-        FROM "person" AS "person_1"
-      ) AS "person_2"
-      WHERE ("person_2"."year_of_birth" > 2000)
-    ) AS "person_3"
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 2000)
     =#
 

@@ -35,6 +35,9 @@ julia> print(render(c))
 OP(args...; kws...) =
     OperatorClause(args...; kws...) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(OP), pats::Vector{Any}) =
+    dissect(scr, OperatorClause, pats)
+
 function PrettyPrinting.quoteof(c::OperatorClause, qctx::SQLClauseQuoteContext)
     ex = Expr(:call, nameof(OP), string(c.name))
     if isempty(c.args)

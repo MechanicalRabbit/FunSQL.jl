@@ -35,6 +35,12 @@ A part of a SQL query.
 abstract type AbstractSQLClause
 end
 
+function dissect(scr::Symbol, ClauseType::Type{<:AbstractSQLClause}, pats::Vector{Any})
+    scr_core = gensym(:scr_core)
+    ex = Expr(:&&, :($scr_core isa $ClauseType), Any[dissect(scr_core, pat) for pat in pats]...)
+    :($scr isa SQLClause && (local $scr_core = $scr[]; $ex))
+end
+
 function render(c::AbstractSQLClause; dialect = :default)
     ctx = RenderContext(dialect)
     render(ctx, convert(SQLClause, c))

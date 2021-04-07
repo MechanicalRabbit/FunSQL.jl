@@ -16,9 +16,11 @@ Convert the given SQL node or clause object to a SQL string.
 function render
 end
 
+include("dissect.jl")
 include("dialects.jl")
 include("entities.jl")
 include("clauses.jl")
 include("nodes.jl")
+include("collapse.jl")
 
 end

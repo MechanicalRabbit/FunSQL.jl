@@ -63,7 +63,7 @@ function resolve(n::FromNode, req)
         end
     end
     as = allocate_alias(req.ctx, n.table.name)
-    list = SQLClause[ID(over = as, name = col)
+    list = SQLClause[AS(over = ID(over = as, name = col), name = col)
                      for col in n.table.columns
                      if col in output_columns]
     if isempty(list)

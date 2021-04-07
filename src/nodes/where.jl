@@ -106,7 +106,7 @@ function resolve(n::WhereNode, req)
             !(name in seen) || continue
             push!(seen, name)
             id = ID(over = base_as, name = name)
-            push!(list, id)
+            push!(list, AS(over = id, name = name))
         end
     end
     if isempty(list)
