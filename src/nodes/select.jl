@@ -30,11 +30,8 @@ julia> q = From(person) |>
            Select(Get.person_id);
 
 julia> print(render(q))
-SELECT "person_2"."person_id"
-FROM (
-  SELECT "person_1"."person_id"
-  FROM "person" AS "person_1"
-) AS "person_2"
+SELECT "person_1"."person_id"
+FROM "person" AS "person_1"
 ```
 """
 Select(args...; kws...) =

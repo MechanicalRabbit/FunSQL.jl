@@ -30,9 +30,6 @@ julia> q = Select(:null => missing,
 
 julia> print(render(q))
 SELECT NULL AS "null", TRUE AS "boolean", 42 AS "integer", 'SQL is fun!' AS "text", '2000-01-01' AS "date"
-FROM (
-  SELECT TRUE
-) AS "__1"
 ```
 """
 Literal(args...; kws...) =

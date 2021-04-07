@@ -32,12 +32,9 @@ julia> q = From(person) |>
            Where(Call("NOT", Call(">", Get.person_id, 2000)));
 
 julia> print(render(q))
-SELECT "person_2"."person_id", "person_2"."year_of_birth"
-FROM (
-  SELECT "person_1"."person_id", "person_1"."year_of_birth"
-  FROM "person" AS "person_1"
-) AS "person_2"
-WHERE (NOT ("person_2"."person_id" > 2000))
+SELECT "person_1"."person_id", "person_1"."year_of_birth"
+FROM "person" AS "person_1"
+WHERE (NOT ("person_1"."person_id" > 2000))
 ```
 """
 Call(args...; kws...) =
