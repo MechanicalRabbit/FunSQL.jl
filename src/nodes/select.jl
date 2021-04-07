@@ -99,9 +99,7 @@ function resolve(n::SelectNode, req)
     for (i, col) in enumerate(n.list)
         i in output_indexes || continue
         c = translate(col, subs)
-        if !(core = c[]; core isa IdentifierClause && core.name === aliases[i])
-            c = AS(over = c, name = aliases[i])
-        end
+        c = AS(over = c, name = aliases[i])
         push!(list, c)
     end
     if isempty(list)

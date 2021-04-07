@@ -312,7 +312,8 @@ resolve(n; kws...) =
 
 function render(n; dialect = :default)
     res = resolve(n, dialect = dialect)
-    render(res.clause, dialect = dialect)
+    c = collapse(res.clause)
+    render(c, dialect = dialect)
 end
 
 function allocate_alias(ctx::ResolveContext, alias::Symbol)
