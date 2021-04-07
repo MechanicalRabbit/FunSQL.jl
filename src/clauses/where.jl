@@ -49,13 +49,3 @@ end
 rebase(c::WhereClause, c′) =
     WhereClause(over = rebase(c.over, c′), condition = c.condition)
 
-function render(ctx, c::WhereClause)
-    over = c.over
-    if over !== nothing
-        render(ctx, over)
-    end
-    newline(ctx)
-    print(ctx, "WHERE ")
-    render(ctx, c.condition)
-end
-

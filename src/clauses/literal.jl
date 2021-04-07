@@ -2,9 +2,16 @@
 
 mutable struct LiteralClause <: AbstractSQLClause
     val
+
+    LiteralClause(; val) =
+        new(val)
 end
 
+LiteralClause(val) =
+    LiteralClause(val = val)
+
 """
+    LIT(; val)
     LIT(val)
 
 A SQL literal.
@@ -29,8 +36,8 @@ julia> print(render(c))
 'SQL is fun!'
 ```
 """
-LIT(val) =
-    LiteralClause(val) |> SQLClause
+LIT(args...; kws...) =
+    LiteralClause(args...; kws...) |> SQLClause
 
 dissect(scr::Symbol, ::typeof(LIT), pats::Vector{Any}) =
     dissect(scr, LiteralClause, pats)
@@ -40,22 +47,4 @@ Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
 
 PrettyPrinting.quoteof(c::LiteralClause, ::SQLClauseQuoteContext) =
     Expr(:call, nameof(LIT), c.val)
-
-render(ctx, c::LiteralClause) =
-    render(ctx, c.val)
-
-render(ctx, ::Missing) =
-    print(ctx, "NULL")
-
-render(ctx, val::Bool) =
-    print(ctx, val ? "TRUE" : "FALSE")
-
-render(ctx, val::Number) =
-    print(ctx, val)
-
-render(ctx, val::AbstractString) =
-    print(ctx, '\'', replace(val, '\'' => "''"), '\'')
-
-render(ctx, val::Dates.Date) =
-    print(ctx, '\'', val, '\'')
 

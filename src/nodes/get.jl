@@ -86,13 +86,3 @@ end
 rebase(n::GetNode, n′) =
     GetNode(over = rebase(n.over, n′), name = n.name)
 
-alias(n::GetNode) =
-    n.name
-
-function gather!(refs::Vector{SQLNode}, n::GetNode)
-    push!(refs, n)
-end
-
-translate(n::GetNode, subs) =
-    throw(GetError(n.name))
-

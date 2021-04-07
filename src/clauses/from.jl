@@ -43,13 +43,3 @@ end
 rebase(c::FromClause, c′) =
     FromClause(over = rebase(c.over, c′))
 
-function render(ctx, c::FromClause)
-    newline(ctx)
-    print(ctx, "FROM")
-    over = c.over
-    if over !== nothing
-        print(ctx, ' ')
-        render(ctx, over)
-    end
-end
-

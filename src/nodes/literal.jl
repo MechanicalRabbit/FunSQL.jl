@@ -2,9 +2,16 @@
 
 mutable struct LiteralNode <: AbstractSQLNode
     val
+
+    LiteralNode(; val) =
+        new(val)
 end
 
+LiteralNode(val) =
+    LiteralNode(val = val)
+
 """
+    Literal(; val)
     Literal(val)
 
 A SQL literal.
@@ -28,18 +35,12 @@ FROM (
 ) AS "__1"
 ```
 """
-Literal(val) =
-    LiteralNode(val) |> SQLNode
+Literal(args...; kws...) =
+    LiteralNode(args...; kws...) |> SQLNode
 
 Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
     LiteralNode(val)
 
 PrettyPrinting.quoteof(n::LiteralNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Literal), n.val)
-
-alias(n::LiteralNode) =
-    :_
-
-translate(n::LiteralNode, subs) =
-    LiteralClause(n.val)
 

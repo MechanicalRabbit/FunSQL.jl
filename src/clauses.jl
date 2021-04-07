@@ -1,32 +1,6 @@
 # Syntactic structure of a SQL query.
 
 
-# Rendering SQL.
-
-mutable struct RenderContext <: IO
-    dialect::SQLDialect
-    io::IOBuffer
-    level::Int
-    nested::Bool
-
-    RenderContext(dialect) =
-        new(dialect, IOBuffer(), 0, false)
-end
-
-Base.write(ctx::RenderContext, octet::UInt8) =
-    write(ctx.io, octet)
-
-Base.unsafe_write(ctx::RenderContext, input::Ptr{UInt8}, nbytes::UInt) =
-    unsafe_write(ctx.io, input, nbytes)
-
-function newline(ctx::RenderContext)
-    print(ctx, "\n")
-    for k = 1:ctx.level
-        print(ctx, "  ")
-    end
-end
-
-
 # Base type.
 
 """
@@ -39,12 +13,6 @@ function dissect(scr::Symbol, ClauseType::Type{<:AbstractSQLClause}, pats::Vecto
     scr_core = gensym(:scr_core)
     ex = Expr(:&&, :($scr_core isa $ClauseType), Any[dissect(scr_core, pat) for pat in pats]...)
     :($scr isa SQLClause && (local $scr_core = $scr[]; $ex))
-end
-
-function render(c::AbstractSQLClause; dialect = :default)
-    ctx = RenderContext(dialect)
-    render(ctx, convert(SQLClause, c))
-    String(take!(ctx.io))
 end
 
 
@@ -100,9 +68,6 @@ struct SQLClauseQuoteContext
         new(limit)
 end
 
-PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
-    quoteof(SQLClause(c), limit = limit, unwrap = true)
-
 function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, unwrap::Bool = false)
     qctx = SQLClauseQuoteContext(limit = limit)
     ex = quoteof(c[], qctx)
@@ -111,6 +76,9 @@ function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, unwrap::Bool 
     end
     ex
 end
+
+PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
+    quoteof(convert(SQLClause, c), limit = limit, unwrap = true)
 
 PrettyPrinting.quoteof(c::SQLClause, qctx::SQLClauseQuoteContext) =
     if !qctx.limit
@@ -127,26 +95,6 @@ PrettyPrinting.quoteof(cs::Vector{SQLClause}, qctx::SQLClauseQuoteContext) =
     else
         Any[:…]
     end
-
-
-# Rendering SQL.
-
-render(ctx, c::SQLClause) =
-    render(ctx, c[])
-
-function render(ctx, cs::AbstractVector{SQLClause}; sep = ", ", left = "(", right = ")")
-    print(ctx, left)
-    first = true
-    for c in cs
-        if !first
-            print(ctx, sep)
-        else
-            first = false
-        end
-        render(ctx, c)
-    end
-    print(ctx, right)
-end
 
 
 # Concrete clause types.

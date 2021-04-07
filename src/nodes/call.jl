@@ -46,12 +46,3 @@ Call(args...; kws...) =
 PrettyPrinting.quoteof(n::CallNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Call), string(n.name), quoteof(n.args, qctx)...)
 
-alias(n::CallNode) =
-    n.name
-
-gather!(refs::Vector{SQLNode}, n::CallNode) =
-    gather!(refs, n.args)
-
-translate(n::CallNode, subs) =
-    OP(n.name, args = SQLClause[translate(arg, subs) for arg in n.args])
-

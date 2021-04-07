@@ -72,18 +72,3 @@ end
 rebase(n::HighlightNode, n′) =
     HighlightNode(over = rebase(n.over, n′), color = n.color)
 
-alias(n::HighlightNode) =
-    alias(n.over)
-
-star(n::HighlightNode) =
-    star(n.over)
-
-gather!(refs::Vector{SQLNode}, n::HighlightNode) =
-    gather!(refs, n.over)
-
-translate(n::HighlightNode, subs) =
-    translate(n.over, subs)
-
-resolve(n::HighlightNode, req) =
-    resolve(n.over, req)
-

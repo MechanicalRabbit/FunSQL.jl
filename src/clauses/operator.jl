@@ -48,15 +48,3 @@ function PrettyPrinting.quoteof(c::OperatorClause, qctx::SQLClauseQuoteContext)
     ex
 end
 
-function render(ctx, c::OperatorClause)
-    if isempty(c.args)
-        print(ctx, c.name)
-    elseif length(c.args) == 1
-        print(ctx, '(', c.name, ' ')
-        render(ctx, c.args[1])
-        print(ctx, ')')
-    else
-        render(ctx, c.args, sep = " $(c.name) ")
-    end
-end
-

@@ -21,6 +21,8 @@ include("dialects.jl")
 include("entities.jl")
 include("clauses.jl")
 include("nodes.jl")
+include("resolve.jl")
 include("collapse.jl")
+include("render.jl")
 
 end

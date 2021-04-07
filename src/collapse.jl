@@ -1,30 +1,16 @@
 # Collapsing SQL subqueries.
 
-collapse(c::AbstractSQLClause) =
-    c
-
 collapse(c::SQLClause) =
-    collapse(c[]) |> SQLClause
+    convert(SQLClause, collapse(c[]))
 
 collapse(cs::Vector{SQLClause}) =
     SQLClause[collapse(c) for c in cs]
 
-function substitutions(cs::Vector{SQLClause})
-    subs = Dict{Symbol, SQLClause}()
-    for c in cs
-        if @dissect c AS(over = repl, name = name)
-        elseif @dissect c ID(name = name)
-            repl = c
-        else
-            continue
-        end
-        subs[name] = repl
-    end
-    subs
-end
-
 collapse(::Nothing) =
     nothing
+
+collapse(c::AbstractSQLClause) =
+    c
 
 collapse(c::AsClause) =
     AsClause(over = collapse(c.over), name = c.name)
@@ -35,14 +21,14 @@ collapse(c::FromClause) =
 function collapse(c::SelectClause)
     list = collapse(c.list)
     c = SelectClause(over = collapse(c.over), distinct = c.distinct, list = unalias(list))
-    @dissect(c.over, select_over |>
+    @dissect(c.over, tail |>
                      SELECT(distinct = false, list = select_list) |>
                      AS(name = alias) |>
                      FROM()) || return c
     subs = substitutions(select_list)
     subs !== nothing || return c
     list′ = substitute(list, alias, subs)
-    SelectClause(over = select_over, distinct = c.distinct, list = unalias(list′))
+    SelectClause(over = tail, distinct = c.distinct, list = unalias(list′))
 end
 
 function collapse(c::WhereClause)
@@ -79,13 +65,27 @@ function unalias(c::SQLClause)
     c
 end
 
+function substitutions(cs::Vector{SQLClause})
+    subs = Dict{Symbol, SQLClause}()
+    for c in cs
+        if @dissect c AS(over = repl, name = name)
+        elseif @dissect c ID(name = name)
+            repl = c
+        else
+            continue
+        end
+        subs[name] = repl
+    end
+    subs
+end
+
 function substitute(c::SQLClause, alias::Symbol, subs::Dict{Symbol, SQLClause})
     if @dissect c nothing |> ID(name = base_name) |> ID(name = name)
         if base_name === alias && name in keys(subs)
             return subs[name]
         end
     end
-    substitute(c[], alias, subs)
+    convert(SQLClause, substitute(c[], alias, subs))
 end
 
 substitute(cs::Vector{SQLClause}, alias::Symbol, subs::Dict{Symbol, SQLClause}) =
