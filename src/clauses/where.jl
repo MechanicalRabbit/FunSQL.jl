@@ -35,6 +35,9 @@ WHERE ("zip" = '60614')
 WHERE(args...; kws...) =
     WhereClause(args...; kws...) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(WHERE), pats::Vector{Any}) =
+    dissect(scr, WhereClause, pats)
+
 function PrettyPrinting.quoteof(c::WhereClause, qctx::SQLClauseQuoteContext)
     ex = Expr(:call, nameof(WHERE), quoteof(c.condition, qctx))
     if c.over !== nothing

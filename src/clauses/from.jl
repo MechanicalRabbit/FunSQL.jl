@@ -29,6 +29,9 @@ FROM "person" AS "p"
 FROM(args...; kws...) =
     FromClause(args...; kws...) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(FROM), pats::Vector{Any}) =
+    dissect(scr, FromClause, pats)
+
 function PrettyPrinting.quoteof(c::FromClause, qctx::SQLClauseQuoteContext)
     ex = Expr(:call, nameof(FROM))
     if c.over !== nothing

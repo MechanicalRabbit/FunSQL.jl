@@ -32,6 +32,9 @@ julia> print(render(c))
 LIT(val) =
     LiteralClause(val) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(LIT), pats::Vector{Any}) =
+    dissect(scr, LiteralClause, pats)
+
 Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
     LiteralClause(val)
 

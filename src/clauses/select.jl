@@ -45,6 +45,9 @@ FROM "location"
 SELECT(args...; kws...) =
     SelectClause(args...; kws...) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(SELECT), pats::Vector{Any}) =
+    dissect(scr, SelectClause, pats)
+
 function PrettyPrinting.quoteof(c::SelectClause, qctx::SQLClauseQuoteContext)
     ex = Expr(:call, nameof(SELECT))
     if c.distinct !== false

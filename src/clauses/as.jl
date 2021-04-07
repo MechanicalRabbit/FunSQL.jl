@@ -31,6 +31,9 @@ julia> print(render(c))
 AS(args...; kws...) =
     AsClause(args...; kws...) |> SQLClause
 
+dissect(scr::Symbol, ::typeof(AS), pats::Vector{Any}) =
+    dissect(scr, AsClause, pats)
+
 Base.convert(::Type{AbstractSQLClause}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsClause(name = first(p), over = convert(SQLClause, last(p)))
 

@@ -408,7 +408,7 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     #=>
     SELECT "person_1"."person_id", "person_1"."year_of_birth"
     FROM "person" AS "person_1"
-    WHERE ((("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020)) AND ("person_1"."year_of_birth" <> 2010))
+    WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
     =#
 
 

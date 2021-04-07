@@ -35,6 +35,12 @@ A part of a SQL query.
 abstract type AbstractSQLClause
 end
 
+function dissect(scr::Symbol, ClauseType::Type{<:AbstractSQLClause}, pats::Vector{Any})
+    scr_core = gensym(:scr_core)
+    ex = Expr(:&&, :($scr_core isa $ClauseType), Any[dissect(scr_core, pat) for pat in pats]...)
+    :($scr isa SQLClause && (local $scr_core = $scr[]; $ex))
+end
+
 function render(c::AbstractSQLClause; dialect = :default)
     ctx = RenderContext(dialect)
     render(ctx, convert(SQLClause, c))
@@ -168,12 +174,8 @@ collapse(cs::Vector{SQLClause}) =
 function substitutions(alias::Symbol, cs::Vector{SQLClause})
     subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
     for c in cs
-        core = c.core
-        if core isa AsClause
-            name = core.name
-            repl = core.over
-        elseif core isa IdentifierClause
-            name = core.name
+        if @dissect c AS(over = repl, name = name)
+        elseif @dissect c ID(name = name)
             repl = c
         else
             continue
@@ -195,62 +197,55 @@ collapse(c::FromClause) =
 function collapse(c::SelectClause)
     list = collapse(c.list)
     c = SelectClause(over = collapse(c.over), distinct = c.distinct, list = unalias(list))
-    c.over !== nothing || return c
-    from = c.over[]
-    from isa FromClause || return c
-    as = from.over[]
-    as isa AsClause || return c
-    select = as.over[]
-    select isa SelectClause && !select.distinct || return c
-    subs = substitutions(as.name, select.list)
+    @dissect(c.over, select_over |>
+                     SELECT(distinct = false, list = select_list) |>
+                     AS(name = alias) |>
+                     FROM()) || return c
+    subs = substitutions(alias, select_list)
     subs !== nothing || return c
     list′ = substitute(list, subs)
-    SelectClause(over = select.over, distinct = c.distinct, list = unalias(list′))
+    SelectClause(over = select_over, distinct = c.distinct, list = unalias(list′))
 end
 
 function collapse(c::WhereClause)
     c = WhereClause(over = collapse(c.over), condition = collapse(c.condition))
-    from = c.over[]
-    from isa FromClause || return c
-    as = from.over[]
-    as isa AsClause || return c
-    select = as.over[]
-    select isa SelectClause && !select.distinct || return c
-    (next = nothing; select.over === nothing) || (next = select.over[]; next isa Union{FromClause, WhereClause}) || return c
-    subs = substitutions(as.name, select.list)
+    @dissect(c.over, (tail := nothing || FROM() || WHERE()) |>
+                     SELECT(distinct = false, list = select_list) |>
+                     AS(name = alias) |>
+                     FROM()) || return c
+    subs = substitutions(alias, select_list)
     subs !== nothing || return c
     condition′ = substitute(c.condition, subs)
-    if next isa WhereClause
-        over = WHERE(over = next.over, condition = OP("AND", next.condition, condition′))
-    else
-        over = WHERE(over = select.over, condition = condition′)
+    if @dissect tail (tail |> WHERE(condition = tail_condition))
+        if @dissect tail_condition OP(name = :AND, args = args)
+            condition′ = OP(:AND, args..., condition′)
+        else
+            condition′ = OP(:AND, tail_condition, condition′)
+        end
     end
-    FromClause(over = AS(over = SELECT(over = over, list = select.list), name = as.name))
+    c′ = WHERE(over = tail, condition = condition′)
+    c′ = SELECT(over = c′, list = select_list)
+    c′ = AS(over = c′, name = alias)
+    FromClause(over = c′)
 end
 
 unalias(cs::Vector{SQLClause}) =
     SQLClause[unalias(c) for c in cs]
 
 function unalias(c::SQLClause)
-    core = c.core
-    if core isa AsClause
-        over_core = core.over[]
-        if over_core isa IdentifierClause && core.name === over_core.name
-            return core.over
+    if @dissect c (tail := ID(name = id_name)) |> AS(name = as_name)
+        if id_name === as_name
+            return tail
         end
     end
     c
 end
 
 function substitute(c::SQLClause, subs::Dict{Tuple{Symbol, Symbol}, SQLClause})
-    core = c[]
-    if core isa IdentifierClause && core.over !== nothing
-        over_core = core.over[]
-        if over_core isa IdentifierClause && over_core.over == nothing
-            key = (over_core.name, core.name)
-            if key in keys(subs)
-                return subs[key]
-            end
+    if @dissect c nothing |> ID(name = base_name) |> ID(name = name)
+        key = (base_name, name)
+        if key in keys(subs)
+            return subs[key]
         end
     end
     substitute(c[], subs)
