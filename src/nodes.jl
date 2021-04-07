@@ -12,6 +12,12 @@ end
 abstract type SubqueryNode <: AbstractSQLNode
 end
 
+function dissect(scr::Symbol, NodeType::Type{<:AbstractSQLNode}, pats::Vector{Any})
+    scr_core = gensym(:scr_core)
+    ex = Expr(:&&, :($scr_core isa $NodeType), Any[dissect(scr_core, pat) for pat in pats]...)
+    :($scr isa SQLNode && (local $scr_core = $scr[]; $ex))
+end
+
 
 # Specialization barrier node.
 

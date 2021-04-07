@@ -35,6 +35,9 @@ FROM "person" AS "person_1"
 From(args...; kws...) =
     FromNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
+    dissect(scr, FromNode, pats)
+
 Base.convert(::Type{AbstractSQLNode}, table::SQLTable) =
     FromNode(table)
 

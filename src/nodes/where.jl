@@ -38,6 +38,9 @@ WHERE ("person_1"."year_of_birth" > 2000)
 Where(args...; kws...) =
     WhereNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(Where), pats::Vector{Any}) =
+    dissect(scr, WhereNode, pats)
+
 function PrettyPrinting.quoteof(n::WhereNode, qctx::SQLNodeQuoteContext)
     ex = Expr(:call, nameof(Where), quoteof(n.condition, qctx))
     if n.over !== nothing

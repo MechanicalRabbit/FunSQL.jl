@@ -55,6 +55,9 @@ julia> q = Get.person_id |> Highlight(:bold);
 Highlight(args...; kws...) =
     HighlightNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(Highlight), pats::Vector{Any}) =
+    dissect(scr, HighlightNode, pats)
+
 function PrettyPrinting.quoteof(n::HighlightNode, qctx::SQLNodeQuoteContext)
     if qctx.limit
         ex = Expr(:call, nameof(Highlight), quoteof(n.color))

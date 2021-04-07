@@ -37,6 +37,9 @@ FROM "person" AS "person_1"
 Select(args...; kws...) =
     SelectNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
+    dissect(scr, SelectNode, pats)
+
 function PrettyPrinting.quoteof(n::SelectNode, qctx::SQLNodeQuoteContext)
     ex = Expr(:call, nameof(Select))
     if isempty(n.list)

@@ -35,6 +35,9 @@ SELECT NULL AS "null", TRUE AS "boolean", 42 AS "integer", 'SQL is fun!' AS "tex
 Literal(args...; kws...) =
     LiteralNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(Literal), pats::Vector{Any}) =
+    dissect(scr, LiteralNode, pats)
+
 Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
     LiteralNode(val)
 

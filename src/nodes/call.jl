@@ -40,6 +40,9 @@ WHERE (NOT ("person_1"."person_id" > 2000))
 Call(args...; kws...) =
     CallNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(Call), pats::Vector{Any}) =
+    dissect(scr, CallNode, pats)
+
 PrettyPrinting.quoteof(n::CallNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Call), string(n.name), quoteof(n.args, qctx)...)
 

@@ -42,6 +42,9 @@ julia> q = q |> Select(q.person_id);
 Get(args...; kws...) =
     GetNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(Get), pats::Vector{Any}) =
+    dissect(scr, GetNode, pats)
+
 Base.getproperty(::typeof(Get), name::Symbol) =
     Get(name)
 

@@ -33,6 +33,9 @@ julia> q = From(person) |>
 As(args...; kws...) =
     AsNode(args...; kws...) |> SQLNode
 
+dissect(scr::Symbol, ::typeof(As), pats::Vector{Any}) =
+    dissect(scr, AsNode, pats)
+
 Base.convert(::Type{AbstractSQLNode}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsNode(name = first(p), over = convert(SQLNode, last(p)))
 
