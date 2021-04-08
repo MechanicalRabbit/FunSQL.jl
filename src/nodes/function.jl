@@ -47,7 +47,29 @@ PrettyPrinting.quoteof(n::FunctionNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Fun), string(n.name), quoteof(n.args, qctx)...)
 
 
-# Broadcasting syntax.
+# Notation for making function nodes.
+
+struct FunClosure
+    name::Symbol
+end
+
+Base.show(io::IO, f::FunClosure) =
+    print(io, Expr(:., nameof(Fun), QuoteNode(f.name)))
+
+Base.getproperty(::typeof(Fun), name::Symbol) =
+    FunClosure(name)
+
+Base.getproperty(::typeof(Fun), name::AbstractString) =
+    FunClosure(Symbol(name))
+
+(f::FunClosure)(args...) =
+    Fun(f.name, args = SQLNode[args...])
+
+(f::FunClosure)(; args = SQLNode[]) =
+    Fun(f.name, args = args)
+
+
+# Broadcasting notation.
 
 struct FunStyle <: Base.BroadcastStyle
 end
