@@ -159,8 +159,8 @@ PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
 # Concrete node types.
 
 include("nodes/as.jl")
-include("nodes/call.jl")
 include("nodes/from.jl")
+include("nodes/function.jl")
 include("nodes/get.jl")
 include("nodes/highlight.jl")
 include("nodes/literal.jl")

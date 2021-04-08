@@ -30,8 +30,8 @@ Modules = [FunSQL]
 Pages = [
     "nodes.jl",
     "nodes/as.jl",
-    "nodes/call.jl",
     "nodes/from.jl",
+    "nodes/function.jl",
     "nodes/get.jl",
     "nodes/highlight.jl",
     "nodes/literal.jl",

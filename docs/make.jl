@@ -10,7 +10,7 @@ DocMeta.setdocmeta!(
     quote
         using FunSQL:
             SQLTable,
-            As, Call, From, Get, Highlight, Select, Where,
+            As, From, Fun, Get, Highlight, Select, Where,
             AS, FROM, ID, LIT, OP, SELECT, WHERE,
             render
         using Dates

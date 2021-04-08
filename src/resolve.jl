@@ -146,7 +146,7 @@ default_alias(n::SQLNode) =
 default_alias(::Union{AbstractSQLNode, Nothing}) =
     :_
 
-default_alias(n::Union{AsNode, CallNode, GetNode}) =
+default_alias(n::Union{AsNode, FunctionNode, GetNode}) =
     n.name
 
 default_alias(n::FromNode) =
@@ -194,7 +194,7 @@ gather!(refs::Vector{SQLNode}, ::AbstractSQLNode) =
 gather!(refs::Vector{SQLNode}, n::Union{AsNode, HighlightNode}) =
     gather!(refs, n.over)
 
-gather!(refs::Vector{SQLNode}, n::CallNode) =
+gather!(refs::Vector{SQLNode}, n::FunctionNode) =
     gather!(refs, n.args)
 
 function gather!(refs::Vector{SQLNode}, n::GetNode)
@@ -222,7 +222,7 @@ end
 translate(n::Union{AsNode, HighlightNode}, subs) =
     translate(n.over, subs)
 
-translate(n::CallNode, subs) =
+translate(n::FunctionNode, subs) =
     OP(n.name, args = SQLClause[translate(arg, subs) for arg in n.args])
 
 translate(n::GetNode, subs) =

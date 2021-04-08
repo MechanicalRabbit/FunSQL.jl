@@ -27,7 +27,7 @@ SELECT ... FROM \$over WHERE \$condition
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(person) |>
-           Where(Call(">", Get.year_of_birth, 2000));
+           Where(Fun(">", Get.year_of_birth, 2000));
 
 julia> print(render(q))
 SELECT "person_1"."person_id", "person_1"."year_of_birth"
