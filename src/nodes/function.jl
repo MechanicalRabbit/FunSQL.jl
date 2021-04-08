@@ -46,3 +46,27 @@ dissect(scr::Symbol, ::typeof(Fun), pats::Vector{Any}) =
 PrettyPrinting.quoteof(n::FunctionNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Fun), string(n.name), quoteof(n.args, qctx)...)
 
+
+# Broadcasting syntax.
+
+struct FunStyle <: Base.BroadcastStyle
+end
+
+Base.BroadcastStyle(::Type{<:AbstractSQLNode}) =
+    FunStyle()
+
+Base.BroadcastStyle(::FunStyle, ::Base.Broadcast.DefaultArrayStyle{0}) =
+    FunStyle()
+
+Base.broadcastable(n::AbstractSQLNode) =
+    n
+
+Base.Broadcast.instantiate(bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    bc
+
+Base.copy(bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    Fun(nameof(bc.f), args = SQLNode[bc.args...])
+
+Base.convert(::Type{AbstractSQLNode}, bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    FunctionNode(nameof(bc.f), args = SQLNode[bc.args...])
+
