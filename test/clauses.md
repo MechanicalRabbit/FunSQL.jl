@@ -114,8 +114,8 @@ An application of a SQL operator is created with `OP()` constructor.
 
 An operator without arguments can be constructed, if necessary.
 
-    c = OP("CURRENT_TIMESTAMP", args = [])
-    #-> OP("CURRENT_TIMESTAMP", args = [])
+    c = OP("CURRENT_TIMESTAMP")
+    #-> OP("CURRENT_TIMESTAMP")
 
     print(render(c))
     #-> CURRENT_TIMESTAMP

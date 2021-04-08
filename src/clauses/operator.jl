@@ -6,19 +6,19 @@ mutable struct OperatorClause <: AbstractSQLClause
 
     OperatorClause(;
                    name::Union{Symbol, AbstractString},
-                   args) =
+                   args = SQLClause[]) =
         new(Symbol(name), args)
 end
 
-OperatorClause(name; args) =
+OperatorClause(name; args = SQLClause[]) =
     OperatorClause(name = name, args = args)
 
 OperatorClause(name, args...) =
     OperatorClause(name, args = SQLClause[args...])
 
 """
-    OP(; name, args)
-    OP(name; args)
+    OP(; name, args = [])
+    OP(name; args = [])
     OP(name, args...)
 
 An application of a SQL operator.
@@ -38,13 +38,6 @@ OP(args...; kws...) =
 dissect(scr::Symbol, ::typeof(OP), pats::Vector{Any}) =
     dissect(scr, OperatorClause, pats)
 
-function PrettyPrinting.quoteof(c::OperatorClause, qctx::SQLClauseQuoteContext)
-    ex = Expr(:call, nameof(OP), string(c.name))
-    if isempty(c.args)
-        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
-    else
-        append!(ex.args, quoteof(c.args, qctx))
-    end
-    ex
-end
+PrettyPrinting.quoteof(c::OperatorClause, qctx::SQLClauseQuoteContext) =
+    Expr(:call, nameof(OP), string(c.name), quoteof(c.args, qctx)...)
 
