@@ -11,8 +11,8 @@ LiteralNode(val) =
     LiteralNode(val = val)
 
 """
-    Literal(; val)
-    Literal(val)
+    Lit(; val)
+    Lit(val)
 
 A SQL literal.
 
@@ -32,15 +32,15 @@ julia> print(render(q))
 SELECT NULL AS "null", TRUE AS "boolean", 42 AS "integer", 'SQL is fun!' AS "text", '2000-01-01' AS "date"
 ```
 """
-Literal(args...; kws...) =
+Lit(args...; kws...) =
     LiteralNode(args...; kws...) |> SQLNode
 
-dissect(scr::Symbol, ::typeof(Literal), pats::Vector{Any}) =
+dissect(scr::Symbol, ::typeof(Lit), pats::Vector{Any}) =
     dissect(scr, LiteralNode, pats)
 
 Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
     LiteralNode(val)
 
 PrettyPrinting.quoteof(n::LiteralNode, qctx::SQLNodeQuoteContext) =
-    Expr(:call, nameof(Literal), n.val)
+    Expr(:call, nameof(Lit), n.val)
 

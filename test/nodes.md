@@ -1,7 +1,7 @@
 # SQL Nodes
 
     using FunSQL:
-        As, Call, From, Get, Highlight, Literal, SQLNode, SQLTable, Select,
+        As, Call, From, Get, Highlight, Lit, SQLNode, SQLTable, Select,
         Where, render, resolve
 
 We start with specifying the database model.
@@ -23,7 +23,7 @@ Displaying a `SQLNode` object shows how it was constructed.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000))),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Lit(2000))),
         q3 = q2 |> Select(Get.person_id)
         q3
     end
@@ -39,7 +39,7 @@ indexing operator.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000))),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Lit(2000))),
         q3 = q2 |> Select(Get.person_id)
         q3[]
     end
@@ -57,10 +57,10 @@ The SQL query is generated using the function `render()`.
 
 ## Literals
 
-A SQL value is created with `Literal()` constructor.
+A SQL value is created with `Lit()` constructor.
 
-    e = Literal("SQL is fun!")
-    #-> Literal("SQL is fun!")
+    e = Lit("SQL is fun!")
+    #-> Lit("SQL is fun!")
 
 In a `SELECT` clause, bare literal expressions get an alias `"_"`.
 
@@ -198,7 +198,7 @@ A function or an operator invocation is created with the `Call` constructor.
     #-> Call(">", …)
 
     display(e)
-    #-> Call(">", Get.year_of_birth, Literal(2000))
+    #-> Call(">", Get.year_of_birth, Lit(2000))
 
 A vector of arguments could be passed directly.
 
@@ -222,7 +222,7 @@ An alias to an expression can be added with the `As` constructor.
     #-> (…) |> As(:integer)
 
     display(e)
-    #-> Literal(42) |> As(:integer)
+    #-> Lit(42) |> As(:integer)
 
     print(render(Select(e)))
     #=>
@@ -307,7 +307,7 @@ has no columns.
     #=>
     let empty = SQLTable(:empty, …),
         q1 = From(empty),
-        q2 = q1 |> Where(Literal(true)),
+        q2 = q1 |> Where(Lit(true)),
         q3 = q2 |> Select(list = [])
         q3
     end
@@ -385,7 +385,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000)))
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Lit(2000)))
         q2
     end
     =#
@@ -431,7 +431,7 @@ highlighted.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Call(">", Get.year_of_birth, Literal(2000))),
+        q2 = q1 |> Where(Call(">", Get.year_of_birth, Lit(2000))),
         q3 = q2 |> Select(Get.person_id)
         q3
     end
