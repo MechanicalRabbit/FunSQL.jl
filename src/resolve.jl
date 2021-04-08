@@ -245,10 +245,9 @@ end
 struct ResolveRequest
     ctx::ResolveContext
     refs::Vector{SQLNode}
-    top::Bool
 
-    ResolveRequest(ctx; refs = SQLNode[], top = false) =
-        new(ctx, refs, top)
+    ResolveRequest(ctx; refs = SQLNode[]) =
+        new(ctx, refs)
 end
 
 struct ResolveResult
@@ -267,22 +266,92 @@ end
 
 function resolve(n::SQLNode; dialect = :default)
     ctx = ResolveContext(dialect)
-    req = ResolveRequest(ctx, refs = default_list(n), top = true)
+    req = ResolveRequest(ctx, refs = default_list(n))
     resolve(n, req)
 end
 
 resolve(n; kws...) =
     resolve(convert(SQLNode, n); kws...)
 
-function resolve(n::SQLNode, req)
-    try
-        resolve(n[], req)::ResolveResult
-    catch ex
-        if ex isa ErrorWithStack
-            push!(ex.stack, n)
+function deprefix(n::SQLNode, prefix::SQLNode)
+    if @dissect n (tail |> Get(name = name))
+        if tail === prefix
+            return Get(name = name)
+        else
+            tail′ = deprefix(tail, prefix)
+            if tail′ !== nothing
+                return Get(over = tail′, name = name)
+            end
         end
-        rethrow()
     end
+    nothing
+end
+
+function deprefix(n::SQLNode, prefix::Symbol)
+    if @dissect n (nothing |> Get(name = base_name) |> Get(name = name))
+        if base_name === prefix
+            return Get(name = name)
+        end
+    elseif @dissect n ((tail := Get()) |> Get(name = name))
+        tail′ = deprefix(tail, prefix)
+        if tail′ !== nothing
+            return Get(over = tail′, name = name)
+        end
+    elseif @dissect n (tail |> Get(name = name))
+        if tail !== nothing
+            return n
+        end
+    end
+    nothing
+end
+
+deprefix(::Nothing, prefix) =
+    nothing
+
+deprefix(n::SQLNode, prefix::SQLNode, ::Nothing) =
+    something(deprefix(n, prefix), n)
+
+function deprefix(n::SQLNode, node_prefix::SQLNode, alias_prefix::Symbol)
+    n′ = deprefix(n, node_prefix)
+    if n′ === nothing
+        n′ = deprefix(n, alias_prefix)
+    end
+    n′
+end
+
+function resolve(n::SQLNode, req)
+    alias_prefix = nothing
+    @dissect n As(name = alias_prefix)
+    remaps = Dict{SQLNode, SQLNode}()
+    refs′ = SQLNode[]
+    for ref in req.refs
+        !(ref in keys(remaps)) || continue
+        ref′ = deprefix(ref, n, alias_prefix)
+        if ref′ !== nothing
+            remaps[ref] = ref′
+            push!(refs′, ref′)
+        end
+    end
+    req′ = ResolveRequest(req.ctx, refs = refs′)
+    res′ =
+        try
+            resolve(n[], req′)::ResolveResult
+        catch ex
+            if ex isa ErrorWithStack
+                push!(ex.stack, n)
+            end
+            rethrow()
+        end
+    repl = Dict{SQLNode, Symbol}()
+    for ref in req.refs
+        ref′ = get(remaps, ref, nothing)
+        ref′ !== nothing || continue
+        name = get(res′.repl, ref′, nothing)
+        if name !== nothing
+            repl[ref] = name
+        end
+    end
+    ResolveResult(res′.clause, repl)
 end
 
 function resolve(::Nothing, req)
@@ -291,59 +360,15 @@ function resolve(::Nothing, req)
     ResolveResult(c, repl)
 end
 
-function split_get(n::SQLNode, stop::Symbol, base::SQLNode)
-    core = n[]
-    core isa GetNode || return n
-    if core.over === nothing
-        if core.name === stop
-            return base
-        else
-            return nothing
-        end
-    end
-    over′ = split_get(core.over, stop, base)
-    if over′ === nothing
-        nothing
-    else
-        Get(over = over′, name = core.name)
-    end
-end
-
-function resolve(n::AsNode, req)
-    rebases = Dict{SQLNode, SQLNode}()
-    base_refs = SQLNode[]
-    for ref in req.refs
-        !(ref in keys(rebases)) || continue
-        core = ref[]
-        if core isa GetNode
-            ref′ = split_get(ref, n.name, n.over)
-            ref′ !== nothing || continue
-            if ref′ !== ref
-                rebases[ref] = ref′
-            end
-            push!(base_refs, ref′)
-        end
-    end
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    repl = Dict{SQLNode, Symbol}()
-    for ref in req.refs
-        ref′ = get(rebases, ref, ref)
-        if ref′ in keys(base_res.repl)
-            name = base_res.repl[ref′]
-            repl[ref] = name
-        end
-    end
-    ResolveResult(base_res.clause, repl)
-end
+resolve(n::Union{AsNode, HighlightNode}, req) =
+    resolve(n.over, req)
 
 function resolve(n::FromNode, req)
     output_columns = Set{Symbol}()
     for ref in req.refs
-        core = ref[]
-        if core isa GetNode && (core.over === nothing || core.over[] === n)
-            if core.name in n.table.column_set && !(core.name in output_columns)
-                push!(output_columns, core.name)
+        if @dissect ref (nothing |> Get(name = ref_name))
+            if ref_name in n.table.column_set && !(ref_name in output_columns)
+                push!(output_columns, ref_name)
             end
         end
     end
@@ -359,18 +384,14 @@ function resolve(n::FromNode, req)
                list = list)
     repl = Dict{SQLNode, Symbol}()
     for ref in req.refs
-        core = ref[]
-        if core isa GetNode && (core.over === nothing || core.over[] === n)
-            if core.name in output_columns
-                repl[ref] = core.name
+        if @dissect ref (nothing |> Get(name = ref_name))
+            if ref_name in output_columns
+                repl[ref] = ref_name
             end
         end
     end
     ResolveResult(c, repl)
 end
-
-resolve(n::HighlightNode, req) =
-    resolve(n.over, req)
 
 function resolve(n::SelectNode, req)
     aliases = Symbol[default_alias(col) for col in n.list]
@@ -386,10 +407,9 @@ function resolve(n::SelectNode, req)
     base_refs = SQLNode[]
     output_indexes = Set{Int}()
     for ref in req.refs
-        core = ref[]
-        if core isa GetNode && (core.over === nothing || core.over[] === n)
-            if core.name in keys(indexes)
-                push!(output_indexes, indexes[core.name])
+        if @dissect ref (nothing |> Get(name = ref_name))
+            if ref_name in keys(indexes)
+                push!(output_indexes, indexes[ref_name])
             end
         end
     end
@@ -419,45 +439,19 @@ function resolve(n::SelectNode, req)
                list = list)
     repl = Dict{SQLNode, Symbol}()
     for ref in req.refs
-        core = ref[]
-        if core isa GetNode && (core.over === nothing || core.over[] === n)
-            if core.name in keys(indexes)
-                repl[ref] = core.name
+        if @dissect ref (nothing |> Get(name = ref_name))
+            if ref_name in keys(indexes)
+                repl[ref] = ref_name
             end
         end
     end
     ResolveResult(c, repl)
 end
 
-function split_get(n::SQLNode, stop::SQLNode)
-    core = n[]
-    core isa GetNode || return n
-    if core.over === stop
-        return Get(name = core.name)
-    end
-    over′ = core.over !== nothing ?
-        split_get(core.over, stop) :
-        nothing
-    over′ !== core.over ?
-        Get(over = over′, name = core.name) :
-        n
-end
-
 function resolve(n::WhereNode, req)
-    rebases = Dict{SQLNode, SQLNode}()
     base_refs = SQLNode[]
     gather!(base_refs, n.condition)
-    for ref in req.refs
-        !(ref in keys(rebases)) || continue
-        core = ref[]
-        if core isa GetNode
-            ref′ = split_get(ref, convert(SQLNode, n))
-            if ref′ !== ref
-                rebases[ref] = ref′
-            end
-            push!(base_refs, ref′)
-        end
-    end
+    append!(base_refs, req.refs)
     base_req = ResolveRequest(req.ctx, refs = base_refs)
     base_res = resolve(n.over, base_req)
     base_as = allocate_alias(req.ctx, n.over)
@@ -470,9 +464,8 @@ function resolve(n::WhereNode, req)
     repl = Dict{SQLNode, Symbol}()
     seen = Set{Symbol}()
     for ref in req.refs
-        ref′ = get(rebases, ref, ref)
-        if ref′ in keys(base_res.repl)
-            name = base_res.repl[ref′]
+        if ref in keys(base_res.repl)
+            name = base_res.repl[ref]
             repl[ref] = name
             !(name in seen) || continue
             push!(seen, name)
