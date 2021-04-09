@@ -204,11 +204,11 @@ end
 
 # Substituting references and translating expressions.
 
-function translate(n::SQLNode, subs)
+function translate(n::SQLNode, treq)
     try
-        c = get(subs, n, nothing)
+        c = get(treq.subs, n, nothing)
         if c === nothing
-            c = convert(SQLClause, translate(n[], subs))
+            c = convert(SQLClause, translate(n[], treq))
         end
         c
     catch ex
@@ -219,16 +219,64 @@ function translate(n::SQLNode, subs)
     end
 end
 
-translate(n::Union{AsNode, HighlightNode}, subs) =
-    translate(n.over, subs)
+translate(n::Union{AsNode, HighlightNode}, treq) =
+    translate(n.over, treq)
 
-translate(n::FunctionNode, subs) =
-    OP(n.name, args = SQLClause[translate(arg, subs) for arg in n.args])
+#=
+translate(n::FunctionNode, treq) =
+    OP(n.name, args = SQLClause[translate(arg, treq) for arg in n.args])
+=#
 
-translate(n::GetNode, subs) =
+translate(n::FunctionNode, treq) =
+    translate(Val(n.name), n, treq)
+
+function translate(@nospecialize(name::Val{N}), n::FunctionNode, treq) where {N}
+    args = SQLClause[translate(arg, treq) for arg in n.args]
+    if Meta.isidentifier(n.name)
+        FUN(uppercase(string(n.name)), args = args)
+    else
+        OP(n.name, args = args)
+    end
+end
+
+for (name, op) in (:not => :NOT,
+                   :like => :LIKE,
+                   :in => :IN,
+                   Symbol("not in") => Symbol("NOT IN"),
+                   :(==) => Symbol("="),
+                   :(!=) => Symbol("<>"))
+    @eval begin
+        translate(::Val{$(QuoteNode(name))}, n::FunctionNode, treq) =
+            OP($(QuoteNode(op)),
+               args = SQLClause[translate(arg, treq) for arg in n.args])
+    end
+end
+
+for (name, op, default) in ((:and, :AND, true), (:or, :OR, false))
+    @eval begin
+        function translate(::Val{$(QuoteNode(name))}, n::FunctionNode, treq)
+            args = translate(n.args, t.req)
+            if isempty(args)
+                LIT($default)
+            elseif length(args) == 1
+                args[1]
+            else
+                OP($(QuoteNode(op)), args = args)
+            end
+        end
+    end
+end
+
+translate(::Val{Symbol("is null")}, n::FunctionNode, treq) =
+    OP(:IS, SQLClause[translate(arg, treq) for arg in n.args]..., missing)
+
+translate(::Val{Symbol("is not null")}, n::FunctionNode, treq) =
+    OP(:IS, SQLClause[translate(arg, treq) for arg in n.args]..., OP(:NOT, missing))
+
+translate(n::GetNode, treq) =
     throw(GetError(n.name))
 
-translate(n::LiteralNode, subs) =
+translate(n::LiteralNode, treq) =
     LiteralClause(n.val)
 
 
@@ -253,6 +301,11 @@ end
 struct ResolveResult
     clause::SQLClause
     repl::Dict{SQLNode, Symbol}
+end
+
+struct TranslateRequest
+    dialect::SQLDialect
+    subs::Dict{SQLNode, SQLClause}
 end
 
 allocate_alias(ctx::ResolveContext, n) =
@@ -426,9 +479,10 @@ function resolve(n::SelectNode, req)
         subs[ref] = ID(over = base_as, name = name)
     end
     list = SQLClause[]
+    treq = TranslateRequest(req.ctx.dialect, subs)
     for (i, col) in enumerate(n.list)
         i in output_indexes || continue
-        c = translate(col, subs)
+        c = translate(col, treq)
         c = AS(over = c, name = aliases[i])
         push!(list, c)
     end
@@ -459,7 +513,8 @@ function resolve(n::WhereNode, req)
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    condition = translate(n.condition, subs)
+    treq = TranslateRequest(req.ctx.dialect, subs)
+    condition = translate(n.condition, treq)
     list = SQLClause[]
     repl = Dict{SQLNode, Symbol}()
     seen = Set{Symbol}()

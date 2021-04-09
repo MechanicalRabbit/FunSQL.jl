@@ -29,7 +29,7 @@ A function or an operator invocation.
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(person) |>
-           Where(Fun("NOT", Fun(">", Get.person_id, 2000)));
+           Where(Fun.not(Get.person_id .> 2000));
 
 julia> print(render(q))
 SELECT "person_1"."person_id", "person_1"."year_of_birth"

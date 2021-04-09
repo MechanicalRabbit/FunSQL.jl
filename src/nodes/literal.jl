@@ -41,6 +41,9 @@ dissect(scr::Symbol, ::typeof(Lit), pats::Vector{Any}) =
 Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
     LiteralNode(val)
 
+Base.convert(::Type{AbstractSQLNode}, ref::Base.RefValue) =
+    LiteralNode(ref.x)
+
 PrettyPrinting.quoteof(n::LiteralNode, qctx::SQLNodeQuoteContext) =
     Expr(:call, nameof(Lit), n.val)
 
