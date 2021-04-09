@@ -1,6 +1,6 @@
 # SQL Clauses
 
-    using FunSQL: AS, ID, LIT, FROM, OP, SELECT, WHERE, render
+    using FunSQL: AS, ID, KW, LIT, FROM, FUN, OP, SELECT, WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -99,6 +99,39 @@ when they are used in the context of a SQL clause.
     =#
 
 
+## SQL Functions
+
+An application of a SQL function is created with `FUN()` constructor.
+
+    c = FUN("CONCAT", :city, ", ", :state)
+    #-> FUN("CONCAT", …)
+
+    display(c)
+    #-> FUN("CONCAT", ID(:city), LIT(", "), ID(:state))
+
+    print(render(c))
+    #-> CONCAT("city", ', ', "state")
+
+A function with special separators can be constructed using `KW()` clause.
+
+    c = FUN("SUBSTRING", :zip, KW("FROM", 1), KW("FOR", 3))
+    #-> FUN("SUBSTRING", …)
+
+    display(c)
+    #-> FUN("SUBSTRING", ID(:zip), LIT(1) |> KW(:FROM), LIT(3) |> KW(:FOR))
+
+    print(render(c))
+    #-> SUBSTRING("zip" FROM 1 FOR 3)
+
+Functions without arguments are permitted.
+
+    c = FUN("NOW")
+    #-> FUN("NOW")
+
+    print(render(c))
+    #-> NOW()
+
+
 ## SQL Operators
 
 An application of a SQL operator is created with `OP()` constructor.
@@ -119,6 +152,13 @@ An operator without arguments can be constructed, if necessary.
 
     print(render(c))
     #-> CURRENT_TIMESTAMP
+
+A composite operator can be constructed with the help of `KW()` clause.
+
+    c = OP("BETWEEN", :year_of_birth, 2000, KW(:AND, 2020))
+
+    print(render(c))
+    #-> ("year_of_birth" BETWEEN 2000 AND 2020)
 
 
 ## `AS` Clause

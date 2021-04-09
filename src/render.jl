@@ -52,18 +52,22 @@ function render(ctx, c::SQLClause)
     nothing
 end
 
-function render(ctx, cs::AbstractVector{SQLClause}; sep = ", ", left = "(", right = ")")
-    print(ctx, left)
+function render(ctx, cs::AbstractVector{SQLClause}, sep = nothing)
     first = true
     for c in cs
         if !first
-            print(ctx, sep)
+            if @dissect c KW()
+                print(ctx, ' ')
+            elseif sep === nothing
+                print(ctx, ", ")
+            else
+                print(ctx, ' ', sep, ' ')
+            end
         else
             first = false
         end
         render(ctx, c)
     end
-    print(ctx, right)
 end
 
 function render(ctx, c::AsClause)
@@ -85,6 +89,12 @@ function render(ctx, c::FromClause)
     end
 end
 
+function render(ctx, c::FunctionClause)
+    print(ctx, c.name, '(')
+    render(ctx, c.args)
+    print(ctx, ')')
+end
+
 function render(ctx, c::IdentifierClause)
     over = c.over
     if over !== nothing
@@ -92,6 +102,15 @@ function render(ctx, c::IdentifierClause)
         print(ctx, '.')
     end
     render(ctx, c.name)
+end
+
+function render(ctx, c::KeywordClause)
+    print(ctx, c.name)
+    over = c.over
+    if over !== nothing
+        print(ctx, ' ')
+        render(ctx, over)
+    end
 end
 
 render(ctx, c::LiteralClause) =
@@ -105,7 +124,9 @@ function render(ctx, c::OperatorClause)
         render(ctx, c.args[1])
         print(ctx, ')')
     else
-        render(ctx, c.args, sep = " $(c.name) ")
+        print(ctx, '(')
+        render(ctx, c.args, c.name)
+        print(ctx, ')')
     end
 end
 
@@ -122,7 +143,8 @@ function render(ctx, c::SelectClause)
         print(ctx, " DISTINCT")
     end
     if !isempty(c.list)
-        render(ctx, c.list, left = " ", right = "")
+        print(ctx, ' ')
+        render(ctx, c.list)
     end
     over = c.over
     if over !== nothing

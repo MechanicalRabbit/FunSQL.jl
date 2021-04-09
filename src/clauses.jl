@@ -101,7 +101,9 @@ PrettyPrinting.quoteof(cs::Vector{SQLClause}, qctx::SQLClauseQuoteContext) =
 
 include("clauses/as.jl")
 include("clauses/from.jl")
+include("clauses/function.jl")
 include("clauses/identifier.jl")
+include("clauses/keyword.jl")
 include("clauses/literal.jl")
 include("clauses/operator.jl")
 include("clauses/select.jl")
