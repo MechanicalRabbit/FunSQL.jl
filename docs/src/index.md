@@ -48,6 +48,7 @@ Modules = [FunSQL]
 Pages = [
     "clauses.jl",
     "clauses/as.jl",
+    "clauses/case.jl",
     "clauses/from.jl",
     "clauses/function.jl",
     "clauses/identifier.jl",

@@ -79,6 +79,20 @@ function render(ctx, c::AsClause)
     render(ctx, c.name)
 end
 
+function render(ctx, c::CaseClause)
+    print(ctx, "(CASE")
+    nargs = length(c.args)
+    for (i, arg) in enumerate(c.args)
+        if isodd(i)
+            print(ctx, i < nargs ? " WHEN " : " ELSE ")
+        else
+            print(ctx, " THEN ")
+        end
+        render(ctx, arg)
+    end
+    print(ctx, " END)")
+end
+
 function render(ctx, c::FromClause)
     newline(ctx)
     print(ctx, "FROM")

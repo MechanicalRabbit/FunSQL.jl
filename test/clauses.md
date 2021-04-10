@@ -1,6 +1,6 @@
 # SQL Clauses
 
-    using FunSQL: AS, ID, KW, LIT, FROM, FUN, OP, SELECT, WHERE, render
+    using FunSQL: AS, CASE, ID, KW, LIT, FROM, FUN, OP, SELECT, WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -159,6 +159,34 @@ A composite operator can be constructed with the help of `KW()` clause.
 
     print(render(c))
     #-> ("year_of_birth" BETWEEN 2000 AND 2020)
+
+
+## `CASE` Expression
+
+A `CASE` expression is created with `CASE()` constructor.
+
+    c = CASE(OP("<", :year_of_birth, 1970), "boomer")
+    #-> CASE(…)
+
+    display(c)
+    #-> CASE(OP("<", ID(:year_of_birth), LIT(1970)), LIT("boomer"))
+
+    print(render(c))
+    #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' END)
+
+The arguments of `CASE` form an interleaving sequence of conditions and the
+corresponding values.  When `CASE` has an odd number of arguments, the last
+argument provides the default value.
+
+    c = CASE(OP("<", :year_of_birth, 1970), "boomer", "millenial")
+
+    print(render(c))
+    #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' ELSE 'millenial' END)
+
+An invalid `CASE` expression can be constructed.
+
+    c = CASE(args = [])
+    #-> CASE(args = [])
 
 
 ## `AS` Clause

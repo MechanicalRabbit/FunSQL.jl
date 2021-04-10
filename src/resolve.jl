@@ -273,6 +273,9 @@ translate(::Val{Symbol("is null")}, n::FunctionNode, treq) =
 translate(::Val{Symbol("is not null")}, n::FunctionNode, treq) =
     OP(:IS, SQLClause[translate(arg, treq) for arg in n.args]..., OP(:NOT, missing))
 
+translate(::Val{:case}, n::FunctionNode, treq) =
+    CASE(args = SQLClause[translate(arg, treq) for arg in n.args])
+
 translate(n::GetNode, treq) =
     throw(GetError(n.name))
 
