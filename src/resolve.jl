@@ -232,7 +232,7 @@ translate(n::FunctionNode, treq) =
 
 function translate(@nospecialize(name::Val{N}), n::FunctionNode, treq) where {N}
     args = SQLClause[translate(arg, treq) for arg in n.args]
-    if Meta.isidentifier(n.name)
+    if Base.isidentifier(n.name)
         FUN(uppercase(string(n.name)), args = args)
     else
         OP(n.name, args = args)
