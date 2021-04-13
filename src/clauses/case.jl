@@ -19,10 +19,10 @@ A `CASE` expression.
 # Examples
 
 ```jldoctest
-julia> c = CASE(OP("<", :yeah_of_birth, 1970), "boomer", "millenial");
+julia> c = CASE(OP("<", :year_of_birth, 1970), "boomer", "millenial");
 
 julia> print(render(c))
-(CASE WHEN "year_of_birth" < 1970 THEN 'boomer' ELSE 'millenial' END)
+(CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' ELSE 'millenial' END)
 ```
 """
 CASE(args...; kws...) =
