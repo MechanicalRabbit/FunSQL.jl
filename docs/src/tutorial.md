@@ -2,13 +2,11 @@
 
 ## Sample Database
 
-In this tutorial, we consider a tiny sample (10 people) of simulated patient
-data extracted from [CMS DE-SynPuf
+In this tutorial, we consider a tiny SQLite database with a 10 person sample of
+simulated patient data extracted from [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
-This data is stored in a SQLite database, which can be downloaded from
-[GitHub](https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite).
 
-The database file can be downloaded with the following code.
+The SQLite database file can be downloaded with the following code.
 
 ```julia
 const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
