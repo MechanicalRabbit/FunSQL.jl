@@ -1,12 +1,13 @@
 #!/usr/bin/env julia
 
-using Documenter, NarrativeTest, Test
+using Documenter, Logging, NarrativeTest, Test
 using FunSQL
 
 if isempty(ARGS)
 
     @testset "FunSQL" begin
 
+    @info "Running doctests..."
     DocMeta.setdocmeta!(
         FunSQL,
         :DocTestSetup,
@@ -18,9 +19,11 @@ if isempty(ARGS)
                 render
             using Dates
         end)
+    with_logger(Logging.ConsoleLogger(stderr, Logging.Warn)) do
+        doctest(FunSQL)
+    end
 
-    doctest(FunSQL)
-
+    @info "Running narrative tests..."
     NarrativeTest.testset()
 
     end
