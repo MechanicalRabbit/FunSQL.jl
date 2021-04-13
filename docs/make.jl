@@ -3,19 +3,6 @@
 using Documenter
 using FunSQL
 
-# Setup for doctests.
-DocMeta.setdocmeta!(
-    FunSQL,
-    :DocTestSetup,
-    quote
-        using FunSQL:
-            SQLTable,
-            As, From, Fun, Get, Highlight, Select, Where,
-            AS, CASE, FROM, FUN, ID, KW, LIT, OP, SELECT, WHERE,
-            render
-        using Dates
-    end)
-
 # Highlight indented code blocks as Julia code.
 using Documenter.Expanders: ExpanderPipeline, Selectors, Markdown, iscode
 abstract type DefaultLanguage <: ExpanderPipeline end
@@ -31,7 +18,8 @@ makedocs(
     pages = [
         "Home" => "index.md",
     ],
-    modules = [FunSQL]
+    modules = [FunSQL],
+    doctest = false
 )
 
 deploydocs(
