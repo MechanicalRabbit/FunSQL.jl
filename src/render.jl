@@ -118,6 +118,34 @@ function render(ctx, c::IdentifierClause)
     render(ctx, c.name)
 end
 
+function render(ctx, c::JoinClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    newline(ctx)
+    cross = !c.left && !c.right && @dissect c.on LIT(val = true)
+    if cross
+        print(ctx, "CROSS JOIN ")
+    elseif c.left && c.right
+        print(ctx, "FULL JOIN ")
+    elseif c.left
+        print(ctx, "LEFT JOIN ")
+    elseif c.right
+        print(ctx, "RIGHT JOIN ")
+    else
+        print(ctx, "JOIN ")
+    end
+    if c.lateral
+        print(ctx, "LATERAL ")
+    end
+    render(ctx, c.joinee)
+    if !cross
+        print(ctx, " ON ")
+        render(ctx, c.on)
+    end
+end
+
 function render(ctx, c::KeywordClause)
     print(ctx, c.name)
     over = c.over

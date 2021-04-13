@@ -1,6 +1,7 @@
 # SQL Clauses
 
-    using FunSQL: AS, CASE, ID, KW, LIT, FROM, FUN, OP, SELECT, WHERE, render
+    using FunSQL:
+        AS, CASE, FROM, FUN, ID, JOIN, KW, LIT, OP, SELECT, WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -298,5 +299,31 @@ A `WHERE` clause is created with `WHERE()` constructor.
     SELECT "person_id"
     FROM "person"
     WHERE ("year_of_birth" > 2000)
+    =#
+
+
+## `JOIN` Clause
+
+A `JOIN` clause is created with `JOIN()` constructor.
+
+    c = FROM(:p => :person) |>
+        JOIN(:l => :location, OP("=", (:p, :location_id), (:l, :location_id)), left = true)
+    #-> (…) |> JOIN(…)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    AS(:p) |>
+    FROM() |>
+    JOIN(ID(:location) |> AS(:l),
+         OP("=", ID(:p) |> ID(:location_id), ID(:l) |> ID(:location_id)),
+         left = true)
+    =#
+
+    print(render(c |> SELECT((:p, :person_id), (:l, :state))))
+    #=>
+    SELECT "p"."person_id", "l"."state"
+    FROM "person" AS "p"
+    LEFT JOIN "location" AS "l" ON ("p"."location_id" = "l"."location_id")
     =#
 
