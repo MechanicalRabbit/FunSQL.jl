@@ -17,6 +17,8 @@ makedocs(
     format = Documenter.HTML(prettyurls=(get(ENV, "CI", nothing) == "true")),
     pages = [
         "Home" => "index.md",
+        "tutorial.md",
+        "api.md",
     ],
     modules = [FunSQL],
     doctest = false
