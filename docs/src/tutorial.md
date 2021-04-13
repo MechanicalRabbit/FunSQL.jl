@@ -21,6 +21,7 @@ a link to the database in order to avoid downloading the file more than once.
     using Pkg.Artifacts, LazyArtifacts
 
     const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
+    #-> ⋮
 
 Next, we create a connection to the database.
 
