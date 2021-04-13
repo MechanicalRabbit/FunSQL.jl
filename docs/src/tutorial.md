@@ -2,42 +2,17 @@
 
 ## Downloading Eunomia Database
 
-In this tutorial, we use the [Eunomia](https://github.com/OHDSI/Eunomia)
-dataset containing simulated patient data in [OMOP
-CDM](https://github.com/OHDSI/CommonDataModel).  This is a SQLite database,
-which you can download from
-https://github.com/OHDSI/Eunomia/raw/master/inst/sqlite/cdm.tar.xz.
+In this tutorial, we consider a tiny sample (10 people) of simulated patient
+data extracted from [CMS DE-SynPuf
+dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
+This data is stored in a SQLite database, which can be downloaded from
+https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite.
 
-You can also install it as a Julia artifact.  Run the following code
-*once* to create an Artifacts.toml file containing the reference to
-the dataset.
-
-    using Pkg.Artifacts
-
-    artifact_toml = joinpath(@__DIR__, "Artifacts.toml")
-    eunomia_hash = artifact_hash("eunomia", artifact_toml)
-
-    if eunomia_hash === nothing
-        bind_artifact!(
-            artifact_toml, "eunomia",
-            Base.SHA1("fa13d3ec2d9efe11eddaaab96ada38c5e5a68149"),
-            download_info=[("https://github.com/OHDSI/Eunomia/raw/master/inst/sqlite/cdm.tar.xz",
-                            "b2828f9484061074982fc8dc7506e479cd1b24ff30a6db14e92426602e18498e")])
-        ensure_artifact_installed("eunomia", artifact_toml, quiet_download = true)
-    end
-
-Once the dataset is downloaded, it can be accessed with the following
-code.
-
-    using Pkg.Artifacts
-
-    eunomia_path = joinpath(artifact"eunomia", "cdm.sqlite")
-
-Now we can create a database connection.
+    const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
 
     using SQLite
 
-    const db = SQLite.DB(eunomia_path)
+    const db = SQLite.DB(download(URL))
 
 
 ## First Query
@@ -48,7 +23,7 @@ Now we can create a database connection.
     person = SQLTable(:person, columns = [:person_id, :year_of_birth])
 
     q = From(person) |>
-        Where(Get.year_of_birth .> 1980) |>
+        Where(Get.year_of_birth .> 1950) |>
         Select(Get.person_id)
 
     sql = render(q)
@@ -56,34 +31,20 @@ Now we can create a database connection.
     #=>
     SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
-    WHERE ("person_1"."year_of_birth" > 1980)
+    WHERE ("person_1"."year_of_birth" > 1950)
     =#
 
     res = DBInterface.execute(db, sql)
 
     DataFrame(res)
     #=>
-    86×1 DataFrame
-     Row │ PERSON_ID
-         │ Float64
+    3×1 DataFrame
+     Row │ person_id
+         │ Int64
     ─────┼───────────
-       1 │     124.0
-       2 │     235.0
-       3 │     339.0
-       4 │     249.0
-       5 │     141.0
-       6 │     220.0
-       7 │     471.0
-       8 │     362.0
-      ⋮  │     ⋮
-      80 │    4408.0
-      81 │    4457.0
-      82 │    4781.0
-      83 │    4816.0
-      84 │    4606.0
-      85 │    5343.0
-      86 │    5007.0
-      71 rows omitted
+       1 │     69985
+       2 │     82328
+       3 │    107680
     =#
 
 We can define a convenience function.
@@ -96,26 +57,12 @@ We can define a convenience function.
 
     run(db, q)
     #=>
-    86×1 DataFrame
-     Row │ PERSON_ID
-         │ Float64
+    3×1 DataFrame
+     Row │ person_id
+         │ Int64
     ─────┼───────────
-       1 │     124.0
-       2 │     235.0
-       3 │     339.0
-       4 │     249.0
-       5 │     141.0
-       6 │     220.0
-       7 │     471.0
-       8 │     362.0
-      ⋮  │     ⋮
-      80 │    4408.0
-      81 │    4457.0
-      82 │    4781.0
-      83 │    4816.0
-      84 │    4606.0
-      85 │    5343.0
-      86 │    5007.0
-      71 rows omitted
+       1 │     69985
+       2 │     82328
+       3 │    107680
     =#
 
