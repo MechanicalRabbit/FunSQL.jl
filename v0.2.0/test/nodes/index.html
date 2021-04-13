@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Nodes · FunSQL.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">FunSQL.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../tutorial/">Tutorial</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Nodes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Nodes</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/nodes.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Nodes"><a class="docs-heading-anchor" href="#SQL-Nodes">SQL Nodes</a><a id="SQL-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Nodes" title="Permalink"></a></h1><pre><code class="language-julia">using FunSQL:
+    As, Fun, From, Get, Highlight, Lit, SQLNode, SQLTable, Select,
+    Where, render, resolve</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia">person = SQLTable(:person, columns = [:person_id, :year_of_birth])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLNode</code> objects.  The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)) |&gt;
+    Select(Get.person_id)
+#-&gt; (…) |&gt; Select(…)</code></pre><p>Displaying a <code>SQLNode</code> object shows how it was constructed.</p><pre><code class="language-julia">display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))),
+    q3 = q2 |&gt; Select(Get.person_id)
+    q3
+end
+=#</code></pre><p>Each node wraps a concrete node object, which can be accessed using the indexing operator.</p><pre><code class="language-julia">q[]
+#-&gt; ((…) |&gt; Select(…))[]
+
+display(q[])
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))),
+    q3 = q2 |&gt; Select(Get.person_id)
+    q3[]
+end
+=#</code></pre><p>The SQL query is generated using the function <code>render()</code>.</p><pre><code class="language-julia">print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre><h2 id="Literals"><a class="docs-heading-anchor" href="#Literals">Literals</a><a id="Literals-1"></a><a class="docs-heading-anchor-permalink" href="#Literals" title="Permalink"></a></h2><p>A SQL value is created with <code>Lit()</code> constructor.</p><pre><code class="language-julia">e = Lit(&quot;SQL is fun!&quot;)
+#-&gt; Lit(&quot;SQL is fun!&quot;)</code></pre><p>In a <code>SELECT</code> clause, bare literal expressions get an alias <code>&quot;_&quot;</code>.</p><pre><code class="language-julia">q = Select(e)
+
+print(render(q))
+#=&gt;
+SELECT &#39;SQL is fun!&#39; AS &quot;_&quot;
+=#</code></pre><p>Values of certain Julia data types are automatically converted to SQL literals when they are used in the context of a SQL node.</p><pre><code class="language-julia">using Dates
+
+q = Select(&quot;null&quot; =&gt; missing,
+           &quot;boolean&quot; =&gt; true,
+           &quot;integer&quot; =&gt; 42,
+           &quot;text&quot; =&gt; &quot;SQL is fun!&quot;,
+           &quot;date&quot; =&gt; Date(2000))</code></pre><h2 id="Attributes"><a class="docs-heading-anchor" href="#Attributes">Attributes</a><a id="Attributes-1"></a><a class="docs-heading-anchor-permalink" href="#Attributes" title="Permalink"></a></h2><p>To reference a table attribute, we use the <code>Get</code> constructor.</p><pre><code class="language-julia">e = Get(:person_id)
+#-&gt; Get.person_id</code></pre><p>Alternatively, use shorthand notation.</p><pre><code class="language-julia">Get.person_id
+#-&gt; Get.person_id
+
+Get.&quot;person_id&quot;
+#-&gt; Get.person_id
+
+Get[:person_id]
+#-&gt; Get.person_id
+
+Get[&quot;person_id&quot;]
+#-&gt; Get.person_id</code></pre><p>Hierarchical notation is supported.</p><pre><code class="language-julia">e = Get.p.person_id
+#-&gt; Get.p.person_id
+
+Get.p |&gt; Get.person_id
+#-&gt; Get.p.person_id</code></pre><p><code>Get</code> can also create bound references.</p><pre><code class="language-julia">q = From(person)
+
+e = Get(over = q, :year_of_birth)
+#-&gt; (…) |&gt; Get.year_of_birth
+
+display(e)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person)
+    q1.year_of_birth
+end
+=#
+
+q = q |&gt; Where(Fun(&quot;&gt;&quot;, e, 2000))
+
+e = Get(over = q, :person_id)
+#-&gt; (…) |&gt; Get.person_id
+
+q.person_id
+#-&gt; (…) |&gt; Get.person_id
+
+q.&quot;person_id&quot;
+#-&gt; (…) |&gt; Get.person_id
+
+q[:person_id]
+#-&gt; (…) |&gt; Get.person_id
+
+q[&quot;person_id&quot;]
+#-&gt; (…) |&gt; Get.person_id
+
+q = q |&gt; Select(e)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre><p><code>Get</code> is used for dereferencing an alias created with <code>As</code>.</p><pre><code class="language-julia">q = From(person) |&gt;
+    As(:p) |&gt;
+    Select(Get.p.person_id)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>When <code>Get</code> refers to an unknown attribute, an error is reported.</p><pre><code class="language-julia">q = Select(Get.person_id)
+
+print(render(q))
+#=&gt;
+ERROR: GetError: cannot find person_id in:
+Select(Get.person_id)
+=#
+
+q = From(person) |&gt;
+    As(:p) |&gt;
+    Select(Get.q.person_id)
+
+print(render(q))
+#=&gt;
+ERROR: GetError: cannot find person_id in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; As(:p) |&gt; Select(Get.q.person_id)
+    q2
+end
+=#</code></pre><h2 id="Operations"><a class="docs-heading-anchor" href="#Operations">Operations</a><a id="Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia">e = Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)
+#-&gt; Fun(&quot;&gt;&quot;, …)
+
+display(e)
+#-&gt; Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia">Fun(&quot;&gt;&quot;, args = SQLNode[Get.year_of_birth, 2000])
+#-&gt; Fun(&quot;&gt;&quot;, …)</code></pre><p>In a <code>SELECT</code> clause, operator calls get an alias from their name.</p><pre><code class="language-julia">print(render(From(person) |&gt; Select(e)))
+#=&gt;
+SELECT (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AS &quot;&gt;&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><h2 id="As"><a class="docs-heading-anchor" href="#As"><code>As</code></a><a id="As-1"></a><a class="docs-heading-anchor-permalink" href="#As" title="Permalink"></a></h2><p>An alias to an expression can be added with the <code>As</code> constructor.</p><pre><code class="language-julia">e = 42 |&gt; As(:integer)
+#-&gt; (…) |&gt; As(:integer)
+
+display(e)
+#-&gt; Lit(42) |&gt; As(:integer)
+
+print(render(Select(e)))
+#=&gt;
+SELECT 42 AS &quot;integer&quot;
+=#</code></pre><p><code>As</code> is also used to create an alias for a subquery.</p><pre><code class="language-julia">q = From(person) |&gt;
+    As(:p) |&gt;
+    Select(Get.p.person_id)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>As</code> blocks the default output columns.</p><pre><code class="language-julia">q = From(person) |&gt; As(:p)
+
+print(render(q))
+#=&gt;
+SELECT TRUE
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><h2 id="From"><a class="docs-heading-anchor" href="#From"><code>From</code></a><a id="From-1"></a><a class="docs-heading-anchor-permalink" href="#From" title="Permalink"></a></h2><p>The <code>From</code> constructor creates a subquery that selects columns from the given table.</p><pre><code class="language-julia">q = From(person)
+#-&gt; From(…)
+
+display(q)
+#-&gt; From(SQLTable(:person, …))</code></pre><p>By default, <code>From</code> selects all columns from the table.</p><pre><code class="language-julia">print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>From</code> adds the schema qualifier when the table has the schema.</p><pre><code class="language-julia">concept = SQLTable(schema = :public,
+                   :concept,
+                   columns = [:concept_id, :description])
+
+q = From(concept)
+
+print(render(q))
+#=&gt;
+SELECT &quot;concept_1&quot;.&quot;concept_id&quot;, &quot;concept_1&quot;.&quot;description&quot;
+FROM &quot;public&quot;.&quot;concept&quot; AS &quot;concept_1&quot;
+=#</code></pre><p>In a suitable context, a <code>SQLTable</code> object is automatically converted to a <code>From</code> subquery.</p><pre><code class="language-julia">print(render(person))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>From</code> and other subqueries generate a correct <code>SELECT</code> clause when the table has no columns.</p><pre><code class="language-julia">empty = SQLTable(:empty, columns = Symbol[])
+
+q = From(empty) |&gt;
+    Where(true) |&gt;
+    Select(list = [])
+
+display(q)
+#=&gt;
+let empty = SQLTable(:empty, …),
+    q1 = From(empty),
+    q2 = q1 |&gt; Where(Lit(true)),
+    q3 = q2 |&gt; Select(list = [])
+    q3
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT TRUE
+FROM &quot;empty&quot; AS &quot;empty_1&quot;
+WHERE TRUE
+=#</code></pre><h2 id="Select"><a class="docs-heading-anchor" href="#Select"><code>Select</code></a><a id="Select-1"></a><a class="docs-heading-anchor-permalink" href="#Select" title="Permalink"></a></h2><p>The <code>Select</code> constructor creates a subquery that fixes the output columns.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Select(Get.person_id)
+#-&gt; (…) |&gt; Select(…)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Select(Get.person_id)
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>Select</code> does not have to be the last subquery in a chain.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Select(Get.year_of_birth) |&gt;
+    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000))
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre><p><code>Select</code> requires all columns in the list to have unique aliases.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Select(Get.person_id, Get.person_id)
+
+print(render(q))
+#=&gt;
+ERROR: DuplicateAliasError: person_id in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Select(Get.person_id, Get.person_id)
+    q2
+end
+=#</code></pre><h2 id="Where"><a class="docs-heading-anchor" href="#Where"><code>Where</code></a><a id="Where-1"></a><a class="docs-heading-anchor-permalink" href="#Where" title="Permalink"></a></h2><p>The <code>Where</code> constructor creates a subquery that filters by the given condition.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000))
+#-&gt; (…) |&gt; Where(…)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000)))
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre><p>Several <code>Where</code> operations in a row are collapsed in a single <code>WHERE</code> clause.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)) |&gt;
+    Where(Fun(&quot;&lt;&quot;, Get.year_of_birth, 2020)) |&gt;
+    Where(Fun(&quot;&lt;&gt;&quot;, Get.year_of_birth, 2010))
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010))
+=#</code></pre><h2 id="Highlighting"><a class="docs-heading-anchor" href="#Highlighting">Highlighting</a><a id="Highlighting-1"></a><a class="docs-heading-anchor-permalink" href="#Highlighting" title="Permalink"></a></h2><p>To highlight a node on the output, wrap it with <code>Highlight</code>.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Highlight(:underline) |&gt;
+    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth |&gt; Highlight(:bold), 2000) |&gt;
+          Highlight(:white)) |&gt;
+    Select(Get.person_id) |&gt;
+    Highlight(:green)
+#-&gt; (…) |&gt; Highlight(:green)</code></pre><p>When the query is displayed on a color terminal, the affected node is highlighted.</p><pre><code class="language-julia">display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))),
+    q3 = q2 |&gt; Select(Get.person_id)
+    q3
+end
+=#</code></pre><p>The <code>Highlight</code> node does not otherwise affect processing of the query.</p><pre><code class="language-julia">print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 13 April 2021 15:28">Tuesday 13 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · FunSQL.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">FunSQL.jl</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Sample-Database"><span>Sample Database</span></a></li><li><a class="tocitem" href="#First-Query"><span>First Query</span></a></li></ul></li><li><a class="tocitem" href="../api/">API Reference</a></li><li><a class="tocitem" href="../test/">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/tutorial.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><h2 id="Sample-Database"><a class="docs-heading-anchor" href="#Sample-Database">Sample Database</a><a id="Sample-Database-1"></a><a class="docs-heading-anchor-permalink" href="#Sample-Database" title="Permalink"></a></h2><p>In this tutorial, we consider a tiny SQLite database with a 10 person sample of simulated patient data extracted from <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>.</p><p>The SQLite database file can be downloaded with the following code.</p><pre><code class="language-julia">const URL = &quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;
+const DB = download(URL)</code></pre><p>Alternatively, we can create an <a href="../Artifacts.toml"><code>Artifacts.toml</code></a> file with a link to the database in order to avoid downloading the file more than once.</p><pre><code class="language-julia">using Pkg.Artifacts, LazyArtifacts
+
+const DB = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)
+#-&gt; ⋮</code></pre><p>Next, we create a connection to the database.</p><pre><code class="language-julia">using SQLite
+
+const conn = SQLite.DB(DB)</code></pre><h2 id="First-Query"><a class="docs-heading-anchor" href="#First-Query">First Query</a><a id="First-Query-1"></a><a class="docs-heading-anchor-permalink" href="#First-Query" title="Permalink"></a></h2><pre><code class="language-julia">using FunSQL: SQLTable, From, Where, Select, Get, render
+using DataFrames
+
+person = SQLTable(:person, columns = [:person_id, :year_of_birth])
+
+q = From(person) |&gt;
+    Where(Get.year_of_birth .&gt; 1950) |&gt;
+    Select(Get.person_id)
+
+sql = render(q)
+print(sql)
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950)
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+3×1 DataFrame
+ Row │ person_id
+     │ Int64
+─────┼───────────
+   1 │     69985
+   2 │     82328
+   3 │    107680
+=#</code></pre><p>We can define a convenience function.</p><pre><code class="language-julia">function run(conn, q)
+    sql = render(q, dialect = :sqlite)
+    res = DBInterface.execute(conn, sql)
+    DataFrame(res)
+end
+
+run(conn, q)
+#=&gt;
+3×1 DataFrame
+ Row │ person_id
+     │ Int64
+─────┼───────────
+   1 │     69985
+   2 │     82328
+   3 │    107680
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 13 April 2021 15:28">Tuesday 13 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
