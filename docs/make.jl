@@ -19,11 +19,7 @@ makedocs(
         "Home" => "index.md",
         "tutorial.md",
         "api.md",
-        "Test Suite" => [
-            "test/clauses.md",
-            "test/entities.md",
-            "test/nodes.md",
-        ],
+        "test/index.md",
     ],
     modules = [FunSQL],
     doctest = false

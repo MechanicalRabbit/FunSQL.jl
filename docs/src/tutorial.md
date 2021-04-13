@@ -1,19 +1,32 @@
 # Tutorial
 
-## Downloading Eunomia Database
+## Sample Database
 
 In this tutorial, we consider a tiny sample (10 people) of simulated patient
 data extracted from [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
 This data is stored in a SQLite database, which can be downloaded from
-https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite.
+[GitHub](https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite).
 
-    const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
+The database file can be downloaded with the following code.
+
+```julia
+const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
+const DB = download(URL)
+```
+
+Alternatively, we can create an [`Artifacts.toml`](../Artifacts.toml) file with
+a link to the database in order to avoid downloading the file more than once.
+
+    using Pkg.Artifacts, LazyArtifacts
+
+    const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
+
+Next, we create a connection to the database.
 
     using SQLite
 
-    const db = SQLite.DB(download(URL))
-
+    const conn = SQLite.DB(DB)
 
 ## First Query
 
@@ -34,7 +47,7 @@ https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412
     WHERE ("person_1"."year_of_birth" > 1950)
     =#
 
-    res = DBInterface.execute(db, sql)
+    res = DBInterface.execute(conn, sql)
 
     DataFrame(res)
     #=>
@@ -49,13 +62,13 @@ https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412
 
 We can define a convenience function.
 
-    function run(db, q)
+    function run(conn, q)
         sql = render(q, dialect = :sqlite)
-        res = DBInterface.execute(db, sql)
+        res = DBInterface.execute(conn, sql)
         DataFrame(res)
     end
 
-    run(db, q)
+    run(conn, q)
     #=>
     3×1 DataFrame
      Row │ person_id
