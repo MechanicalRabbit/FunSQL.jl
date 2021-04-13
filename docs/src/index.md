@@ -12,3 +12,15 @@ Pages = [
 ]
 ```
 
+
+## Test Suite
+
+```@contents
+Pages = [
+    "test/clauses.md",
+    "test/entities.md",
+    "test/nodes.md",
+]
+Depth = 1
+```
+

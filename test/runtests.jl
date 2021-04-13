@@ -24,7 +24,7 @@ if isempty(ARGS)
     end
 
     @info "Running narrative tests..."
-    NarrativeTest.testset()
+    NarrativeTest.testset(joinpath(@__DIR__, "../docs/src"))
 
     end
 
