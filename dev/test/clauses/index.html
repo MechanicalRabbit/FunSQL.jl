@@ -177,4 +177,77 @@ print(render(c |&gt; SELECT((:p, :person_id), (:l, :state))))
 SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;l&quot;.&quot;state&quot;
 FROM &quot;person&quot; AS &quot;p&quot;
 LEFT JOIN &quot;location&quot; AS &quot;l&quot; ON (&quot;p&quot;.&quot;location_id&quot; = &quot;l&quot;.&quot;location_id&quot;)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 14 April 2021 17:32">Wednesday 14 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre><p>Different types of <code>JOIN</code> are supported.</p><pre><code class="language-julia">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:op =&gt; :observation_period,
+         on = OP(&quot;=&quot;, (:p, :person_id), (:op, :person_id)))
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:observation_period) |&gt; AS(:op),
+     OP(&quot;=&quot;, ID(:p) |&gt; ID(:person_id), ID(:op) |&gt; ID(:person_id)))
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:op, :observation_period_start_date))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;op&quot;.&quot;observation_period_start_date&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+JOIN &quot;observation_period&quot; AS &quot;op&quot; ON (&quot;p&quot;.&quot;person_id&quot; = &quot;op&quot;.&quot;person_id&quot;)
+=#
+
+c = FROM(:l =&gt; :location) |&gt;
+    JOIN(:cs =&gt; :care_site,
+         on = OP(&quot;=&quot;, (:l, :location_id), (:cs, :location_id)),
+         right = true)
+
+display(c)
+#=&gt;
+ID(:location) |&gt;
+AS(:l) |&gt;
+FROM() |&gt;
+JOIN(ID(:care_site) |&gt; AS(:cs),
+     OP(&quot;=&quot;, ID(:l) |&gt; ID(:location_id), ID(:cs) |&gt; ID(:location_id)),
+     right = true)
+=#
+
+print(render(c |&gt; SELECT((:cs, :care_site_name), (:l, :state))))
+#=&gt;
+SELECT &quot;cs&quot;.&quot;care_site_name&quot;, &quot;l&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;l&quot;
+RIGHT JOIN &quot;care_site&quot; AS &quot;cs&quot; ON (&quot;l&quot;.&quot;location_id&quot; = &quot;cs&quot;.&quot;location_id&quot;)
+=#
+
+c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:pr =&gt; :provider,
+         on = OP(&quot;=&quot;, (:p, :provider_id), (:pr, :provider_id)),
+         left = true,
+         right = true)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:provider) |&gt; AS(:pr),
+     OP(&quot;=&quot;, ID(:p) |&gt; ID(:provider_id), ID(:pr) |&gt; ID(:provider_id)),
+     left = true,
+     right = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:pr, :npi))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;pr&quot;.&quot;npi&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+FULL JOIN &quot;provider&quot; AS &quot;pr&quot; ON (&quot;p&quot;.&quot;provider_id&quot; = &quot;pr&quot;.&quot;provider_id&quot;)
+=#</code></pre><p>To render a <code>CROSS JOIN</code>, set the join condition to <code>true</code>.</p><pre><code class="language-julia">c = FROM(:p1 =&gt; :person) |&gt;
+    JOIN(:p2 =&gt; :person,
+         on = true)
+
+print(render(c |&gt; SELECT((:p1, :person_id), (:p2, :person_id))))
+#=&gt;
+SELECT &quot;p1&quot;.&quot;person_id&quot;, &quot;p2&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p1&quot;
+CROSS JOIN &quot;person&quot; AS &quot;p2&quot;
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 14 April 2021 22:39">Wednesday 14 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
