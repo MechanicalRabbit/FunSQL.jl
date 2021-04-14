@@ -41,15 +41,9 @@ julia> q = From(person) |>
            Select(Get.person_id, Get.location.state);
 
 julia> print(render(q))
-SELECT "person_2"."person_id", "location_2"."state"
-FROM (
-  SELECT "person_1"."person_id", "person_1"."location_id"
-  FROM "person" AS "person_1"
-) AS "person_2"
-JOIN (
-  SELECT "location_1"."location_id", "location_1"."state"
-  FROM "location" AS "location_1"
-) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
+SELECT "person_1"."person_id", "location_1"."state"
+FROM "person" AS "person_1"
+JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
 ```
 """
 Join(args...; kws...) =

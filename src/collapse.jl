@@ -67,6 +67,29 @@ function decompose(c::FromClause)
     end
 end
 
+function decompose(c::JoinClause)
+    subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
+    if @dissect c.joinee ((table := (nothing |> ID() |> AS())) |>
+                          FROM() |>
+                          SELECT(distinct = false, list = select_list) |>
+                          AS(name = alias))
+        joinee′ = table
+        substitutions!(subs, alias, select_list)
+    else
+        joinee′ = c.joinee
+    end
+    d = decompose(c.over)
+    if @dissect d.tail (FROM() || JOIN())
+        over′ = d.tail
+        merge!(subs, d.subs)
+    else
+        over′ = c.over
+    end
+    on′ = substitute(c.on, subs)
+    c′ = JoinClause(over = over′, joinee = joinee′, on = on′, left = c.left, right = c.right, lateral = c.lateral)
+    Decomposition(c′, subs)
+end
+
 function decompose(c::WhereClause)
     d = decompose(c.over)
     condition′ = substitute(c.condition, d.subs)
@@ -98,8 +121,8 @@ function unalias(c::SQLClause)
     c
 end
 
-function substitutions(alias::Symbol, cs::Vector{SQLClause})
-    subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
+function substitutions!(subs::Dict{Tuple{Symbol, Symbol}, SQLClause},
+                        alias::Symbol, cs::Vector{SQLClause})
     for c in cs
         if @dissect c AS(over = repl, name = name)
         elseif @dissect c ID(name = name)
@@ -110,6 +133,11 @@ function substitutions(alias::Symbol, cs::Vector{SQLClause})
         subs[(alias, name)] = repl
     end
     subs
+end
+
+function substitutions(alias::Symbol, cs::Vector{SQLClause})
+    subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
+    substitutions!(subs, alias, cs)
 end
 
 function substitute(c::SQLClause, subs::Dict{Tuple{Symbol, Symbol}, SQLClause})
