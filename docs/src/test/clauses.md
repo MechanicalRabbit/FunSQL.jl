@@ -327,3 +327,120 @@ A `JOIN` clause is created with `JOIN()` constructor.
     LEFT JOIN "location" AS "l" ON ("p"."location_id" = "l"."location_id")
     =#
 
+Different types of `JOIN` are supported.
+
+    c = FROM(:p => :person) |>
+        JOIN(:op => :observation_period,
+             on = OP("=", (:p, :person_id), (:op, :person_id)))
+
+    display(c)
+    #=>
+    ID(:person) |>
+    AS(:p) |>
+    FROM() |>
+    JOIN(ID(:observation_period) |> AS(:op),
+         OP("=", ID(:p) |> ID(:person_id), ID(:op) |> ID(:person_id)))
+    =#
+
+    print(render(c |> SELECT((:p, :person_id), (:op, :observation_period_start_date))))
+    #=>
+    SELECT "p"."person_id", "op"."observation_period_start_date"
+    FROM "person" AS "p"
+    JOIN "observation_period" AS "op" ON ("p"."person_id" = "op"."person_id")
+    =#
+
+    c = FROM(:l => :location) |>
+        JOIN(:cs => :care_site,
+             on = OP("=", (:l, :location_id), (:cs, :location_id)),
+             right = true)
+
+    display(c)
+    #=>
+    ID(:location) |>
+    AS(:l) |>
+    FROM() |>
+    JOIN(ID(:care_site) |> AS(:cs),
+         OP("=", ID(:l) |> ID(:location_id), ID(:cs) |> ID(:location_id)),
+         right = true)
+    =#
+
+    print(render(c |> SELECT((:cs, :care_site_name), (:l, :state))))
+    #=>
+    SELECT "cs"."care_site_name", "l"."state"
+    FROM "location" AS "l"
+    RIGHT JOIN "care_site" AS "cs" ON ("l"."location_id" = "cs"."location_id")
+    =#
+
+    c = FROM(:p => :person) |>
+        JOIN(:pr => :provider,
+             on = OP("=", (:p, :provider_id), (:pr, :provider_id)),
+             left = true,
+             right = true)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    AS(:p) |>
+    FROM() |>
+    JOIN(ID(:provider) |> AS(:pr),
+         OP("=", ID(:p) |> ID(:provider_id), ID(:pr) |> ID(:provider_id)),
+         left = true,
+         right = true)
+    =#
+
+    print(render(c |> SELECT((:p, :person_id), (:pr, :npi))))
+    #=>
+    SELECT "p"."person_id", "pr"."npi"
+    FROM "person" AS "p"
+    FULL JOIN "provider" AS "pr" ON ("p"."provider_id" = "pr"."provider_id")
+    =#
+
+To render a `CROSS JOIN`, set the join condition to `true`.
+
+    c = FROM(:p1 => :person) |>
+        JOIN(:p2 => :person,
+             on = true)
+
+    print(render(c |> SELECT((:p1, :person_id), (:p2, :person_id))))
+    #=>
+    SELECT "p1"."person_id", "p2"."person_id"
+    FROM "person" AS "p1"
+    CROSS JOIN "person" AS "p2"
+    =#
+
+A `JOIN LATERAL` clause can be created.
+
+    c = FROM(:p => :person) |>
+        JOIN(:vo => FROM(:vo => :visit_occurrence) |>
+                    WHERE(OP("=", (:p, :person_id), (:vo, :person_id))) |>
+                    # TODO: add ORDER BY and LIMIT when they are implemented
+                    SELECT((:vo, :visit_start_date)),
+             on = true,
+             lateral = true)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    AS(:p) |>
+    FROM() |>
+    JOIN(ID(:visit_occurrence) |>
+         AS(:vo) |>
+         FROM() |>
+         WHERE(OP("=", ID(:p) |> ID(:person_id), ID(:vo) |> ID(:person_id))) |>
+         SELECT(ID(:vo) |> ID(:visit_start_date)) |>
+         AS(:vo),
+         LIT(true),
+         lateral = true)
+    =#
+
+    print(render(c |> SELECT((:p, :person_id), (:vo, :visit_start_date))))
+    #=>
+    SELECT "p"."person_id", "vo"."visit_start_date"
+    FROM "person" AS "p"
+    CROSS JOIN LATERAL (
+      SELECT "vo"."visit_start_date"
+      FROM "visit_occurrence" AS "vo"
+      WHERE ("p"."person_id" = "vo"."person_id")
+    ) AS "vo"
+    =#
+
