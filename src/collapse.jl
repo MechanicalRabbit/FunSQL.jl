@@ -18,6 +18,12 @@ collapse(c::AsClause) =
 collapse(c::FromClause) =
     FromClause(over = collapse(c.over))
 
+collapse(c::JoinClause) =
+    JoinClause(over = collapse(c.over),
+               joinee = collapse(c.joinee),
+               on = collapse(c.on),
+               left = c.left, right = c.right, lateral = c.lateral)
+
 function collapse(c::SelectClause)
     list = collapse(c.list)
     c = SelectClause(over = collapse(c.over), distinct = c.distinct, list = unalias(list))
