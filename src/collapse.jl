@@ -25,38 +25,65 @@ collapse(c::JoinClause) =
                left = c.left, right = c.right, lateral = c.lateral)
 
 function collapse(c::SelectClause)
-    list = collapse(c.list)
-    c = SelectClause(over = collapse(c.over), distinct = c.distinct, list = unalias(list))
-    @dissect(c.over, tail |>
-                     SELECT(distinct = false, list = select_list) |>
-                     AS(name = alias) |>
-                     FROM()) || return c
-    subs = substitutions(select_list)
-    subs !== nothing || return c
-    list′ = substitute(list, alias, subs)
-    SelectClause(over = tail, distinct = c.distinct, list = unalias(list′))
+    over′ = collapse(c.over)
+    list′ = collapse(c.list)
+    d = decompose(over′)
+    list′ = substitute(list′, d.subs)
+    SelectClause(over = d.tail, distinct = c.distinct, list = unalias(list′))
 end
 
-function collapse(c::WhereClause)
-    c = WhereClause(over = collapse(c.over), condition = collapse(c.condition))
-    @dissect(c.over, (tail := nothing || FROM() || WHERE()) |>
-                     SELECT(distinct = false, list = select_list) |>
-                     AS(name = alias) |>
-                     FROM()) || return c
-    subs = substitutions(select_list)
-    subs !== nothing || return c
-    condition′ = substitute(c.condition, alias, subs)
-    if @dissect tail (tail |> WHERE(condition = tail_condition))
+collapse(c::WhereClause) =
+    WhereClause(over = collapse(c.over), condition = collapse(c.condition))
+
+struct Decomposition
+    tail::Union{SQLClause, Nothing}
+    subs::Dict{Tuple{Symbol, Symbol}, SQLClause}
+end
+
+Decomposition(tail) =
+    Decomposition(tail, Dict{Tuple{Symbol, Symbol}, SQLClause}())
+
+function decompose(c::SQLClause)
+    d = decompose(c[])
+    if d === nothing
+        d = Decomposition(c)
+    end
+    d
+end
+
+decompose(c::AbstractSQLClause) =
+    nothing
+
+decompose(::Nothing) =
+    Decomposition(nothing)
+
+function decompose(c::FromClause)
+    if @dissect c.over (tail |>
+                        SELECT(distinct = false, list = select_list) |>
+                        AS(name = alias))
+        subs = substitutions(alias, select_list)
+        subs !== nothing || return
+        return Decomposition(tail, subs)
+    end
+end
+
+function decompose(c::WhereClause)
+    d = decompose(c.over)
+    condition′ = substitute(c.condition, d.subs)
+    if @dissect d.tail (tail := nothing || FROM() || JOIN())
+        c′ = WHERE(over = tail, condition = condition′)
+        return Decomposition(c′, d.subs)
+    elseif @dissect d.tail (tail |> WHERE(condition = tail_condition))
         if @dissect tail_condition OP(name = :AND, args = args)
             condition′ = OP(:AND, args..., condition′)
         else
             condition′ = OP(:AND, tail_condition, condition′)
         end
+        c′ = WHERE(over = tail, condition = condition′)
+        return Decomposition(c′, d.subs)
+    else
+        return nothing
     end
-    c′ = WHERE(over = tail, condition = condition′)
-    c′ = SELECT(over = c′, list = select_list)
-    c′ = AS(over = c′, name = alias)
-    FromClause(over = c′)
 end
 
 unalias(cs::Vector{SQLClause}) =
@@ -71,8 +98,8 @@ function unalias(c::SQLClause)
     c
 end
 
-function substitutions(cs::Vector{SQLClause})
-    subs = Dict{Symbol, SQLClause}()
+function substitutions(alias::Symbol, cs::Vector{SQLClause})
+    subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
     for c in cs
         if @dissect c AS(over = repl, name = name)
         elseif @dissect c ID(name = name)
@@ -80,27 +107,28 @@ function substitutions(cs::Vector{SQLClause})
         else
             continue
         end
-        subs[name] = repl
+        subs[(alias, name)] = repl
     end
     subs
 end
 
-function substitute(c::SQLClause, alias::Symbol, subs::Dict{Symbol, SQLClause})
+function substitute(c::SQLClause, subs::Dict{Tuple{Symbol, Symbol}, SQLClause})
     if @dissect c nothing |> ID(name = base_name) |> ID(name = name)
-        if base_name === alias && name in keys(subs)
-            return subs[name]
+        key = (base_name, name)
+        if key in keys(subs)
+            return subs[key]
         end
     end
-    convert(SQLClause, substitute(c[], alias, subs))
+    convert(SQLClause, substitute(c[], subs))
 end
 
-substitute(cs::Vector{SQLClause}, alias::Symbol, subs::Dict{Symbol, SQLClause}) =
-    SQLClause[substitute(c, alias, subs) for c in cs]
+substitute(cs::Vector{SQLClause}, subs::Dict{Tuple{Symbol, Symbol}, SQLClause}) =
+    SQLClause[substitute(c, subs) for c in cs]
 
-substitute(::Nothing, alias::Symbol, subs::Dict{Symbol, SQLClause}) =
+substitute(::Nothing, subs::Dict{Tuple{Symbol, Symbol}, SQLClause}) =
     nothing
 
-@generated function substitute(c::AbstractSQLClause, alias::Symbol, subs::Dict{Symbol, SQLClause})
+@generated function substitute(c::AbstractSQLClause, subs::Dict{Tuple{Symbol, Symbol}, SQLClause})
     exs = Expr[]
     args = Expr[]
     fs = fieldnames(c)
@@ -108,7 +136,7 @@ substitute(::Nothing, alias::Symbol, subs::Dict{Symbol, SQLClause}) =
         t = fieldtype(c, f)
         if t === SQLClause || t === Union{SQLClause, Nothing} || t === Vector{SQLClause}
             ex = quote
-                $(f) = substitute(c.$(f), alias, subs)
+                $(f) = substitute(c.$(f), subs)
             end
             push!(exs, ex)
             arg = Expr(:kw, f, f)
