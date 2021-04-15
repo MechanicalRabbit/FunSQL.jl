@@ -29,20 +29,25 @@ Next, we create a connection to the database.
 
 ## First Query
 
-    using FunSQL: SQLTable, From, Where, Select, Get, render
+    using FunSQL: SQLTable, Join, From, Where, Select, Get, render
     using DataFrames
 
-    person = SQLTable(:person, columns = [:person_id, :year_of_birth])
+    person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
+    location = SQLTable(:location, columns = [:location_id, :city, :state])
 
-    q = From(person) |>
+    q = person |>
+        Join(:location => location,
+             on = Get.location_id .== Get.location.location_id,
+             left = true) |>
         Where(Get.year_of_birth .> 1950) |>
-        Select(Get.person_id)
+        Select(Get.person_id, Get.location.state)
 
     sql = render(q)
     print(sql)
     #=>
-    SELECT "person_1"."person_id"
+    SELECT "person_1"."person_id", "location_1"."state"
     FROM "person" AS "person_1"
+    LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     WHERE ("person_1"."year_of_birth" > 1950)
     =#
 
@@ -50,13 +55,13 @@ Next, we create a connection to the database.
 
     DataFrame(res)
     #=>
-    3×1 DataFrame
-     Row │ person_id
-         │ Int64
-    ─────┼───────────
-       1 │     69985
-       2 │     82328
-       3 │    107680
+    3×2 DataFrame
+     Row │ person_id  state
+         │ Int64      String
+    ─────┼───────────────────
+       1 │     69985  MS
+       2 │     82328  NY
+       3 │    107680  WA
     =#
 
 We can define a convenience function.
@@ -69,12 +74,12 @@ We can define a convenience function.
 
     run(conn, q)
     #=>
-    3×1 DataFrame
-     Row │ person_id
-         │ Int64
-    ─────┼───────────
-       1 │     69985
-       2 │     82328
-       3 │    107680
+    3×2 DataFrame
+     Row │ person_id  state
+         │ Int64      String
+    ─────┼───────────────────
+       1 │     69985  MS
+       2 │     82328  NY
+       3 │    107680  WA
     =#
 
