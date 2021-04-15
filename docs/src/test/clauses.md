@@ -1,7 +1,8 @@
 # SQL Clauses
 
     using FunSQL:
-        AS, CASE, FROM, FUN, ID, JOIN, KW, LIT, OP, SELECT, WHERE, render
+        AS, CASE, FROM, FUN, GROUP, ID, JOIN, KW, LIT, OP, SELECT, WHERE,
+        render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -442,5 +443,35 @@ A `JOIN LATERAL` clause can be created.
       FROM "visit_occurrence" AS "vo"
       WHERE ("p"."person_id" = "vo"."person_id")
     ) AS "vo"
+    =#
+
+
+## `GROUP` Clause
+
+A `GROUP BY` clause is created with `GROUP` constructor.
+
+    c = FROM(:person) |> GROUP(:year_of_birth)
+    #-> (…) |> GROUP(…)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> GROUP(ID(:year_of_birth))
+
+    print(render(c |> SELECT(:year_of_birth, FUN("COUNT", OP("*")))))
+    #=>
+    SELECT "year_of_birth", COUNT(*)
+    FROM "person"
+    GROUP BY "year_of_birth"
+    =#
+
+A `GROUP BY` clause accepts an empty partition list.
+
+    c = FROM(:person) |> GROUP()
+    #-> (…) |> GROUP()
+
+    print(render(c |> SELECT(FUN("COUNT", OP("*")))))
+    #=>
+    SELECT COUNT(*)
+    FROM "person"
+    GROUP BY ()
     =#
 

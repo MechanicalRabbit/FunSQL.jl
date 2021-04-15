@@ -109,6 +109,20 @@ function render(ctx, c::FunctionClause)
     print(ctx, ')')
 end
 
+function render(ctx, c::GroupClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    newline(ctx)
+    print(ctx, "GROUP BY ")
+    if isempty(c.partition)
+        print(ctx, "()")
+    else
+        render(ctx, c.partition)
+    end
+end
+
 function render(ctx, c::IdentifierClause)
     over = c.over
     if over !== nothing

@@ -50,6 +50,7 @@ Pages = [
     "clauses/case.jl",
     "clauses/from.jl",
     "clauses/function.jl",
+    "clauses/group.jl",
     "clauses/identifier.jl",
     "clauses/join.jl",
     "clauses/keyword.jl",
