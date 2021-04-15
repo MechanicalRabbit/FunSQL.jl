@@ -123,6 +123,16 @@ function render(ctx, c::GroupClause)
     end
 end
 
+function render(ctx, c::HavingClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    newline(ctx)
+    print(ctx, "HAVING ")
+    render(ctx, c.condition)
+end
+
 function render(ctx, c::IdentifierClause)
     over = c.over
     if over !== nothing

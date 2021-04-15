@@ -1,8 +1,8 @@
 # SQL Clauses
 
     using FunSQL:
-        AS, CASE, FROM, FUN, GROUP, ID, JOIN, KW, LIT, OP, SELECT, WHERE,
-        render
+        AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP, SELECT,
+        WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -473,5 +473,31 @@ A `GROUP BY` clause accepts an empty partition list.
     SELECT COUNT(*)
     FROM "person"
     GROUP BY ()
+    =#
+
+
+## `HAVING` Clause
+
+A `HAVING` clause is created with `HAVING()` constructor.
+
+    c = FROM(:person) |>
+        GROUP(:year_of_birth) |>
+        HAVING(OP(">", FUN("COUNT", OP("*")), 10))
+    #-> (…) |> HAVING(…)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    FROM() |>
+    GROUP(ID(:year_of_birth)) |>
+    HAVING(OP(">", FUN("COUNT", OP("*")), LIT(10)))
+    =#
+
+    print(render(c |> SELECT(:person_id)))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    GROUP BY "year_of_birth"
+    HAVING (COUNT(*) > 10)
     =#
 
