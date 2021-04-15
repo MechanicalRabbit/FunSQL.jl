@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v0.3.0
+
+-  Add `Join`.
+
+
 ## v0.2.0
 
 - Flatten nested SQL subqueries.
