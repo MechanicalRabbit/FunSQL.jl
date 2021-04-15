@@ -1,12 +1,16 @@
 # SQL Nodes
 
     using FunSQL:
-        As, Fun, From, Get, Highlight, Lit, SQLNode, SQLTable, Select,
+        As, Fun, From, Get, Highlight, Join, Lit, SQLNode, SQLTable, Select,
         Where, render, resolve
 
 We start with specifying the database model.
 
-    person = SQLTable(:person, columns = [:person_id, :year_of_birth])
+    person = SQLTable(:person,
+                      columns = [:person_id, :year_of_birth, :location_id])
+
+    location = SQLTable(:location,
+                        columns = [:location_id, :city, :state])
 
 In FunSQL, a SQL query is generated from a tree of `SQLNode` objects.  The
 nodes are created using constructors with familiar SQL names and connected
@@ -267,7 +271,7 @@ By default, `From` selects all columns from the table.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -290,7 +294,7 @@ In a suitable context, a `SQLTable` object is automatically converted to a
 
     print(render(person))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -318,6 +322,36 @@ has no columns.
     SELECT TRUE
     FROM "empty" AS "empty_1"
     WHERE TRUE
+    =#
+
+## `Join`
+
+The `Join` constructor creates a subquery that combines the rows of two
+nested subqueries.
+
+    q = From(person) |>
+        Join(:location => location,
+             on = Get.location_id .== Get.location.location_id)
+    #-> (…) |> Join(…)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        q1 = From(person),
+        q2 = From(location),
+        q3 = q1 |>
+             Join(q2 |> As(:location),
+                  Fun("==", Get.location_id, Get.location.location_id))
+        q3
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    FROM "person" AS "person_1"
+    JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     =#
 
 
@@ -392,7 +426,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
@@ -406,7 +440,7 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
     =#
