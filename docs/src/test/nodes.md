@@ -193,6 +193,25 @@ When `Get` refers to an unknown attribute, an error is reported.
     end
     =#
 
+An error is also reported when a `Get` reference cannot be resolved
+unambiguously.
+
+    q = person |>
+        Join(person, true) |>
+        Select(Get.person_id)
+
+    print(render(q))
+    #=>
+    ERROR: GetError: ambiguous person_id in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = From(person),
+        q3 = q1 |> Join(q2, Lit(true)),
+        q4 = q3 |> Select(Get.person_id)
+        q4
+    end
+    =#
+
 
 ## Operations
 
@@ -324,14 +343,16 @@ has no columns.
     WHERE TRUE
     =#
 
+
 ## `Join`
 
 The `Join` constructor creates a subquery that combines the rows of two
 nested subqueries.
 
     q = From(person) |>
-        Join(:location => location,
-             on = Get.location_id .== Get.location.location_id)
+        Join(:location => From(location),
+             on = Get.location_id .== Get.location.location_id,
+             left = true)
     #-> (…) |> Join(…)
 
     display(q)
@@ -342,7 +363,8 @@ nested subqueries.
         q2 = From(location),
         q3 = q1 |>
              Join(q2 |> As(:location),
-                  Fun("==", Get.location_id, Get.location.location_id))
+                  Fun("==", Get.location_id, Get.location.location_id),
+                  left = true)
         q3
     end
     =#
@@ -351,7 +373,31 @@ nested subqueries.
     #=>
     SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
-    JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
+    LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
+    =#
+
+Nested subqueries that are combined with `Join` may fail to collapse.
+
+    q = From(person) |>
+        Where(Get.year_of_birth .> 1970) |>
+        Join(:location => From(location) |>
+                          Where(Get.state .== "IL"),
+             on = (Get.location_id .== Get.location.location_id)) |>
+        Select(Get.person_id, Get.location.city)
+
+    print(render(q))
+    #=>
+    SELECT "person_3"."person_id", "location_3"."city"
+    FROM (
+      SELECT "person_1"."location_id", "person_1"."person_id"
+      FROM "person" AS "person_1"
+      WHERE ("person_1"."year_of_birth" > 1970)
+    ) AS "person_3"
+    JOIN (
+      SELECT "location_1"."location_id", "location_1"."city"
+      FROM "location" AS "location_1"
+      WHERE ("location_1"."state" = 'IL')
+    ) AS "location_3" ON ("person_3"."location_id" = "location_3"."location_id")
     =#
 
 
