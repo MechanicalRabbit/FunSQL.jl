@@ -1,8 +1,8 @@
 # SQL Nodes
 
     using FunSQL:
-        As, Fun, From, Get, Highlight, Join, Lit, SQLNode, SQLTable, Select,
-        Where, render, resolve
+        As, Fun, From, Get, Highlight, Join, LeftJoin, Lit, SQLNode, SQLTable,
+        Select, Where, render, resolve
 
 We start with specifying the database model.
 
@@ -374,6 +374,26 @@ nested subqueries.
     SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
+    =#
+
+`LEFT JOIN` is commonly used and has its own constructor.
+
+    q = From(person) |>
+        LeftJoin(:location => From(location),
+                 on = Get.location_id .== Get.location.location_id)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        q1 = From(person),
+        q2 = From(location),
+        q3 = q1 |>
+             Join(q2 |> As(:location),
+                  Fun("==", Get.location_id, Get.location.location_id),
+                  left = true)
+        q3
+    end
     =#
 
 Nested subqueries that are combined with `Join` may fail to collapse.
