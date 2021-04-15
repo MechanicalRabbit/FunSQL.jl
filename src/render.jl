@@ -70,6 +70,23 @@ function render(ctx, cs::AbstractVector{SQLClause}, sep = nothing)
     end
 end
 
+function render(ctx, c::AggregateClause)
+    if c.filter !== nothing
+        print(ctx, '(')
+    end
+    print(ctx, c.name, '(')
+    if c.distinct
+        print(ctx, "DISTINCT ")
+    end
+    render(ctx, c.args)
+    print(ctx, ')')
+    if c.filter !== nothing
+        print(ctx, " FILTER (WHERE ")
+        render(ctx, c.filter)
+        print(ctx, "))")
+    end
+end
+
 function render(ctx, c::AsClause)
     over = c.over
     if over !== nothing

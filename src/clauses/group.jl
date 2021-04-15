@@ -24,7 +24,7 @@ A `GROUP BY` clause.
 ```jldoctest
 julia> c = FROM(:person) |>
            GROUP(:year_of_birth) |>
-           SELECT(:year_of_birth, FUN("COUNT", OP("*")));
+           SELECT(:year_of_birth, AGG("COUNT", OP("*")));
 
 julia> print(render(c))
 SELECT "year_of_birth", COUNT(*)

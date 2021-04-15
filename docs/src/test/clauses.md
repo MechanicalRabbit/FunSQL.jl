@@ -1,7 +1,7 @@
 # SQL Clauses
 
     using FunSQL:
-        AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP, SELECT,
+        AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP, SELECT,
         WHERE, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
@@ -132,6 +132,40 @@ Functions without arguments are permitted.
 
     print(render(c))
     #-> NOW()
+
+
+## Aggregate Functions
+
+Aggregate SQL functions have a specialized `AGG()` constructor.
+
+    c = AGG("COUNT", OP("*"))
+    #-> AGG("COUNT", …)
+
+    display(c)
+    #-> AGG("COUNT", OP("*"))
+
+    print(render(c))
+    #-> COUNT(*)
+
+Aggregate functions accept the `DISTINCT` modifier.
+
+    c = AGG("COUNT", distinct = true, :year_of_birth)
+
+    display(c)
+    #-> AGG("COUNT", distinct = true, ID(:year_of_birth))
+
+    print(render(c))
+    #-> COUNT(DISTINCT "year_of_birth")
+
+An aggregate function may have a `FILTER` modifier.
+
+    c = AGG("COUNT", OP("*"), filter = OP(">", :year_of_birth, 1970))
+
+    display(c)
+    #-> AGG("COUNT", OP("*"), filter = OP(">", ID(:year_of_birth), LIT(1970)))
+
+    print(render(c))
+    #-> (COUNT(*) FILTER (WHERE ("year_of_birth" > 1970)))
 
 
 ## SQL Operators
@@ -456,7 +490,7 @@ A `GROUP BY` clause is created with `GROUP` constructor.
     display(c)
     #-> ID(:person) |> FROM() |> GROUP(ID(:year_of_birth))
 
-    print(render(c |> SELECT(:year_of_birth, FUN("COUNT", OP("*")))))
+    print(render(c |> SELECT(:year_of_birth, AGG("COUNT", OP("*")))))
     #=>
     SELECT "year_of_birth", COUNT(*)
     FROM "person"
@@ -468,7 +502,7 @@ A `GROUP BY` clause accepts an empty partition list.
     c = FROM(:person) |> GROUP()
     #-> (…) |> GROUP()
 
-    print(render(c |> SELECT(FUN("COUNT", OP("*")))))
+    print(render(c |> SELECT(AGG("COUNT", OP("*")))))
     #=>
     SELECT COUNT(*)
     FROM "person"
@@ -482,7 +516,7 @@ A `HAVING` clause is created with `HAVING()` constructor.
 
     c = FROM(:person) |>
         GROUP(:year_of_birth) |>
-        HAVING(OP(">", FUN("COUNT", OP("*")), 10))
+        HAVING(OP(">", AGG("COUNT", OP("*")), 10))
     #-> (…) |> HAVING(…)
 
     display(c)
@@ -490,7 +524,7 @@ A `HAVING` clause is created with `HAVING()` constructor.
     ID(:person) |>
     FROM() |>
     GROUP(ID(:year_of_birth)) |>
-    HAVING(OP(">", FUN("COUNT", OP("*")), LIT(10)))
+    HAVING(OP(">", AGG("COUNT", OP("*")), LIT(10)))
     =#
 
     print(render(c |> SELECT(:person_id)))
