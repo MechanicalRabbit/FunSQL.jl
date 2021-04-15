@@ -518,7 +518,9 @@ function resolve(n::JoinNode, req)
     end
     j = JOIN(over = FROM(AS(over = left_res.clause, name = left_as)),
              joinee = AS(over = right_res.clause, name = right_as),
-             on = on)
+             on = on,
+             left = n.left,
+             right = n.right)
     c = SELECT(over = j, list = list)
     ResolveResult(c, repl, ambs)
 end
