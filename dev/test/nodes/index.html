@@ -124,6 +124,20 @@ let person = SQLTable(:person, …),
     q2 = q1 |&gt; As(:p) |&gt; Select(Get.q.person_id)
     q2
 end
+=#</code></pre><p>An error is also reported when a <code>Get</code> reference cannot be resolved unambiguously.</p><pre><code class="language-julia">q = person |&gt;
+    Join(person, true) |&gt;
+    Select(Get.person_id)
+
+print(render(q))
+#=&gt;
+ERROR: GetError: ambiguous person_id in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = From(person),
+    q3 = q1 |&gt; Join(q2, Lit(true)),
+    q4 = q3 |&gt; Select(Get.person_id)
+    q4
+end
 =#</code></pre><h2 id="Operations"><a class="docs-heading-anchor" href="#Operations">Operations</a><a id="Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia">e = Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)
 #-&gt; Fun(&quot;&gt;&quot;, …)
 
@@ -200,8 +214,9 @@ SELECT TRUE
 FROM &quot;empty&quot; AS &quot;empty_1&quot;
 WHERE TRUE
 =#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <code>Join</code> constructor creates a subquery that combines the rows of two nested subqueries.</p><pre><code class="language-julia">q = From(person) |&gt;
-    Join(:location =&gt; location,
-         on = Get.location_id .== Get.location.location_id)
+    Join(:location =&gt; From(location),
+         on = Get.location_id .== Get.location.location_id,
+         left = true)
 #-&gt; (…) |&gt; Join(…)
 
 display(q)
@@ -212,7 +227,8 @@ let person = SQLTable(:person, …),
     q2 = From(location),
     q3 = q1 |&gt;
          Join(q2 |&gt; As(:location),
-              Fun(&quot;==&quot;, Get.location_id, Get.location.location_id))
+              Fun(&quot;==&quot;, Get.location_id, Get.location.location_id),
+              left = true)
     q3
 end
 =#
@@ -221,7 +237,27 @@ print(render(q))
 #=&gt;
 SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
+LEFT JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
+=#</code></pre><p>Nested subqueries that are combined with <code>Join</code> may fail to collapse.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Where(Get.year_of_birth .&gt; 1970) |&gt;
+    Join(:location =&gt; From(location) |&gt;
+                      Where(Get.state .== &quot;IL&quot;),
+         on = (Get.location_id .== Get.location.location_id)) |&gt;
+    Select(Get.person_id, Get.location.city)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_3&quot;.&quot;person_id&quot;, &quot;location_3&quot;.&quot;city&quot;
+FROM (
+  SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1970)
+) AS &quot;person_3&quot;
+JOIN (
+  SELECT &quot;location_1&quot;.&quot;location_id&quot;, &quot;location_1&quot;.&quot;city&quot;
+  FROM &quot;location&quot; AS &quot;location_1&quot;
+  WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
+) AS &quot;location_3&quot; ON (&quot;person_3&quot;.&quot;location_id&quot; = &quot;location_3&quot;.&quot;location_id&quot;)
 =#</code></pre><h2 id="Select"><a class="docs-heading-anchor" href="#Select"><code>Select</code></a><a id="Select-1"></a><a class="docs-heading-anchor-permalink" href="#Select" title="Permalink"></a></h2><p>The <code>Select</code> constructor creates a subquery that fixes the output columns.</p><pre><code class="language-julia">q = From(person) |&gt;
     Select(Get.person_id)
 #-&gt; (…) |&gt; Select(…)
@@ -306,4 +342,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 15 April 2021 02:02">Thursday 15 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 15 April 2021 02:15">Thursday 15 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
