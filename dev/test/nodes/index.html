@@ -6,13 +6,13 @@
 
 location = SQLTable(:location,
                     columns = [:location_id, :city, :state])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLNode</code> objects.  The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia">q = From(person) |&gt;
-    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)) |&gt;
+    Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)) |&gt;
     Select(Get.person_id)
 #-&gt; (…) |&gt; Select(…)</code></pre><p>Displaying a <code>SQLNode</code> object shows how it was constructed.</p><pre><code class="language-julia">display(q)
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))),
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))),
     q3 = q2 |&gt; Select(Get.person_id)
     q3
 end
@@ -23,7 +23,7 @@ display(q[])
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))),
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))),
     q3 = q2 |&gt; Select(Get.person_id)
     q3[]
 end
@@ -72,7 +72,7 @@ let person = SQLTable(:person, …),
 end
 =#
 
-q = q |&gt; Where(Fun(&quot;&gt;&quot;, e, 2000))
+q = q |&gt; Where(Fun.&quot;&gt;&quot;(e, 2000))
 
 e = Get(over = q, :person_id)
 #-&gt; (…) |&gt; Get.person_id
@@ -138,12 +138,12 @@ let person = SQLTable(:person, …),
     q4 = q3 |&gt; Select(Get.person_id)
     q4
 end
-=#</code></pre><h2 id="Operations"><a class="docs-heading-anchor" href="#Operations">Operations</a><a id="Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia">e = Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)
-#-&gt; Fun(&quot;&gt;&quot;, …)
+=#</code></pre><h2 id="Operations"><a class="docs-heading-anchor" href="#Operations">Operations</a><a id="Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia">e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
+#-&gt; Fun.:(&quot;&gt;&quot;)(…)
 
 display(e)
-#-&gt; Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia">Fun(&quot;&gt;&quot;, args = SQLNode[Get.year_of_birth, 2000])
-#-&gt; Fun(&quot;&gt;&quot;, …)</code></pre><p>In a <code>SELECT</code> clause, operator calls get an alias from their name.</p><pre><code class="language-julia">print(render(From(person) |&gt; Select(e)))
+#-&gt; Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia">Fun.&quot;&gt;&quot;(args = SQLNode[Get.year_of_birth, 2000])
+#-&gt; Fun.:(&quot;&gt;&quot;)(…)</code></pre><p>In a <code>SELECT</code> clause, operator calls get an alias from their name.</p><pre><code class="language-julia">print(render(From(person) |&gt; Select(e)))
 #=&gt;
 SELECT (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AS &quot;&gt;&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
@@ -227,7 +227,7 @@ let person = SQLTable(:person, …),
     q2 = From(location),
     q3 = q1 |&gt;
          Join(q2 |&gt; As(:location),
-              Fun(&quot;==&quot;, Get.location_id, Get.location.location_id),
+              Fun.&quot;==&quot;(Get.location_id, Get.location.location_id),
               left = true)
     q3
 end
@@ -250,7 +250,7 @@ let person = SQLTable(:person, …),
     q2 = From(location),
     q3 = q1 |&gt;
          Join(q2 |&gt; As(:location),
-              Fun(&quot;==&quot;, Get.location_id, Get.location.location_id),
+              Fun.&quot;==&quot;(Get.location_id, Get.location.location_id),
               left = true)
     q3
 end
@@ -293,7 +293,7 @@ SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>Select</code> does not have to be the last subquery in a chain.</p><pre><code class="language-julia">q = From(person) |&gt;
     Select(Get.year_of_birth) |&gt;
-    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000))
+    Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000))
 
 print(render(q))
 #=&gt;
@@ -312,14 +312,14 @@ let person = SQLTable(:person, …),
     q2
 end
 =#</code></pre><h2 id="Where"><a class="docs-heading-anchor" href="#Where"><code>Where</code></a><a id="Where-1"></a><a class="docs-heading-anchor-permalink" href="#Where" title="Permalink"></a></h2><p>The <code>Where</code> constructor creates a subquery that filters by the given condition.</p><pre><code class="language-julia">q = From(person) |&gt;
-    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000))
+    Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000))
 #-&gt; (…) |&gt; Where(…)
 
 display(q)
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000)))
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000)))
     q2
 end
 =#
@@ -330,9 +330,9 @@ SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;ye
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 =#</code></pre><p>Several <code>Where</code> operations in a row are collapsed in a single <code>WHERE</code> clause.</p><pre><code class="language-julia">q = From(person) |&gt;
-    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000)) |&gt;
-    Where(Fun(&quot;&lt;&quot;, Get.year_of_birth, 2020)) |&gt;
-    Where(Fun(&quot;&lt;&gt;&quot;, Get.year_of_birth, 2010))
+    Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)) |&gt;
+    Where(Fun.&quot;&lt;&quot;(Get.year_of_birth, 2020)) |&gt;
+    Where(Fun.&quot;&lt;&gt;&quot;(Get.year_of_birth, 2010))
 
 print(render(q))
 #=&gt;
@@ -341,7 +341,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010))
 =#</code></pre><h2 id="Highlighting"><a class="docs-heading-anchor" href="#Highlighting">Highlighting</a><a id="Highlighting-1"></a><a class="docs-heading-anchor-permalink" href="#Highlighting" title="Permalink"></a></h2><p>To highlight a node on the output, wrap it with <code>Highlight</code>.</p><pre><code class="language-julia">q = From(person) |&gt;
     Highlight(:underline) |&gt;
-    Where(Fun(&quot;&gt;&quot;, Get.year_of_birth |&gt; Highlight(:bold), 2000) |&gt;
+    Where(Fun.&quot;&gt;&quot;(Get.year_of_birth |&gt; Highlight(:bold), 2000) |&gt;
           Highlight(:white)) |&gt;
     Select(Get.person_id) |&gt;
     Highlight(:green)
@@ -349,7 +349,7 @@ WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND (&quot;per
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, Lit(2000))),
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))),
     q3 = q2 |&gt; Select(Get.person_id)
     q3
 end
@@ -358,4 +358,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 16 April 2021 22:19">Friday 16 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 16 April 2021 22:39">Friday 16 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
