@@ -5,39 +5,59 @@ const DB = download(URL)</code></pre><p>Alternatively, we can create an <a href=
 const DB = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)
 #-&gt; ⋮</code></pre><p>Next, we create a connection to the database.</p><pre><code class="language-julia">using SQLite
 
-const conn = SQLite.DB(DB)</code></pre><h2 id="First-Query"><a class="docs-heading-anchor" href="#First-Query">First Query</a><a id="First-Query-1"></a><a class="docs-heading-anchor-permalink" href="#First-Query" title="Permalink"></a></h2><pre><code class="language-julia">using FunSQL: SQLTable, Join, From, Where, Select, Get, render
+const conn = SQLite.DB(DB)</code></pre><h2 id="First-Query"><a class="docs-heading-anchor" href="#First-Query">First Query</a><a id="First-Query-1"></a><a class="docs-heading-anchor-permalink" href="#First-Query" title="Permalink"></a></h2><p>When was the last time each person born in 1950 or earlier and living in Illinois was seen by a care provider?</p><pre><code class="language-julia">using FunSQL: SQLTable, Agg, Join, From, Group, Where, Select, Get, render
 using DataFrames
 
-person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
-location = SQLTable(:location, columns = [:location_id, :city, :state])
+const person =
+    SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
+const location =
+    SQLTable(:location, columns = [:location_id, :city, :state])
+const visit_occurrence =
+    SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date])
 
 q = person |&gt;
+    Where(Get.year_of_birth .&lt;= 1950) |&gt;
     Join(:location =&gt; location,
-         on = Get.location_id .== Get.location.location_id,
+         on = Get.location_id .== Get.location.location_id) |&gt;
+    Where(Get.location.state .== &quot;IL&quot;) |&gt;
+    Join(:visit_group =&gt; visit_occurrence |&gt;
+                         Group(Get.person_id),
+         on = Get.person_id .== Get.visit_group.person_id,
          left = true) |&gt;
-    Where(Get.year_of_birth .&gt; 1950) |&gt;
-    Select(Get.person_id, Get.location.state)
+    Select(Get.person_id,
+           :max_visit_start_date =&gt;
+               Get.visit_group |&gt; Agg.max(Get.visit_start_date))
 
 sql = render(q)
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;location_1&quot;.&quot;state&quot;
-FROM &quot;person&quot; AS &quot;person_1&quot;
-LEFT JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
-WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950)
+SELECT &quot;person_5&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
+FROM (
+  SELECT &quot;person_3&quot;.&quot;person_id&quot;
+  FROM (
+    SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
+    FROM &quot;person&quot; AS &quot;person_1&quot;
+    WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1950)
+  ) AS &quot;person_3&quot;
+  JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_3&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
+  WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
+) AS &quot;person_5&quot;
+LEFT JOIN (
+  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+) AS &quot;visit_group_1&quot; ON (&quot;person_5&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 =#
 
 res = DBInterface.execute(conn, sql)
 
 DataFrame(res)
 #=&gt;
-3×2 DataFrame
- Row │ person_id  state
+1×2 DataFrame
+ Row │ person_id  max_visit_start_date
      │ Int64      String
-─────┼───────────────────
-   1 │     69985  MS
-   2 │     82328  NY
-   3 │    107680  WA
+─────┼─────────────────────────────────
+   1 │     72120  2008-12-15
 =#</code></pre><p>We can define a convenience function.</p><pre><code class="language-julia">function run(conn, q)
     sql = render(q, dialect = :sqlite)
     res = DBInterface.execute(conn, sql)
@@ -46,11 +66,9 @@ end
 
 run(conn, q)
 #=&gt;
-3×2 DataFrame
- Row │ person_id  state
+1×2 DataFrame
+ Row │ person_id  max_visit_start_date
      │ Int64      String
-─────┼───────────────────
-   1 │     69985  MS
-   2 │     82328  NY
-   3 │    107680  WA
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 16 April 2021 17:13">Friday 16 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+─────┼─────────────────────────────────
+   1 │     72120  2008-12-15
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 16 April 2021 22:19">Friday 16 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
