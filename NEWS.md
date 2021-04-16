@@ -1,6 +1,14 @@
 # Release Notes
 
 
+## v0.4.0
+
+- Add `Group`.
+- Add aggregate expressions.
+- Collapse `WHERE` that follows `GROUP` to `HAVING`.
+- Add `LeftJoin` alias for `Join(..., left = true)`.
+
+
 ## v0.3.0
 
 -  Add `Join`.
