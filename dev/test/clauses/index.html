@@ -313,14 +313,13 @@ print(render(c |&gt; SELECT(:year_of_birth, AGG(&quot;COUNT&quot;, OP(&quot;*&qu
 SELECT &quot;year_of_birth&quot;, COUNT(*)
 FROM &quot;person&quot;
 GROUP BY &quot;year_of_birth&quot;
-=#</code></pre><p>A <code>GROUP BY</code> clause accepts an empty partition list.</p><pre><code class="language-julia">c = FROM(:person) |&gt; GROUP()
+=#</code></pre><p>A <code>GROUP</code> constructor accepts an empty partition list, in which case, it is not rendered.</p><pre><code class="language-julia">c = FROM(:person) |&gt; GROUP()
 #-&gt; (…) |&gt; GROUP()
 
 print(render(c |&gt; SELECT(AGG(&quot;COUNT&quot;, OP(&quot;*&quot;)))))
 #=&gt;
 SELECT COUNT(*)
 FROM &quot;person&quot;
-GROUP BY ()
 =#</code></pre><h2 id="HAVING-Clause"><a class="docs-heading-anchor" href="#HAVING-Clause"><code>HAVING</code> Clause</a><a id="HAVING-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#HAVING-Clause" title="Permalink"></a></h2><p>A <code>HAVING</code> clause is created with <code>HAVING()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
     GROUP(:year_of_birth) |&gt;
     HAVING(OP(&quot;&gt;&quot;, AGG(&quot;COUNT&quot;, OP(&quot;*&quot;)), 10))
@@ -340,4 +339,4 @@ SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 GROUP BY &quot;year_of_birth&quot;
 HAVING (COUNT(*) &gt; 10)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 15 April 2021 23:55">Thursday 15 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 16 April 2021 17:13">Friday 16 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
