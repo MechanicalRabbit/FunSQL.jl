@@ -628,10 +628,10 @@ function resolve(n::JoinNode, req)
         else
             continue
         end
+        repl[ref] = name
         !(name in seen) || continue
         push!(seen, name)
         id = ID(over = over, name = name)
-        repl[ref] = name
         push!(list, AS(over = id, name = name))
     end
     if isempty(list)
