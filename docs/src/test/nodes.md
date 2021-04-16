@@ -17,7 +17,7 @@ nodes are created using constructors with familiar SQL names and connected
 together using the chain (`|>`) operator.
 
     q = From(person) |>
-        Where(Fun(">", Get.year_of_birth, 2000)) |>
+        Where(Fun.">"(Get.year_of_birth, 2000)) |>
         Select(Get.person_id)
     #-> (…) |> Select(…)
 
@@ -27,7 +27,7 @@ Displaying a `SQLNode` object shows how it was constructed.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun(">", Get.year_of_birth, Lit(2000))),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000))),
         q3 = q2 |> Select(Get.person_id)
         q3
     end
@@ -43,7 +43,7 @@ indexing operator.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun(">", Get.year_of_birth, Lit(2000))),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000))),
         q3 = q2 |> Select(Get.person_id)
         q3[]
     end
@@ -131,7 +131,7 @@ Hierarchical notation is supported.
     end
     =#
 
-    q = q |> Where(Fun(">", e, 2000))
+    q = q |> Where(Fun.">"(e, 2000))
 
     e = Get(over = q, :person_id)
     #-> (…) |> Get.person_id
@@ -217,16 +217,16 @@ unambiguously.
 
 A function or an operator invocation is created with the `Fun` constructor.
 
-    e = Fun(">", Get.year_of_birth, 2000)
-    #-> Fun(">", …)
+    e = Fun.">"(Get.year_of_birth, 2000)
+    #-> Fun.:(">")(…)
 
     display(e)
-    #-> Fun(">", Get.year_of_birth, Lit(2000))
+    #-> Fun.">"(Get.year_of_birth, Lit(2000))
 
 A vector of arguments could be passed directly.
 
-    Fun(">", args = SQLNode[Get.year_of_birth, 2000])
-    #-> Fun(">", …)
+    Fun.">"(args = SQLNode[Get.year_of_birth, 2000])
+    #-> Fun.:(">")(…)
 
 In a `SELECT` clause, operator calls get an alias from their name.
 
@@ -363,7 +363,7 @@ nested subqueries.
         q2 = From(location),
         q3 = q1 |>
              Join(q2 |> As(:location),
-                  Fun("==", Get.location_id, Get.location.location_id),
+                  Fun."=="(Get.location_id, Get.location.location_id),
                   left = true)
         q3
     end
@@ -390,7 +390,7 @@ nested subqueries.
         q2 = From(location),
         q3 = q1 |>
              Join(q2 |> As(:location),
-                  Fun("==", Get.location_id, Get.location.location_id),
+                  Fun."=="(Get.location_id, Get.location.location_id),
                   left = true)
         q3
     end
@@ -448,7 +448,7 @@ The `Select` constructor creates a subquery that fixes the output columns.
 
     q = From(person) |>
         Select(Get.year_of_birth) |>
-        Where(Fun(">", Get.year_of_birth, 2000))
+        Where(Fun.">"(Get.year_of_birth, 2000))
 
     print(render(q))
     #=>
@@ -478,14 +478,14 @@ The `Select` constructor creates a subquery that fixes the output columns.
 The `Where` constructor creates a subquery that filters by the given condition.
 
     q = From(person) |>
-        Where(Fun(">", Get.year_of_birth, 2000))
+        Where(Fun.">"(Get.year_of_birth, 2000))
     #-> (…) |> Where(…)
 
     display(q)
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun(">", Get.year_of_birth, Lit(2000)))
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000)))
         q2
     end
     =#
@@ -500,9 +500,9 @@ The `Where` constructor creates a subquery that filters by the given condition.
 Several `Where` operations in a row are collapsed in a single `WHERE` clause.
 
     q = From(person) |>
-        Where(Fun(">", Get.year_of_birth, 2000)) |>
-        Where(Fun("<", Get.year_of_birth, 2020)) |>
-        Where(Fun("<>", Get.year_of_birth, 2010))
+        Where(Fun.">"(Get.year_of_birth, 2000)) |>
+        Where(Fun."<"(Get.year_of_birth, 2020)) |>
+        Where(Fun."<>"(Get.year_of_birth, 2010))
 
     print(render(q))
     #=>
@@ -518,7 +518,7 @@ To highlight a node on the output, wrap it with `Highlight`.
 
     q = From(person) |>
         Highlight(:underline) |>
-        Where(Fun(">", Get.year_of_birth |> Highlight(:bold), 2000) |>
+        Where(Fun.">"(Get.year_of_birth |> Highlight(:bold), 2000) |>
               Highlight(:white)) |>
         Select(Get.person_id) |>
         Highlight(:green)
@@ -531,7 +531,7 @@ highlighted.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun(">", Get.year_of_birth, Lit(2000))),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000))),
         q3 = q2 |> Select(Get.person_id)
         q3
     end

@@ -44,7 +44,10 @@ dissect(scr::Symbol, ::typeof(Fun), pats::Vector{Any}) =
     dissect(scr, FunctionNode, pats)
 
 PrettyPrinting.quoteof(n::FunctionNode, qctx::SQLNodeQuoteContext) =
-    Expr(:call, nameof(Fun), string(n.name), quoteof(n.args, qctx)...)
+    Expr(:call,
+         Expr(:., nameof(Fun),
+                  QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))),
+         quoteof(n.args, qctx)...)
 
 
 # Notation for making function nodes.
@@ -54,7 +57,8 @@ struct FunClosure
 end
 
 Base.show(io::IO, f::FunClosure) =
-    print(io, Expr(:., nameof(Fun), QuoteNode(f.name)))
+    print(io, Expr(:., nameof(Fun),
+                       QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
 
 Base.getproperty(::typeof(Fun), name::Symbol) =
     FunClosure(name)
