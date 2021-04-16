@@ -6,11 +6,14 @@
 
 We start with specifying the database model.
 
-    person = SQLTable(:person,
-                      columns = [:person_id, :year_of_birth, :location_id])
+    const person =
+        SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
 
-    location = SQLTable(:location,
-                        columns = [:location_id, :city, :state])
+    const location =
+        SQLTable(:location, columns = [:location_id, :city, :state])
+
+    const visit_occurrence =
+        SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
 
 In FunSQL, a SQL query is generated from a tree of `SQLNode` objects.  The
 nodes are created using constructors with familiar SQL names and connected
@@ -213,7 +216,7 @@ unambiguously.
     =#
 
 
-## Operations
+## Functions and Operations
 
 A function or an operator invocation is created with the `Fun` constructor.
 
@@ -341,6 +344,134 @@ has no columns.
     SELECT TRUE
     FROM "empty" AS "empty_1"
     WHERE TRUE
+    =#
+
+
+## `Group`
+
+The `Group` constructor creates a subquery that partitions the rows by the
+given keys.
+
+    q = From(person) |>
+        Group(Get.year_of_birth)
+    #-> (…) |> Group(…)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.year_of_birth)
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT DISTINCT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    =#
+
+Partitions created by `Group` could be summarized using aggregate expressions.
+
+    q = From(person) |>
+        Group(Get.year_of_birth) |>
+        Select(Get.year_of_birth, Agg.count())
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth", COUNT(*) AS "count"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."year_of_birth"
+    =#
+
+`Group` accepts an empty list of keys.
+
+    q = From(person) |>
+        Group() |>
+        Select(Agg.count(), Agg.min(Get.year_of_birth), Agg.max(Get.year_of_birth))
+
+    print(render(q))
+    #=>
+    SELECT COUNT(*) AS "count", MIN("person_1"."year_of_birth") AS "min", MAX("person_1"."year_of_birth") AS "max"
+    FROM "person" AS "person_1"
+    =#
+
+`Group` with no keys and no aggregates creates a trivial subquery.
+
+    q = From(person) |>
+        Group()
+
+    print(render(q))
+    #-> SELECT TRUE
+
+`Group` requires all keys to have unique aliases.
+
+    q = From(person) |>
+        Group(Get.person_id, Get.person_id)
+
+    print(render(q))
+    #=>
+    ERROR: DuplicateAliasError: person_id in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.person_id, Get.person_id)
+        q2
+    end
+    =#
+
+`Group` ensures that each aggregate expression gets a unique alias.
+
+    q = From(person) |>
+        Join(:visit_group => From(visit_occurrence) |>
+                             Group(Get.person_id),
+             on = Get.person_id .== Get.visit_group.person_id) |>
+        Select(Get.person_id,
+               :max_visit_start_date =>
+                   Get.visit_group |> Agg.max(Get.visit_start_date),
+               :max_visit_end_date =>
+                   Get.visit_group |> Agg.max(Get.visit_end_date))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "visit_group_1"."max_1" AS "max_visit_start_date", "visit_group_1"."max_2" AS "max_visit_end_date"
+    FROM "person" AS "person_1"
+    JOIN (
+      SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max_1", MAX("visit_occurrence_1"."visit_end_date") AS "max_2"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
+    =#
+
+Aggregate expressions can be applied to distinct values of the partition.
+
+    e = Agg.count(distinct = true, Get.year_of_birth)
+    #-> Agg.count(distinct = true, …)
+
+    display(e)
+    #-> Agg.count(distinct = true, Get.year_of_birth)
+
+    q = From(person) |> Group() |> Select(e)
+
+    print(render(q))
+    #=>
+    SELECT COUNT(DISTINCT "person_1"."year_of_birth") AS "count"
+    FROM "person" AS "person_1"
+    =#
+
+Aggregate expressions can be applied to a filtered portion of a partition.
+
+    e = Agg.count(filter = Get.year_of_birth .> 1950)
+    #-> Agg.count(filter = (…))
+
+    display(e)
+    #-> Agg.count(filter = Fun.">"(Get.year_of_birth, Lit(1950)))
+
+    q = From(person) |> Group() |> Select(e)
+
+    print(render(q))
+    #=>
+    SELECT (COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" > 1950))) AS "count"
+    FROM "person" AS "person_1"
     =#
 
 
@@ -509,6 +640,34 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
+    =#
+
+`Where` that follows `Group` subquery is transformed to a `HAVING` clause.
+
+    q = From(person) |>
+        Group(Get.year_of_birth) |>
+        Where(Agg.count() .> 10)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."year_of_birth"
+    HAVING (COUNT(*) > 10)
+    =#
+
+    q = From(person) |>
+        Group(Get.year_of_birth) |>
+        Where(Agg.count() .> 10) |>
+        Where(Agg.count() .< 100) |>
+        Where(Fun.and(Agg.count() .!= 33, Agg.count() .!= 66))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."year_of_birth"
+    HAVING ((COUNT(*) > 10) AND (COUNT(*) < 100) AND (COUNT(*) <> 33) AND (COUNT(*) <> 66))
     =#
 
 

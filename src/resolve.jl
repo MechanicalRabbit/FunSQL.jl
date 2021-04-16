@@ -575,8 +575,12 @@ function resolve(n::GroupNode, req)
     end
     @assert !isempty(list)
     f = FROM(AS(over = base_res.clause, name = base_as))
-    g = GROUP(over = f, partition = partition)
-    c = SELECT(over = g, list = list)
+    if has_aggregates
+        g = GROUP(over = f, partition = partition)
+        c = SELECT(over = g, list = list)
+    else
+        c = SELECT(over = f, distinct = true, list = list)
+    end
     ambs = Set{SQLNode}()
     ResolveResult(c, repl, ambs)
 end

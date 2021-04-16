@@ -79,7 +79,9 @@ dissect(scr::Symbol, ::typeof(Agg), pats::Vector{Any}) =
     dissect(scr, AggregateNode, pats)
 
 function PrettyPrinting.quoteof(n::AggregateNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Agg), string(n.name))
+    ex = Expr(:call,
+              Expr(:., nameof(Agg),
+                   QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))))
     if n.distinct
         push!(ex.args, Expr(:kw, :distinct, n.distinct))
     end
@@ -108,7 +110,8 @@ struct AggClosure
 end
 
 Base.show(io::IO, f::AggClosure) =
-    print(io, Expr(:., nameof(Agg), QuoteNode(f.name)))
+    print(io, Expr(:., nameof(Agg),
+                       QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
 
 Base.getproperty(::typeof(Agg), name::Symbol) =
     AggClosure(name)

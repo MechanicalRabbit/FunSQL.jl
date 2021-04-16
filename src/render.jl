@@ -134,11 +134,7 @@ function render(ctx, c::GroupClause)
     !isempty(c.partition) || return
     newline(ctx)
     print(ctx, "GROUP BY ")
-    if isempty(c.partition)
-        print(ctx, "()")
-    else
-        render(ctx, c.partition)
-    end
+    render(ctx, c.partition)
 end
 
 function render(ctx, c::HavingClause)
