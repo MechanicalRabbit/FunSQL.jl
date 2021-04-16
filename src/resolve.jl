@@ -151,13 +151,13 @@ default_alias(n::SQLNode) =
 default_alias(::Union{AbstractSQLNode, Nothing}) =
     :_
 
-default_alias(n::Union{AsNode, FunctionNode, GetNode}) =
+default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
     n.name
 
 default_alias(n::FromNode) =
     n.table.name
 
-default_alias(n::Union{HighlightNode, JoinNode, SelectNode, WhereNode}) =
+default_alias(n::Union{GroupNode, HighlightNode, JoinNode, SelectNode, WhereNode}) =
     default_alias(n.over)
 
 
@@ -171,6 +171,9 @@ default_list(::Union{AbstractSQLNode, Nothing}) =
 
 default_list(n::FromNode) =
     SQLNode[Get(over = n, name = col) for col in n.table.columns]
+
+default_list(n::GroupNode) =
+    SQLNode[Get(over = n, name = default_alias(col)) for col in n.partition]
 
 default_list(n::Union{HighlightNode, WhereNode}) =
     default_list(n.over)
@@ -199,15 +202,15 @@ end
 gather!(refs::Vector{SQLNode}, ::AbstractSQLNode) =
     refs
 
+function gather!(refs::Vector{SQLNode}, n::Union{AggregateNode, GetNode})
+    push!(refs, n)
+end
+
 gather!(refs::Vector{SQLNode}, n::Union{AsNode, HighlightNode}) =
     gather!(refs, n.over)
 
 gather!(refs::Vector{SQLNode}, n::FunctionNode) =
     gather!(refs, n.args)
-
-function gather!(refs::Vector{SQLNode}, n::GetNode)
-    push!(refs, n)
-end
 
 
 # Substituting references and translating expressions.
@@ -227,6 +230,27 @@ function translate(n::SQLNode, treq)
     end
 end
 
+translate(ns::Vector{SQLNode}, treq) =
+    SQLClause[translate(n, treq) for n in ns]
+
+translate(::Nothing, treq) =
+    nothing
+
+translate(n::AggregateNode, treq) =
+    translate(Val(n.name), n, treq)
+
+function translate(@nospecialize(name::Val{N}), n::AggregateNode, treq) where {N}
+    args = translate(n.args, treq)
+    filter = translate(n.filter, treq)
+    AGG(uppercase(string(n.name)), distinct = n.distinct, args = args, filter = filter)
+end
+
+function translate(::Val{:count}, n::AggregateNode, treq)
+    args = !isempty(n.args) ? translate(n.args, treq) : [OP("*")]
+    filter = translate(n.filter, treq)
+    AGG(:COUNT, distinct = n.distinct, args = args, filter = filter)
+end
+
 translate(n::Union{AsNode, HighlightNode}, treq) =
     translate(n.over, treq)
 
@@ -234,7 +258,7 @@ translate(n::FunctionNode, treq) =
     translate(Val(n.name), n, treq)
 
 function translate(@nospecialize(name::Val{N}), n::FunctionNode, treq) where {N}
-    args = SQLClause[translate(arg, treq) for arg in n.args]
+    args = translate(n.args, treq)
     if Base.isidentifier(n.name)
         FUN(uppercase(string(n.name)), args = args)
     else
@@ -258,7 +282,7 @@ end
 for (name, op, default) in ((:and, :AND, true), (:or, :OR, false))
     @eval begin
         function translate(::Val{$(QuoteNode(name))}, n::FunctionNode, treq)
-            args = translate(n.args, t.req)
+            args = translate(n.args, treq)
             if isempty(args)
                 LIT($default)
             elseif length(args) == 1
@@ -334,14 +358,23 @@ end
 resolve(n; kws...) =
     resolve(convert(SQLNode, n); kws...)
 
+replace_over(n::SQLNode, over′) =
+    convert(SQLNode, replace_over(n[], over′))
+
+replace_over(n::GetNode, over′) =
+    GetNode(over = over′, name = n.name)
+
+replace_over(n::AggregateNode, over′) =
+    AggregateNode(over = over′, name = n.name, distinct = n.distinct, args = n.args, filter = n.filter)
+
 function deprefix(n::SQLNode, prefix::SQLNode)
-    if @dissect n (tail |> Get(name = name))
+    if @dissect n (tail |> (Get() || Agg()))
         if tail === prefix
-            return Get(name = name)
+            return replace_over(n, nothing)
         else
             tail′ = deprefix(tail, prefix)
             if tail′ !== nothing
-                return Get(over = tail′, name = name)
+                return replace_over(n, tail′)
             end
         end
     end
@@ -349,16 +382,16 @@ function deprefix(n::SQLNode, prefix::SQLNode)
 end
 
 function deprefix(n::SQLNode, prefix::Symbol)
-    if @dissect n (nothing |> Get(name = base_name) |> Get(name = name))
+    if @dissect n (nothing |> Get(name = base_name) |> (Get() || Agg()))
         if base_name === prefix
-            return Get(name = name)
+            return replace_over(n, nothing)
         end
-    elseif @dissect n ((tail := Get()) |> Get(name = name))
+    elseif @dissect n ((tail := Get()) |> (Get() || Agg()))
         tail′ = deprefix(tail, prefix)
         if tail′ !== nothing
-            return Get(over = tail′, name = name)
+            return replace_over(n, tail′)
         end
-    elseif @dissect n (tail |> Get(name = name))
+    elseif @dissect n (tail |> (Get() || Agg()))
         if tail !== nothing
             return n
         end
@@ -456,6 +489,94 @@ function resolve(n::FromNode, req)
             end
         end
     end
+    ambs = Set{SQLNode}()
+    ResolveResult(c, repl, ambs)
+end
+
+function resolve(n::GroupNode, req)
+    aliases = Symbol[default_alias(col) for col in n.partition]
+    indexes = Dict{Symbol, Int}()
+    for (i, alias) in enumerate(aliases)
+        if alias in keys(indexes)
+            ex = DuplicateAliasError(alias)
+            push!(ex.stack, n.partition[i])
+            throw(ex)
+        end
+        indexes[alias] = i
+    end
+    base_refs = SQLNode[]
+    has_partition = false
+    if !isempty(n.partition)
+        gather!(base_refs, n.partition)
+        has_partition = true
+    end
+    has_aggregates = false
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(args = args, filter = filter))
+            gather!(base_refs, args)
+            if filter !== nothing
+                gather!(base_refs, filter)
+            end
+            has_aggregates = true
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    base_res = resolve(n.over, base_req)
+    base_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in base_res.repl
+        subs[ref] = ID(over = base_as, name = name)
+    end
+    treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
+    if !has_partition && !has_aggregates
+        return resolve(nothing, req)
+    end
+    partition = SQLClause[]
+    list = SQLClause[]
+    for (i, key) in enumerate(n.partition)
+        ckey = translate(key, treq)
+        push!(partition, ckey)
+        push!(list, AS(over = ckey, name = aliases[i]))
+    end
+    dups = Dict{Symbol, Int}([alias => 1 for alias in aliases])
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(name = name))
+            if name in seen
+                dups[name] = 1
+            else
+                push!(seen, name)
+            end
+        end
+    end
+    repl = Dict{SQLNode, Symbol}()
+    for ref in req.refs
+        if @dissect ref (nothing |> Get(name = name))
+            if name in keys(indexes)
+                repl[ref] = name
+            end
+        elseif @dissect ref (nothing |> Agg(distinct = distinct,
+                                            name = name,
+                                            args = args,
+                                            filter = filter))
+            name′ = name
+            if name in keys(dups)
+                k = dups[name]
+                name′ = Symbol(name, '_', k)
+                while name′ in keys(indexes) || name′ in seen
+                    k += 1
+                    name′ = Symbol(name, '_', k)
+                end
+                dups[name] = k + 1
+            end
+            push!(list, AS(over = translate(ref, treq), name = name′))
+            repl[ref] = name′
+        end
+    end
+    @assert !isempty(list)
+    f = FROM(AS(over = base_res.clause, name = base_as))
+    g = GROUP(over = f, partition = partition)
+    c = SELECT(over = g, list = list)
     ambs = Set{SQLNode}()
     ResolveResult(c, repl, ambs)
 end

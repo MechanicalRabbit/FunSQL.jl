@@ -18,6 +18,9 @@ collapse(c::AsClause) =
 collapse(c::FromClause) =
     FromClause(over = collapse(c.over))
 
+collapse(c::GroupClause) =
+    GroupClause(over = collapse(c.over), partition = collapse(c.partition))
+
 collapse(c::JoinClause) =
     JoinClause(over = collapse(c.over),
                joinee = collapse(c.joinee),
@@ -67,6 +70,17 @@ function decompose(c::FromClause)
     end
 end
 
+function decompose(c::GroupClause)
+    d = decompose(c.over)
+    partition′ = substitute(c.partition, d.subs)
+    if @dissect d.tail (tail := nothing || FROM() || JOIN() || WHERE())
+        c′ = GROUP(over = tail, partition = partition′)
+        return Decomposition(c′, d.subs)
+    else
+        return nothing
+    end
+end
+
 function decompose(c::JoinClause)
     subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
     if @dissect c.joinee ((table := (nothing |> ID() |> AS())) |>
@@ -90,6 +104,20 @@ function decompose(c::JoinClause)
     Decomposition(c′, subs)
 end
 
+function merge_conditions(c1, c2)
+    if @dissect c1 OP(name = :AND, args = args1)
+        if @dissect c2 OP(name = :AND, args = args2)
+            return OP(:AND, args1..., args2...)
+        else
+            return OP(:AND, args1..., c2)
+        end
+    elseif @dissect c2 OP(name = :AND, args = args2)
+        return OP(:AND, c1, args2...)
+    else
+        return OP(:AND, c1, c2)
+    end
+end
+
 function decompose(c::WhereClause)
     d = decompose(c.over)
     condition′ = substitute(c.condition, d.subs)
@@ -97,12 +125,16 @@ function decompose(c::WhereClause)
         c′ = WHERE(over = tail, condition = condition′)
         return Decomposition(c′, d.subs)
     elseif @dissect d.tail (tail |> WHERE(condition = tail_condition))
-        if @dissect tail_condition OP(name = :AND, args = args)
-            condition′ = OP(:AND, args..., condition′)
-        else
-            condition′ = OP(:AND, tail_condition, condition′)
-        end
+        condition′ = merge_conditions(tail_condition, condition′)
         c′ = WHERE(over = tail, condition = condition′)
+        return Decomposition(c′, d.subs)
+    elseif (@dissect d.tail (tail := GROUP(partition = partition))) &&
+           !isempty(partition)
+        c′ = HAVING(over = tail, condition = condition′)
+        return Decomposition(c′, d.subs)
+    elseif @dissect d.tail (tail |> HAVING(condition = tail_condition))
+        condition′ = merge_conditions(tail_condition, condition′)
+        c′ = HAVING(over = tail, condition = condition′)
         return Decomposition(c′, d.subs)
     else
         return nothing
@@ -125,6 +157,9 @@ function substitutions!(subs::Dict{Tuple{Symbol, Symbol}, SQLClause},
                         alias::Symbol, cs::Vector{SQLClause})
     for c in cs
         if @dissect c AS(over = repl, name = name)
+            #if @dissect repl AGG()
+            #    return nothing
+            #end
         elseif @dissect c ID(name = name)
             repl = c
         else
@@ -168,11 +203,10 @@ substitute(::Nothing, subs::Dict{Tuple{Symbol, Symbol}, SQLClause}) =
             end
             push!(exs, ex)
             arg = Expr(:kw, f, f)
-            push!(args, arg)
         else
-            arg = :(c.$(f))
-            push!(args, arg)
+            arg = Expr(:kw, f, :(c.$(f)))
         end
+        push!(args, arg)
     end
     if isempty(exs)
         return :(return c)

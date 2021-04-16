@@ -14,7 +14,7 @@ if isempty(ARGS)
         quote
             using FunSQL:
                 SQLTable,
-                As, From, Fun, Get, Highlight, Join, Select, Where,
+                Agg, As, From, Fun, Get, Group, Highlight, Join, Select, Where,
                 AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
                 SELECT, WHERE,
                 render

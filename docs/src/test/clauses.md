@@ -497,7 +497,8 @@ A `GROUP BY` clause is created with `GROUP` constructor.
     GROUP BY "year_of_birth"
     =#
 
-A `GROUP BY` clause accepts an empty partition list.
+A `GROUP` constructor accepts an empty partition list, in which case, it is not
+rendered.
 
     c = FROM(:person) |> GROUP()
     #-> (…) |> GROUP()
@@ -506,7 +507,6 @@ A `GROUP BY` clause accepts an empty partition list.
     #=>
     SELECT COUNT(*)
     FROM "person"
-    GROUP BY ()
     =#
 
 

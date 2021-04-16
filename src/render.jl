@@ -131,6 +131,7 @@ function render(ctx, c::GroupClause)
     if over !== nothing
         render(ctx, over)
     end
+    !isempty(c.partition) || return
     newline(ctx)
     print(ctx, "GROUP BY ")
     if isempty(c.partition)
