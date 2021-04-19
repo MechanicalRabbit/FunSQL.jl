@@ -44,7 +44,7 @@ FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
 
-``jldoctest
+```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(person) |>
@@ -56,7 +56,7 @@ SELECT COUNT(DISTINCT "person_1"."year_of_birth") AS "count"
 FROM "person" AS "person_1"
 ```
 
-``jldoctest
+```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id]);
 
 julia> visit_occurrence =
@@ -71,6 +71,14 @@ julia> q = From(person) |>
                       Get.visit_group |> Agg.max(Get.visit_start_date));
 
 julia> print(render(q))
+SELECT "person_1"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+FROM "person" AS "person_1"
+LEFT JOIN (
+  SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
+  FROM "visit_occurrence" AS "visit_occurrence_1"
+  GROUP BY "visit_occurrence_1"."person_id"
+) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
+```
 """
 Agg(args...; kws...) =
     AggregateNode(args...; kws...) |> SQLNode
