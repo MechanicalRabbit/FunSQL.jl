@@ -6,11 +6,15 @@
 
 We start with specifying the database model.
 
-    const person =
-        SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
+
+    const concept =
+        SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code])
 
     const location =
         SQLTable(:location, columns = [:location_id, :city, :state])
+
+    const person =
+        SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id, :gender_concept_id])
 
     const visit_occurrence =
         SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
@@ -239,6 +243,41 @@ In a `SELECT` clause, operator calls get an alias from their name.
     FROM "person" AS "person_1"
     =#
 
+A function invocation may include a nested query.
+
+    p = From(person) |>
+        Where(Get.year_of_birth .> 1950)
+
+    q = Select(Fun.exists(p))
+
+    print(render(q))
+    #=>
+    SELECT (EXISTS (
+      SELECT TRUE
+      FROM "person" AS "person_1"
+      WHERE ("person_1"."year_of_birth" > 1950)
+    )) AS "exists"
+    =#
+
+    p = From(concept) |>
+        Where(Fun.and(Get.vocabulary_id .== "Gender",
+                      Get.concept_code .== "F")) |>
+        Select(Get.concept_id)
+
+    q = From(person) |>
+        Where(Fun.in(Get.gender_concept_id, p))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."gender_concept_id" IN (
+      SELECT "concept_1"."concept_id"
+      FROM "concept" AS "concept_1"
+      WHERE (("concept_1"."vocabulary_id" = 'Gender') AND ("concept_1"."concept_code" = 'F'))
+    ))
+    =#
+
 
 ## `As`
 
@@ -293,22 +332,21 @@ By default, `From` selects all columns from the table.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
     FROM "person" AS "person_1"
     =#
 
 `From` adds the schema qualifier when the table has the schema.
 
-    concept = SQLTable(schema = :public,
-                       :concept,
-                       columns = [:concept_id, :description])
+    const pg_database =
+        SQLTable(schema = :pg_catalog, :pg_database, columns = [:oid, :datname])
 
-    q = From(concept)
+    q = From(pg_database)
 
     print(render(q))
     #=>
-    SELECT "concept_1"."concept_id", "concept_1"."description"
-    FROM "public"."concept" AS "concept_1"
+    SELECT "pg_database_1"."oid", "pg_database_1"."datname"
+    FROM "pg_catalog"."pg_database" AS "pg_database_1"
     =#
 
 In a suitable context, a `SQLTable` object is automatically converted to a
@@ -316,7 +354,7 @@ In a suitable context, a `SQLTable` object is automatically converted to a
 
     print(render(person))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
     FROM "person" AS "person_1"
     =#
 
@@ -502,7 +540,7 @@ nested subqueries.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
     FROM "person" AS "person_1"
     LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     =#
@@ -623,7 +661,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
@@ -637,7 +675,7 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
     FROM "person" AS "person_1"
     WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
     =#

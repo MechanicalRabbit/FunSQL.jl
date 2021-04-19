@@ -12,11 +12,24 @@ collapse(::Nothing) =
 collapse(c::AbstractSQLClause) =
     c
 
+collapse(c::AggregateClause) =
+    AggregateClause(name = c.name,
+                    distinct = c.distinct,
+                    args = collapse(c.args),
+                    filter = collapse(c.filter),
+                    over = collapse(c.over))
+
 collapse(c::AsClause) =
     AsClause(over = collapse(c.over), name = c.name)
 
+collapse(c::CaseClause) =
+    CaseClause(args = collapse(c.args))
+
 collapse(c::FromClause) =
     FromClause(over = collapse(c.over))
+
+collapse(c::FunctionClause) =
+    FunctionClause(name = c.name, args = collapse(c.args))
 
 collapse(c::GroupClause) =
     GroupClause(over = collapse(c.over), by = collapse(c.by))
@@ -26,6 +39,12 @@ collapse(c::JoinClause) =
                joinee = collapse(c.joinee),
                on = collapse(c.on),
                left = c.left, right = c.right, lateral = c.lateral)
+
+collapse(c::KeywordClause) =
+    KeywordClause(over = collapse(c.over), name = c.name)
+
+collapse(c::OperatorClause) =
+    OperatorClause(name = c.name, args = collapse(c.args))
 
 collapse(c::PartitionClause) =
     PartitionClause(over = collapse(c.over),

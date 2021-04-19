@@ -254,6 +254,12 @@ end
 translate(n::Union{AsNode, HighlightNode}, treq) =
     translate(n.over, treq)
 
+function translate(n::SubqueryNode, treq)
+    req = ResolveRequest(treq.ctx)
+    res = resolve(n, req)
+    res.clause
+end
+
 translate(n::FunctionNode, treq) =
     translate(Val(n.name), n, treq)
 
@@ -268,6 +274,7 @@ end
 
 for (name, op) in (:not => :NOT,
                    :like => :LIKE,
+                   :exists => :EXISTS,
                    :in => :IN,
                    Symbol("not in") => Symbol("NOT IN"),
                    :(==) => Symbol("="),
@@ -335,7 +342,7 @@ struct ResolveResult
 end
 
 struct TranslateRequest
-    dialect::SQLDialect
+    ctx::ResolveContext
     subs::Dict{SQLNode, SQLClause}
     ambs::Set{SQLNode}
 end
@@ -527,7 +534,7 @@ function resolve(n::GroupNode, req)
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     if !has_keys && !has_aggregates
         return resolve(nothing, req)
     end
@@ -601,7 +608,7 @@ function resolve(n::JoinNode, req)
         !(ref in ambs) || continue
         subs[ref] = ID(over = right_as, name = name)
     end
-    treq = TranslateRequest(req.ctx.dialect, subs, ambs)
+    treq = TranslateRequest(req.ctx, subs, ambs)
     on = translate(n.on, treq)
     list = SQLClause[]
     left_names = Set{Symbol}(values(left_res.repl))
@@ -679,7 +686,7 @@ function resolve(n::PartitionNode, req)
             end
         end
     end
-    treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     by = translate(n.by, treq)
     order_by = translate(n.order_by, treq)
     partition = PARTITION(by = by, order_by = order_by)
@@ -728,18 +735,8 @@ function resolve(n::SelectNode, req)
         indexes[alias] = i
     end
     base_refs = SQLNode[]
-    output_indexes = Set{Int}()
-    for ref in req.refs
-        if @dissect ref (nothing |> Get(name = ref_name))
-            if ref_name in keys(indexes)
-                push!(output_indexes, indexes[ref_name])
-            end
-        end
-    end
     for (i, col) in enumerate(n.list)
-        if i in output_indexes
-            gather!(base_refs, col)
-        end
+        gather!(base_refs, col)
     end
     base_req = ResolveRequest(req.ctx, refs = base_refs)
     base_res = resolve(n.over, base_req)
@@ -749,9 +746,8 @@ function resolve(n::SelectNode, req)
         subs[ref] = ID(over = base_as, name = name)
     end
     list = SQLClause[]
-    treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     for (i, col) in enumerate(n.list)
-        i in output_indexes || continue
         c = translate(col, treq)
         c = AS(over = c, name = aliases[i])
         push!(list, c)
@@ -787,7 +783,7 @@ function resolve(n::WhereNode, req)
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     condition = translate(n.condition, treq)
     list = SQLClause[]
     repl = Dict{SQLNode, Symbol}()
