@@ -74,6 +74,9 @@ function PrettyPrinting.quoteof(c::AggregateClause, qctx::SQLClauseQuoteContext)
     if c.filter !== nothing
         push!(ex.args, Expr(:kw, :filter, quoteof(c.filter, qctx)))
     end
+    if c.over !== nothing
+        push!(ex.args, Expr(:kw, :over, quoteof(c.over, qctx)))
+    end
     ex
 end
 

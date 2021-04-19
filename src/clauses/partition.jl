@@ -55,7 +55,7 @@ function PrettyPrinting.quoteof(c::PartitionClause, qctx::SQLClauseQuoteContext)
     ex = Expr(:call, nameof(PARTITION))
     append!(ex.args, quoteof(c.by, qctx))
     if !isempty(c.order_by)
-        push!(ex.args, Expr(:kw, :order_by, quoteof(c.order_by, qctx)))
+        push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(c.order_by, qctx)...)))
     end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)

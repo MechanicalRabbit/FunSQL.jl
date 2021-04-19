@@ -76,7 +76,7 @@ A SQL identifier is created with `ID()` constructor.
     print(render(c))
     #-> "person"
 
-A quoted identifier is created using pipeline notation.
+A quoted identifier is created using the chain operator.
 
     c = ID(:person) |> ID(:year_of_birth)
     #-> (…) |> ID(:year_of_birth)
@@ -166,6 +166,26 @@ An aggregate function may have a `FILTER` modifier.
 
     print(render(c))
     #-> (COUNT(*) FILTER (WHERE ("year_of_birth" > 1970)))
+
+A window function can be created by adding an `OVER` modifier.
+
+    c = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]) |>
+        AGG("ROW_NUMBER")
+
+    display(c)
+    #=>
+    AGG("ROW_NUMBER",
+        over = PARTITION(ID(:year_of_birth),
+                         order_by = [ID(:month_of_birth), ID(:day_of_birth)]))
+    =#
+
+    print(render(c))
+    #-> (ROW_NUMBER() OVER (PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth"))
+
+    c = AGG("ROW_NUMBER", over = :w)
+
+    print(render(c))
+    #-> (ROW_NUMBER() OVER ("w"))
 
 
 ## SQL Operators
@@ -533,5 +553,48 @@ A `HAVING` clause is created with `HAVING()` constructor.
     FROM "person"
     GROUP BY "year_of_birth"
     HAVING (COUNT(*) > 10)
+    =#
+
+
+## `WINDOW` Clause
+
+A `WINDOW` clause is created with `WINDOW()` constructor.
+
+    c = FROM(:person) |>
+        WINDOW(:w1 => PARTITION(:gender_concept_id),
+               :w2 => :w1 |> PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
+    #-> (…) |> WINDOW(…)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    FROM() |>
+    WINDOW(PARTITION(ID(:gender_concept_id)) |> AS(:w1),
+           ID(:w1) |>
+           PARTITION(ID(:year_of_birth),
+                     order_by = [ID(:month_of_birth), ID(:day_of_birth)]) |>
+           AS(:w2))
+    =#
+
+    print(render(c |> SELECT(:w1 |> AGG("ROW_NUMBER"), :w2 |> AGG("ROW_NUMBER"))))
+    #=>
+    SELECT (ROW_NUMBER() OVER ("w1")), (ROW_NUMBER() OVER ("w2"))
+    FROM "person"
+    WINDOW "w1" AS (PARTITION BY "gender_concept_id"), "w2" AS ("w1" PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth")
+    =#
+
+The `WINDOW()` constructor accepts an empty list of partitions, in which case,
+it is not rendered.
+
+    c = FROM(:person) |>
+        WINDOW(list = [])
+
+    display(c)
+    #-> ID(:person) |> FROM() |> WINDOW(list = [])
+
+    print(render(c |> SELECT(AGG("ROW_NUMBER", over = PARTITION()))))
+    #=>
+    SELECT (ROW_NUMBER() OVER ())
+    FROM "person"
     =#
 
