@@ -71,7 +71,7 @@ function render(ctx, cs::AbstractVector{SQLClause}, sep = nothing)
 end
 
 function render(ctx, c::AggregateClause)
-    if c.filter !== nothing
+    if c.filter !== nothing || c.over !== nothing
         print(ctx, '(')
     end
     print(ctx, c.name, '(')
@@ -83,17 +83,30 @@ function render(ctx, c::AggregateClause)
     if c.filter !== nothing
         print(ctx, " FILTER (WHERE ")
         render(ctx, c.filter)
-        print(ctx, "))")
+        print(ctx, ')')
+    end
+    if c.over !== nothing
+        print(ctx, " OVER (")
+        render(ctx, c.over)
+        print(ctx, ')')
+    end
+    if c.filter !== nothing || c.over !== nothing
+        print(ctx, ')')
     end
 end
 
 function render(ctx, c::AsClause)
     over = c.over
-    if over !== nothing
+    if @dissect over PARTITION()
+        render(ctx, c.name)
+        print(ctx, " AS (")
+        render(ctx, over)
+        print(ctx, ')')
+    elseif over !== nothing
         render(ctx, over)
         print(ctx, " AS ")
+        render(ctx, c.name)
     end
-    render(ctx, c.name)
 end
 
 function render(ctx, c::CaseClause)
@@ -210,6 +223,30 @@ function render(ctx, c::OperatorClause)
     end
 end
 
+function render(ctx, c::PartitionClause)
+    need_space = false
+    if c.over !== nothing
+        render(ctx, c.over)
+        need_space = true
+    end
+    if !isempty(c.by)
+        if need_space
+            print(ctx, ' ')
+        end
+        print(ctx, "PARTITION BY ")
+        render(ctx, c.by)
+        need_space = true
+    end
+    if !isempty(c.order_by)
+        if need_space
+            print(ctx, ' ')
+        end
+        print(ctx, "ORDER BY ")
+        render(ctx, c.order_by)
+        need_space = true
+    end
+end
+
 function render(ctx, c::SelectClause)
     nested = ctx.nested
     if nested
@@ -246,5 +283,16 @@ function render(ctx, c::WhereClause)
     newline(ctx)
     print(ctx, "WHERE ")
     render(ctx, c.condition)
+end
+
+function render(ctx, c::WindowClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    !isempty(c.list) || return
+    newline(ctx)
+    print(ctx, "WINDOW ")
+    render(ctx, c.list)
 end
 

@@ -5,25 +5,27 @@ mutable struct AggregateClause <: AbstractSQLClause
     distinct::Bool
     args::Vector{SQLClause}
     filter::Union{SQLClause, Nothing}
+    over::Union{SQLClause, Nothing}
 
     AggregateClause(;
                     name::Union{Symbol, AbstractString},
                     distinct = false,
                     args = SQLClause[],
-                    filter = nothing) =
-        new(Symbol(name), distinct, args, filter)
+                    filter = nothing,
+                    over = nothing) =
+        new(Symbol(name), distinct, args, filter, over)
 end
 
-AggregateClause(name; distinct = false, args = SQLClause[], filter = nothing) =
-    AggregateClause(name = name, distinct = distinct, args = args, filter = filter)
+AggregateClause(name; distinct = false, args = SQLClause[], filter = nothing, over = nothing) =
+    AggregateClause(name = name, distinct = distinct, args = args, filter = filter, over = over)
 
-AggregateClause(name, args...; distinct = false, filter = nothing) =
-    AggregateClause(name, distinct = distinct, args = SQLClause[args...], filter = filter)
+AggregateClause(name, args...; distinct = false, filter = nothing, over = nothing) =
+    AggregateClause(name, distinct = distinct, args = SQLClause[args...], filter = filter, over = over)
 
 """
-    AGG(; name, distinct = false, args = [], filter = nothing)
-    AGG(name; distinct = false, args = [], filter = nothing)
-    AGG(name, args...; distinct = false, filter = nothing)
+    AGG(; name, distinct = false, args = [], filter = nothing, over = nothing)
+    AGG(name; distinct = false, args = [], filter = nothing, over = nothing)
+    AGG(name, args...; distinct = false, filter = nothing, over = nothing)
 
 An application of an aggregate function.
 
@@ -48,6 +50,13 @@ julia> c = AGG(:COUNT, OP("*"), filter = OP(">", :year_of_birth, 1970));
 
 julia> print(render(c))
 (COUNT(*) FILTER (WHERE ("year_of_birth" > 1970)))
+```
+
+```jldoctest
+julia> c = AGG(:ROW_NUMBER, over = PARTITION(:year_of_birth));
+
+julia> print(render(c))
+(ROW_NUMBER() OVER (PARTITION BY "year_of_birth"))
 ```
 """
 AGG(args...; kws...) =
