@@ -2,20 +2,20 @@
 
 mutable struct GroupClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
-    partition::Vector{SQLClause}
+    by::Vector{SQLClause}
 
     GroupClause(;
                 over = nothing,
-                partition = SQLClause[]) =
-        new(over, partition)
+                by = SQLClause[]) =
+        new(over, by)
 end
 
-GroupClause(partition...; over = nothing) =
-    GroupClause(over = over, partition = SQLClause[partition...])
+GroupClause(by...; over = nothing) =
+    GroupClause(over = over, by = SQLClause[by...])
 
 """
-    GROUP(; over = nothing, partition = [])
-    GROUP(partition...; over = nothing)
+    GROUP(; over = nothing, by = [])
+    GROUP(by...; over = nothing)
 
 A `GROUP BY` clause.
 
@@ -40,7 +40,7 @@ dissect(scr::Symbol, ::typeof(GROUP), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(c::GroupClause, qctx::SQLClauseQuoteContext)
     ex = Expr(:call, nameof(GROUP))
-    append!(ex.args, quoteof(c.partition, qctx))
+    append!(ex.args, quoteof(c.by, qctx))
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
@@ -48,5 +48,5 @@ function PrettyPrinting.quoteof(c::GroupClause, qctx::SQLClauseQuoteContext)
 end
 
 rebase(c::GroupClause, c′) =
-    GroupClause(over = rebase(c.over, c′), partition = c.partition)
+    GroupClause(over = rebase(c.over, c′), by = c.by)
 

@@ -19,7 +19,7 @@ collapse(c::FromClause) =
     FromClause(over = collapse(c.over))
 
 collapse(c::GroupClause) =
-    GroupClause(over = collapse(c.over), partition = collapse(c.partition))
+    GroupClause(over = collapse(c.over), by = collapse(c.by))
 
 collapse(c::JoinClause) =
     JoinClause(over = collapse(c.over),
@@ -72,9 +72,9 @@ end
 
 function decompose(c::GroupClause)
     d = decompose(c.over)
-    partition′ = substitute(c.partition, d.subs)
+    by′ = substitute(c.by, d.subs)
     if @dissect d.tail (tail := nothing || FROM() || JOIN() || WHERE())
-        c′ = GROUP(over = tail, partition = partition′)
+        c′ = GROUP(over = tail, by = by′)
         return Decomposition(c′, d.subs)
     else
         return nothing
@@ -128,8 +128,7 @@ function decompose(c::WhereClause)
         condition′ = merge_conditions(tail_condition, condition′)
         c′ = WHERE(over = tail, condition = condition′)
         return Decomposition(c′, d.subs)
-    elseif (@dissect d.tail (tail := GROUP(partition = partition))) &&
-           !isempty(partition)
+    elseif (@dissect d.tail (tail := GROUP(by = by))) && !isempty(by)
         c′ = HAVING(over = tail, condition = condition′)
         return Decomposition(c′, d.subs)
     elseif @dissect d.tail (tail |> HAVING(condition = tail_condition))

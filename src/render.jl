@@ -131,10 +131,10 @@ function render(ctx, c::GroupClause)
     if over !== nothing
         render(ctx, over)
     end
-    !isempty(c.partition) || return
+    !isempty(c.by) || return
     newline(ctx)
     print(ctx, "GROUP BY ")
-    render(ctx, c.partition)
+    render(ctx, c.by)
 end
 
 function render(ctx, c::HavingClause)

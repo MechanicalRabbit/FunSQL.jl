@@ -173,7 +173,7 @@ default_list(n::FromNode) =
     SQLNode[Get(over = n, name = col) for col in n.table.columns]
 
 default_list(n::GroupNode) =
-    SQLNode[Get(over = n, name = default_alias(col)) for col in n.partition]
+    SQLNode[Get(over = n, name = default_alias(col)) for col in n.by]
 
 default_list(n::Union{HighlightNode, WhereNode}) =
     default_list(n.over)
@@ -494,21 +494,21 @@ function resolve(n::FromNode, req)
 end
 
 function resolve(n::GroupNode, req)
-    aliases = Symbol[default_alias(col) for col in n.partition]
+    aliases = Symbol[default_alias(col) for col in n.by]
     indexes = Dict{Symbol, Int}()
     for (i, alias) in enumerate(aliases)
         if alias in keys(indexes)
             ex = DuplicateAliasError(alias)
-            push!(ex.stack, n.partition[i])
+            push!(ex.stack, n.by[i])
             throw(ex)
         end
         indexes[alias] = i
     end
     base_refs = SQLNode[]
-    has_partition = false
-    if !isempty(n.partition)
-        gather!(base_refs, n.partition)
-        has_partition = true
+    has_keys = false
+    if !isempty(n.by)
+        gather!(base_refs, n.by)
+        has_keys = true
     end
     has_aggregates = false
     for ref in req.refs
@@ -528,14 +528,14 @@ function resolve(n::GroupNode, req)
         subs[ref] = ID(over = base_as, name = name)
     end
     treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
-    if !has_partition && !has_aggregates
+    if !has_keys && !has_aggregates
         return resolve(nothing, req)
     end
-    partition = SQLClause[]
+    by = SQLClause[]
     list = SQLClause[]
-    for (i, key) in enumerate(n.partition)
+    for (i, key) in enumerate(n.by)
         ckey = translate(key, treq)
-        push!(partition, ckey)
+        push!(by, ckey)
         push!(list, AS(over = ckey, name = aliases[i]))
     end
     dups = Dict{Symbol, Int}([alias => 1 for alias in aliases])
@@ -576,7 +576,7 @@ function resolve(n::GroupNode, req)
     @assert !isempty(list)
     f = FROM(AS(over = base_res.clause, name = base_as))
     if has_aggregates
-        g = GROUP(over = f, partition = partition)
+        g = GROUP(over = f, by = by)
         c = SELECT(over = g, list = list)
     else
         c = SELECT(over = f, distinct = true, list = list)

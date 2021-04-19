@@ -2,23 +2,23 @@
 
 mutable struct GroupNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
-    partition::Vector{SQLNode}
+    by::Vector{SQLNode}
 
-    GroupNode(; over = nothing, partition = SQLNode[]) =
-        new(over, partition)
+    GroupNode(; over = nothing, by = SQLNode[]) =
+        new(over, by)
 end
 
-GroupNode(partition...; over = nothing) =
-    GroupNode(over = over, partition = SQLNode[partition...])
+GroupNode(by...; over = nothing) =
+    GroupNode(over = over, by = SQLNode[by...])
 
 """
-    Group(; over; partition = [])
-    Group(partition...; over)
+    Group(; over; by = [])
+    Group(by...; over)
 
-A subquery that groups rows by the `partition`.
+A subquery that groups rows `by` a list of keys.
 
 ```sql
-SELECT ... FROM \$over GROUP BY \$partition...
+SELECT ... FROM \$over GROUP BY \$by...
 ```
 
 # Examples
@@ -55,7 +55,7 @@ dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
     dissect(scr, GroupNode, pats)
 
 function PrettyPrinting.quoteof(n::GroupNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Group), quoteof(n.partition, qctx)...)
+    ex = Expr(:call, nameof(Group), quoteof(n.by, qctx)...)
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
     end
@@ -63,5 +63,5 @@ function PrettyPrinting.quoteof(n::GroupNode, qctx::SQLNodeQuoteContext)
 end
 
 rebase(n::GroupNode, n′) =
-    GroupNode(over = rebase(n.over, n′), partition = n.partition)
+    GroupNode(over = rebase(n.over, n′), by = n.by)
 
