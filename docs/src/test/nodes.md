@@ -2,7 +2,7 @@
 
     using FunSQL:
         Agg, As, Fun, From, Get, Group, Highlight, Join, LeftJoin, Lit,
-        SQLNode, SQLTable, Select, Where, render, resolve
+        Partition, SQLNode, SQLTable, Select, Where, render, resolve
 
 We start with specifying the database model.
 

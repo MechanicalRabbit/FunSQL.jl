@@ -77,3 +77,6 @@ function PrettyPrinting.quoteof(c::AggregateClause, qctx::SQLClauseQuoteContext)
     ex
 end
 
+rebase(c::AggregateClause, c′) =
+    AggregateClause(name = c.name, distinct = c.distinct, args = c.args, filter = c.filter, over = rebase(c.over, c′))
+

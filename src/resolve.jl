@@ -157,7 +157,7 @@ default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
 default_alias(n::FromNode) =
     n.table.name
 
-default_alias(n::Union{GroupNode, HighlightNode, JoinNode, SelectNode, WhereNode}) =
+default_alias(n::Union{GroupNode, HighlightNode, JoinNode, PartitionNode, SelectNode, WhereNode}) =
     default_alias(n.over)
 
 
@@ -175,7 +175,7 @@ default_list(n::FromNode) =
 default_list(n::GroupNode) =
     SQLNode[Get(over = n, name = default_alias(col)) for col in n.by]
 
-default_list(n::Union{HighlightNode, WhereNode}) =
+default_list(n::Union{HighlightNode, PartitionNode, WhereNode}) =
     default_list(n.over)
 
 default_list(n::JoinNode) =
@@ -555,10 +555,7 @@ function resolve(n::GroupNode, req)
             if name in keys(indexes)
                 repl[ref] = name
             end
-        elseif @dissect ref (nothing |> Agg(distinct = distinct,
-                                            name = name,
-                                            args = args,
-                                            filter = filter))
+        elseif @dissect ref (nothing |> Agg(name = name))
             name′ = name
             if name in keys(dups)
                 k = dups[name]
@@ -647,6 +644,75 @@ function resolve(n::JoinNode, req)
              left = n.left,
              right = n.right)
     c = SELECT(over = j, list = list)
+    ResolveResult(c, repl, ambs)
+end
+
+function resolve(n::PartitionNode, req)
+    base_refs = SQLNode[]
+    gather!(base_refs, n.by)
+    gather!(base_refs, n.order_by)
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(args = args, filter = filter))
+            gather!(base_refs, args)
+            if filter !== nothing
+                gather!(base_refs, filter)
+            end
+        else
+            push!(base_refs, ref)
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    base_res = resolve(n.over, base_req)
+    base_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in base_res.repl
+        subs[ref] = ID(over = base_as, name = name)
+    end
+    dups = Dict{Symbol, Int}()
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(name = name))
+            if name in seen
+                dups[name] = 1
+            else
+                push!(seen, name)
+            end
+        end
+    end
+    treq = TranslateRequest(req.ctx.dialect, subs, base_res.ambs)
+    by = translate(n.by, treq)
+    order_by = translate(n.order_by, treq)
+    partition = PARTITION(by = by, order_by = order_by)
+    list = SQLClause[]
+    repl = Dict{SQLNode, Symbol}()
+    ambs = Set{SQLNode}()
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(name = name))
+            name′ = name
+            if name in keys(dups)
+                k = dups[name]
+                name′ = Symbol(name, '_', k)
+                dups[name] = k + 1
+            end
+            push!(list, AS(over = partition |> translate(ref, treq), name = name′))
+            repl[ref] = name′
+        elseif ref in keys(base_res.repl)
+            name = base_res.repl[ref]
+            repl[ref] = name
+            !(name in seen) || continue
+            push!(seen, name)
+            id = ID(over = base_as, name = name)
+            push!(list, AS(over = id, name = name))
+        elseif ref in base_res.ambs
+            push!(ambs, ref)
+        end
+    end
+    if isempty(list)
+        push!(list, true)
+    end
+    w = WINDOW(over = FROM(AS(over = base_res.clause, name = base_as)), list = [])
+    c = SELECT(over = w, list = list)
     ResolveResult(c, repl, ambs)
 end
 

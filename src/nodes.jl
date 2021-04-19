@@ -167,6 +167,7 @@ include("nodes/group.jl")
 include("nodes/highlight.jl")
 include("nodes/join.jl")
 include("nodes/literal.jl")
+include("nodes/partition.jl")
 include("nodes/select.jl")
 include("nodes/where.jl")
 

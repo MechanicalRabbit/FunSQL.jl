@@ -27,6 +27,11 @@ collapse(c::JoinClause) =
                on = collapse(c.on),
                left = c.left, right = c.right, lateral = c.lateral)
 
+collapse(c::PartitionClause) =
+    PartitionClause(over = collapse(c.over),
+                    by = collapse(c.by),
+                    order_by = collapse(c.order_by))
+
 function collapse(c::SelectClause)
     over′ = collapse(c.over)
     list′ = collapse(c.list)
@@ -37,6 +42,9 @@ end
 
 collapse(c::WhereClause) =
     WhereClause(over = collapse(c.over), condition = collapse(c.condition))
+
+collapse(c::WindowClause) =
+    WindowClause(over = collapse(c.over), list = collapse(c.list))
 
 struct Decomposition
     tail::Union{SQLClause, Nothing}
@@ -134,6 +142,17 @@ function decompose(c::WhereClause)
     elseif @dissect d.tail (tail |> HAVING(condition = tail_condition))
         condition′ = merge_conditions(tail_condition, condition′)
         c′ = HAVING(over = tail, condition = condition′)
+        return Decomposition(c′, d.subs)
+    else
+        return nothing
+    end
+end
+
+function decompose(c::WindowClause)
+    d = decompose(c.over)
+    list′ = substitute(c.list, d.subs)
+    if @dissect d.tail (tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
+        c′ = WINDOW(over = tail, list = list′)
         return Decomposition(c′, d.subs)
     else
         return nothing
