@@ -8,7 +8,7 @@ const location =
     SQLTable(:location, columns = [:location_id, :city, :state])
 
 const person =
-    SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id, :gender_concept_id])
+    SQLTable(:person, columns = [:person_id, :gender_concept_id, :year_of_birth, :month_of_birth, :day_of_birth, :location_id])
 
 const visit_occurrence =
     SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLNode</code> objects.  The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia">q = From(person) |&gt;
@@ -177,7 +177,7 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;gender_concept_id&quot;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; IN (
   SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
@@ -213,7 +213,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 display(q)
 #-&gt; From(SQLTable(:person, …))</code></pre><p>By default, <code>From</code> selects all columns from the table.</p><pre><code class="language-julia">print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;gender_concept_id&quot;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>From</code> adds the schema qualifier when the table has the schema.</p><pre><code class="language-julia">const pg_database =
     SQLTable(schema = :pg_catalog, :pg_database, columns = [:oid, :datname])
@@ -226,7 +226,7 @@ SELECT &quot;pg_database_1&quot;.&quot;oid&quot;, &quot;pg_database_1&quot;.&quo
 FROM &quot;pg_catalog&quot;.&quot;pg_database&quot; AS &quot;pg_database_1&quot;
 =#</code></pre><p>In a suitable context, a <code>SQLTable</code> object is automatically converted to a <code>From</code> subquery.</p><pre><code class="language-julia">print(render(person))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;gender_concept_id&quot;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>From</code> and other subqueries generate a correct <code>SELECT</code> clause when the table has no columns.</p><pre><code class="language-julia">empty = SQLTable(:empty, columns = Symbol[])
 
@@ -249,7 +249,7 @@ print(render(q))
 SELECT TRUE
 FROM &quot;empty&quot; AS &quot;empty_1&quot;
 WHERE TRUE
-=#</code></pre><h2 id="Group"><a class="docs-heading-anchor" href="#Group"><code>Group</code></a><a id="Group-1"></a><a class="docs-heading-anchor-permalink" href="#Group" title="Permalink"></a></h2><p>The <code>Group</code> constructor creates a subquery that partitions the rows by the given keys.</p><pre><code class="language-julia">q = From(person) |&gt;
+=#</code></pre><h2 id="Group"><a class="docs-heading-anchor" href="#Group"><code>Group</code></a><a id="Group-1"></a><a class="docs-heading-anchor-permalink" href="#Group" title="Permalink"></a></h2><p>The <code>Group</code> constructor creates a subquery that summarizes the rows partitioned by the given keys.</p><pre><code class="language-julia">q = From(person) |&gt;
     Group(Get.year_of_birth)
 #-&gt; (…) |&gt; Group(…)
 
@@ -266,7 +266,7 @@ print(render(q))
 #=&gt;
 SELECT DISTINCT &quot;person_1&quot;.&quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-=#</code></pre><p>Partitions created by <code>Group</code> could be summarized using aggregate expressions.</p><pre><code class="language-julia">q = From(person) |&gt;
+=#</code></pre><p>Partitions created by <code>Group</code> are summarized using aggregate expressions.</p><pre><code class="language-julia">q = From(person) |&gt;
     Group(Get.year_of_birth) |&gt;
     Select(Get.year_of_birth, Agg.count())
 
@@ -341,6 +341,43 @@ print(render(q))
 #=&gt;
 SELECT (COUNT(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950))) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><h2 id="Partition"><a class="docs-heading-anchor" href="#Partition"><code>Partition</code></a><a id="Partition-1"></a><a class="docs-heading-anchor-permalink" href="#Partition" title="Permalink"></a></h2><p>The <code>Partition</code> constructor creates a subquery that partitions the rows by the given keys.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Partition(Get.year_of_birth, order_by = [Get.month_of_birth, Get.day_of_birth])
+#-&gt; (…) |&gt; Partition(…, order_by = […])
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Partition(Get.year_of_birth,
+                   order_by = [Get.month_of_birth, Get.day_of_birth])
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>Calculations across the rows of the partitions are performed by window functions.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Partition(Get.gender_concept_id) |&gt;
+    Select(Get.person_id, Agg.row_number())
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Partition(Get.gender_concept_id),
+    q3 = q2 |&gt; Select(Get.person_id, Agg.row_number())
+    q3
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, (ROW_NUMBER() OVER (PARTITION BY &quot;person_1&quot;.&quot;gender_concept_id&quot;)) AS &quot;row_number&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <code>Join</code> constructor creates a subquery that combines the rows of two nested subqueries.</p><pre><code class="language-julia">q = From(person) |&gt;
     Join(:location =&gt; From(location),
          on = Get.location_id .== Get.location.location_id,
@@ -363,7 +400,7 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;gender_concept_id&quot;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 LEFT JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
 =#</code></pre><p><code>LEFT JOIN</code> is commonly used and has its own constructor.</p><pre><code class="language-julia">q = From(person) |&gt;
@@ -454,7 +491,7 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;gender_concept_id&quot;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 =#</code></pre><p>Several <code>Where</code> operations in a row are collapsed in a single <code>WHERE</code> clause.</p><pre><code class="language-julia">q = From(person) |&gt;
@@ -464,7 +501,7 @@ WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;gender_concept_id&quot;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010))
 =#</code></pre><p><code>Where</code> that follows <code>Group</code> subquery is transformed to a <code>HAVING</code> clause.</p><pre><code class="language-julia">q = From(person) |&gt;
@@ -510,4 +547,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 20 April 2021 00:00">Tuesday 20 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 20 April 2021 01:52">Tuesday 20 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
