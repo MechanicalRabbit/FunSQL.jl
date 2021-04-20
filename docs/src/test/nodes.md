@@ -220,6 +220,45 @@ unambiguously.
     =#
 
 
+## Variables
+
+A query variable is created with the `Var` constructor.
+
+    e = Var(:year)
+    #-> Var.year
+
+Alternatively, use shorthand notation.
+
+    Var.year
+    #-> Var.year
+
+    Var."year"
+    #-> Var.year
+
+    Var[:year]
+    #-> Var.year
+
+    Var["year"]
+    #-> Var.year
+
+Unbound query variables are serialized as query parameters.
+
+    q = From(person) |>
+        Where(Get.year_of_birth .> Var.year)
+
+    sql = render(q)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > :year)
+    =#
+
+    sql.vars
+    #-> [:year]
+
+
 ## Functions and Operations
 
 A function or an operator invocation is created with the `Fun` constructor.
