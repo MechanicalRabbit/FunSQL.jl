@@ -21,6 +21,14 @@ Pages = ["entities.jl"]
 ```
 
 
+## SQL Statements
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["statements.jl"]
+```
+
+
 ## Semantic Structure
 
 ```@autodocs
@@ -36,6 +44,7 @@ Pages = [
     "nodes/highlight.jl",
     "nodes/join.jl",
     "nodes/literal.jl",
+    "nodes/partition.jl",
     "nodes/select.jl",
     "nodes/where.jl",
 ]
@@ -60,8 +69,10 @@ Pages = [
     "clauses/keyword.jl",
     "clauses/literal.jl",
     "clauses/operator.jl",
+    "clauses/partition.jl",
     "clauses/select.jl",
     "clauses/where.jl",
+    "clauses/window.jl",
 ]
 ```
 
