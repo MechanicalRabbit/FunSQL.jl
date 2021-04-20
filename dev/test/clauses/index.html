@@ -35,7 +35,7 @@ display(c)
 #-&gt; ID(:person)
 
 print(render(c))
-#-&gt; &quot;person&quot;</code></pre><p>A quoted identifier is created using pipeline notation.</p><pre><code class="language-julia">c = ID(:person) |&gt; ID(:year_of_birth)
+#-&gt; &quot;person&quot;</code></pre><p>A quoted identifier is created using the chain operator.</p><pre><code class="language-julia">c = ID(:person) |&gt; ID(:year_of_birth)
 #-&gt; (…) |&gt; ID(:year_of_birth)
 
 display(c)
@@ -87,7 +87,23 @@ display(c)
 #-&gt; AGG(&quot;COUNT&quot;, OP(&quot;*&quot;), filter = OP(&quot;&gt;&quot;, ID(:year_of_birth), LIT(1970)))
 
 print(render(c))
-#-&gt; (COUNT(*) FILTER (WHERE (&quot;year_of_birth&quot; &gt; 1970)))</code></pre><h2 id="SQL-Operators"><a class="docs-heading-anchor" href="#SQL-Operators">SQL Operators</a><a id="SQL-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Operators" title="Permalink"></a></h2><p>An application of a SQL operator is created with <code>OP()</code> constructor.</p><pre><code class="language-julia">c = OP(&quot;NOT&quot;, OP(&quot;=&quot;, :zip, &quot;60614&quot;))
+#-&gt; (COUNT(*) FILTER (WHERE (&quot;year_of_birth&quot; &gt; 1970)))</code></pre><p>A window function can be created by adding an <code>OVER</code> modifier.</p><pre><code class="language-julia">c = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]) |&gt;
+    AGG(&quot;ROW_NUMBER&quot;)
+
+display(c)
+#=&gt;
+AGG(&quot;ROW_NUMBER&quot;,
+    over = PARTITION(ID(:year_of_birth),
+                     order_by = [ID(:month_of_birth), ID(:day_of_birth)]))
+=#
+
+print(render(c))
+#-&gt; (ROW_NUMBER() OVER (PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;))
+
+c = AGG(&quot;ROW_NUMBER&quot;, over = :w)
+
+print(render(c))
+#-&gt; (ROW_NUMBER() OVER (&quot;w&quot;))</code></pre><h2 id="SQL-Operators"><a class="docs-heading-anchor" href="#SQL-Operators">SQL Operators</a><a id="SQL-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Operators" title="Permalink"></a></h2><p>An application of a SQL operator is created with <code>OP()</code> constructor.</p><pre><code class="language-julia">c = OP(&quot;NOT&quot;, OP(&quot;=&quot;, :zip, &quot;60614&quot;))
 #-&gt; OP(&quot;NOT&quot;, …)
 
 display(c)
@@ -339,4 +355,35 @@ SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 GROUP BY &quot;year_of_birth&quot;
 HAVING (COUNT(*) &gt; 10)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 19 April 2021 21:19">Monday 19 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre><h2 id="WINDOW-Clause"><a class="docs-heading-anchor" href="#WINDOW-Clause"><code>WINDOW</code> Clause</a><a id="WINDOW-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WINDOW-Clause" title="Permalink"></a></h2><p>A <code>WINDOW</code> clause is created with <code>WINDOW()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    WINDOW(:w1 =&gt; PARTITION(:gender_concept_id),
+           :w2 =&gt; :w1 |&gt; PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
+#-&gt; (…) |&gt; WINDOW(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+WINDOW(PARTITION(ID(:gender_concept_id)) |&gt; AS(:w1),
+       ID(:w1) |&gt;
+       PARTITION(ID(:year_of_birth),
+                 order_by = [ID(:month_of_birth), ID(:day_of_birth)]) |&gt;
+       AS(:w2))
+=#
+
+print(render(c |&gt; SELECT(:w1 |&gt; AGG(&quot;ROW_NUMBER&quot;), :w2 |&gt; AGG(&quot;ROW_NUMBER&quot;))))
+#=&gt;
+SELECT (ROW_NUMBER() OVER (&quot;w1&quot;)), (ROW_NUMBER() OVER (&quot;w2&quot;))
+FROM &quot;person&quot;
+WINDOW &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;), &quot;w2&quot; AS (&quot;w1&quot; PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)
+=#</code></pre><p>The <code>WINDOW()</code> constructor accepts an empty list of partitions, in which case, it is not rendered.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    WINDOW(list = [])
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; WINDOW(list = [])
+
+print(render(c |&gt; SELECT(AGG(&quot;ROW_NUMBER&quot;, over = PARTITION()))))
+#=&gt;
+SELECT (ROW_NUMBER() OVER ())
+FROM &quot;person&quot;
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 20 April 2021 00:00">Tuesday 20 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
