@@ -5,9 +5,10 @@ mutable struct RenderContext <: IO
     io::IOBuffer
     level::Int
     nested::Bool
+    vars::Vector{Symbol}
 
     RenderContext(dialect) =
-        new(dialect, IOBuffer(), 0, false)
+        new(dialect, IOBuffer(), 0, false, Symbol[])
 end
 
 Base.write(ctx::RenderContext, octet::UInt8) =
@@ -27,7 +28,7 @@ function render(c::AbstractSQLClause; dialect = :default)
     ctx = RenderContext(dialect)
     render(ctx, convert(SQLClause, c))
     sql = String(take!(ctx.io))
-    SQLStatement(sql = sql, dialect = ctx.dialect)
+    SQLStatement(sql = sql, dialect = ctx.dialect, vars = ctx.vars)
 end
 
 render(ctx, name::Symbol) =
@@ -273,6 +274,25 @@ function render(ctx, c::SelectClause)
         ctx.level -= 1
         newline(ctx)
         print(ctx, ')')
+    end
+end
+
+function render(ctx, c::VariableClause)
+    style = ctx.dialect.variable_style
+    prefix = ctx.dialect.variable_prefix
+    pos = nothing
+    if style != POSITIONAL
+        pos = findfirst(==(c.name), ctx.vars)
+    end
+    if pos === nothing
+        push!(ctx.vars, c.name)
+        pos = length(ctx.vars)
+    end
+    print(ctx, prefix)
+    if style == NAMED
+        print(ctx, c.name)
+    elseif style == NUMBERED
+        print(ctx, pos)
     end
 end
 

@@ -1,24 +1,51 @@
 # Properties of SQL dialects.
 
+@enum VariableStyle::UInt8 begin
+    NAMED
+    NUMBERED
+    POSITIONAL
+end
+
+Base.convert(::Type{VariableStyle}, s::Symbol) =
+    s === :named ?
+        NAMED :
+    s === :numbered ?
+        NUMBERED :
+    s === :positional ?
+        POSITIONAL :
+        throw(DomainError(QuoteNode(s),
+                          "expected :named, :numbered, or :positional"))
+
 """
 Properties of a SQL dialect.
 """
 @Base.kwdef struct SQLDialect
     name::Symbol = :default
-    has_window_clause::Bool = false
+    variable_style::VariableStyle = NAMED
+    variable_prefix::Char = ':'
 end
 
 SQLDialect(name::Symbol) =
     if name === :postgresql
-        SQLDialect(name = name, has_window_clause = true)
+        SQLDialect(name = name,
+                   variable_style = NUMBERED,
+                   variable_prefix = '$')
     elseif name === :sqlite
-        SQLDialect(name = name, has_window_clause = true)
+        SQLDialect(name = name,
+                   variable_style = NUMBERED,
+                   variable_prefix = '?')
     elseif name === :mysql
-        SQLDialect(name = name, has_window_clause = true)
+        SQLDialect(name = name,
+                   variable_style = POSITIONAL,
+                   variable_prefix = '?')
     elseif name === :redshift
-        SQLDialect(name = name)
+        SQLDialect(name = name,
+                   variable_style = NUMBERED,
+                   variable_prefix = '$')
     elseif name === :sqlserver
-        SQLDialect(name = name)
+        SQLDialect(name = name,
+                   variable_style = POSITIONAL,
+                   variable_prefix = '?')
     else
         SQLDialect()
     end

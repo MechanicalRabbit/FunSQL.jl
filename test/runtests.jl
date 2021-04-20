@@ -17,7 +17,7 @@ if isempty(ARGS)
                 Agg, As, From, Fun, Get, Group, Highlight, Join, LeftJoin,
                 Partition, Select, Where,
                 AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
-                PARTITION, SELECT, WHERE, WINDOW,
+                PARTITION, SELECT, VAR, WHERE, WINDOW,
                 render
             using Dates
         end)

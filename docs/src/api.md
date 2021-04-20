@@ -71,6 +71,7 @@ Pages = [
     "clauses/operator.jl",
     "clauses/partition.jl",
     "clauses/select.jl",
+    "clauses/variable.jl",
     "clauses/where.jl",
     "clauses/window.jl",
 ]

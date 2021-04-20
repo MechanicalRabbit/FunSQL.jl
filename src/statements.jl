@@ -6,6 +6,7 @@ Prepared SQL statement.
 @Base.kwdef struct SQLStatement <: AbstractString
     sql::String
     dialect::SQLDialect
+    vars::Vector{Symbol}
 end
 
 Base.ncodeunits(stmt::SQLStatement) =
@@ -31,4 +32,21 @@ Base.print(io::IO, stmt::SQLStatement) =
 
 Base.write(io::IO, stmt::SQLStatement) =
     write(io, stmt.sql)
+
+"""
+    pack(stmt::SQLStatement, vars::Union{Dict, NamedTuple}) :: Vector{Any}
+
+Convert named parameters to positional form.
+"""
+function pack
+end
+
+pack(stmt::SQLStatement, d::AbstractDict{Symbol}) =
+    Any[d[var] for var in stmt.vars]
+
+pack(stmt::SQLStatement, d::AbstractDict{<:AbstractString}) =
+    Any[d[String(var)] for var in stmt.vars]
+
+pack(stmt::SQLStatement, nt::NamedTuple) =
+    Any[getproperty(nt, var) for var in stmt.vars]
 

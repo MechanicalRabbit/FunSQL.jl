@@ -2,7 +2,7 @@
 
     using FunSQL:
         AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
-        PARTITION, SELECT, WHERE, WINDOW, render
+        PARTITION, SELECT, VAR, WHERE, WINDOW, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
