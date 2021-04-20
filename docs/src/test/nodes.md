@@ -14,7 +14,7 @@ We start with specifying the database model.
         SQLTable(:location, columns = [:location_id, :city, :state])
 
     const person =
-        SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id, :gender_concept_id])
+        SQLTable(:person, columns = [:person_id, :gender_concept_id, :year_of_birth, :month_of_birth, :day_of_birth, :location_id])
 
     const visit_occurrence =
         SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
@@ -269,7 +269,7 @@ A function invocation may include a nested query.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."gender_concept_id" IN (
       SELECT "concept_1"."concept_id"
@@ -332,7 +332,7 @@ By default, `From` selects all columns from the table.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -354,7 +354,7 @@ In a suitable context, a `SQLTable` object is automatically converted to a
 
     print(render(person))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -387,8 +387,8 @@ has no columns.
 
 ## `Group`
 
-The `Group` constructor creates a subquery that partitions the rows by the
-given keys.
+The `Group` constructor creates a subquery that summarizes the rows partitioned
+by the given keys.
 
     q = From(person) |>
         Group(Get.year_of_birth)
@@ -409,7 +409,7 @@ given keys.
     FROM "person" AS "person_1"
     =#
 
-Partitions created by `Group` could be summarized using aggregate expressions.
+Partitions created by `Group` are summarized using aggregate expressions.
 
     q = From(person) |>
         Group(Get.year_of_birth) |>
@@ -513,6 +513,56 @@ Aggregate expressions can be applied to a filtered portion of a partition.
     =#
 
 
+## `Partition`
+
+The `Partition` constructor creates a subquery that partitions the rows by the
+given keys.
+
+    q = From(person) |>
+        Partition(Get.year_of_birth, order_by = [Get.month_of_birth, Get.day_of_birth])
+    #-> (…) |> Partition(…, order_by = […])
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Partition(Get.year_of_birth,
+                       order_by = [Get.month_of_birth, Get.day_of_birth])
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+Calculations across the rows of the partitions are performed by window
+functions.
+
+    q = From(person) |>
+        Partition(Get.gender_concept_id) |>
+        Select(Get.person_id, Agg.row_number())
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Partition(Get.gender_concept_id),
+        q3 = q2 |> Select(Get.person_id, Agg.row_number())
+        q3
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", (ROW_NUMBER() OVER (PARTITION BY "person_1"."gender_concept_id")) AS "row_number"
+    FROM "person" AS "person_1"
+    =#
+
+
 ## `Join`
 
 The `Join` constructor creates a subquery that combines the rows of two
@@ -540,7 +590,7 @@ nested subqueries.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     =#
@@ -661,7 +711,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
@@ -675,7 +725,7 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id", "person_1"."gender_concept_id"
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
     =#

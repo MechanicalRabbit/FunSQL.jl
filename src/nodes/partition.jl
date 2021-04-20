@@ -45,7 +45,7 @@ dissect(scr::Symbol, ::typeof(Partition), pats::Vector{Any}) =
 function PrettyPrinting.quoteof(n::PartitionNode, qctx::SQLNodeQuoteContext)
     ex = Expr(:call, nameof(Partition), quoteof(n.by, qctx)...)
     if !isempty(n.order_by)
-        push!(ex.args, Expr(:kw, :order_by, quoteof(n.order_by, qctx)))
+        push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(n.order_by, qctx)...)))
     end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
