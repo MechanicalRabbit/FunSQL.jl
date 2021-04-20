@@ -2,7 +2,7 @@
 
     using FunSQL:
         AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
-        PARTITION, SELECT, VAR, WHERE, WINDOW, render
+        PARTITION, SELECT, VAR, WHERE, WINDOW, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -99,6 +99,71 @@ when they are used in the context of a SQL clause.
     SELECT "p"."person_id"
     FROM "person" AS "p"
     =#
+
+
+## SQL Variables
+
+Placeholder parameters to a SQL query are created with `VAR()` constructor.
+
+    c = VAR(:year)
+    #-> VAR(:year)
+
+    display(c)
+    #-> VAR(:year)
+
+    print(render(c))
+    #-> :year
+
+Rendering of a SQL parameter depends on the chosen dialect.
+
+    print(render(c, dialect = :sqlite))
+    #-> ?1
+
+    print(render(c, dialect = :postgresql))
+    #-> $1
+
+    print(render(c, dialect = :mysql))
+    #-> ?
+
+Function `pack()` converts named parameters to a positional form.
+
+    c = FROM(:person) |>
+        WHERE(OP("OR", OP("=", :gender_concept_id, VAR(:gender)),
+                       OP("=", :gender_source_concept_id, VAR(:gender)))) |>
+        SELECT(:person_id)
+
+    sql = render(c, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    WHERE (("gender_concept_id" = ?1) OR ("gender_source_concept_id" = ?1))
+    =#
+
+    pack(sql, (gender = 8532,))
+    #-> Any[8532]
+
+    pack(sql, Dict(:gender => 8532))
+    #-> Any[8532]
+
+    pack(sql, Dict("gender" => 8532))
+    #-> Any[8532]
+
+If the dialect does not support numbered parameters, `pack()` may need to
+duplicate parameter values.
+
+    sql = render(c, dialect = :mysql)
+
+    print(sql)
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    WHERE (("gender_concept_id" = ?) OR ("gender_source_concept_id" = ?))
+    =#
+
+    pack(sql, (gender = 8532,))
+    #-> Any[8532, 8532]
 
 
 ## SQL Functions
