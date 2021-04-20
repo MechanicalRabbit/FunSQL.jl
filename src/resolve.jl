@@ -316,6 +316,8 @@ translate(n::GetNode, treq) =
 translate(n::LiteralNode, treq) =
     LiteralClause(n.val)
 
+translate(n::VariableNode, treq) =
+    VariableClause(n.name)
 
 # Resolving deferred SELECT list.
 

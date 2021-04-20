@@ -15,7 +15,7 @@ if isempty(ARGS)
             using FunSQL:
                 SQLTable,
                 Agg, As, From, Fun, Get, Group, Highlight, Join, LeftJoin,
-                Partition, Select, Where,
+                Partition, Select, Var, Where,
                 AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
                 PARTITION, SELECT, VAR, WHERE, WINDOW,
                 render

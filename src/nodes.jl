@@ -169,5 +169,6 @@ include("nodes/join.jl")
 include("nodes/literal.jl")
 include("nodes/partition.jl")
 include("nodes/select.jl")
+include("nodes/variable.jl")
 include("nodes/where.jl")
 

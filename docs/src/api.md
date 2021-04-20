@@ -46,6 +46,7 @@ Pages = [
     "nodes/literal.jl",
     "nodes/partition.jl",
     "nodes/select.jl",
+    "nodes/variable.jl",
     "nodes/where.jl",
 ]
 ```
