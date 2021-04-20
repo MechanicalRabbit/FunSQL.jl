@@ -26,7 +26,8 @@ end
 function render(c::AbstractSQLClause; dialect = :default)
     ctx = RenderContext(dialect)
     render(ctx, convert(SQLClause, c))
-    String(take!(ctx.io))
+    sql = String(take!(ctx.io))
+    SQLStatement(sql = sql, dialect = ctx.dialect)
 end
 
 render(ctx, name::Symbol) =
