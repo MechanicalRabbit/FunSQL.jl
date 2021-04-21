@@ -240,9 +240,14 @@ end
 struct ResolveRequest
     ctx::ResolveContext
     refs::Vector{SQLNode}
+    subs::Dict{SQLNode, SQLClause}
+    ambs::Set{SQLNode}
 
-    ResolveRequest(ctx; refs = SQLNode[]) =
-        new(ctx, refs)
+    ResolveRequest(ctx;
+                   refs = SQLNode[],
+                   subs = Dict{SQLNode, SQLClause}(),
+                   ambs = Set{SQLNode}()) =
+        new(ctx, refs, subs, ambs)
 end
 
 struct ResolveResult
@@ -460,7 +465,7 @@ function resolve(n::SQLNode, req)
             push!(refs′, ref′)
         end
     end
-    req′ = ResolveRequest(req.ctx, refs = refs′)
+    req′ = ResolveRequest(req.ctx, refs = refs′, subs = req.subs, ambs = req.ambs)
     res′ =
         try
             resolve(n[], req′)::ResolveResult
@@ -495,6 +500,20 @@ end
 
 resolve(n::Union{AsNode, HighlightNode}, req) =
     resolve(n.over, req)
+
+function resolve(n::BindNode, req)
+    treq = TranslateRequest(req.ctx, req.subs, req.ambs)
+    vars = req.ctx.vars
+    vars′ = copy(vars)
+    for v in n.list
+        name = default_alias(v)
+        vars′[name] = translate(v, treq)
+    end
+    treq.ctx.vars = vars′
+    res = resolve(n.over, req)
+    treq.ctx.vars = vars
+    res
+end
 
 function resolve(n::FromNode, req)
     output_columns = Set{Symbol}()
@@ -617,13 +636,24 @@ function resolve(n::GroupNode, req)
 end
 
 function resolve(n::JoinNode, req)
-    base_refs = SQLNode[]
-    gather!(base_refs, n.on)
-    append!(base_refs, req.refs)
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    left_res = resolve(n.over, base_req)
-    right_res = resolve(n.joinee, base_req)
+    right_refs = SQLNode[]
+    gather!(right_refs, n.on)
+    append!(right_refs, req.refs)
+    left_refs = copy(right_refs)
+    gather!(left_refs, n.joinee)
+    lateral = length(left_refs) > length(right_refs)
+    left_req = ResolveRequest(req.ctx, refs = left_refs)
+    left_res = resolve(n.over, left_req)
     left_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in left_res.repl
+        subs[ref] = ID(over = left_as, name = name)
+    end
+    right_req = ResolveRequest(req.ctx,
+                               refs = right_refs,
+                               subs = subs,
+                               ambs = left_res.ambs)
+    right_res = resolve(n.joinee, right_req)
     right_as = allocate_alias(req.ctx, n.joinee)
     ambs = intersect(keys(left_res.repl), keys(right_res.repl))
     subs = Dict{SQLNode, SQLClause}()
@@ -676,7 +706,8 @@ function resolve(n::JoinNode, req)
              joinee = AS(over = right_res.clause, name = right_as),
              on = on,
              left = n.left,
-             right = n.right)
+             right = n.right,
+             lateral = lateral)
     c = SELECT(over = j, list = list)
     ResolveResult(c, repl, ambs)
 end

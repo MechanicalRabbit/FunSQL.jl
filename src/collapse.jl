@@ -109,6 +109,7 @@ function decompose(c::GroupClause)
 end
 
 function decompose(c::JoinClause)
+    !c.lateral || return nothing
     subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
     if @dissect c.joinee ((table := (nothing |> ID() |> AS())) |>
                           FROM() |>
