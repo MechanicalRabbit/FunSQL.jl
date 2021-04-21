@@ -51,7 +51,7 @@ SQLDialect(name::Symbol) =
     end
 
 Base.show(io::IO, dialect::SQLDialect) =
-    print(io, "SQLDialect(name = $(QuoteNode(dialect.name)), has_window_clause = $(dialect.has_window_clause))")
+    print(io, "SQLDialect($(QuoteNode(dialect.name)))")
 
 Base.convert(::Type{SQLDialect}, name::Symbol) =
     SQLDialect(name)
