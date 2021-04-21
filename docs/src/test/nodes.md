@@ -258,6 +258,53 @@ Unbound query variables are serialized as query parameters.
     sql.vars
     #-> [:year]
 
+Query variables could be bound using the `Bind` constructor.
+
+    q0(person_id) =
+        From(visit_occurrence) |>
+        Where(Get.person_id .== Var.person_id) |>
+        Bind(:person_id => person_id)
+
+    q0(1)
+    #-> (…) |> Bind(…)
+
+    display(q0(1))
+    #=>
+    let visit_occurrence = SQLTable(:visit_occurrence, …),
+        q1 = From(visit_occurrence),
+        q2 = q1 |> Where(Fun."=="(Get.person_id, Var.person_id))
+        q2 |> Bind(Lit(1) |> As(:person_id))
+    end
+    =#
+
+    print(render(q0(1)))
+    #=>
+    SELECT "visit_occurrence_1"."visit_occurrence_id", …, "visit_occurrence_1"."visit_end_date"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    WHERE ("visit_occurrence_1"."person_id" = 1)
+    =#
+
+`Bind` lets us create correlated subqueries.
+
+    q = From(person) |>
+        Where(Fun.exists(q0(Get.person_id)))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE (EXISTS (
+      SELECT TRUE
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
+    ))
+    =#
+
+An empty `Bind` can be created.
+
+    Bind(list = [])
+    #-> Bind(list = [])
+
 
 ## Functions and Operations
 
@@ -676,6 +723,50 @@ Nested subqueries that are combined with `Join` may fail to collapse.
       FROM "location" AS "location_1"
       WHERE ("location_1"."state" = 'IL')
     ) AS "location_3" ON ("person_3"."location_id" = "location_3"."location_id")
+    =#
+
+`Join` can be applied to correlated subqueries.
+
+    q0(person_id) =
+        From(visit_occurrence) |>
+        Where(Get.person_id .== Var.person_id) |>
+        Partition(order_by = [Get.visit_start_date]) |>
+        Where(Agg.row_number() .== 1) |>
+        Bind(:person_id => person_id)
+
+    print(render(q0(1)))
+    #=>
+    SELECT "visit_occurrence_4"."visit_occurrence_id", …, "visit_occurrence_4"."visit_end_date"
+    FROM (
+      SELECT (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number", "visit_occurrence_1"."visit_occurrence_id", …, "visit_occurrence_1"."visit_end_date"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      WHERE ("visit_occurrence_1"."person_id" = 1)
+    ) AS "visit_occurrence_4"
+    WHERE ("visit_occurrence_4"."row_number" = 1)
+    =#
+
+    q = From(person) |>
+        Join(:visit => q0(Get.person_id), on = true) |>
+        Select(Get.person_id,
+               Get.visit.visit_occurrence_id,
+               Get.visit.visit_start_date)
+
+    print(render(q))
+    #=>
+    SELECT "person_2"."person_id", "visit_1"."visit_occurrence_id", "visit_1"."visit_start_date"
+    FROM (
+      SELECT "person_1"."person_id"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    CROSS JOIN LATERAL (
+      SELECT "visit_occurrence_4"."visit_occurrence_id", "visit_occurrence_4"."visit_start_date"
+      FROM (
+        SELECT (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number", "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."visit_start_date"
+        FROM "visit_occurrence" AS "visit_occurrence_1"
+        WHERE ("visit_occurrence_1"."person_id" = "person_2"."person_id")
+      ) AS "visit_occurrence_4"
+      WHERE ("visit_occurrence_4"."row_number" = 1)
+    ) AS "visit_1"
     =#
 
 
