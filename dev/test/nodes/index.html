@@ -168,7 +168,42 @@ WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; :year)
 =#
 
 sql.vars
-#-&gt; [:year]</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia">e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
+#-&gt; [:year]</code></pre><p>Query variables could be bound using the <code>Bind</code> constructor.</p><pre><code class="language-julia">q0(person_id) =
+    From(visit_occurrence) |&gt;
+    Where(Get.person_id .== Var.person_id) |&gt;
+    Bind(:person_id =&gt; person_id)
+
+q0(1)
+#-&gt; (…) |&gt; Bind(…)
+
+display(q0(1))
+#=&gt;
+let visit_occurrence = SQLTable(:visit_occurrence, …),
+    q1 = From(visit_occurrence),
+    q2 = q1 |&gt; Where(Fun.&quot;==&quot;(Get.person_id, Var.person_id))
+    q2 |&gt; Bind(Lit(1) |&gt; As(:person_id))
+end
+=#
+
+print(render(q0(1)))
+#=&gt;
+SELECT &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, …, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = 1)
+=#</code></pre><p><code>Bind</code> lets us create correlated subqueries.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Where(Fun.exists(q0(Get.person_id)))
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (EXISTS (
+  SELECT TRUE
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
+))
+=#</code></pre><p>An empty <code>Bind</code> can be created.</p><pre><code class="language-julia">Bind(list = [])
+#-&gt; Bind(list = [])</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia">e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)
 
 display(e)
@@ -463,6 +498,46 @@ JOIN (
   FROM &quot;location&quot; AS &quot;location_1&quot;
   WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
 ) AS &quot;location_3&quot; ON (&quot;person_3&quot;.&quot;location_id&quot; = &quot;location_3&quot;.&quot;location_id&quot;)
+=#</code></pre><p><code>Join</code> can be applied to correlated subqueries.</p><pre><code class="language-julia">q0(person_id) =
+    From(visit_occurrence) |&gt;
+    Where(Get.person_id .== Var.person_id) |&gt;
+    Partition(order_by = [Get.visit_start_date]) |&gt;
+    Where(Agg.row_number() .== 1) |&gt;
+    Bind(:person_id =&gt; person_id)
+
+print(render(q0(1)))
+#=&gt;
+SELECT &quot;visit_occurrence_4&quot;.&quot;visit_occurrence_id&quot;, …, &quot;visit_occurrence_4&quot;.&quot;visit_end_date&quot;
+FROM (
+  SELECT (ROW_NUMBER() OVER (ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, …, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = 1)
+) AS &quot;visit_occurrence_4&quot;
+WHERE (&quot;visit_occurrence_4&quot;.&quot;row_number&quot; = 1)
+=#
+
+q = From(person) |&gt;
+    Join(:visit =&gt; q0(Get.person_id), on = true) |&gt;
+    Select(Get.person_id,
+           Get.visit.visit_occurrence_id,
+           Get.visit.visit_start_date)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_2&quot;.&quot;person_id&quot;, &quot;visit_1&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_1&quot;.&quot;visit_start_date&quot;
+FROM (
+  SELECT &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+) AS &quot;person_2&quot;
+CROSS JOIN LATERAL (
+  SELECT &quot;visit_occurrence_4&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_4&quot;.&quot;visit_start_date&quot;
+  FROM (
+    SELECT (ROW_NUMBER() OVER (ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+    WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_2&quot;.&quot;person_id&quot;)
+  ) AS &quot;visit_occurrence_4&quot;
+  WHERE (&quot;visit_occurrence_4&quot;.&quot;row_number&quot; = 1)
+) AS &quot;visit_1&quot;
 =#</code></pre><h2 id="Select"><a class="docs-heading-anchor" href="#Select"><code>Select</code></a><a id="Select-1"></a><a class="docs-heading-anchor-permalink" href="#Select" title="Permalink"></a></h2><p>The <code>Select</code> constructor creates a subquery that fixes the output columns.</p><pre><code class="language-julia">q = From(person) |&gt;
     Select(Get.person_id)
 #-&gt; (…) |&gt; Select(…)
@@ -571,4 +646,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 21 April 2021 00:49">Wednesday 21 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 21 April 2021 03:27">Wednesday 21 April 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
