@@ -684,20 +684,20 @@ function resolve(n::JoinNode, req)
     for ref in req.refs
         !(ref in ambs) || continue
         if ref in keys(left_res.repl)
-            name = left_res.repl[ref]
+            name = name′ = left_res.repl[ref]
             over = left_as
         elseif ref in keys(right_res.repl)
             name = right_res.repl[ref]
-            name = get(name_remap, name, name)
+            name′ = get(name_remap, name, name)
             over = right_as
         else
             continue
         end
-        repl[ref] = name
-        !(name in seen) || continue
-        push!(seen, name)
+        repl[ref] = name′
+        !(name′ in seen) || continue
+        push!(seen, name′)
         id = ID(over = over, name = name)
-        push!(list, AS(over = id, name = name))
+        push!(list, AS(over = id, name = name′))
     end
     if isempty(list)
         push!(list, true)
