@@ -154,11 +154,11 @@ default_alias(::Union{AbstractSQLNode, Nothing}) =
 default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
     n.name
 
+default_alias(n::Union{BindNode, GroupNode, HighlightNode, JoinNode, PartitionNode, SelectNode, WhereNode}) =
+    default_alias(n.over)
+
 default_alias(n::FromNode) =
     n.table.name
-
-default_alias(n::Union{GroupNode, HighlightNode, JoinNode, PartitionNode, SelectNode, WhereNode}) =
-    default_alias(n.over)
 
 
 # Default export list in the absense of a Select node.
@@ -169,14 +169,14 @@ default_list(n::SQLNode) =
 default_list(::Union{AbstractSQLNode, Nothing}) =
     SQLNode[]
 
+default_list(n::Union{BindNode, HighlightNode, PartitionNode, WhereNode}) =
+    default_list(n.over)
+
 default_list(n::FromNode) =
     SQLNode[Get(over = n, name = col) for col in n.table.columns]
 
 default_list(n::GroupNode) =
     SQLNode[Get(over = n, name = default_alias(col)) for col in n.by]
-
-default_list(n::Union{HighlightNode, PartitionNode, WhereNode}) =
-    default_list(n.over)
 
 default_list(n::JoinNode) =
     vcat(default_list(n.over), default_list(n.joinee))
@@ -209,9 +209,53 @@ end
 gather!(refs::Vector{SQLNode}, n::Union{AsNode, HighlightNode}) =
     gather!(refs, n.over)
 
+function gather!(refs::Vector{SQLNode}, n::BindNode)
+    gather!(refs, n.over)
+    gather!(refs, n.list)
+end
+
 gather!(refs::Vector{SQLNode}, n::FunctionNode) =
     gather!(refs, n.args)
 
+# Input and output structures for resolution and translation.
+
+mutable struct ResolveContext
+    dialect::SQLDialect
+    aliases::Dict{Symbol, Int}
+    vars::Dict{Symbol, SQLClause}
+
+    ResolveContext(dialect) =
+        new(dialect, Dict{Symbol, Int}(), Dict{Symbol, SQLClause}())
+end
+
+allocate_alias(ctx::ResolveContext, n) =
+    allocate_alias(ctx, default_alias(n))
+
+function allocate_alias(ctx::ResolveContext, alias::Symbol)
+    n = get(ctx.aliases, alias, 0) + 1
+    ctx.aliases[alias] = n
+    Symbol(alias, '_', n)
+end
+
+struct ResolveRequest
+    ctx::ResolveContext
+    refs::Vector{SQLNode}
+
+    ResolveRequest(ctx; refs = SQLNode[]) =
+        new(ctx, refs)
+end
+
+struct ResolveResult
+    clause::SQLClause
+    repl::Dict{SQLNode, Symbol}
+    ambs::Set{SQLNode}
+end
+
+struct TranslateRequest
+    ctx::ResolveContext
+    subs::Dict{SQLNode, SQLClause}
+    ambs::Set{SQLNode}
+end
 
 # Substituting references and translating expressions.
 
@@ -253,6 +297,19 @@ end
 
 translate(n::Union{AsNode, HighlightNode}, treq) =
     translate(n.over, treq)
+
+function translate(n::BindNode, treq)
+    vars = treq.ctx.vars
+    vars′ = copy(vars)
+    for v in n.list
+        name = default_alias(v)
+        vars′[name] = translate(v, treq)
+    end
+    treq.ctx.vars = vars′
+    c = translate(n.over, treq)
+    treq.ctx.vars = vars
+    c
+end
 
 function translate(n::SubqueryNode, treq)
     req = ResolveRequest(treq.ctx)
@@ -316,47 +373,15 @@ translate(n::GetNode, treq) =
 translate(n::LiteralNode, treq) =
     LiteralClause(n.val)
 
-translate(n::VariableNode, treq) =
-    VariableClause(n.name)
+function translate(n::VariableNode, treq)
+    c = get(treq.ctx.vars, n.name, nothing)
+    if c === nothing
+        c = VariableClause(n.name)
+    end
+    c
+end
 
 # Resolving deferred SELECT list.
-
-struct ResolveContext
-    dialect::SQLDialect
-    aliases::Dict{Symbol, Int}
-
-    ResolveContext(dialect) =
-        new(dialect, Dict{Symbol, Int}())
-end
-
-struct ResolveRequest
-    ctx::ResolveContext
-    refs::Vector{SQLNode}
-
-    ResolveRequest(ctx; refs = SQLNode[]) =
-        new(ctx, refs)
-end
-
-struct ResolveResult
-    clause::SQLClause
-    repl::Dict{SQLNode, Symbol}
-    ambs::Set{SQLNode}
-end
-
-struct TranslateRequest
-    ctx::ResolveContext
-    subs::Dict{SQLNode, SQLClause}
-    ambs::Set{SQLNode}
-end
-
-allocate_alias(ctx::ResolveContext, n) =
-    allocate_alias(ctx, default_alias(n))
-
-function allocate_alias(ctx::ResolveContext, alias::Symbol)
-    n = get(ctx.aliases, alias, 0) + 1
-    ctx.aliases[alias] = n
-    Symbol(alias, '_', n)
-end
 
 function resolve(n::SQLNode; dialect = :default)
     ctx = ResolveContext(dialect)

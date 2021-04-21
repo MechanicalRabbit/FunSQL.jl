@@ -37,6 +37,7 @@ Pages = [
     "nodes.jl",
     "nodes/aggregate.jl",
     "nodes/as.jl",
+    "nodes/bind.jl",
     "nodes/from.jl",
     "nodes/function.jl",
     "nodes/get.jl",
