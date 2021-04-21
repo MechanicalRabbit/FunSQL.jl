@@ -154,7 +154,7 @@ default_alias(::Union{AbstractSQLNode, Nothing}) =
 default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
     n.name
 
-default_alias(n::Union{BindNode, GroupNode, HighlightNode, JoinNode, PartitionNode, SelectNode, WhereNode}) =
+default_alias(n::Union{BindNode, DefineNode, GroupNode, HighlightNode, JoinNode, PartitionNode, SelectNode, WhereNode}) =
     default_alias(n.over)
 
 default_alias(n::FromNode) =
@@ -169,7 +169,7 @@ default_list(n::SQLNode) =
 default_list(::Union{AbstractSQLNode, Nothing}) =
     SQLNode[]
 
-default_list(n::Union{BindNode, HighlightNode, PartitionNode, WhereNode}) =
+default_list(n::Union{BindNode, DefineNode, HighlightNode, PartitionNode, WhereNode}) =
     default_list(n.over)
 
 default_list(n::FromNode) =
@@ -513,6 +513,77 @@ function resolve(n::BindNode, req)
     res = resolve(n.over, req)
     treq.ctx.vars = vars
     res
+end
+
+function resolve(n::DefineNode, req)
+    aliases = Symbol[default_alias(col) for col in n.list]
+    indexes = Dict{Symbol, Int}()
+    for (i, alias) in enumerate(aliases)
+        if alias in keys(indexes)
+            ex = DuplicateAliasError(alias)
+            push!(ex.stack, n.by[i])
+            throw(ex)
+        end
+        indexes[alias] = i
+    end
+    base_refs = SQLNode[]
+    dups = Dict{Symbol, Int}()
+    for ref in req.refs
+        if (@dissect ref (nothing |> Get(name = name))) && name in keys(indexes)
+            !(name in keys(dups)) || continue
+            dups[name] = 1
+            col = n.list[indexes[name]]
+            gather!(base_refs, col)
+        else
+            push!(base_refs, ref)
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    base_res = resolve(n.over, base_req)
+    base_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in base_res.repl
+        subs[ref] = ID(over = base_as, name = name)
+    end
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    repl = Dict{SQLNode, Symbol}()
+    ambs = Set{SQLNode}()
+    list = SQLClause[]
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if (@dissect ref (nothing |> Get(name = name))) && name in keys(indexes)
+            repl[ref] = name
+            !(name in seen) || continue
+            push!(seen, name)
+            col = n.list[indexes[name]]
+            push!(list, AS(over = translate(col, treq), name = name))
+        elseif ref in keys(base_res.repl)
+            name′ = name = base_res.repl[ref]
+            if name in keys(dups)
+                k = dups[name]
+                name′ = Symbol(name, '_', k)
+                while name′ in keys(indexes) || name′ in keys(dups)
+                    k += 1
+                    name′ = Symbol(name, '_', k)
+                end
+                dups[name] = k + 1
+            end
+            repl[ref] = name′
+            !(name′ in seen) || continue
+            push!(seen, name′)
+            id = ID(over = base_as, name = name)
+            push!(list, AS(over = id, name = name′))
+        end
+        if ref in base_res.ambs
+            push!(ambs, ref)
+        end
+    end
+    if isempty(list)
+        push!(list, true)
+    end
+    f = FROM(AS(over = base_res.clause, name = base_as))
+    c = SELECT(over = f, list = list)
+    ResolveResult(c, repl, ambs)
 end
 
 function resolve(n::FromNode, req)

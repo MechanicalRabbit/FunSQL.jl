@@ -1,8 +1,9 @@
 # SQL Nodes
 
     using FunSQL:
-        Agg, As, Bind, Fun, From, Get, Group, Highlight, Join, LeftJoin, Lit,
-        Partition, SQLNode, SQLTable, Select, Var, Where, render, resolve
+        Agg, As, Bind, Define, Fun, From, Get, Group, Highlight, Join,
+        LeftJoin, Lit, Partition, SQLNode, SQLTable, Select, Var, Where,
+        render, resolve
 
 We start with specifying the database model.
 
