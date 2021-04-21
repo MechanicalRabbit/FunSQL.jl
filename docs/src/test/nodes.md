@@ -15,7 +15,7 @@ We start with specifying the database model.
         SQLTable(:location, columns = [:location_id, :city, :state])
 
     const person =
-        SQLTable(:person, columns = [:person_id, :gender_concept_id, :year_of_birth, :month_of_birth, :day_of_birth, :location_id])
+        SQLTable(:person, columns = [:person_id, :gender_concept_id, :year_of_birth, :month_of_birth, :day_of_birth, :birth_datetime, :location_id])
 
     const visit_occurrence =
         SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
@@ -218,6 +218,38 @@ unambiguously.
         q4 = q3 |> Select(Get.person_id)
         q4
     end
+    =#
+
+Any expression could be given a name and attached to a query using the `Define`
+constructor.
+
+    q = From(person) |>
+        Define(:age => Fun.now() .- Get.birth_datetime)
+    #-> (…) |> Define(…)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Define(Fun."-"(Fun.now(), Get.birth_datetime) |> As(:age))
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+This expression could be referred to by name as if it were a regular table
+attribute.
+
+    print(render(q |> Where(Get.age .> "16 years")))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
     =#
 
 
