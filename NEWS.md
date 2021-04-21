@@ -1,6 +1,15 @@
 # Release Notes
 
 
+## v0.5.0
+
+- Add `Define` for calculated columns.
+- Correlated subqueries and `JOIN LATERAL` with `Bind`.
+- Support for query parameters with `Var`.
+- Support for subqueries.
+- Add `Partition` and window functions.
+
+
 ## v0.4.0
 
 - Add `Group`.
