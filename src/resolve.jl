@@ -288,7 +288,10 @@ translate(::Nothing, treq) =
 translate(n::AggregateNode, treq) =
     translate(Val(n.name), n, treq)
 
-function translate(@nospecialize(name::Val{N}), n::AggregateNode, treq) where {N}
+translate(@nospecialize(name::Val{N}), n::AggregateNode, treq) where {N} =
+    translate_default(n, treq)
+
+function translate_default(n::AggregateNode, treq)
     args = translate(n.args, treq)
     filter = translate(n.filter, treq)
     AGG(uppercase(string(n.name)), distinct = n.distinct, args = args, filter = filter)
@@ -325,7 +328,10 @@ end
 translate(n::FunctionNode, treq) =
     translate(Val(n.name), n, treq)
 
-function translate(@nospecialize(name::Val{N}), n::FunctionNode, treq) where {N}
+translate(@nospecialize(name::Val{N}), n::FunctionNode, treq) where {N} =
+    translate_default(n, treq)
+
+function translate_default(n::FunctionNode, treq)
     args = translate(n.args, treq)
     if Base.isidentifier(n.name)
         FUN(uppercase(string(n.name)), args = args)

@@ -46,7 +46,7 @@ render(ctx, val::Number) =
 render(ctx, val::AbstractString) =
     print(ctx, '\'', replace(val, '\'' => "''"), '\'')
 
-render(ctx, val::Dates.Date) =
+render(ctx, val::Dates.AbstractTime) =
     print(ctx, '\'', val, '\'')
 
 function render(ctx, c::SQLClause)
