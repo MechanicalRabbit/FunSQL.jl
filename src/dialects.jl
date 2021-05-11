@@ -7,14 +7,14 @@
 end
 
 Base.convert(::Type{VariableStyle}, s::Symbol) =
-    s === :named ?
+    s in (:named, :NAMED) ?
         NAMED :
-    s === :numbered ?
+    s in (:numbered, :NUMBERED) ?
         NUMBERED :
-    s === :positional ?
+    s in (:positional, :POSITIONAL) ?
         POSITIONAL :
-        throw(DomainError(QuoteNode(s),
-                          "expected :named, :numbered, or :positional"))
+    throw(DomainError(QuoteNode(s),
+                      "expected :named, :numbered, or :positional"))
 
 """
 Properties of a SQL dialect.

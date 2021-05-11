@@ -4,17 +4,18 @@ mutable struct PartitionNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
     order_by::Vector{SQLNode}
+    frame::Union{PartitionFrame, Nothing}
 
-    PartitionNode(; over = nothing, by = SQLNode[], order_by = SQLNode[]) =
-        new(over, by, order_by)
+    PartitionNode(; over = nothing, by = SQLNode[], order_by = SQLNode[], frame = nothing) =
+        new(over, by, order_by, frame)
 end
 
-PartitionNode(by...; over = nothing, order_by = SQLNode[]) =
-    PartitionNode(over = over, by = SQLNode[by...], order_by = order_by)
+PartitionNode(by...; over = nothing, order_by = SQLNode[], frame = nothing) =
+    PartitionNode(over = over, by = SQLNode[by...], order_by = order_by, frame = frame)
 
 """
-    Partition(; over; by = [], order_by = [])
-    Partition(by...; over, order_by = [])
+    Partition(; over, by = [], order_by = [], frame = nothing)
+    Partition(by...; over, order_by = [], frame = nothing)
 
 A subquery that partitions rows `by` a list of keys.
 
@@ -47,6 +48,9 @@ function PrettyPrinting.quoteof(n::PartitionNode, qctx::SQLNodeQuoteContext)
     if !isempty(n.order_by)
         push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(n.order_by, qctx)...)))
     end
+    if n.frame !== nothing
+        push!(ex.args, Expr(:kw, :frame, quoteof(n.frame)))
+    end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
     end
@@ -54,5 +58,5 @@ function PrettyPrinting.quoteof(n::PartitionNode, qctx::SQLNodeQuoteContext)
 end
 
 rebase(n::PartitionNode, n′) =
-    PartitionNode(over = rebase(n.over, n′), by = n.by, order_by = n.order_by)
+    PartitionNode(over = rebase(n.over, n′), by = n.by, order_by = n.order_by, frame = n.frame)
 

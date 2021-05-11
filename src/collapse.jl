@@ -49,7 +49,8 @@ collapse(c::OperatorClause) =
 collapse(c::PartitionClause) =
     PartitionClause(over = collapse(c.over),
                     by = collapse(c.by),
-                    order_by = collapse(c.order_by))
+                    order_by = collapse(c.order_by),
+                    frame = c.frame)
 
 function collapse(c::SelectClause)
     over′ = collapse(c.over)

@@ -1,23 +1,89 @@
 # Window definition clause.
 
+@enum FrameMode::UInt8 begin
+    RANGE_MODE
+    ROWS_MODE
+    GROUPS_MODE
+end
+
+Base.convert(::Type{FrameMode}, s::Symbol) =
+    s in (:range, :range_mode, :RANGE, :RANGE_MODE) ?
+        RANGE_MODE :
+    s in (:rows, :rows_mode, :ROWS, :ROWS_MODE) ?
+        ROWS_MODE :
+    s in (:groups, :groups_mode, :GROUPS, :GROUPS_MODE) ?
+        GROUPS_MODE :
+    throw(DomainError(QuoteNode(s),
+                      "expected :range, :rows, or :groups"))
+
+@enum FrameExclusion::UInt8 begin
+    EXCLUDE_NO_OTHERS
+    EXCLUDE_CURRENT_ROW
+    EXCLUDE_GROUP
+    EXCLUDE_TIES
+end
+
+Base.convert(::Type{FrameExclusion}, s::Symbol) =
+    s in (:no_others, :exclude_no_others, :NO_OTHERS, :EXCLUDE_NO_OTHERS) ?
+        EXCLUDE_NO_OTHERS :
+    s in (:current_row, :exclude_current_row, :CURRENT_ROW, :EXCLUDE_CURRENT_ROW) ?
+        EXCLUDE_CURRENT_ROW :
+    s in (:group, :exclude_group, :GROUP, :EXCLUDE_GROUP) ?
+        EXCLUDE_GROUP :
+    s in (:ties, :exclude_ties, :TIES, :EXCLUDE_TIES) ?
+        EXCLUDE_TIES :
+    throw(DomainError(QuoteNode(s),
+                      "expected :no_others, :current_row, :group, or :ties"))
+
+struct PartitionFrame
+    mode::FrameMode
+    start::Any
+    finish::Any
+    exclusion::Union{FrameExclusion, Nothing}
+end
+
+PartitionFrame(; mode, start = nothing, finish = nothing, exclusion = nothing) =
+    PartitionFrame(mode, start, finish, exclusion)
+
+Base.convert(::Type{PartitionFrame}, t::NamedTuple) =
+    PartitionFrame(; t...)
+
+Base.convert(::Type{PartitionFrame}, m::Union{FrameMode, Symbol}) =
+    PartitionFrame(m, nothing, nothing, nothing)
+
+function PrettyPrinting.quoteof(f::PartitionFrame)
+    if f.start === nothing && f.finish === nothing && f.exclusion === nothing
+        return QuoteNode(Symbol(f.mode))
+    end
+    ex = Expr(:tuple, Expr(:(=), :mode, QuoteNode(Symbol(f.node))))
+    if f.start !== nothing
+        push!(ex.args, Expr(:(=), :start, f.start))
+    end
+    if f.finish !== nothing
+        push!(ex.args, Expr(:(=), :finish, f.finish))
+    end
+    if f.exclusion !== nothing
+        push!(ex.args, Expr(:(=), :exclusion, QuoteNode(Symbol(f.exclusion))))
+    end
+    ex
+end
+
 mutable struct PartitionClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     by::Vector{SQLClause}
     order_by::Vector{SQLClause}
+    frame::Union{PartitionFrame, Nothing}
 
-    PartitionClause(;
-                    over = nothing,
-                    by = SQLClause[],
-                    order_by = SQLClause[]) =
-        new(over, by, order_by)
+    PartitionClause(; over = nothing, by = SQLClause[], order_by = SQLClause[], frame = nothing) =
+        new(over, by, order_by, frame)
 end
 
-PartitionClause(by...; over = nothing, order_by = SQLClause[]) =
-    PartitionClause(over = over, by = SQLClause[by...], order_by = order_by)
+PartitionClause(by...; over = nothing, order_by = SQLClause[], frame = nothing) =
+    PartitionClause(over = over, by = SQLClause[by...], order_by = order_by, frame = frame)
 
 """
-    PARTITION(; over = nothing, by = [], order_by = [])
-    PARTITION(by...; over = nothing, order_by = [])
+    PARTITION(; over = nothing, by = [], order_by = [], frame = nothing)
+    PARTITION(by...; over = nothing, order_by = [], frame = nothing)
 
 A window definition clause.
 
@@ -57,6 +123,9 @@ function PrettyPrinting.quoteof(c::PartitionClause, qctx::SQLClauseQuoteContext)
     if !isempty(c.order_by)
         push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(c.order_by, qctx)...)))
     end
+    if c.frame !== nothing
+        push!(ex.args, Expr(:kw, :frame, quoteof(c.frame)))
+    end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
     end
@@ -64,5 +133,5 @@ function PrettyPrinting.quoteof(c::PartitionClause, qctx::SQLClauseQuoteContext)
 end
 
 rebase(c::PartitionClause, c′) =
-    PartitionClause(over = rebase(c.over, c′), by = c.by, order_by = c.order_by)
+    PartitionClause(over = rebase(c.over, c′), by = c.by, order_by = c.order_by, frame = c.frame)
 

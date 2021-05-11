@@ -824,7 +824,7 @@ function resolve(n::PartitionNode, req)
     treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     by = translate(n.by, treq)
     order_by = translate(n.order_by, treq)
-    partition = PARTITION(by = by, order_by = order_by)
+    partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
     list = SQLClause[]
     repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()

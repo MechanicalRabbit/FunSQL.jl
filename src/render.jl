@@ -225,6 +225,69 @@ function render(ctx, c::OperatorClause)
     end
 end
 
+function render(ctx, m::FrameMode)
+    if m == RANGE_MODE
+        print(ctx, "RANGE")
+    elseif m == ROWS_MODE
+        print(ctx, "ROWS")
+    elseif m == GROUPS_MODE
+        print(ctx, "GROUPS")
+    else
+        throw(DomainError(m))
+    end
+end
+
+function render(ctx, e::FrameExclusion)
+    if e == EXCLUDE_NO_OTHERS
+        print(ctx, "EXCLUDE NO OTHERS")
+    elseif e == EXCLUDE_CURRENT_ROW
+        print(ctx, "EXCLUDE CURRENT ROW")
+    elseif e == EXCLUDE_GROUP
+        print(ctx, "EXCLUDE GROUP")
+    elseif e == EXCLUDE_TIES
+        print(ctx, "EXCLUDE TIES")
+    else
+        throw(DomainError(e))
+    end
+end
+
+function render_frame_endpoint(ctx, val)
+    if iszero(val)
+        print(ctx, "CURRENT ROW")
+    else
+        pos = val > zero(val)
+        inf = isinf(val)
+        if pos && inf
+            print(ctx, "UNBOUNDED FOLLOWING")
+        elseif pos
+            render(ctx, val)
+            print(ctx, " FOLLOWING")
+        elseif !inf
+            render(ctx, - val)
+            print(ctx, " PRECEDING")
+        else
+            print(ctx, "UNBOUNDED PRECEDING")
+        end
+    end
+end
+
+function render(ctx, f::PartitionFrame)
+    render(ctx, f.mode)
+    print(ctx, ' ')
+    if f.finish === nothing
+        render_frame_endpoint(ctx, something(f.start, -Inf))
+    else
+        print(ctx, "BETWEEN ")
+        render_frame_endpoint(ctx, something(f.start, -Inf))
+        print(ctx, " AND ")
+        render_frame_endpoint(ctx, f.finish)
+    end
+    if f.exclusion !== nothing
+        print(ctx, ' ')
+        render(ctx, f.exclusion)
+    end
+end
+
 function render(ctx, c::PartitionClause)
     need_space = false
     if c.over !== nothing
@@ -245,6 +308,13 @@ function render(ctx, c::PartitionClause)
         end
         print(ctx, "ORDER BY ")
         render(ctx, c.order_by)
+        need_space = true
+    end
+    if c.frame !== nothing
+        if need_space
+            print(ctx, ' ')
+        end
+        render(ctx, c.frame)
         need_space = true
     end
 end
