@@ -3,6 +3,12 @@
 using Documenter, Logging, NarrativeTest, Test
 using FunSQL
 
+# Suppress deprecation warnings on the use of `kwargs.data` in DBInterface.
+if VERSION >= v"1.7-DEV"
+    Base.getproperty(x::Base.Pairs, s::Symbol) =
+        getfield(x, s)
+end
+
 if isempty(ARGS)
 
     @testset "FunSQL" begin
