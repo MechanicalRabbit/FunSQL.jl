@@ -252,6 +252,52 @@ A window function can be created by adding an `OVER` modifier.
     print(render(c))
     #-> (ROW_NUMBER() OVER ("w"))
 
+The `PARTITION` clause may contain a frame specification including the frame
+mode, frame endpoints, and frame exclusion.
+
+    c = PARTITION(order_by = [:year_of_birth], frame = :groups)
+    #-> PARTITION(order_by = […], frame = :GROUPS_MODE)
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" GROUPS UNBOUNDED PRECEDING
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :rows,))
+    #-> PARTITION(order_by = […], frame = :ROWS_MODE)
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" ROWS UNBOUNDED PRECEDING
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -1, finish = 1, exclude = :current_row))
+    #-> PARTITION(order_by = […], frame = (mode = :RANGE_MODE, start = -1, finish = 1, exclude = :EXCLUDE_CURRENT_ROW))
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING EXCLUDE CURRENT ROW
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -Inf, finish = 0))
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = 0, finish = Inf))
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :no_others))
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE NO OTHERS
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :group))
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE GROUP
+
+    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :ties))
+
+    print(render(c))
+    #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE TIES
+
 
 ## SQL Operators
 

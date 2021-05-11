@@ -681,6 +681,34 @@ functions.
     FROM "person" AS "person_1"
     =#
 
+A partition may specify the window frame.
+
+    q = From(person) |>
+        Group(Get.year_of_birth) |>
+        Partition(order_by = [Get.year_of_birth],
+                  frame = (mode = :range, start = -1, finish = 1)) |>
+        Select(Get.year_of_birth, Agg.avg(Agg.count()))
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.year_of_birth),
+        q3 = q2 |>
+             Partition(order_by = [Get.year_of_birth],
+                       frame = (mode = :RANGE_MODE, start = -1, finish = 1)),
+        q4 = q3 |> Select(Get.year_of_birth, Agg.avg(Agg.count()))
+        q4
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."year_of_birth"
+    =#
+
 
 ## `Join`
 

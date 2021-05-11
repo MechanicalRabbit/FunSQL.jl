@@ -39,10 +39,10 @@ struct PartitionFrame
     mode::FrameMode
     start::Any
     finish::Any
-    exclusion::Union{FrameExclusion, Nothing}
+    exclude::Union{FrameExclusion, Nothing}
 
-    PartitionFrame(; mode, start = nothing, finish = nothing, exclusion = nothing) =
-        new(mode, start, finish, exclusion)
+    PartitionFrame(; mode, start = nothing, finish = nothing, exclude = nothing) =
+        new(mode, start, finish, exclude)
 end
 
 Base.convert(::Type{PartitionFrame}, t::NamedTuple) =
@@ -52,7 +52,7 @@ Base.convert(::Type{PartitionFrame}, m::Union{FrameMode, Symbol}) =
     PartitionFrame(mode = m)
 
 function PrettyPrinting.quoteof(f::PartitionFrame)
-    if f.start === nothing && f.finish === nothing && f.exclusion === nothing
+    if f.start === nothing && f.finish === nothing && f.exclude === nothing
         return QuoteNode(Symbol(f.mode))
     end
     ex = Expr(:tuple, Expr(:(=), :mode, QuoteNode(Symbol(f.mode))))
@@ -62,8 +62,8 @@ function PrettyPrinting.quoteof(f::PartitionFrame)
     if f.finish !== nothing
         push!(ex.args, Expr(:(=), :finish, f.finish))
     end
-    if f.exclusion !== nothing
-        push!(ex.args, Expr(:(=), :exclusion, QuoteNode(Symbol(f.exclusion))))
+    if f.exclude !== nothing
+        push!(ex.args, Expr(:(=), :exclude, QuoteNode(Symbol(f.exclude))))
     end
     ex
 end

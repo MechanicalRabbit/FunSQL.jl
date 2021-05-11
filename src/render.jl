@@ -282,9 +282,9 @@ function render(ctx, f::PartitionFrame)
         print(ctx, " AND ")
         render_frame_endpoint(ctx, f.finish)
     end
-    if f.exclusion !== nothing
+    if f.exclude !== nothing
         print(ctx, ' ')
-        render(ctx, f.exclusion)
+        render(ctx, f.exclude)
     end
 end
 
