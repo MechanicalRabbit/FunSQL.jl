@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Clauses · FunSQL.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.0/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">FunSQL.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../tutorial/">Tutorial</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Clauses</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Clauses</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/clauses.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Clauses"><a class="docs-heading-anchor" href="#SQL-Clauses">SQL Clauses</a><a id="SQL-Clauses-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Clauses" title="Permalink"></a></h1><pre><code class="language-julia">using FunSQL:
+    AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
+    PARTITION, SELECT, VAR, WHERE, WINDOW, pack, render</code></pre><p>The syntactic structure of a SQL query is represented as a tree of <code>SQLClause</code> objects.  Different types of clauses are created by specialized constructors and connected using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    SELECT(:person_id, :year_of_birth)
+#-&gt; (…) |&gt; SELECT(…)</code></pre><p>Displaying a <code>SQLClause</code> object shows how it was constructed.</p><pre><code class="language-julia">display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth))</code></pre><p>A <code>SQLClause</code> object wraps a concrete clause object, which can be accessed using the indexing operator.</p><pre><code class="language-julia">c[]
+#-&gt; ((…) |&gt; SELECT(…))[]
+
+display(c[])
+#-&gt; (ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth)))[]</code></pre><p>To generate SQL, we use function <code>render()</code>.</p><pre><code class="language-julia">print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;, &quot;year_of_birth&quot;
+FROM &quot;person&quot;
+=#</code></pre><h2 id="SQL-Literals"><a class="docs-heading-anchor" href="#SQL-Literals">SQL Literals</a><a id="SQL-Literals-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Literals" title="Permalink"></a></h2><p>A SQL literal is created using a <code>LIT()</code> constructor.</p><pre><code class="language-julia">c = LIT(&quot;SQL is fun!&quot;)
+#-&gt; LIT(&quot;SQL is fun!&quot;)</code></pre><p>Values of certain Julia data types are automatically converted to SQL literals when they are used in the context of a SQL clause.</p><pre><code class="language-julia">using Dates
+
+c = SELECT(missing, true, 42, &quot;SQL is fun!&quot;, Date(2000))
+
+#? VERSION &gt;= v&quot;1.5.0&quot;
+display(c)
+#=&gt;
+SELECT(LIT(missing),
+       LIT(true),
+       LIT(42),
+       LIT(&quot;SQL is fun!&quot;),
+       LIT(Dates.Date(&quot;2000-01-01&quot;)))
+=#
+
+print(render(c))
+#-&gt; SELECT NULL, TRUE, 42, &#39;SQL is fun!&#39;, &#39;2000-01-01&#39;</code></pre><h2 id="SQL-Identifiers"><a class="docs-heading-anchor" href="#SQL-Identifiers">SQL Identifiers</a><a id="SQL-Identifiers-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Identifiers" title="Permalink"></a></h2><p>A SQL identifier is created with <code>ID()</code> constructor.</p><pre><code class="language-julia">c = ID(:person)
+#-&gt; ID(:person)
+
+display(c)
+#-&gt; ID(:person)
+
+print(render(c))
+#-&gt; &quot;person&quot;</code></pre><p>Serialization of an identifier depends on the SQL dialect.</p><pre><code class="language-julia">print(render(c, dialect = :sqlserver))
+#-&gt; [person]</code></pre><p>A quoted identifier is created using the chain operator.</p><pre><code class="language-julia">c = ID(:person) |&gt; ID(:year_of_birth)
+#-&gt; (…) |&gt; ID(:year_of_birth)
+
+display(c)
+#-&gt; ID(:person) |&gt; ID(:year_of_birth)
+
+print(render(c))
+#-&gt; &quot;person&quot;.&quot;year_of_birth&quot;</code></pre><p>Symbols and pairs of symbols are automatically converted to SQL identifiers when they are used in the context of a SQL clause.</p><pre><code class="language-julia">c = FROM(:p =&gt; :person) |&gt; SELECT((:p, :person_id))
+display(c)
+#-&gt; ID(:person) |&gt; AS(:p) |&gt; FROM() |&gt; SELECT(ID(:p) |&gt; ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+=#</code></pre><h2 id="SQL-Variables"><a class="docs-heading-anchor" href="#SQL-Variables">SQL Variables</a><a id="SQL-Variables-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Variables" title="Permalink"></a></h2><p>Placeholder parameters to a SQL query are created with <code>VAR()</code> constructor.</p><pre><code class="language-julia">c = VAR(:year)
+#-&gt; VAR(:year)
+
+display(c)
+#-&gt; VAR(:year)
+
+print(render(c))
+#-&gt; :year</code></pre><p>Rendering of a SQL parameter depends on the chosen dialect.</p><pre><code class="language-julia">print(render(c, dialect = :sqlite))
+#-&gt; ?1
+
+print(render(c, dialect = :postgresql))
+#-&gt; $1
+
+print(render(c, dialect = :mysql))
+#-&gt; ?</code></pre><p>Function <code>pack()</code> converts named parameters to a positional form.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    WHERE(OP(&quot;OR&quot;, OP(&quot;=&quot;, :gender_concept_id, VAR(:gender)),
+                   OP(&quot;=&quot;, :gender_source_concept_id, VAR(:gender)))) |&gt;
+    SELECT(:person_id)
+
+sql = render(c, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+WHERE ((&quot;gender_concept_id&quot; = ?1) OR (&quot;gender_source_concept_id&quot; = ?1))
+=#
+
+pack(sql, (gender = 8532,))
+#-&gt; Any[8532]
+
+pack(sql, Dict(:gender =&gt; 8532))
+#-&gt; Any[8532]
+
+pack(sql, Dict(&quot;gender&quot; =&gt; 8532))
+#-&gt; Any[8532]</code></pre><p>If the dialect does not support numbered parameters, <code>pack()</code> may need to duplicate parameter values.</p><pre><code class="language-julia">sql = render(c, dialect = :mysql)
+
+print(sql)
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+WHERE ((&quot;gender_concept_id&quot; = ?) OR (&quot;gender_source_concept_id&quot; = ?))
+=#
+
+pack(sql, (gender = 8532,))
+#-&gt; Any[8532, 8532]</code></pre><h2 id="SQL-Functions"><a class="docs-heading-anchor" href="#SQL-Functions">SQL Functions</a><a id="SQL-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Functions" title="Permalink"></a></h2><p>An application of a SQL function is created with <code>FUN()</code> constructor.</p><pre><code class="language-julia">c = FUN(&quot;CONCAT&quot;, :city, &quot;, &quot;, :state)
+#-&gt; FUN(&quot;CONCAT&quot;, …)
+
+display(c)
+#-&gt; FUN(&quot;CONCAT&quot;, ID(:city), LIT(&quot;, &quot;), ID(:state))
+
+print(render(c))
+#-&gt; CONCAT(&quot;city&quot;, &#39;, &#39;, &quot;state&quot;)</code></pre><p>A function with special separators can be constructed using <code>KW()</code> clause.</p><pre><code class="language-julia">c = FUN(&quot;SUBSTRING&quot;, :zip, KW(&quot;FROM&quot;, 1), KW(&quot;FOR&quot;, 3))
+#-&gt; FUN(&quot;SUBSTRING&quot;, …)
+
+display(c)
+#-&gt; FUN(&quot;SUBSTRING&quot;, ID(:zip), LIT(1) |&gt; KW(:FROM), LIT(3) |&gt; KW(:FOR))
+
+print(render(c))
+#-&gt; SUBSTRING(&quot;zip&quot; FROM 1 FOR 3)</code></pre><p>Functions without arguments are permitted.</p><pre><code class="language-julia">c = FUN(&quot;NOW&quot;)
+#-&gt; FUN(&quot;NOW&quot;)
+
+print(render(c))
+#-&gt; NOW()</code></pre><h2 id="Aggregate-Functions"><a class="docs-heading-anchor" href="#Aggregate-Functions">Aggregate Functions</a><a id="Aggregate-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Aggregate-Functions" title="Permalink"></a></h2><p>Aggregate SQL functions have a specialized <code>AGG()</code> constructor.</p><pre><code class="language-julia">c = AGG(&quot;COUNT&quot;, OP(&quot;*&quot;))
+#-&gt; AGG(&quot;COUNT&quot;, …)
+
+display(c)
+#-&gt; AGG(&quot;COUNT&quot;, OP(&quot;*&quot;))
+
+print(render(c))
+#-&gt; COUNT(*)</code></pre><p>Aggregate functions accept the <code>DISTINCT</code> modifier.</p><pre><code class="language-julia">c = AGG(&quot;COUNT&quot;, distinct = true, :year_of_birth)
+
+display(c)
+#-&gt; AGG(&quot;COUNT&quot;, distinct = true, ID(:year_of_birth))
+
+print(render(c))
+#-&gt; COUNT(DISTINCT &quot;year_of_birth&quot;)</code></pre><p>An aggregate function may have a <code>FILTER</code> modifier.</p><pre><code class="language-julia">c = AGG(&quot;COUNT&quot;, OP(&quot;*&quot;), filter = OP(&quot;&gt;&quot;, :year_of_birth, 1970))
+
+display(c)
+#-&gt; AGG(&quot;COUNT&quot;, OP(&quot;*&quot;), filter = OP(&quot;&gt;&quot;, ID(:year_of_birth), LIT(1970)))
+
+print(render(c))
+#-&gt; (COUNT(*) FILTER (WHERE (&quot;year_of_birth&quot; &gt; 1970)))</code></pre><p>A window function can be created by adding an <code>OVER</code> modifier.</p><pre><code class="language-julia">c = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]) |&gt;
+    AGG(&quot;ROW_NUMBER&quot;)
+
+display(c)
+#=&gt;
+AGG(&quot;ROW_NUMBER&quot;,
+    over = PARTITION(ID(:year_of_birth),
+                     order_by = [ID(:month_of_birth), ID(:day_of_birth)]))
+=#
+
+print(render(c))
+#-&gt; (ROW_NUMBER() OVER (PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;))
+
+c = AGG(&quot;ROW_NUMBER&quot;, over = :w)
+
+print(render(c))
+#-&gt; (ROW_NUMBER() OVER (&quot;w&quot;))</code></pre><p>The <code>PARTITION</code> clause may contain a frame specification including the frame mode, frame endpoints, and frame exclusion.</p><pre><code class="language-julia">c = PARTITION(order_by = [:year_of_birth], frame = :groups)
+#-&gt; PARTITION(order_by = […], frame = :GROUPS)
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; GROUPS UNBOUNDED PRECEDING
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :rows,))
+#-&gt; PARTITION(order_by = […], frame = :ROWS)
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; ROWS UNBOUNDED PRECEDING
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -1, finish = 1, exclude = :current_row))
+#-&gt; PARTITION(order_by = […], frame = (mode = :RANGE, start = -1, finish = 1, exclude = :CURRENT_ROW))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING EXCLUDE CURRENT ROW
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -Inf, finish = 0))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = 0, finish = Inf))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :no_others))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE UNBOUNDED PRECEDING EXCLUDE NO OTHERS
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :group))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE UNBOUNDED PRECEDING EXCLUDE GROUP
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :ties))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE UNBOUNDED PRECEDING EXCLUDE TIES</code></pre><h2 id="SQL-Operators"><a class="docs-heading-anchor" href="#SQL-Operators">SQL Operators</a><a id="SQL-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Operators" title="Permalink"></a></h2><p>An application of a SQL operator is created with <code>OP()</code> constructor.</p><pre><code class="language-julia">c = OP(&quot;NOT&quot;, OP(&quot;=&quot;, :zip, &quot;60614&quot;))
+#-&gt; OP(&quot;NOT&quot;, …)
+
+display(c)
+#-&gt; OP(&quot;NOT&quot;, OP(&quot;=&quot;, ID(:zip), LIT(&quot;60614&quot;)))
+
+print(render(c))
+#-&gt; (NOT (&quot;zip&quot; = &#39;60614&#39;))</code></pre><p>An operator without arguments can be constructed, if necessary.</p><pre><code class="language-julia">c = OP(&quot;CURRENT_TIMESTAMP&quot;)
+#-&gt; OP(&quot;CURRENT_TIMESTAMP&quot;)
+
+print(render(c))
+#-&gt; CURRENT_TIMESTAMP</code></pre><p>A composite operator can be constructed with the help of <code>KW()</code> clause.</p><pre><code class="language-julia">c = OP(&quot;BETWEEN&quot;, :year_of_birth, 2000, KW(:AND, 2020))
+
+print(render(c))
+#-&gt; (&quot;year_of_birth&quot; BETWEEN 2000 AND 2020)</code></pre><h2 id="CASE-Expression"><a class="docs-heading-anchor" href="#CASE-Expression"><code>CASE</code> Expression</a><a id="CASE-Expression-1"></a><a class="docs-heading-anchor-permalink" href="#CASE-Expression" title="Permalink"></a></h2><p>A <code>CASE</code> expression is created with <code>CASE()</code> constructor.</p><pre><code class="language-julia">c = CASE(OP(&quot;&lt;&quot;, :year_of_birth, 1970), &quot;boomer&quot;)
+#-&gt; CASE(…)
+
+display(c)
+#-&gt; CASE(OP(&quot;&lt;&quot;, ID(:year_of_birth), LIT(1970)), LIT(&quot;boomer&quot;))
+
+print(render(c))
+#-&gt; (CASE WHEN (&quot;year_of_birth&quot; &lt; 1970) THEN &#39;boomer&#39; END)</code></pre><p>The arguments of <code>CASE</code> form an interleaving sequence of conditions and the corresponding values.  When <code>CASE</code> has an odd number of arguments, the last argument provides the default value.</p><pre><code class="language-julia">c = CASE(OP(&quot;&lt;&quot;, :year_of_birth, 1970), &quot;boomer&quot;, &quot;millenial&quot;)
+
+print(render(c))
+#-&gt; (CASE WHEN (&quot;year_of_birth&quot; &lt; 1970) THEN &#39;boomer&#39; ELSE &#39;millenial&#39; END)</code></pre><p>An invalid <code>CASE</code> expression can be constructed.</p><pre><code class="language-julia">c = CASE(args = [])
+#-&gt; CASE(args = [])</code></pre><h2 id="AS-Clause"><a class="docs-heading-anchor" href="#AS-Clause"><code>AS</code> Clause</a><a id="AS-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#AS-Clause" title="Permalink"></a></h2><p>An <code>AS</code> clause is created with <code>AS()</code> constructor.</p><pre><code class="language-julia">c = ID(:person) |&gt; AS(:p)
+#-&gt; (…) |&gt; AS(:p)
+
+display(c)
+#-&gt; ID(:person) |&gt; AS(:p)
+
+print(render(c))
+#-&gt; &quot;person&quot; AS &quot;p&quot;</code></pre><p>A pair expression is automatically converted to an <code>AS</code> clause.</p><pre><code class="language-julia">c = FROM(:p =&gt; :person)
+display(c)
+#-&gt; ID(:person) |&gt; AS(:p) |&gt; FROM()
+
+print(render(c |&gt; SELECT((:p, :person_id))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+=#</code></pre><h2 id="FROM-Clause"><a class="docs-heading-anchor" href="#FROM-Clause"><code>FROM</code> Clause</a><a id="FROM-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#FROM-Clause" title="Permalink"></a></h2><p>A <code>FROM</code> clause is created with <code>FROM()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person)
+#-&gt; (…) |&gt; FROM()
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM()
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+=#</code></pre><h2 id="SELECT-Clause"><a class="docs-heading-anchor" href="#SELECT-Clause"><code>SELECT</code> Clause</a><a id="SELECT-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-Clause" title="Permalink"></a></h2><p>A <code>SELECT</code> clause is created with <code>SELECT()</code> constructor.  While in SQL, <code>SELECT</code> typically opens a query, in FunSQL, <code>SELECT()</code> should be placed at the end of a clause chain.</p><pre><code class="language-julia">c = :person |&gt; FROM() |&gt; SELECT(:person_id, :year_of_birth)
+#-&gt; (…) |&gt; SELECT(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth))
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;, &quot;year_of_birth&quot;
+FROM &quot;person&quot;
+=#</code></pre><p>The <code>DISTINCT</code> modifier can be added from the constructor.</p><pre><code class="language-julia">c = FROM(:location) |&gt; SELECT(distinct = true, :zip)
+#-&gt; (…) |&gt; SELECT(…)
+
+display(c)
+#-&gt; ID(:location) |&gt; FROM() |&gt; SELECT(distinct = true, ID(:zip))
+
+print(render(c))
+#=&gt;
+SELECT DISTINCT &quot;zip&quot;
+FROM &quot;location&quot;
+=#</code></pre><p>A <code>SELECT</code> clause with an empty list can be created explicitly.</p><pre><code class="language-julia">c = SELECT(list = [])
+#-&gt; SELECT(…)</code></pre><p>Rendering a nested <code>SELECT</code> clause adds parentheses around it.</p><pre><code class="language-julia">c = :location |&gt; FROM() |&gt; SELECT(:state, :zip) |&gt; FROM() |&gt; SELECT(:zip)
+
+print(render(c))
+#=&gt;
+SELECT &quot;zip&quot;
+FROM (
+  SELECT &quot;state&quot;, &quot;zip&quot;
+  FROM &quot;location&quot;
+)
+=#</code></pre><h2 id="WHERE-Clause"><a class="docs-heading-anchor" href="#WHERE-Clause"><code>WHERE</code> Clause</a><a id="WHERE-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE-Clause" title="Permalink"></a></h2><p>A <code>WHERE</code> clause is created with <code>WHERE()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt; WHERE(OP(&quot;&gt;&quot;, :year_of_birth, 2000))
+#-&gt; (…) |&gt; WHERE(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; WHERE(OP(&quot;&gt;&quot;, ID(:year_of_birth), LIT(2000)))
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+WHERE (&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre><h2 id="JOIN-Clause"><a class="docs-heading-anchor" href="#JOIN-Clause"><code>JOIN</code> Clause</a><a id="JOIN-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#JOIN-Clause" title="Permalink"></a></h2><p>A <code>JOIN</code> clause is created with <code>JOIN()</code> constructor.</p><pre><code class="language-julia">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:l =&gt; :location, OP(&quot;=&quot;, (:p, :location_id), (:l, :location_id)), left = true)
+#-&gt; (…) |&gt; JOIN(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:location) |&gt; AS(:l),
+     OP(&quot;=&quot;, ID(:p) |&gt; ID(:location_id), ID(:l) |&gt; ID(:location_id)),
+     left = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:l, :state))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;l&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+LEFT JOIN &quot;location&quot; AS &quot;l&quot; ON (&quot;p&quot;.&quot;location_id&quot; = &quot;l&quot;.&quot;location_id&quot;)
+=#</code></pre><p>Different types of <code>JOIN</code> are supported.</p><pre><code class="language-julia">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:op =&gt; :observation_period,
+         on = OP(&quot;=&quot;, (:p, :person_id), (:op, :person_id)))
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:observation_period) |&gt; AS(:op),
+     OP(&quot;=&quot;, ID(:p) |&gt; ID(:person_id), ID(:op) |&gt; ID(:person_id)))
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:op, :observation_period_start_date))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;op&quot;.&quot;observation_period_start_date&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+JOIN &quot;observation_period&quot; AS &quot;op&quot; ON (&quot;p&quot;.&quot;person_id&quot; = &quot;op&quot;.&quot;person_id&quot;)
+=#
+
+c = FROM(:l =&gt; :location) |&gt;
+    JOIN(:cs =&gt; :care_site,
+         on = OP(&quot;=&quot;, (:l, :location_id), (:cs, :location_id)),
+         right = true)
+
+display(c)
+#=&gt;
+ID(:location) |&gt;
+AS(:l) |&gt;
+FROM() |&gt;
+JOIN(ID(:care_site) |&gt; AS(:cs),
+     OP(&quot;=&quot;, ID(:l) |&gt; ID(:location_id), ID(:cs) |&gt; ID(:location_id)),
+     right = true)
+=#
+
+print(render(c |&gt; SELECT((:cs, :care_site_name), (:l, :state))))
+#=&gt;
+SELECT &quot;cs&quot;.&quot;care_site_name&quot;, &quot;l&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;l&quot;
+RIGHT JOIN &quot;care_site&quot; AS &quot;cs&quot; ON (&quot;l&quot;.&quot;location_id&quot; = &quot;cs&quot;.&quot;location_id&quot;)
+=#
+
+c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:pr =&gt; :provider,
+         on = OP(&quot;=&quot;, (:p, :provider_id), (:pr, :provider_id)),
+         left = true,
+         right = true)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:provider) |&gt; AS(:pr),
+     OP(&quot;=&quot;, ID(:p) |&gt; ID(:provider_id), ID(:pr) |&gt; ID(:provider_id)),
+     left = true,
+     right = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:pr, :npi))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;pr&quot;.&quot;npi&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+FULL JOIN &quot;provider&quot; AS &quot;pr&quot; ON (&quot;p&quot;.&quot;provider_id&quot; = &quot;pr&quot;.&quot;provider_id&quot;)
+=#</code></pre><p>To render a <code>CROSS JOIN</code>, set the join condition to <code>true</code>.</p><pre><code class="language-julia">c = FROM(:p1 =&gt; :person) |&gt;
+    JOIN(:p2 =&gt; :person,
+         on = true)
+
+print(render(c |&gt; SELECT((:p1, :person_id), (:p2, :person_id))))
+#=&gt;
+SELECT &quot;p1&quot;.&quot;person_id&quot;, &quot;p2&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p1&quot;
+CROSS JOIN &quot;person&quot; AS &quot;p2&quot;
+=#</code></pre><p>A <code>JOIN LATERAL</code> clause can be created.</p><pre><code class="language-julia">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:vo =&gt; FROM(:vo =&gt; :visit_occurrence) |&gt;
+                WHERE(OP(&quot;=&quot;, (:p, :person_id), (:vo, :person_id))) |&gt;
+                # TODO: add ORDER BY and LIMIT when they are implemented
+                SELECT((:vo, :visit_start_date)),
+         on = true,
+         lateral = true)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:visit_occurrence) |&gt;
+     AS(:vo) |&gt;
+     FROM() |&gt;
+     WHERE(OP(&quot;=&quot;, ID(:p) |&gt; ID(:person_id), ID(:vo) |&gt; ID(:person_id))) |&gt;
+     SELECT(ID(:vo) |&gt; ID(:visit_start_date)) |&gt;
+     AS(:vo),
+     LIT(true),
+     lateral = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:vo, :visit_start_date))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;vo&quot;.&quot;visit_start_date&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+CROSS JOIN LATERAL (
+  SELECT &quot;vo&quot;.&quot;visit_start_date&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;vo&quot;
+  WHERE (&quot;p&quot;.&quot;person_id&quot; = &quot;vo&quot;.&quot;person_id&quot;)
+) AS &quot;vo&quot;
+=#</code></pre><h2 id="GROUP-Clause"><a class="docs-heading-anchor" href="#GROUP-Clause"><code>GROUP</code> Clause</a><a id="GROUP-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#GROUP-Clause" title="Permalink"></a></h2><p>A <code>GROUP BY</code> clause is created with <code>GROUP</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt; GROUP(:year_of_birth)
+#-&gt; (…) |&gt; GROUP(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; GROUP(ID(:year_of_birth))
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(&quot;COUNT&quot;, OP(&quot;*&quot;)))))
+#=&gt;
+SELECT &quot;year_of_birth&quot;, COUNT(*)
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;
+=#</code></pre><p>A <code>GROUP</code> constructor accepts an empty partition list, in which case, it is not rendered.</p><pre><code class="language-julia">c = FROM(:person) |&gt; GROUP()
+#-&gt; (…) |&gt; GROUP()
+
+print(render(c |&gt; SELECT(AGG(&quot;COUNT&quot;, OP(&quot;*&quot;)))))
+#=&gt;
+SELECT COUNT(*)
+FROM &quot;person&quot;
+=#</code></pre><h2 id="HAVING-Clause"><a class="docs-heading-anchor" href="#HAVING-Clause"><code>HAVING</code> Clause</a><a id="HAVING-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#HAVING-Clause" title="Permalink"></a></h2><p>A <code>HAVING</code> clause is created with <code>HAVING()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    GROUP(:year_of_birth) |&gt;
+    HAVING(OP(&quot;&gt;&quot;, AGG(&quot;COUNT&quot;, OP(&quot;*&quot;)), 10))
+#-&gt; (…) |&gt; HAVING(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+GROUP(ID(:year_of_birth)) |&gt;
+HAVING(OP(&quot;&gt;&quot;, AGG(&quot;COUNT&quot;, OP(&quot;*&quot;)), LIT(10)))
+=#
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;
+HAVING (COUNT(*) &gt; 10)
+=#</code></pre><h2 id="WINDOW-Clause"><a class="docs-heading-anchor" href="#WINDOW-Clause"><code>WINDOW</code> Clause</a><a id="WINDOW-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WINDOW-Clause" title="Permalink"></a></h2><p>A <code>WINDOW</code> clause is created with <code>WINDOW()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    WINDOW(:w1 =&gt; PARTITION(:gender_concept_id),
+           :w2 =&gt; :w1 |&gt; PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
+#-&gt; (…) |&gt; WINDOW(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+WINDOW(PARTITION(ID(:gender_concept_id)) |&gt; AS(:w1),
+       ID(:w1) |&gt;
+       PARTITION(ID(:year_of_birth),
+                 order_by = [ID(:month_of_birth), ID(:day_of_birth)]) |&gt;
+       AS(:w2))
+=#
+
+print(render(c |&gt; SELECT(:w1 |&gt; AGG(&quot;ROW_NUMBER&quot;), :w2 |&gt; AGG(&quot;ROW_NUMBER&quot;))))
+#=&gt;
+SELECT (ROW_NUMBER() OVER (&quot;w1&quot;)), (ROW_NUMBER() OVER (&quot;w2&quot;))
+FROM &quot;person&quot;
+WINDOW &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;), &quot;w2&quot; AS (&quot;w1&quot; PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)
+=#</code></pre><p>The <code>WINDOW()</code> constructor accepts an empty list of partitions, in which case, it is not rendered.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
+    WINDOW(list = [])
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; WINDOW(list = [])
+
+print(render(c |&gt; SELECT(AGG(&quot;ROW_NUMBER&quot;, over = PARTITION()))))
+#=&gt;
+SELECT (ROW_NUMBER() OVER ())
+FROM &quot;person&quot;
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 11 May 2021 23:34">Tuesday 11 May 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
