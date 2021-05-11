@@ -1,39 +1,51 @@
 # Window definition clause.
 
+module FRAME_MODE
+
 @enum FrameMode::UInt8 begin
-    RANGE_MODE
-    ROWS_MODE
-    GROUPS_MODE
+    RANGE
+    ROWS
+    GROUPS
 end
 
 Base.convert(::Type{FrameMode}, s::Symbol) =
-    s in (:range, :range_mode, :RANGE, :RANGE_MODE) ?
-        RANGE_MODE :
-    s in (:rows, :rows_mode, :ROWS, :ROWS_MODE) ?
-        ROWS_MODE :
-    s in (:groups, :groups_mode, :GROUPS, :GROUPS_MODE) ?
-        GROUPS_MODE :
+    s in (:range, :RANGE) ?
+        RANGE :
+    s in (:rows, :ROWS) ?
+        ROWS :
+    s in (:groups, :GROUPS) ?
+        GROUPS :
     throw(DomainError(QuoteNode(s),
                       "expected :range, :rows, or :groups"))
 
+end
+
+import .FRAME_MODE.FrameMode
+
+module FRAME_EXCLUSION
+
 @enum FrameExclusion::UInt8 begin
-    EXCLUDE_NO_OTHERS
-    EXCLUDE_CURRENT_ROW
-    EXCLUDE_GROUP
-    EXCLUDE_TIES
+    NO_OTHERS
+    CURRENT_ROW
+    GROUP
+    TIES
 end
 
 Base.convert(::Type{FrameExclusion}, s::Symbol) =
-    s in (:no_others, :exclude_no_others, :NO_OTHERS, :EXCLUDE_NO_OTHERS) ?
-        EXCLUDE_NO_OTHERS :
-    s in (:current_row, :exclude_current_row, :CURRENT_ROW, :EXCLUDE_CURRENT_ROW) ?
-        EXCLUDE_CURRENT_ROW :
-    s in (:group, :exclude_group, :GROUP, :EXCLUDE_GROUP) ?
-        EXCLUDE_GROUP :
-    s in (:ties, :exclude_ties, :TIES, :EXCLUDE_TIES) ?
-        EXCLUDE_TIES :
+    s in (:no_others, :NO_OTHERS) ?
+        NO_OTHERS :
+    s in (:current_row, :CURRENT_ROW) ?
+        CURRENT_ROW :
+    s in (:group, :GROUP) ?
+        GROUP :
+    s in (:ties, :TIES) ?
+        TIES :
     throw(DomainError(QuoteNode(s),
                       "expected :no_others, :current_row, :group, or :ties"))
+
+end
+
+import .FRAME_EXCLUSION.FrameExclusion
 
 struct PartitionFrame
     mode::FrameMode

@@ -226,11 +226,11 @@ function render(ctx, c::OperatorClause)
 end
 
 function render(ctx, m::FrameMode)
-    if m == RANGE_MODE
+    if m == FRAME_MODE.RANGE
         print(ctx, "RANGE")
-    elseif m == ROWS_MODE
+    elseif m == FRAME_MODE.ROWS
         print(ctx, "ROWS")
-    elseif m == GROUPS_MODE
+    elseif m == FRAME_MODE.GROUPS
         print(ctx, "GROUPS")
     else
         throw(DomainError(m))
@@ -238,13 +238,13 @@ function render(ctx, m::FrameMode)
 end
 
 function render(ctx, e::FrameExclusion)
-    if e == EXCLUDE_NO_OTHERS
+    if e == FRAME_EXCLUSION.NO_OTHERS
         print(ctx, "EXCLUDE NO OTHERS")
-    elseif e == EXCLUDE_CURRENT_ROW
+    elseif e == FRAME_EXCLUSION.CURRENT_ROW
         print(ctx, "EXCLUDE CURRENT ROW")
-    elseif e == EXCLUDE_GROUP
+    elseif e == FRAME_EXCLUSION.GROUP
         print(ctx, "EXCLUDE GROUP")
-    elseif e == EXCLUDE_TIES
+    elseif e == FRAME_EXCLUSION.TIES
         print(ctx, "EXCLUDE TIES")
     else
         throw(DomainError(e))
@@ -351,7 +351,7 @@ function render(ctx, c::VariableClause)
     style = ctx.dialect.variable_style
     prefix = ctx.dialect.variable_prefix
     pos = nothing
-    if style != POSITIONAL
+    if style != VARIABLE_STYLE.POSITIONAL
         pos = findfirst(==(c.name), ctx.vars)
     end
     if pos === nothing
@@ -359,9 +359,9 @@ function render(ctx, c::VariableClause)
         pos = length(ctx.vars)
     end
     print(ctx, prefix)
-    if style == NAMED
+    if style == VARIABLE_STYLE.NAMED
         print(ctx, c.name)
-    elseif style == NUMBERED
+    elseif style == VARIABLE_STYLE.NUMBERED
         print(ctx, pos)
     end
 end

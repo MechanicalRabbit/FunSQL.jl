@@ -256,19 +256,19 @@ The `PARTITION` clause may contain a frame specification including the frame
 mode, frame endpoints, and frame exclusion.
 
     c = PARTITION(order_by = [:year_of_birth], frame = :groups)
-    #-> PARTITION(order_by = […], frame = :GROUPS_MODE)
+    #-> PARTITION(order_by = […], frame = :GROUPS)
 
     print(render(c))
     #-> ORDER BY "year_of_birth" GROUPS UNBOUNDED PRECEDING
 
     c = PARTITION(order_by = [:year_of_birth], frame = (mode = :rows,))
-    #-> PARTITION(order_by = […], frame = :ROWS_MODE)
+    #-> PARTITION(order_by = […], frame = :ROWS)
 
     print(render(c))
     #-> ORDER BY "year_of_birth" ROWS UNBOUNDED PRECEDING
 
     c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -1, finish = 1, exclude = :current_row))
-    #-> PARTITION(order_by = […], frame = (mode = :RANGE_MODE, start = -1, finish = 1, exclude = :EXCLUDE_CURRENT_ROW))
+    #-> PARTITION(order_by = […], frame = (mode = :RANGE, start = -1, finish = 1, exclude = :CURRENT_ROW))
 
     print(render(c))
     #-> ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING EXCLUDE CURRENT ROW
