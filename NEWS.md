@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v0.5.1
+
+- Support for specifying the window frame.
+
+
 ## v0.5.0
 
 - Add `Define` for calculated columns.
