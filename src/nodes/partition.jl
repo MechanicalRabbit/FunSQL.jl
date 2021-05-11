@@ -36,6 +36,21 @@ julia> print(render(q))
 SELECT "person_1"."year_of_birth", (ROW_NUMBER() OVER (PARTITION BY "person_1"."year_of_birth")) AS "row_number"
 FROM "person" AS "person_1"
 ```
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           Group(Get.year_of_birth) |>
+           Partition(order_by = [Get.year_of_birth],
+                     frame = (mode = :range, start = -1, finish = 1)) |>
+           Select(Get.year_of_birth, Agg.avg(Agg.count()));
+
+julia> print(render(q))
+SELECT "person_1"."year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
+FROM "person" AS "person_1"
+GROUP BY "person_1"."year_of_birth"
+```
 """
 Partition(args...; kws...) =
     PartitionNode(args...; kws...) |> SQLNode

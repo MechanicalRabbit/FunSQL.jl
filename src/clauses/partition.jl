@@ -40,22 +40,22 @@ struct PartitionFrame
     start::Any
     finish::Any
     exclusion::Union{FrameExclusion, Nothing}
-end
 
-PartitionFrame(; mode, start = nothing, finish = nothing, exclusion = nothing) =
-    PartitionFrame(mode, start, finish, exclusion)
+    PartitionFrame(; mode, start = nothing, finish = nothing, exclusion = nothing) =
+        new(mode, start, finish, exclusion)
+end
 
 Base.convert(::Type{PartitionFrame}, t::NamedTuple) =
     PartitionFrame(; t...)
 
 Base.convert(::Type{PartitionFrame}, m::Union{FrameMode, Symbol}) =
-    PartitionFrame(m, nothing, nothing, nothing)
+    PartitionFrame(mode = m)
 
 function PrettyPrinting.quoteof(f::PartitionFrame)
     if f.start === nothing && f.finish === nothing && f.exclusion === nothing
         return QuoteNode(Symbol(f.mode))
     end
-    ex = Expr(:tuple, Expr(:(=), :mode, QuoteNode(Symbol(f.node))))
+    ex = Expr(:tuple, Expr(:(=), :mode, QuoteNode(Symbol(f.mode))))
     if f.start !== nothing
         push!(ex.args, Expr(:(=), :start, f.start))
     end
@@ -109,6 +109,21 @@ julia> print(render(c))
 SELECT "person_id", (ROW_NUMBER() OVER ("w2"))
 FROM "person"
 WINDOW "w1" AS (PARTITION BY "year_of_birth"), "w2" AS ("w1" ORDER BY "month_of_birth", "day_of_birth")
+```
+
+```jldoctest
+julia> c = FROM(:person) |>
+           GROUP(:year_of_birth) |>
+           SELECT(:year_of_birth,
+                  AGG("AVG",
+                      AGG("COUNT", OP("*")),
+                      over = PARTITION(order_by = [:year_of_birth],
+                                       frame = (mode = :range, start = -1, finish = 1))));
+
+julia> print(render(c))
+SELECT "year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
+FROM "person"
+GROUP BY "year_of_birth"
 ```
 """
 PARTITION(args...; kws...) =
