@@ -76,6 +76,11 @@ A SQL identifier is created with `ID()` constructor.
     print(render(c))
     #-> "person"
 
+Serialization of an identifier depends on the SQL dialect.
+
+    print(render(c, dialect = :sqlserver))
+    #-> [person]
+
 A quoted identifier is created using the chain operator.
 
     c = ID(:person) |> ID(:year_of_birth)

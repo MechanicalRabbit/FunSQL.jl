@@ -31,8 +31,13 @@ function render(c::AbstractSQLClause; dialect = :default)
     SQLStatement(sql = sql, dialect = ctx.dialect, vars = ctx.vars)
 end
 
-render(ctx, name::Symbol) =
-    print(ctx, '"', replace(string(name), '"' => "\"\""), '"')
+function render(ctx, name::Symbol)
+    if ctx.dialect.name === :sqlserver
+        print(ctx, '[', replace(string(name), ']' => "]]"), ']')
+    else
+        print(ctx, '"', replace(string(name), '"' => "\"\""), '"')
+    end
+end
 
 render(ctx, ::Missing) =
     print(ctx, "NULL")
