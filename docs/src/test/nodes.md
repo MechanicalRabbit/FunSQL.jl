@@ -1,7 +1,7 @@
 # SQL Nodes
 
     using FunSQL:
-        Agg, As, Bind, Define, Fun, From, Get, Group, Highlight, Join,
+        Agg, Append, As, Bind, Define, Fun, From, Get, Group, Highlight, Join,
         LeftJoin, Lit, Partition, SQLNode, SQLTable, Select, Var, Where,
         render, resolve
 
