@@ -60,6 +60,9 @@ function collapse(c::SelectClause)
     SelectClause(over = d.tail, distinct = c.distinct, list = unalias(list′))
 end
 
+collapse(c::UnionClause) =
+    UnionClause(over = collapse(c.over), all = c.all, list = collapse(c.list))
+
 collapse(c::WhereClause) =
     WhereClause(over = collapse(c.over), condition = collapse(c.condition))
 

@@ -352,6 +352,35 @@ function render(ctx, c::SelectClause)
     end
 end
 
+function render(ctx, c::UnionClause)
+    nested = ctx.nested
+    if nested
+        ctx.level += 1
+        print(ctx, '(')
+        newline(ctx)
+    end
+    ctx.nested = false
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    for l in c.list
+        newline(ctx)
+        print(ctx, "UNION")
+        if c.all
+            print(ctx, " ALL")
+        end
+        newline(ctx)
+        render(ctx, l)
+    end
+    ctx.nested = nested
+    if nested
+        ctx.level -= 1
+        newline(ctx)
+        print(ctx, ')')
+    end
+end
+
 function render(ctx, c::VariableClause)
     style = ctx.dialect.variable_style
     prefix = ctx.dialect.variable_prefix
