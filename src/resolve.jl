@@ -539,7 +539,7 @@ function resolve(n::AppendNode, req)
         name = base_res.repl[ref]
         if name in keys(seen)
             other_ref = seen[name]
-            if all(res.repl[ref] === res.repl[other_ref] for (as, res) in result)
+            if all(res.repl[ref] === res.repl[other_ref] for (as, res) in results)
                 dups[ref] = seen[name]
             end
         else
@@ -549,7 +549,7 @@ function resolve(n::AppendNode, req)
     repl = Dict{SQLNode, Symbol}()
     for ref in refs
         if ref in keys(dups)
-            repl[ref] = repl[dups[refs]]
+            repl[ref] = repl[dups[ref]]
         else
             name = default_alias(ref)
             @assert !(name in keys(repl))
