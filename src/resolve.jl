@@ -390,6 +390,19 @@ translate(::Val{Symbol("is not null")}, n::FunctionNode, treq) =
 translate(::Val{:case}, n::FunctionNode, treq) =
     CASE(args = SQLClause[translate(arg, treq) for arg in n.args])
 
+for (name, op) in (("between", "BETWEEN"), ("not between", "NOT BETWEEN"))
+    @eval begin
+        function translate(::Val{Symbol($name)}, n::FunctionNode, treq)
+            args = SQLClause[translate(arg, treq) for arg in n.args]
+            if length(args) == 3
+                OP($op, args[1], args[2], args[3] |> KW(:AND))
+            else
+                translate_default(n, treq)
+            end
+        end
+    end
+end
+
 translate(n::GetNode, treq) =
     throw(GetError(n.name, ambiguous = SQLNode(n) in treq.ambs))
 
