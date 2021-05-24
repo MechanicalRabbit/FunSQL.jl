@@ -153,6 +153,9 @@ end
 function decompose(c::WhereClause)
     d = decompose(c.over)
     condition′ = substitute(c.condition, d.subs)
+    if (@dissect condition′ LIT(val = val)) && val === true
+        return d
+    end
     if @dissect d.tail (tail := nothing || FROM() || JOIN())
         c′ = WHERE(over = tail, condition = condition′)
         return Decomposition(c′, d.subs)
