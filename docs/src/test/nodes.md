@@ -483,14 +483,14 @@ has no columns.
     empty = SQLTable(:empty, columns = Symbol[])
 
     q = From(empty) |>
-        Where(true) |>
+        Where(false) |>
         Select(list = [])
 
     display(q)
     #=>
     let empty = SQLTable(:empty, …),
         q1 = From(empty),
-        q2 = q1 |> Where(Lit(true)),
+        q2 = q1 |> Where(Lit(false)),
         q3 = q2 |> Select(list = [])
         q3
     end
@@ -500,7 +500,7 @@ has no columns.
     #=>
     SELECT TRUE
     FROM "empty" AS "empty_1"
-    WHERE TRUE
+    WHERE FALSE
     =#
 
 
