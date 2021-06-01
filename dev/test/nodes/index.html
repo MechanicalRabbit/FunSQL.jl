@@ -313,14 +313,14 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>From</code> and other subqueries generate a correct <code>SELECT</code> clause when the table has no columns.</p><pre><code class="language-julia">empty = SQLTable(:empty, columns = Symbol[])
 
 q = From(empty) |&gt;
-    Where(true) |&gt;
+    Where(false) |&gt;
     Select(list = [])
 
 display(q)
 #=&gt;
 let empty = SQLTable(:empty, …),
     q1 = From(empty),
-    q2 = q1 |&gt; Where(Lit(true)),
+    q2 = q1 |&gt; Where(Lit(false)),
     q3 = q2 |&gt; Select(list = [])
     q3
 end
@@ -330,7 +330,7 @@ print(render(q))
 #=&gt;
 SELECT TRUE
 FROM &quot;empty&quot; AS &quot;empty_1&quot;
-WHERE TRUE
+WHERE FALSE
 =#</code></pre><h2 id="Group"><a class="docs-heading-anchor" href="#Group"><code>Group</code></a><a id="Group-1"></a><a class="docs-heading-anchor-permalink" href="#Group" title="Permalink"></a></h2><p>The <code>Group</code> constructor creates a subquery that summarizes the rows partitioned by the given keys.</p><pre><code class="language-julia">q = From(person) |&gt;
     Group(Get.year_of_birth)
 #-&gt; (…) |&gt; Group(…)
@@ -693,4 +693,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 24 May 2021 05:28">Monday 24 May 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 1 June 2021 01:19">Tuesday 1 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
