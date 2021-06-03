@@ -672,6 +672,68 @@ A `HAVING` clause is created with `HAVING()` constructor.
     =#
 
 
+## `UNION` Clause.
+
+`UNION` and `UNION ALL` clauses are created with `UNION()` constructor.
+
+    c = FROM(:measurement) |>
+        SELECT(:person_id, :date => :measurement_date) |>
+        UNION(all = true,
+              FROM(:observation) |>
+              SELECT(:person_id, :date => :observation_date))
+    #-> (…) |> UNION(all = true, …)
+
+    display(c)
+    #=>
+    ID(:measurement) |>
+    FROM() |>
+    SELECT(ID(:person_id), ID(:measurement_date) |> AS(:date)) |>
+    UNION(all = true,
+          ID(:observation) |>
+          FROM() |>
+          SELECT(ID(:person_id), ID(:observation_date) |> AS(:date)))
+    =#
+
+    print(render(c))
+    #=>
+    SELECT "person_id", "measurement_date" AS "date"
+    FROM "measurement"
+    UNION ALL
+    SELECT "person_id", "observation_date" AS "date"
+    FROM "observation"
+    =#
+
+A `UNION` clause with no subqueries can be created explicitly.
+
+    UNION(list = [])
+    #-> UNION(list = [])
+
+Rendering a nested `UNION` clause adds parentheses around it.
+
+    c = FROM(:measurement) |>
+        SELECT(:person_id, :date => :measurement_date) |>
+        UNION(all = true,
+              FROM(:observation) |>
+              SELECT(:person_id, :date => :observation_date)) |>
+        FROM() |>
+        AS(:union) |>
+        WHERE(OP(">", ID(:date), Date(2000))) |>
+        SELECT(ID(:person_id))
+
+    print(render(c))
+    #=>
+    SELECT "person_id"
+    FROM (
+      SELECT "person_id", "measurement_date" AS "date"
+      FROM "measurement"
+      UNION ALL
+      SELECT "person_id", "observation_date" AS "date"
+      FROM "observation"
+    ) AS "union"
+    WHERE ("date" > '2000-01-01')
+    =#
+
+
 ## `WINDOW` Clause
 
 A `WINDOW` clause is created with `WINDOW()` constructor.
