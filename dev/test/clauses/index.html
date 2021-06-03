@@ -442,6 +442,53 @@ SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 GROUP BY &quot;year_of_birth&quot;
 HAVING (COUNT(*) &gt; 10)
+=#</code></pre><h2 id="UNION-Clause."><a class="docs-heading-anchor" href="#UNION-Clause."><code>UNION</code> Clause.</a><a id="UNION-Clause.-1"></a><a class="docs-heading-anchor-permalink" href="#UNION-Clause." title="Permalink"></a></h2><p><code>UNION</code> and <code>UNION ALL</code> clauses are created with <code>UNION()</code> constructor.</p><pre><code class="language-julia">c = FROM(:measurement) |&gt;
+    SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
+    UNION(all = true,
+          FROM(:observation) |&gt;
+          SELECT(:person_id, :date =&gt; :observation_date))
+#-&gt; (…) |&gt; UNION(all = true, …)
+
+display(c)
+#=&gt;
+ID(:measurement) |&gt;
+FROM() |&gt;
+SELECT(ID(:person_id), ID(:measurement_date) |&gt; AS(:date)) |&gt;
+UNION(all = true,
+      ID(:observation) |&gt;
+      FROM() |&gt;
+      SELECT(ID(:person_id), ID(:observation_date) |&gt; AS(:date)))
+=#
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;, &quot;measurement_date&quot; AS &quot;date&quot;
+FROM &quot;measurement&quot;
+UNION ALL
+SELECT &quot;person_id&quot;, &quot;observation_date&quot; AS &quot;date&quot;
+FROM &quot;observation&quot;
+=#</code></pre><p>A <code>UNION</code> clause with no subqueries can be created explicitly.</p><pre><code class="language-julia">UNION(list = [])
+#-&gt; UNION(list = [])</code></pre><p>Rendering a nested <code>UNION</code> clause adds parentheses around it.</p><pre><code class="language-julia">c = FROM(:measurement) |&gt;
+    SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
+    UNION(all = true,
+          FROM(:observation) |&gt;
+          SELECT(:person_id, :date =&gt; :observation_date)) |&gt;
+    FROM() |&gt;
+    AS(:union) |&gt;
+    WHERE(OP(&quot;&gt;&quot;, ID(:date), Date(2000))) |&gt;
+    SELECT(ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM (
+  SELECT &quot;person_id&quot;, &quot;measurement_date&quot; AS &quot;date&quot;
+  FROM &quot;measurement&quot;
+  UNION ALL
+  SELECT &quot;person_id&quot;, &quot;observation_date&quot; AS &quot;date&quot;
+  FROM &quot;observation&quot;
+) AS &quot;union&quot;
+WHERE (&quot;date&quot; &gt; &#39;2000-01-01&#39;)
 =#</code></pre><h2 id="WINDOW-Clause"><a class="docs-heading-anchor" href="#WINDOW-Clause"><code>WINDOW</code> Clause</a><a id="WINDOW-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WINDOW-Clause" title="Permalink"></a></h2><p>A <code>WINDOW</code> clause is created with <code>WINDOW()</code> constructor.</p><pre><code class="language-julia">c = FROM(:person) |&gt;
     WINDOW(:w1 =&gt; PARTITION(:gender_concept_id),
            :w2 =&gt; :w1 |&gt; PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
@@ -473,4 +520,4 @@ print(render(c |&gt; SELECT(AGG(&quot;ROW_NUMBER&quot;, over = PARTITION()))))
 #=&gt;
 SELECT (ROW_NUMBER() OVER ())
 FROM &quot;person&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 3 June 2021 19:48">Thursday 3 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 3 June 2021 21:28">Thursday 3 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
