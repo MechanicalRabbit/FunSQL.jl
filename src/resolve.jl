@@ -523,7 +523,7 @@ function resolve(n::SQLNode, req)
 end
 
 function resolve(::Nothing, req)
-    c = SELECT(list = SQLClause[true])
+    c = SELECT(list = SQLClause[missing])
     repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()
     ResolveResult(c, repl, ambs)
@@ -667,7 +667,7 @@ function resolve(n::DefineNode, req)
         end
     end
     if isempty(list)
-        push!(list, true)
+        push!(list, missing)
     end
     f = FROM(AS(over = base_res.clause, name = base_as))
     c = SELECT(over = f, list = list)
@@ -688,7 +688,7 @@ function resolve(n::FromNode, req)
                      for col in n.table.columns
                      if col in output_columns]
     if isempty(list)
-        push!(list, true)
+        push!(list, missing)
     end
     tbl = ID(over = n.table.schema, name = n.table.name)
     c = SELECT(over = FROM(AS(over = tbl, name = as)),
@@ -859,7 +859,7 @@ function resolve(n::JoinNode, req)
         push!(list, AS(over = id, name = name′))
     end
     if isempty(list)
-        push!(list, true)
+        push!(list, missing)
     end
     j = JOIN(over = FROM(AS(over = left_res.clause, name = left_as)),
              joinee = AS(over = right_res.clause, name = right_as),
@@ -933,7 +933,7 @@ function resolve(n::PartitionNode, req)
         end
     end
     if isempty(list)
-        push!(list, true)
+        push!(list, missing)
     end
     w = WINDOW(over = FROM(AS(over = base_res.clause, name = base_as)), list = [])
     c = SELECT(over = w, list = list)
@@ -970,7 +970,7 @@ function resolve(n::SelectNode, req)
         push!(list, c)
     end
     if isempty(list)
-        push!(list, true)
+        push!(list, missing)
     end
     c = SELECT(over = FROM(AS(over = base_res.clause, name = base_as)),
                list = list)
@@ -1020,7 +1020,7 @@ function resolve(n::WhereNode, req)
         end
     end
     if isempty(list)
-        push!(list, true)
+        push!(list, missing)
     end
     w = WHERE(over = FROM(AS(over = base_res.clause, name = base_as)),
               condition = condition)

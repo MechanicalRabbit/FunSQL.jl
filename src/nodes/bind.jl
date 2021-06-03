@@ -35,7 +35,7 @@ julia> print(render(q))
 SELECT "person_1"."person_id"
 FROM "person" AS "person_1"
 WHERE (EXISTS (
-  SELECT TRUE
+  SELECT NULL
   FROM "visit_occurrence" AS "visit_occurrence_1"
   WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
 ))

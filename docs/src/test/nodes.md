@@ -327,7 +327,7 @@ Query variables could be bound using the `Bind` constructor.
     SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (EXISTS (
-      SELECT TRUE
+      SELECT NULL
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
     ))
@@ -372,7 +372,7 @@ A function invocation may include a nested query.
     print(render(q))
     #=>
     SELECT (EXISTS (
-      SELECT TRUE
+      SELECT NULL
       FROM "person" AS "person_1"
       WHERE ("person_1"."year_of_birth" > 1950)
     )) AS "exists"
@@ -431,7 +431,7 @@ An alias to an expression can be added with the `As` constructor.
 
     print(render(q))
     #=>
-    SELECT TRUE
+    SELECT NULL
     FROM "person" AS "person_1"
     =#
 
@@ -498,7 +498,7 @@ has no columns.
 
     print(render(q))
     #=>
-    SELECT TRUE
+    SELECT NULL
     FROM "empty" AS "empty_1"
     WHERE FALSE
     =#
@@ -559,7 +559,7 @@ Partitions created by `Group` are summarized using aggregate expressions.
         Group()
 
     print(render(q))
-    #-> SELECT TRUE
+    #-> SELECT NULL
 
 `Group` requires all keys to have unique aliases.
 

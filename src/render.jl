@@ -43,7 +43,11 @@ render(ctx, ::Missing) =
     print(ctx, "NULL")
 
 render(ctx, val::Bool) =
-    print(ctx, val ? "TRUE" : "FALSE")
+    if ctx.dialect.name === :sqlserver
+        print(ctx, val ? "(1 = 1)" : "(1 = 0)")
+    else
+        print(ctx, val ? "TRUE" : "FALSE")
+    end
 
 render(ctx, val::Number) =
     print(ctx, val)
