@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v0.6.0
+
+- Add `Append` for creating `UNION ALL` queries.
+
+
 ## v0.5.1
 
 - Support for specifying the window frame.
