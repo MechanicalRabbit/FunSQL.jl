@@ -301,7 +301,11 @@ FROM (
   SELECT &quot;observation_1&quot;.&quot;person_id&quot;, &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
 ) AS &quot;union_1&quot;
-=#</code></pre><p>Without an explicit <code>Select</code>, the output of <code>Append</code> includes the common columns of the nested queries.</p><pre><code class="language-julia">q = measurement |&gt;
+=#</code></pre><p>An <code>Append</code> without any queries can be created explicitly.</p><pre><code class="language-julia">q = Append(list = [])
+#-&gt; Append(list = [])
+
+print(render(q))
+#-&gt; SELECT NULL</code></pre><p>Without an explicit <code>Select</code>, the output of <code>Append</code> includes the common columns of the nested queries.</p><pre><code class="language-julia">q = measurement |&gt;
     Append(observation)
 
 print(render(q))
@@ -738,4 +742,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 4 June 2021 02:25">Friday 4 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 4 June 2021 02:46">Friday 4 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
