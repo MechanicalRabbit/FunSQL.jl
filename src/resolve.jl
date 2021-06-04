@@ -578,6 +578,9 @@ function resolve(n::AppendNode, req)
             id = ID(over = as, name = res.repl[ref])
             push!(list, AS(over = id, name = name))
         end
+        if isempty(list)
+            push!(list, missing)
+        end
         c = SELECT(over = FROM(AS(over = res.clause, name = as)),
                    list = list)
         push!(cs, c)

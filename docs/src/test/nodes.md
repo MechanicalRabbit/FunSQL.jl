@@ -20,6 +20,12 @@ We start with specifying the database model.
     const visit_occurrence =
         SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
 
+    const measurement =
+        SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_date])
+
+    const observation =
+        SQLTable(:observation, columns = [:observation_id, :person_id, :observation_date])
+
 In FunSQL, a SQL query is generated from a tree of `SQLNode` objects.  The
 nodes are created using constructors with familiar SQL names and connected
 together using the chain (`|>`) operator.
@@ -395,6 +401,66 @@ A function invocation may include a nested query.
       FROM "concept" AS "concept_1"
       WHERE (("concept_1"."vocabulary_id" = 'Gender') AND ("concept_1"."concept_code" = 'F'))
     ))
+    =#
+
+
+## `Append`
+
+The `Append` constructor creates a subquery that merges the output
+of multiple queries.
+
+    q = From(measurement) |>
+        Define(:date => Get.measurement_date) |>
+        Append(From(observation) |>
+               Define(:date => Get.observation_date))
+    #-> (…) |> Append(…)
+
+    display(q)
+    #=>
+    let measurement = SQLTable(:measurement, …),
+        observation = SQLTable(:observation, …),
+        q1 = From(measurement),
+        q2 = q1 |> Define(Get.measurement_date |> As(:date)),
+        q3 = From(observation),
+        q4 = q3 |> Define(Get.observation_date |> As(:date)),
+        q5 = q2 |> Append(q4)
+        q5
+    end
+    =#
+
+    print(render(q |> Select(Get.person_id, Get.date)))
+    #=>
+    SELECT "union_1"."person_id", "union_1"."date"
+    FROM (
+      SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+      FROM "measurement" AS "measurement_1"
+      UNION ALL
+      SELECT "observation_1"."person_id", "observation_1"."observation_date" AS "date"
+      FROM "observation" AS "observation_1"
+    ) AS "union_1"
+    =#
+
+An `Append` without any queries can be created explicitly.
+
+    q = Append(list = [])
+    #-> Append(list = [])
+
+    print(render(q))
+    #-> SELECT NULL
+
+Without an explicit `Select`, the output of `Append` includes the common
+columns of the nested queries.
+
+    q = measurement |>
+        Append(observation)
+
+    print(render(q))
+    #=>
+    SELECT "measurement_1"."person_id"
+    FROM "measurement" AS "measurement_1"
+    UNION ALL
+    SELECT "observation_1"."person_id"
+    FROM "observation" AS "observation_1"
     =#
 
 
