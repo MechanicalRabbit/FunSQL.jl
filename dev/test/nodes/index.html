@@ -12,7 +12,13 @@ const person =
     SQLTable(:person, columns = [:person_id, :gender_concept_id, :year_of_birth, :month_of_birth, :day_of_birth, :birth_datetime, :location_id])
 
 const visit_occurrence =
-    SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLNode</code> objects.  The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia">q = From(person) |&gt;
+    SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
+
+const measurement =
+    SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_date])
+
+const observation =
+    SQLTable(:observation, columns = [:observation_id, :person_id, :observation_date])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLNode</code> objects.  The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia">q = From(person) |&gt;
     Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)) |&gt;
     Select(Get.person_id)
 #-&gt; (…) |&gt; Select(…)</code></pre><p>Displaying a <code>SQLNode</code> object shows how it was constructed.</p><pre><code class="language-julia">display(q)
@@ -266,6 +272,45 @@ WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; IN (
   FROM &quot;concept&quot; AS &quot;concept_1&quot;
   WHERE ((&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;Gender&#39;) AND (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;F&#39;))
 ))
+=#</code></pre><h2 id="Append"><a class="docs-heading-anchor" href="#Append"><code>Append</code></a><a id="Append-1"></a><a class="docs-heading-anchor-permalink" href="#Append" title="Permalink"></a></h2><p>The <code>Append</code> constructor creates a subquery that merges the output of multiple queries.</p><pre><code class="language-julia">q = From(measurement) |&gt;
+    Define(:date =&gt; Get.measurement_date) |&gt;
+    Append(From(observation) |&gt;
+           Define(:date =&gt; Get.observation_date))
+#-&gt; (…) |&gt; Append(…)
+
+display(q)
+#=&gt;
+let measurement = SQLTable(:measurement, …),
+    observation = SQLTable(:observation, …),
+    q1 = From(measurement),
+    q2 = q1 |&gt; Define(Get.measurement_date |&gt; As(:date)),
+    q3 = From(observation),
+    q4 = q3 |&gt; Define(Get.observation_date |&gt; As(:date)),
+    q5 = q2 |&gt; Append(q4)
+    q5
+end
+=#
+
+print(render(q |&gt; Select(Get.person_id, Get.date)))
+#=&gt;
+SELECT &quot;union_1&quot;.&quot;person_id&quot;, &quot;union_1&quot;.&quot;date&quot;
+FROM (
+  SELECT &quot;measurement_1&quot;.&quot;person_id&quot;, &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
+  FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
+  UNION ALL
+  SELECT &quot;observation_1&quot;.&quot;person_id&quot;, &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
+  FROM &quot;observation&quot; AS &quot;observation_1&quot;
+) AS &quot;union_1&quot;
+=#</code></pre><p>Without an explicit <code>Select</code>, the output of <code>Append</code> includes the common columns of the nested queries.</p><pre><code class="language-julia">q = measurement |&gt;
+    Append(observation)
+
+print(render(q))
+#=&gt;
+SELECT &quot;measurement_1&quot;.&quot;person_id&quot;
+FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
+UNION ALL
+SELECT &quot;observation_1&quot;.&quot;person_id&quot;
+FROM &quot;observation&quot; AS &quot;observation_1&quot;
 =#</code></pre><h2 id="As"><a class="docs-heading-anchor" href="#As"><code>As</code></a><a id="As-1"></a><a class="docs-heading-anchor-permalink" href="#As" title="Permalink"></a></h2><p>An alias to an expression can be added with the <code>As</code> constructor.</p><pre><code class="language-julia">e = 42 |&gt; As(:integer)
 #-&gt; (…) |&gt; As(:integer)
 
@@ -693,4 +738,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 3 June 2021 21:28">Thursday 3 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 4 June 2021 02:25">Friday 4 June 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
