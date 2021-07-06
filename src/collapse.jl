@@ -49,6 +49,9 @@ collapse(c::LimitClause) =
 collapse(c::OperatorClause) =
     OperatorClause(name = c.name, args = collapse(c.args))
 
+collapse(c::OrderClause) =
+    OrderClause(over = collapse(c.over), by = collapse(c.by))
+
 collapse(c::PartitionClause) =
     PartitionClause(over = collapse(c.over),
                     by = collapse(c.by),

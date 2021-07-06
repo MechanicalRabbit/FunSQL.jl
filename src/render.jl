@@ -270,6 +270,17 @@ function render(ctx, c::OperatorClause)
     end
 end
 
+function render(ctx, c::OrderClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    !isempty(c.by) || return
+    newline(ctx)
+    print(ctx, "ORDER BY ")
+    render(ctx, c.by)
+end
+
 function render(ctx, m::FrameMode)
     if m == FRAME_MODE.RANGE
         print(ctx, "RANGE")

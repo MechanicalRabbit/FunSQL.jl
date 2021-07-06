@@ -2,7 +2,7 @@
 
     using FunSQL:
         AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIMIT, LIT, OP,
-        PARTITION, SELECT, UNION, VAR, WHERE, WINDOW, pack, render
+        ORDER, PARTITION, SELECT, UNION, VAR, WHERE, WINDOW, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -819,6 +819,36 @@ A `HAVING` clause is created with `HAVING()` constructor.
     FROM "person"
     GROUP BY "year_of_birth"
     HAVING (COUNT(*) > 10)
+    =#
+
+
+## `ORDER` Clause
+
+An `ORDER BY` clause is created with `ORDER` constructor.
+
+    c = FROM(:person) |> ORDER(:year_of_birth)
+    #-> (…) |> ORDER(…)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> ORDER(ID(:year_of_birth))
+
+    print(render(c |> SELECT(:person_id)))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    ORDER BY "year_of_birth"
+    =#
+
+An `ORDER` constructor accepts an empty list, in which case, it is not
+rendered.
+
+    c = FROM(:person) |> ORDER()
+    #-> (…) |> ORDER()
+
+    print(render(c |> SELECT(:person_id)))
+    #=>
+    SELECT "person_id"
+    FROM "person"
     =#
 
 
