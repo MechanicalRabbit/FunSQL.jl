@@ -355,8 +355,6 @@ end
 for (name, op) in (:not => :NOT,
                    :like => :LIKE,
                    :exists => :EXISTS,
-                   :in => :IN,
-                   Symbol("not in") => Symbol("NOT IN"),
                    :(==) => Symbol("="),
                    :(!=) => Symbol("<>"))
     @eval begin
@@ -381,6 +379,19 @@ for (name, op, default) in ((:and, :AND, true), (:or, :OR, false))
     end
 end
 
+for (name, op, default) in (("in", "IN", false), ("not in", "NOT IN", true))
+    @eval begin
+        function translate(::Val{Symbol($name)}, n::FunctionNode, treq)
+            if length(n.args) <= 1
+                LIT($default)
+            else
+                args = translate(n.args, treq)
+                OP($op, args[1], FUN("", args = args[2:end]))
+            end
+        end
+    end
+end
+
 translate(::Val{Symbol("is null")}, n::FunctionNode, treq) =
     OP(:IS, SQLClause[translate(arg, treq) for arg in n.args]..., missing)
 
@@ -393,9 +404,22 @@ translate(::Val{:case}, n::FunctionNode, treq) =
 for (name, op) in (("between", "BETWEEN"), ("not between", "NOT BETWEEN"))
     @eval begin
         function translate(::Val{Symbol($name)}, n::FunctionNode, treq)
-            args = SQLClause[translate(arg, treq) for arg in n.args]
-            if length(args) == 3
+            if length(n.args) == 3
+                args = SQLClause[translate(arg, treq) for arg in n.args]
                 OP($op, args[1], args[2], args[3] |> KW(:AND))
+            else
+                translate_default(n, treq)
+            end
+        end
+    end
+end
+
+for (name, op) in (("current_date", "CURRENT_DATE"),
+                   ("current_timestamp", "CURRENT_TIMESTAMP"))
+    @eval begin
+        function translate(::Val{Symbol($name)}, n::FunctionNode, treq)
+            if isempty(n.args)
+                OP($op)
             else
                 translate_default(n, treq)
             end
