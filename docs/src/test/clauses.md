@@ -1,7 +1,7 @@
 # SQL Clauses
 
     using FunSQL:
-        AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
+        AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIMIT, LIT, OP,
         PARTITION, SELECT, UNION, VAR, WHERE, WINDOW, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
@@ -470,6 +470,128 @@ A `WHERE` clause is created with `WHERE()` constructor.
     SELECT "person_id"
     FROM "person"
     WHERE ("year_of_birth" > 2000)
+    =#
+
+
+## `LIMIT` Clause
+
+A `LIMIT/OFFSET` (or `OFFSET/FETCH`) clause is created with `LIMIT()`
+constructor.
+
+    c = FROM(:person) |> LIMIT(10)
+    #-> (…) |> LIMIT(10)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> LIMIT(10)
+
+    print(render(c |> SELECT(:person_id)))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    FETCH FIRST 10 ROWS ONLY
+    =#
+
+Non-standard MySQL and SQLite syntax is supported.
+
+    print(render(c |> SELECT(:person_id), dialect = :mysql))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    LIMIT 10
+    =#
+
+    print(render(c |> SELECT(:person_id), dialect = :sqlite))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    LIMIT 10
+    =#
+
+
+Both limit (the number of rows) and offset (number of rows to skip) can
+be specified.
+
+    c = FROM(:person) |> LIMIT(100, 10) |> SELECT(:person_id)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> LIMIT(100, 10) |> SELECT(ID(:person_id))
+
+    print(render(c))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    OFFSET 100 ROWS
+    FETCH NEXT 10 ROWS ONLY
+    =#
+
+    print(render(c, dialect = :mysql))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    LIMIT 100, 10
+    =#
+
+    print(render(c, dialect = :sqlite))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    LIMIT 10
+    OFFSET 100
+    =#
+
+Alternatively, both limit and offset can be specified as a unit range.
+
+    c = FROM(:person) |> LIMIT(101:110)
+
+    print(render(c |> SELECT(:person_id)))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    OFFSET 100 ROWS
+    FETCH NEXT 10 ROWS ONLY
+    =#
+
+It is possible to specify the offset without the limit.
+
+    c = FROM(:person) |> LIMIT(offset = 100) |> SELECT(:person_id)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> LIMIT(100, nothing) |> SELECT(ID(:person_id))
+
+    print(render(c))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    OFFSET 100 ROWS
+    =#
+
+    print(render(c, dialect = :mysql))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    LIMIT 100, 18446744073709551615
+    =#
+
+    print(render(c, dialect = :sqlite))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    LIMIT -1
+    OFFSET 100
+    =#
+
+It is possible to specify the limit with ties.
+
+    c = FROM(:person) |> LIMIT(10, with_ties = true) |> SELECT(:person_id)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> LIMIT(10, with_ties = true) |> SELECT(ID(:person_id))
+
+    print(render(c))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    FETCH FIRST 10 ROWS WITH TIES
     =#
 
 

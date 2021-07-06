@@ -22,8 +22,8 @@ if isempty(ARGS)
                 SQLTable,
                 Agg, Append, As, Bind, Define, From, Fun, Get, Group,
                 Highlight, Join, LeftJoin, Partition, Select, Var, Where,
-                AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIT, OP,
-                PARTITION, SELECT, UNION, VAR, WHERE, WINDOW,
+                AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIMIT,
+                LIT, OP, PARTITION, SELECT, UNION, VAR, WHERE, WINDOW,
                 render
             using Dates
         end)

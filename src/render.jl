@@ -217,6 +217,42 @@ function render(ctx, c::KeywordClause)
     end
 end
 
+function render(ctx, c::LimitClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    start = c.offset
+    count = c.limit
+    start !== nothing || count !== nothing || return
+    if ctx.dialect.name === :mysql
+        newline(ctx)
+        print(ctx, "LIMIT ")
+        if start !== nothing
+            print(ctx, start, ", ")
+        end
+        print(ctx, count !== nothing ? count : "18446744073709551615")
+    elseif ctx.dialect.name === :sqlite
+        newline(ctx)
+        print(ctx, "LIMIT ", count !== nothing ? count : -1)
+        if start !== nothing
+            newline(ctx)
+            print(ctx, "OFFSET ", start)
+        end
+    else
+        if start !== nothing
+            newline(ctx)
+            print(ctx, "OFFSET ", start, start == 1 ? " ROW" : " ROWS")
+        end
+        if count !== nothing
+            newline(ctx)
+            print(ctx, start === nothing ? "FETCH FIRST " : "FETCH NEXT ",
+                       count, count == 1 ? " ROW" : " ROWS",
+                       c.with_ties ? " WITH TIES" : " ONLY")
+        end
+    end
+end
+
 render(ctx, c::LiteralClause) =
     render(ctx, c.val)
 
