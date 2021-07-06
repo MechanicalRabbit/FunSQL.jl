@@ -386,7 +386,11 @@ for (name, op, default) in (("in", "IN", false), ("not in", "NOT IN", true))
                 LIT($default)
             else
                 args = translate(n.args, treq)
-                OP($op, args[1], FUN("", args = args[2:end]))
+                if length(args) == 2 && @dissect args[2] (SELECT() || UNION())
+                    OP($op, args = args)
+                else
+                    OP($op, args[1], FUN("", args = args[2:end]))
+                end
             end
         end
     end
