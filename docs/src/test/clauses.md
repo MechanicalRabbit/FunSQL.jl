@@ -436,6 +436,34 @@ The `DISTINCT` modifier can be added from the constructor.
     FROM "location"
     =#
 
+A `TOP` modifier could be specified.
+
+    c = FROM(:person) |> SELECT(top = 1, :person_id)
+
+    display(c)
+    #-> ID(:person) |> FROM() |> SELECT(top = 1, ID(:person_id))
+
+    print(render(c))
+    #=>
+    SELECT TOP 1 "person_id"
+    FROM "person"
+    =#
+
+    c = FROM(:person) |> SELECT(top = (limit = 1, with_ties = true), :person_id)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    FROM() |>
+    SELECT(top = (limit = 1, with_ties = true), ID(:person_id))
+    =#
+
+    print(render(c))
+    #=>
+    SELECT TOP 1 WITH TIES "person_id"
+    FROM "person"
+    =#
+
 A `SELECT` clause with an empty list can be created explicitly.
 
     c = SELECT(list = [])

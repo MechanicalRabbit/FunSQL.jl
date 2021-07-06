@@ -43,6 +43,9 @@ collapse(c::JoinClause) =
 collapse(c::KeywordClause) =
     KeywordClause(over = collapse(c.over), name = c.name)
 
+collapse(c::LimitClause) =
+    LimitClause(over = collapse(c.over), limit = c.limit, offset = c.offset, with_ties = c.with_ties)
+
 collapse(c::OperatorClause) =
     OperatorClause(name = c.name, args = collapse(c.args))
 
@@ -57,7 +60,7 @@ function collapse(c::SelectClause)
     list′ = collapse(c.list)
     d = decompose(over′)
     list′ = substitute(list′, d.subs)
-    SelectClause(over = d.tail, distinct = c.distinct, list = unalias(list′))
+    SelectClause(over = d.tail, top = c.top, distinct = c.distinct, list = unalias(list′))
 end
 
 collapse(c::UnionClause) =
@@ -93,7 +96,7 @@ decompose(::Nothing) =
 
 function decompose(c::FromClause)
     if @dissect c.over (tail |>
-                        SELECT(distinct = false, list = select_list) |>
+                        SELECT(top = nothing, distinct = false, list = select_list) |>
                         AS(name = alias))
         subs = substitutions(alias, select_list)
         subs !== nothing || return
@@ -117,7 +120,7 @@ function decompose(c::JoinClause)
     subs = Dict{Tuple{Symbol, Symbol}, SQLClause}()
     if @dissect c.joinee ((table := (nothing |> ID() |> AS())) |>
                           FROM() |>
-                          SELECT(distinct = false, list = select_list) |>
+                          SELECT(top = nothing, distinct = false, list = select_list) |>
                           AS(name = alias))
         joinee′ = table
         substitutions!(subs, alias, select_list)

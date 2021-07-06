@@ -373,6 +373,13 @@ function render(ctx, c::SelectClause)
     end
     ctx.nested = true
     print(ctx, "SELECT")
+    top = c.top
+    if top !== nothing
+        print(ctx, " TOP ", top.limit)
+        if top.with_ties
+            print(ctx, " WITH TIES")
+        end
+    end
     if c.distinct
         print(ctx, " DISTINCT")
     end
