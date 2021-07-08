@@ -410,6 +410,23 @@ function render(ctx, c::SelectClause)
     end
 end
 
+function render(ctx, c::SortClause)
+    over = c.over
+    if over !== nothing
+        render(ctx, over)
+    end
+    if c.value == VALUE_ORDER.ASC
+        print(ctx, " ASC")
+    elseif c.value == VALUE_ORDER.DESC
+        print(ctx, " DESC")
+    end
+    if c.nulls == NULLS_ORDER.NULLS_FIRST
+        print(ctx, " NULLS FIRST")
+    elseif c.nulls == NULLS_ORDER.NULLS_LAST
+        print(ctx, " NULLS LAST")
+    end
+end
+
 function render(ctx, c::UnionClause)
     nested = ctx.nested
     if nested

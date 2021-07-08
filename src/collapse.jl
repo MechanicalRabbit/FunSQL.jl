@@ -66,6 +66,9 @@ function collapse(c::SelectClause)
     SelectClause(over = d.tail, top = c.top, distinct = c.distinct, list = unalias(list′))
 end
 
+collapse(c::SortClause) =
+    SortClause(over = collapse(c.over), value = c.value, nulls = c.nulls)
+
 collapse(c::UnionClause) =
     UnionClause(over = collapse(c.over), all = c.all, list = collapse(c.list))
 

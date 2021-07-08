@@ -1,8 +1,9 @@
 # SQL Clauses
 
     using FunSQL:
-        AGG, AS, CASE, FROM, FUN, GROUP, HAVING, ID, JOIN, KW, LIMIT, LIT, OP,
-        ORDER, PARTITION, SELECT, UNION, VAR, WHERE, WINDOW, pack, render
+        AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
+        LIMIT, LIT, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR, WHERE,
+        WINDOW, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -449,12 +450,15 @@ A `TOP` modifier could be specified.
     FROM "person"
     =#
 
-    c = FROM(:person) |> SELECT(top = (limit = 1, with_ties = true), :person_id)
+    c = FROM(:person) |>
+        ORDER(:year_of_birth) |>
+        SELECT(top = (limit = 1, with_ties = true), :person_id)
 
     display(c)
     #=>
     ID(:person) |>
     FROM() |>
+    ORDER(ID(:year_of_birth)) |>
     SELECT(top = (limit = 1, with_ties = true), ID(:person_id))
     =#
 
@@ -462,6 +466,7 @@ A `TOP` modifier could be specified.
     #=>
     SELECT TOP 1 WITH TIES "person_id"
     FROM "person"
+    ORDER BY "year_of_birth"
     =#
 
 A `SELECT` clause with an empty list can be created explicitly.
@@ -610,15 +615,25 @@ It is possible to specify the offset without the limit.
 
 It is possible to specify the limit with ties.
 
-    c = FROM(:person) |> LIMIT(10, with_ties = true) |> SELECT(:person_id)
+    c = FROM(:person) |>
+        ORDER(:year_of_birth) |>
+        LIMIT(10, with_ties = true) |>
+        SELECT(:person_id)
 
     display(c)
-    #-> ID(:person) |> FROM() |> LIMIT(10, with_ties = true) |> SELECT(ID(:person_id))
+    #=>
+    ID(:person) |>
+    FROM() |>
+    ORDER(ID(:year_of_birth)) |>
+    LIMIT(10, with_ties = true) |>
+    SELECT(ID(:person_id))
+    =#
 
     print(render(c))
     #=>
     SELECT "person_id"
     FROM "person"
+    ORDER BY "year_of_birth"
     FETCH FIRST 10 ROWS WITH TIES
     =#
 
@@ -734,9 +749,11 @@ A `JOIN LATERAL` clause can be created.
     c = FROM(:p => :person) |>
         JOIN(:vo => FROM(:vo => :visit_occurrence) |>
                     WHERE(OP("=", (:p, :person_id), (:vo, :person_id))) |>
-                    # TODO: add ORDER BY and LIMIT when they are implemented
+                    ORDER((:vo, :visit_start_date) |> DESC()) |>
+                    LIMIT(1) |>
                     SELECT((:vo, :visit_start_date)),
              on = true,
+             left = true,
              lateral = true)
 
     display(c)
@@ -748,9 +765,12 @@ A `JOIN LATERAL` clause can be created.
          AS(:vo) |>
          FROM() |>
          WHERE(OP("=", ID(:p) |> ID(:person_id), ID(:vo) |> ID(:person_id))) |>
+         ORDER(ID(:vo) |> ID(:visit_start_date) |> DESC()) |>
+         LIMIT(1) |>
          SELECT(ID(:vo) |> ID(:visit_start_date)) |>
          AS(:vo),
          LIT(true),
+         left = true,
          lateral = true)
     =#
 
@@ -758,11 +778,13 @@ A `JOIN LATERAL` clause can be created.
     #=>
     SELECT "p"."person_id", "vo"."visit_start_date"
     FROM "person" AS "p"
-    CROSS JOIN LATERAL (
+    LEFT JOIN LATERAL (
       SELECT "vo"."visit_start_date"
       FROM "visit_occurrence" AS "vo"
       WHERE ("p"."person_id" = "vo"."person_id")
-    ) AS "vo"
+      ORDER BY "vo"."visit_start_date" DESC
+      FETCH FIRST 1 ROW ONLY
+    ) AS "vo" ON TRUE
     =#
 
 
@@ -849,6 +871,29 @@ rendered.
     #=>
     SELECT "person_id"
     FROM "person"
+    =#
+
+It is possible to specify ascending or descending order of the sort column.
+
+    c = FROM(:person) |>
+        ORDER(:year_of_birth |> DESC(nulls = :first),
+              :person_id |> ASC()) |>
+        SELECT(:person_id)
+
+    display(c)
+    #=>
+    ID(:person) |>
+    FROM() |>
+    ORDER(ID(:year_of_birth) |> DESC(nulls = :NULLS_FIRST),
+          ID(:person_id) |> ASC()) |>
+    SELECT(ID(:person_id))
+    =#
+
+    print(render(c))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    ORDER BY "year_of_birth" DESC NULLS FIRST, "person_id" ASC
     =#
 
 
