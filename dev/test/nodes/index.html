@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Nodes · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../tutorial/">Tutorial</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Nodes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Nodes</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/nodes.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Nodes"><a class="docs-heading-anchor" href="#SQL-Nodes">SQL Nodes</a><a id="SQL-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Nodes" title="Permalink"></a></h1><pre><code class="language-julia">using FunSQL:
-    Agg, Append, As, Bind, Define, Fun, From, Get, Group, Highlight, Join,
-    LeftJoin, Lit, Partition, SQLNode, SQLTable, Select, Var, Where,
-    render, resolve</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia">const concept =
+    Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
+    Highlight, Join, LeftJoin, Lit, Order, Partition, SQLNode, SQLTable,
+    Select, Sort, Var, Where, render, resolve</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia">const concept =
     SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code])
 
 const location =
@@ -634,6 +634,72 @@ CROSS JOIN LATERAL (
   ) AS &quot;visit_occurrence_4&quot;
   WHERE (&quot;visit_occurrence_4&quot;.&quot;row_number&quot; = 1)
 ) AS &quot;visit_1&quot;
+=#</code></pre><h2 id="Order"><a class="docs-heading-anchor" href="#Order"><code>Order</code></a><a id="Order-1"></a><a class="docs-heading-anchor-permalink" href="#Order" title="Permalink"></a></h2><p>The <code>Order</code> constructor creates a subquery for sorting the data.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Order(Get.year_of_birth)
+#-&gt; (…) |&gt; Order(…)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Order(Get.year_of_birth)
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+=#</code></pre><p>It is possible to specify ascending or descending order of the sort column.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Order(Get.year_of_birth |&gt; Desc(nulls = :first),
+          Get.person_id |&gt; Asc())
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Order(Get.year_of_birth |&gt; Desc(nulls = :NULLS_FIRST),
+               Get.person_id |&gt; Asc())
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST, &quot;person_1&quot;.&quot;person_id&quot; ASC
+=#</code></pre><p>A generic <code>Sort</code> constructor could also be used for this purpose.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Order(Get.year_of_birth |&gt; Sort(:desc, nulls = :first),
+          Get.person_id |&gt; Sort(:asc))
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST, &quot;person_1&quot;.&quot;person_id&quot; ASC
+=#</code></pre><p><code>Order</code> could be used to take a slice of the dataset.</p><pre><code class="language-julia">q = From(person) |&gt;
+    Order(Get.person_id, offset = 100, limit = 10)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Order(Get.person_id, offset = 100, limit = 10)
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;person_id&quot;
+OFFSET 100 ROWS
+FETCH NEXT 10 ROWS ONLY
 =#</code></pre><h2 id="Select"><a class="docs-heading-anchor" href="#Select"><code>Select</code></a><a id="Select-1"></a><a class="docs-heading-anchor-permalink" href="#Select" title="Permalink"></a></h2><p>The <code>Select</code> constructor creates a subquery that fixes the output columns.</p><pre><code class="language-julia">q = From(person) |&gt;
     Select(Get.person_id)
 #-&gt; (…) |&gt; Select(…)
@@ -742,4 +808,4 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Thursday 8 July 2021 10:48">Thursday 8 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.3 on <span class="colophon-date" title="Thursday 8 July 2021 14:17">Thursday 8 July 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
