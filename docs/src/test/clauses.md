@@ -896,6 +896,20 @@ It is possible to specify ascending or descending order of the sort column.
     ORDER BY "year_of_birth" DESC NULLS FIRST, "person_id" ASC
     =#
 
+Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
+
+    c = FROM(:person) |>
+        ORDER(:year_of_birth |> SORT(:desc, nulls = :first),
+              :person_id |> SORT(:asc)) |>
+        SELECT(:person_id)
+
+    print(render(c))
+    #=>
+    SELECT "person_id"
+    FROM "person"
+    ORDER BY "year_of_birth" DESC NULLS FIRST, "person_id" ASC
+    =#
+
 
 ## `UNION` Clause.
 

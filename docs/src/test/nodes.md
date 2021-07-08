@@ -1,9 +1,9 @@
 # SQL Nodes
 
     using FunSQL:
-        Agg, Append, As, Bind, Define, Fun, From, Get, Group, Highlight, Join,
-        LeftJoin, Lit, Partition, SQLNode, SQLTable, Select, Var, Where,
-        render, resolve
+        Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
+        Highlight, Join, LeftJoin, Lit, Order, Partition, SQLNode, SQLTable,
+        Select, Sort, Var, Where, render, resolve
 
 We start with specifying the database model.
 
@@ -894,6 +894,92 @@ Nested subqueries that are combined with `Join` may fail to collapse.
       ) AS "visit_occurrence_4"
       WHERE ("visit_occurrence_4"."row_number" = 1)
     ) AS "visit_1"
+    =#
+
+
+## `Order`
+
+The `Order` constructor creates a subquery for sorting the data.
+
+    q = From(person) |>
+        Order(Get.year_of_birth)
+    #-> (…) |> Order(…)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Order(Get.year_of_birth)
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."year_of_birth"
+    =#
+
+It is possible to specify ascending or descending order of the sort
+column.
+
+    q = From(person) |>
+        Order(Get.year_of_birth |> Desc(nulls = :first),
+              Get.person_id |> Asc())
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Order(Get.year_of_birth |> Desc(nulls = :NULLS_FIRST),
+                   Get.person_id |> Asc())
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."year_of_birth" DESC NULLS FIRST, "person_1"."person_id" ASC
+    =#
+
+A generic `Sort` constructor could also be used for this purpose.
+
+    q = From(person) |>
+        Order(Get.year_of_birth |> Sort(:desc, nulls = :first),
+              Get.person_id |> Sort(:asc))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."year_of_birth" DESC NULLS FIRST, "person_1"."person_id" ASC
+    =#
+
+`Order` could be used to take a slice of the dataset.
+
+    q = From(person) |>
+        Order(Get.person_id, offset = 100, limit = 10)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Order(Get.person_id, offset = 100, limit = 10)
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."person_id"
+    OFFSET 100 ROWS
+    FETCH NEXT 10 ROWS ONLY
     =#
 
 

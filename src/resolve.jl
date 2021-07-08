@@ -157,7 +157,7 @@ default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
 default_alias(::AppendNode) =
     :union
 
-default_alias(n::Union{BindNode, DefineNode, GroupNode, HighlightNode, JoinNode, PartitionNode, SelectNode, WhereNode}) =
+default_alias(n::Union{BindNode, DefineNode, GroupNode, HighlightNode, JoinNode, OrderNode, PartitionNode, SelectNode, SortNode, WhereNode}) =
     default_alias(n.over)
 
 default_alias(n::FromNode) =
@@ -181,7 +181,7 @@ function default_list(n::AppendNode)
     SQLNode[Get(over = n, name = name) for name in names]
 end
 
-default_list(n::Union{BindNode, DefineNode, HighlightNode, PartitionNode, WhereNode}) =
+default_list(n::Union{BindNode, DefineNode, HighlightNode, OrderNode, PartitionNode, WhereNode}) =
     default_list(n.over)
 
 default_list(n::FromNode) =
@@ -218,7 +218,7 @@ function gather!(refs::Vector{SQLNode}, n::Union{AggregateNode, GetNode})
     push!(refs, n)
 end
 
-gather!(refs::Vector{SQLNode}, n::Union{AsNode, HighlightNode}) =
+gather!(refs::Vector{SQLNode}, n::Union{AsNode, HighlightNode, SortNode}) =
     gather!(refs, n.over)
 
 function gather!(refs::Vector{SQLNode}, n::BindNode)
@@ -430,6 +430,9 @@ for (name, op) in (("current_date", "CURRENT_DATE"),
         end
     end
 end
+
+translate(n::SortNode, treq) =
+    SORT(over = translate(n.over, treq), value = n.value, nulls = n.nulls)
 
 translate(n::GetNode, treq) =
     throw(GetError(n.name, ambiguous = SQLNode(n) in treq.ambs))
@@ -899,6 +902,50 @@ function resolve(n::JoinNode, req)
              right = n.right,
              lateral = lateral)
     c = SELECT(over = j, list = list)
+    ResolveResult(c, repl, ambs)
+end
+
+function resolve(n::OrderNode, req)
+    base_refs = SQLNode[]
+    gather!(base_refs, n.by)
+    append!(base_refs, req.refs)
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    base_res = resolve(n.over, base_req)
+    base_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in base_res.repl
+        subs[ref] = ID(over = base_as, name = name)
+    end
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    by = translate(n.by, treq)
+    list = SQLClause[]
+    repl = Dict{SQLNode, Symbol}()
+    ambs = Set{SQLNode}()
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if ref in keys(base_res.repl)
+            name = base_res.repl[ref]
+            repl[ref] = name
+            !(name in seen) || continue
+            push!(seen, name)
+            id = ID(over = base_as, name = name)
+            push!(list, AS(over = id, name = name))
+        end
+        if ref in base_res.ambs
+            push!(ambs, ref)
+        end
+    end
+    if isempty(list)
+        push!(list, missing)
+    end
+    o = ORDER(over = FROM(AS(over = base_res.clause, name = base_as)),
+              by = by)
+    if n.offset !== nothing || n.limit !== nothing
+        l = LIMIT(over = o, offset = n.offset, limit = n.limit)
+    else
+        l = o
+    end
+    c = SELECT(over = l, list = list)
     ResolveResult(c, repl, ambs)
 end
 

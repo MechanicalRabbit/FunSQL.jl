@@ -18,7 +18,9 @@ WhereNode(condition; over = nothing) =
 A subquery that filters by the given `condition`.
 
 ```sql
-SELECT ... FROM \$over WHERE \$condition
+SELECT ...
+FROM \$over
+WHERE \$condition
 ```
 
 # Examples

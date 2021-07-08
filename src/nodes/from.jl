@@ -17,7 +17,8 @@ FromNode(table) =
 A subquery that selects columns from the given table.
 
 ```sql
-SELECT ... FROM \$table
+SELECT ...
+FROM \$table
 ```
 
 # Examples

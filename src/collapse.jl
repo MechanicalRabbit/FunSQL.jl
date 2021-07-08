@@ -145,6 +145,27 @@ function decompose(c::JoinClause)
     Decomposition(c′, subs)
 end
 
+function decompose(c::OrderClause)
+    d = decompose(c.over)
+    by′ = substitute(c.by, d.subs)
+    if @dissect d.tail (tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
+        c′ = ORDER(over = tail, by = by′)
+        return Decomposition(c′, d.subs)
+    else
+        return nothing
+    end
+end
+
+function decompose(c::LimitClause)
+    d = decompose(c.over)
+    if @dissect d.tail (tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING() || ORDER())
+        c′ = LIMIT(over = tail, offset = c.offset, limit = c.limit)
+        return Decomposition(c′, d.subs)
+    else
+        return nothing
+    end
+end
+
 function merge_conditions(c1, c2)
     if @dissect c1 OP(name = :AND, args = args1)
         if @dissect c2 OP(name = :AND, args = args2)

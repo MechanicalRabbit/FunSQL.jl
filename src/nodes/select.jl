@@ -18,7 +18,8 @@ SelectNode(list...; over = nothing) =
 A subquery that fixes the `list` of output columns.
 
 ```sql
-SELECT \$list... FROM \$over
+SELECT \$list...
+FROM \$over
 ```
 
 # Examples

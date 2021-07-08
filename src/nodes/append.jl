@@ -18,9 +18,11 @@ AppendNode(list...; over = nothing) =
 A subquery that combines subqueries using `UNION ALL`.
 
 ```sql
-SELECT ... FROM \$over
+SELECT ...
+FROM \$over
 UNION ALL
-SELECT ... FROM \$(list[1])
+SELECT ...
+FROM \$(list[1])
 UNION ALL
 ...
 ```

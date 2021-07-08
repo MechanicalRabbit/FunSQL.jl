@@ -25,7 +25,9 @@ JoinNode(joinee, on; over = nothing, left = false, right = false) =
 A subquery that joins two subqueries together.
 
 ```sql
-SELECT ... FROM \$over JOIN \$joinee ON \$on
+SELECT ...
+FROM \$over
+JOIN \$joinee ON \$on
 ```
 
 # Examples

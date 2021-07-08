@@ -14,7 +14,7 @@ AsNode(name; over = nothing) =
     AsNode(over = over, name = name)
 
 """
-    As(; over = nothing; name)
+    As(; over = nothing, name)
     As(name; over = nothing)
     name => over
 

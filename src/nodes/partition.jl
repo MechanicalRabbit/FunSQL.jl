@@ -20,7 +20,9 @@ PartitionNode(by...; over = nothing, order_by = SQLNode[], frame = nothing) =
 A subquery that partitions rows `by` a list of keys.
 
 ```sql
-SELECT ... FROM \$over WINDOW w AS (PARTITION BY \$by... ORDER BY \$order_by...)
+SELECT ...
+FROM \$over
+WINDOW w AS (PARTITION BY \$by... ORDER BY \$order_by...)
 ```
 
 # Examples

@@ -18,7 +18,9 @@ GroupNode(by...; over = nothing) =
 A subquery that groups rows `by` a list of keys.
 
 ```sql
-SELECT ... FROM \$over GROUP BY \$by...
+SELECT ...
+FROM \$over
+GROUP BY \$by...
 ```
 
 # Examples
