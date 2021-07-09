@@ -1,6 +1,13 @@
 # Release Notes
 
 
+## v0.7.0
+
+- Add `Order`, `Asc`, `Desc`.
+- Add `Limit`.
+- `Fun.in` with a list, `Fun.current_timestamp`.
+
+
 ## v0.6.0
 
 - Add `Append` for creating `UNION ALL` queries.
