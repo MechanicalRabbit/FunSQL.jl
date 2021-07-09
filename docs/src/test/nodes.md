@@ -2,8 +2,8 @@
 
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
-        Highlight, Join, LeftJoin, Lit, Order, Partition, SQLNode, SQLTable,
-        Select, Sort, Var, Where, render, resolve
+        Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLNode,
+        SQLTable, Select, Sort, Var, Where, render, resolve
 
 We start with specifying the database model.
 
@@ -959,19 +959,63 @@ A generic `Sort` constructor could also be used for this purpose.
     ORDER BY "person_1"."year_of_birth" DESC NULLS FIRST, "person_1"."person_id" ASC
     =#
 
-`Order` could be used to take a slice of the dataset.
+
+## `Limit`
+
+The `Limit` constructor creates a subquery that takes a fixed-size slice of the
+dataset.
 
     q = From(person) |>
-        Order(Get.person_id, offset = 100, limit = 10)
+        Order(Get.person_id) |>
+        Limit(10)
+    #-> (…) |> Limit(10)
 
     display(q)
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Order(Get.person_id, offset = 100, limit = 10)
-        q2
+        q2 = q1 |> Order(Get.person_id),
+        q3 = q2 |> Limit(10)
+        q3
     end
     =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."person_id"
+    FETCH FIRST 10 ROWS ONLY
+    =#
+
+Both the offset and the limit can be specified.
+
+    q = From(person) |>
+        Order(Get.person_id) |>
+        Limit(100, 10)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Order(Get.person_id),
+        q3 = q2 |> Limit(100, 10)
+        q3
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."person_id"
+    OFFSET 100 ROWS
+    FETCH NEXT 10 ROWS ONLY
+    =#
+
+    q = From(person) |>
+        Order(Get.person_id) |>
+        Limit(101:110)
 
     print(render(q))
     #=>

@@ -157,7 +157,7 @@ default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
 default_alias(::AppendNode) =
     :union
 
-default_alias(n::Union{BindNode, DefineNode, GroupNode, HighlightNode, JoinNode, OrderNode, PartitionNode, SelectNode, SortNode, WhereNode}) =
+default_alias(n::Union{BindNode, DefineNode, GroupNode, HighlightNode, JoinNode, LimitNode, OrderNode, PartitionNode, SelectNode, SortNode, WhereNode}) =
     default_alias(n.over)
 
 default_alias(n::FromNode) =
@@ -181,7 +181,7 @@ function default_list(n::AppendNode)
     SQLNode[Get(over = n, name = name) for name in names]
 end
 
-default_list(n::Union{BindNode, DefineNode, HighlightNode, OrderNode, PartitionNode, WhereNode}) =
+default_list(n::Union{BindNode, DefineNode, HighlightNode, LimitNode, OrderNode, PartitionNode, WhereNode}) =
     default_list(n.over)
 
 default_list(n::FromNode) =
@@ -905,6 +905,45 @@ function resolve(n::JoinNode, req)
     ResolveResult(c, repl, ambs)
 end
 
+function resolve(n::LimitNode, req)
+    base_req = ResolveRequest(req.ctx, refs = req.refs)
+    base_res = resolve(n.over, base_req)
+    base_as = allocate_alias(req.ctx, n.over)
+    subs = Dict{SQLNode, SQLClause}()
+    for (ref, name) in base_res.repl
+        subs[ref] = ID(over = base_as, name = name)
+    end
+    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    list = SQLClause[]
+    repl = Dict{SQLNode, Symbol}()
+    ambs = Set{SQLNode}()
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if ref in keys(base_res.repl)
+            name = base_res.repl[ref]
+            repl[ref] = name
+            !(name in seen) || continue
+            push!(seen, name)
+            id = ID(over = base_as, name = name)
+            push!(list, AS(over = id, name = name))
+        end
+        if ref in base_res.ambs
+            push!(ambs, ref)
+        end
+    end
+    if isempty(list)
+        push!(list, missing)
+    end
+    f = FROM(AS(over = base_res.clause, name = base_as))
+    if n.offset !== nothing || n.limit !== nothing
+        l = LIMIT(over = f, offset = n.offset, limit = n.limit)
+    else
+        l = f
+    end
+    c = SELECT(over = l, list = list)
+    ResolveResult(c, repl, ambs)
+end
+
 function resolve(n::OrderNode, req)
     base_refs = SQLNode[]
     gather!(base_refs, n.by)
@@ -938,14 +977,13 @@ function resolve(n::OrderNode, req)
     if isempty(list)
         push!(list, missing)
     end
-    o = ORDER(over = FROM(AS(over = base_res.clause, name = base_as)),
-              by = by)
-    if n.offset !== nothing || n.limit !== nothing
-        l = LIMIT(over = o, offset = n.offset, limit = n.limit)
+    f = FROM(AS(over = base_res.clause, name = base_as))
+    if !isempty(by)
+        o = ORDER(over = f, by = by)
     else
-        l = o
+        o = f
     end
-    c = SELECT(over = l, list = list)
+    c = SELECT(over = o, list = list)
     ResolveResult(c, repl, ambs)
 end
 
