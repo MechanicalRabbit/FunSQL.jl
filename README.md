@@ -18,8 +18,6 @@ FunSQL allows you to build queries incrementally from small independent
 fragments. This approach is particularly useful for building applications that
 programmatically construct SQL queries.
 
-For a fully functional prototype, see the [prototype] branch.
-
 
 [docs-rel-img]: https://img.shields.io/badge/docs-stable-green.svg
 [docs-rel-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/
@@ -35,4 +33,3 @@ For a fully functional prototype, see the [prototype] branch.
 [codecov-url]: https://codecov.io/gh/MechanicalRabbit/FunSQL.jl
 [license-img]: https://img.shields.io/badge/license-MIT-blue.svg
 [license-url]: https://raw.githubusercontent.com/MechanicalRabbit/FunSQL.jl/master/LICENSE.md
-[prototype]: https://github.com/MechanicalRabbit/FunSQL.jl/tree/prototype
