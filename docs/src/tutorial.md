@@ -49,10 +49,10 @@ tutorial, we will only use a small fragment of the Common Data Model.
 
 ![ERD](erd.drawio.svg)
 
-Before we can start assembling queries with FunSQL, we need to describe
-the database schema.  Specifically, for each table in the database, we
-need to create a corresponding `SQLTable` object, which will encapsulate the
-name of the table and the list of available columns.
+Before we can start assembling queries with FunSQL, we need to make FunSQL
+aware of the database schema.  Specifically, for each table in the database, we
+need to create a corresponding `SQLTable` object, which encapsulates the table
+name and its columns.
 
     using FunSQL: SQLTable
 
@@ -68,12 +68,11 @@ Patient addresses are stored in a separate table `location`, linked to the
 
     const location =
         SQLTable(:location,
-                 columns = [:location_id, :state, :zip])
+                 columns = [:location_id, :city, :state])
 
-The bulk of patient data consists of clinical events: encounters with
-healthcare providers, recorded observations, diagnosed conditions, prescribed
-medications, etc.  In this tutorial we will only use two types of events:
-visits and conditions.
+The bulk of patient data consists of clinical events: visits to healthcare
+providers, recorded observations, diagnosed conditions, prescribed medications,
+etc.  In this tutorial we only use two types of events: visits and conditions.
 
     const visit_occurrence =
         SQLTable(:visit_occurrence,
@@ -88,7 +87,7 @@ visits and conditions.
                             :condition_start_date, :condition_end_date])
 
 The specific type of the event (e.g., *Inpatient* visit or *Essential
-hypertension* condition) is indicated using a *concept_id* column, which
+hypertension* condition) is indicated using a *concept id* column, which
 links to the `concept` table.
 
     const concept =
@@ -107,18 +106,29 @@ corresponding table.
 
 ## First Query
 
-When was the last time each person born in 1950 or earlier and living in
-Illinois was seen by a care provider?
+Consider the following question:
 
-    using FunSQL: Agg, Join, From, Group, Where, Select, Get, render
-    using DataFrames
+*When was the last time each person born between 1930 and 1940 and living in
+Illinois was seen by a healthcare provider?*
 
-    q = person |>
-        Where(Get.year_of_birth .<= 1950) |>
-        Join(:location => location,
+To answer this question, we build the following pipeline of data processing
+SQL operations.
+
+![Query pipeline](query-pipeline.drawio.svg)
+
+This pipeline can be assembled with FunSQL.  The nodes are created using the
+corresponding *query constructors*, which are connected together using the pipe
+(`|>`) operator.
+
+    using FunSQL: Agg, Join, From, Fun, Get, Group, Select, Where
+
+    q = From(person) |>
+        Where(Fun.and(Get.year_of_birth .>= 1930,
+                      Get.year_of_birth .<= 1940)) |>
+        Join(:location => From(location) |>
+                          Where(Get.state .== "IL"),
              on = Get.location_id .== Get.location.location_id) |>
-        Where(Get.location.state .== "IL") |>
-        Join(:visit_group => visit_occurrence |>
+        Join(:visit_group => From(visit_occurrence) |>
                              Group(Get.person_id),
              on = Get.person_id .== Get.visit_group.person_id,
              left = true) |>
@@ -126,30 +136,80 @@ Illinois was seen by a care provider?
                :max_visit_start_date =>
                    Get.visit_group |> Agg.max(Get.visit_start_date))
 
-    sql = render(q)
+The following query constructors are available in FunSQL.
+
+| Constructor        | Operation                                        |
+| :----------------- | :----------------------------------------------- |
+| `Append`           | concatenate datasets                             |
+| `As` (`=>`)        | assign an alias                                  |
+| `From`             | retrieve the content of a database table         |
+| `Group`            | partition the dataset into disjoint groups       |
+| `Join`, `LeftJoin` | correlate two datasets by a particular condition |
+| `Select`           | specify the output columns                       |
+| `Where`            | filter the dataset by a particular condition     |
+
+Many of these constructors take scalar expressions as arguments.  For instance,
+`Where` expects a predicate expression, e.g.,
+
+    Where(Fun.and(Get.year_of_birth .>= 1930,
+                  Get.year_of_birth .<= 1940))
+
+Here, `Get.year_of_birth` refers to the column `year_of_birth` of the input
+dataset.  To make this reference valid, `Where` must be chained to a query
+whose output contains this column, such as `From(person)`.
+
+An expression containing a SQL function or a SQL operator is created by taking
+an appropriate attribute of a namespace object `Fun`.  Certain SQL functions
+and operators, notably, comparison operators, could be created using the Julia
+broadcasting notation.
+
+Aggregate functions have their own namespace object `Agg`, e.g.,
+
+    Agg.max(Get.visit_start_date)
+
+In FunSQL, aggregate functions can be used in any context where an ordinary SQL
+expression is permitted as long as the input dataset is partitioned using
+`Group` or `Partition`.
+
+Once the query pipeline is constructed, it could be serialized to a SQL query.
+We can specify the target SQL dialect, such as `:sqlite` or `:postgresql`.
+
+    using FunSQL: render
+
+    sql = render(q, dialect = :sqlite)
+
     print(sql)
     #=>
-    SELECT "person_5"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+    SELECT "person_3"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
     FROM (
-      SELECT "person_3"."person_id"
-      FROM (
-        SELECT "person_1"."location_id", "person_1"."person_id"
-        FROM "person" AS "person_1"
-        WHERE ("person_1"."year_of_birth" <= 1950)
-      ) AS "person_3"
-      JOIN "location" AS "location_1" ON ("person_3"."location_id" = "location_1"."location_id")
+      SELECT "person_1"."location_id", "person_1"."person_id"
+      FROM "person" AS "person_1"
+      WHERE (("person_1"."year_of_birth" >= 1930) AND ("person_1"."year_of_birth" <= 1940))
+    ) AS "person_3"
+    JOIN (
+      SELECT "location_1"."location_id"
+      FROM "location" AS "location_1"
       WHERE ("location_1"."state" = 'IL')
-    ) AS "person_5"
+    ) AS "location_3" ON ("person_3"."location_id" = "location_3"."location_id")
     LEFT JOIN (
       SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
-    ) AS "visit_group_1" ON ("person_5"."person_id" = "visit_group_1"."person_id")
+    ) AS "visit_group_1" ON ("person_3"."person_id" = "visit_group_1"."person_id")
     =#
+
+At this point, the job of FunSQL is done.  To submit the SQL query to the
+database engine, we use an appropriate Julia library.
 
     res = DBInterface.execute(conn, sql)
 
-    DataFrame(res)
+In this tutorial, we use
+[`DataFrame`](https://github.com/JuliaData/DataFrames.jl) interface to display
+the output of the query.
+
+    using DataFrames
+
+    res |> DataFrame |> display
     #=>
     1×2 DataFrame
      Row │ person_id  max_visit_start_date
@@ -158,15 +218,16 @@ Illinois was seen by a care provider?
        1 │     72120  2008-12-15
     =#
 
-We can define a convenience function.
+For the rest of this tutorial, we will use a convenience function that renders
+the query object, executes the SQL query and returns its output.
 
-    function run(conn, q)
+    function run(q)
         sql = render(q, dialect = :sqlite)
         res = DBInterface.execute(conn, sql)
         DataFrame(res)
     end
 
-    run(conn, q)
+    q |> run
     #=>
     1×2 DataFrame
      Row │ person_id  max_visit_start_date
