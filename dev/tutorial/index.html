@@ -4,11 +4,11 @@ const DB = download(URL)</code></pre><p>Alternatively, to avoid downloading the 
 
 const DB = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)</code></pre><p>To interact with a SQLite database, we need to install the <a href="https://github.com/JuliaDatabases/SQLite.jl">SQLite</a> package.  Once the package is installed, we can connect to the database.</p><pre><code class="language-julia hljs">using SQLite
 
-const conn = SQLite.DB(DB)</code></pre><h2 id="Database-Schema"><a class="docs-heading-anchor" href="#Database-Schema">Database Schema</a><a id="Database-Schema-1"></a><a class="docs-heading-anchor-permalink" href="#Database-Schema" title="Permalink"></a></h2><p>The data in the sample database is stored in the format of the <a href="https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html">OMOP Common Data Model</a>, an open source database schema for observational healthcare data.  In this tutorial, we will only use a small fragment of the Common Data Model.</p><p><img src="../erd.drawio.svg" alt="ERD"/></p><p>Before we can start assembling queries with FunSQL, we need to describe the database schema.  Specifically, for each table in the database, we need to create a corresponding <code>SQLTable</code> object, which will encapsulate the name of the table and the list of available columns.</p><pre><code class="language-julia hljs">using FunSQL: SQLTable</code></pre><p>The patient data, including basic demographic information, is stored in the table <code>person</code>.</p><pre><code class="language-julia hljs">const person =
+const conn = SQLite.DB(DB)</code></pre><h2 id="Database-Schema"><a class="docs-heading-anchor" href="#Database-Schema">Database Schema</a><a id="Database-Schema-1"></a><a class="docs-heading-anchor-permalink" href="#Database-Schema" title="Permalink"></a></h2><p>The data in the sample database is stored in the format of the <a href="https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html">OMOP Common Data Model</a>, an open source database schema for observational healthcare data.  In this tutorial, we will only use a small fragment of the Common Data Model.</p><p><img src="../erd.drawio.svg" alt="ERD"/></p><p>Before we can start assembling queries with FunSQL, we need to make FunSQL aware of the database schema.  Specifically, for each table in the database, we need to create a corresponding <code>SQLTable</code> object, which encapsulates the table name and its columns.</p><pre><code class="language-julia hljs">using FunSQL: SQLTable</code></pre><p>The patient data, including basic demographic information, is stored in the table <code>person</code>.</p><pre><code class="language-julia hljs">const person =
     SQLTable(:person,
              columns = [:person_id, :year_of_birth, :location_id])</code></pre><p>Patient addresses are stored in a separate table <code>location</code>, linked to the <code>person</code> table by the key <code>location_id</code>.</p><pre><code class="language-julia hljs">const location =
     SQLTable(:location,
-             columns = [:location_id, :state, :zip])</code></pre><p>The bulk of patient data consists of clinical events: encounters with healthcare providers, recorded observations, diagnosed conditions, prescribed medications, etc.  In this tutorial we will only use two types of events: visits and conditions.</p><pre><code class="language-julia hljs">const visit_occurrence =
+             columns = [:location_id, :city, :state])</code></pre><p>The bulk of patient data consists of clinical events: visits to healthcare providers, recorded observations, diagnosed conditions, prescribed medications, etc.  In this tutorial we only use two types of events: visits and conditions.</p><pre><code class="language-julia hljs">const visit_occurrence =
     SQLTable(:visit_occurrence,
              columns = [:visit_occurrence_id, :person_id,
                         :visit_concept_id,
@@ -18,67 +18,67 @@ const condition_occurrence =
     SQLTable(:condition_occurrence,
              columns = [:condition_occurrence_id, :person_id,
                         :condition_concept_id,
-                        :condition_start_date, :condition_end_date])</code></pre><p>The specific type of the event (e.g., <em>Inpatient</em> visit or <em>Essential hypertension</em> condition) is indicated using a <em>concept_id</em> column, which links to the <code>concept</code> table.</p><pre><code class="language-julia hljs">const concept =
+                        :condition_start_date, :condition_end_date])</code></pre><p>The specific type of the event (e.g., <em>Inpatient</em> visit or <em>Essential hypertension</em> condition) is indicated using a <em>concept id</em> column, which links to the <code>concept</code> table.</p><pre><code class="language-julia hljs">const concept =
     SQLTable(:concept,
              columns = [:concept_id, :concept_name])</code></pre><p>Different concepts may be related to each other.  For instance, <em>Essential hypertension</em> <strong>is a</strong> <em>Hypertensive disorder</em>, which itself <strong>is a</strong> <em>Disorder of cardiovascular system</em>.  Concept relationships are recorded in the corresponding table.</p><pre><code class="language-julia hljs">const concept_relationship =
     SQLTable(:concept_relationship,
-             columns = [:concept_id_1, :concept_id_2, :relationship_id])</code></pre><h2 id="First-Query"><a class="docs-heading-anchor" href="#First-Query">First Query</a><a id="First-Query-1"></a><a class="docs-heading-anchor-permalink" href="#First-Query" title="Permalink"></a></h2><p>When was the last time each person born in 1950 or earlier and living in Illinois was seen by a care provider?</p><pre><code class="language-julia hljs">using FunSQL: Agg, Join, From, Group, Where, Select, Get, render
-using DataFrames
+             columns = [:concept_id_1, :concept_id_2, :relationship_id])</code></pre><h2 id="First-Query"><a class="docs-heading-anchor" href="#First-Query">First Query</a><a id="First-Query-1"></a><a class="docs-heading-anchor-permalink" href="#First-Query" title="Permalink"></a></h2><p>Consider the following question:</p><p><em>When was the last time each person born between 1930 and 1940 and living in Illinois was seen by a healthcare provider?</em></p><p>To answer this question, we build the following pipeline of data processing SQL operations.</p><p><img src="../query-pipeline.drawio.svg" alt="Query pipeline"/></p><p>This pipeline can be assembled with FunSQL.  The nodes are created using the corresponding <em>query constructors</em>, which are connected together using the pipe (<code>|&gt;</code>) operator.</p><pre><code class="language-julia hljs">using FunSQL: Agg, Join, From, Fun, Get, Group, Select, Where
 
-q = person |&gt;
-    Where(Get.year_of_birth .&lt;= 1950) |&gt;
-    Join(:location =&gt; location,
+q = From(person) |&gt;
+    Where(Fun.and(Get.year_of_birth .&gt;= 1930,
+                  Get.year_of_birth .&lt;= 1940)) |&gt;
+    Join(:location =&gt; From(location) |&gt;
+                      Where(Get.state .== &quot;IL&quot;),
          on = Get.location_id .== Get.location.location_id) |&gt;
-    Where(Get.location.state .== &quot;IL&quot;) |&gt;
-    Join(:visit_group =&gt; visit_occurrence |&gt;
+    Join(:visit_group =&gt; From(visit_occurrence) |&gt;
                          Group(Get.person_id),
          on = Get.person_id .== Get.visit_group.person_id,
          left = true) |&gt;
     Select(Get.person_id,
            :max_visit_start_date =&gt;
-               Get.visit_group |&gt; Agg.max(Get.visit_start_date))
+               Get.visit_group |&gt; Agg.max(Get.visit_start_date))</code></pre><p>The following query constructors are available in FunSQL.</p><table><tr><th style="text-align: left">Constructor</th><th style="text-align: left">Operation</th></tr><tr><td style="text-align: left"><code>Append</code></td><td style="text-align: left">concatenate datasets</td></tr><tr><td style="text-align: left"><code>As</code> (<code>=&gt;</code>)</td><td style="text-align: left">assign an alias</td></tr><tr><td style="text-align: left"><code>From</code></td><td style="text-align: left">retrieve the content of a database table</td></tr><tr><td style="text-align: left"><code>Group</code></td><td style="text-align: left">partition the dataset into disjoint groups</td></tr><tr><td style="text-align: left"><code>Join</code>, <code>LeftJoin</code></td><td style="text-align: left">correlate two datasets by a particular condition</td></tr><tr><td style="text-align: left"><code>Select</code></td><td style="text-align: left">specify the output columns</td></tr><tr><td style="text-align: left"><code>Where</code></td><td style="text-align: left">filter the dataset by a particular condition</td></tr></table><p>Many of these constructors take scalar expressions as arguments.  For instance, <code>Where</code> expects a predicate expression, e.g.,</p><pre><code class="language-julia hljs">Where(Fun.and(Get.year_of_birth .&gt;= 1930,
+              Get.year_of_birth .&lt;= 1940))</code></pre><p>Here, <code>Get.year_of_birth</code> refers to the column <code>year_of_birth</code> of the input dataset.  To make this reference valid, <code>Where</code> must be chained to a query whose output contains this column, such as <code>From(person)</code>.</p><p>An expression containing a SQL function or a SQL operator is created by taking an appropriate attribute of a namespace object <code>Fun</code>.  Certain SQL functions and operators, notably, comparison operators, could be created using the Julia broadcasting notation.</p><p>Aggregate functions have their own namespace object <code>Agg</code>, e.g.,</p><pre><code class="language-julia hljs">Agg.max(Get.visit_start_date)</code></pre><p>In FunSQL, aggregate functions can be used in any context where an ordinary SQL expression is permitted as long as the input dataset is partitioned using <code>Group</code> or <code>Partition</code>.</p><p>Once the query pipeline is constructed, it could be serialized to a SQL query. We can specify the target SQL dialect, such as <code>:sqlite</code> or <code>:postgresql</code>.</p><pre><code class="language-julia hljs">using FunSQL: render
 
-sql = render(q)
+sql = render(q, dialect = :sqlite)
+
 print(sql)
 #=&gt;
-SELECT &quot;person_5&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
+SELECT &quot;person_3&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
 FROM (
-  SELECT &quot;person_3&quot;.&quot;person_id&quot;
-  FROM (
-    SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
-    FROM &quot;person&quot; AS &quot;person_1&quot;
-    WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1950)
-  ) AS &quot;person_3&quot;
-  JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_3&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
+  SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1940))
+) AS &quot;person_3&quot;
+JOIN (
+  SELECT &quot;location_1&quot;.&quot;location_id&quot;
+  FROM &quot;location&quot; AS &quot;location_1&quot;
   WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
-) AS &quot;person_5&quot;
+) AS &quot;location_3&quot; ON (&quot;person_3&quot;.&quot;location_id&quot; = &quot;location_3&quot;.&quot;location_id&quot;)
 LEFT JOIN (
   SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
-) AS &quot;visit_group_1&quot; ON (&quot;person_5&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
-=#
+) AS &quot;visit_group_1&quot; ON (&quot;person_3&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
+=#</code></pre><p>At this point, the job of FunSQL is done.  To submit the SQL query to the database engine, we use an appropriate Julia library.</p><pre><code class="language-julia hljs">res = DBInterface.execute(conn, sql)</code></pre><p>In this tutorial, we use <a href="https://github.com/JuliaData/DataFrames.jl"><code>DataFrame</code></a> interface to display the output of the query.</p><pre><code class="language-julia hljs">using DataFrames
 
-res = DBInterface.execute(conn, sql)
-
-DataFrame(res)
+res |&gt; DataFrame |&gt; display
 #=&gt;
 1×2 DataFrame
  Row │ person_id  max_visit_start_date
      │ Int64      String
 ─────┼─────────────────────────────────
    1 │     72120  2008-12-15
-=#</code></pre><p>We can define a convenience function.</p><pre><code class="language-julia hljs">function run(conn, q)
+=#</code></pre><p>For the rest of this tutorial, we will use a convenience function that renders the query object, executes the SQL query and returns its output.</p><pre><code class="language-julia hljs">function run(q)
     sql = render(q, dialect = :sqlite)
     res = DBInterface.execute(conn, sql)
     DataFrame(res)
 end
 
-run(conn, q)
+q |&gt; run
 #=&gt;
 1×2 DataFrame
  Row │ person_id  max_visit_start_date
      │ Int64      String
 ─────┼─────────────────────────────────
    1 │     72120  2008-12-15
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Tuesday 3 August 2021 09:49">Tuesday 3 August 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Wednesday 4 August 2021 09:33">Wednesday 4 August 2021</span>. Using Julia version 1.6.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
