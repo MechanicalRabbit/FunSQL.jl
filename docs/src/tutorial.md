@@ -107,9 +107,9 @@ corresponding table:
 
 ## Using FunSQL
 
-In FunSQL, a SQL query is represented as a data processing pipeline assembled
-from elementary data processing operations, each of which represents a
-particular SQL clause.  Depending on its type, the operation may expect zero,
+In FunSQL, a database query is represented as a data processing pipeline
+assembled from elementary data processing operations, each of which represents
+a particular SQL clause.  Depending on its type, the operation may expect zero,
 one or more input datasets, and it always emits one output dataset.  Visually,
 we can represent a SQL operation as a pipeline node with a certain number of
 input arrows and one output arrow.
@@ -126,7 +126,7 @@ To answer this question, we assemble a simple SQL pipeline.
 
 ![From-Where-Select pipeline](from-where-select-pipeline.drawio.svg)
 
-In FunSQL notation, pipeline nodes are created using appropriate `SQLNode`
+In FunSQL notation, pipeline nodes are created using appropriate query
 constructors, such as `From`, `Where`, and `Select`, which are connected
 together using the pipe (`|>`) operator:
 
@@ -138,7 +138,7 @@ together using the pipe (`|>`) operator:
         Select(Get.person_id,
                :age => 2020 .- Get.year_of_birth)
 
-Some of the `SQLNode` constructors take scalar expressions as arguments.  For
+Some of the query constructors take scalar expressions as arguments.  For
 example, `Where` expects a predicate expression:
 
     Where(Fun.and(Get.year_of_birth .>= 1930,
@@ -187,4 +187,54 @@ to a [`DataFrame`](https://github.com/JuliaData/DataFrames.jl) object:
        2 │     72120     83
     =#
 
+
+## Assembling Queries
+
+FunSQL represents SQL queries and their components as objects of type
+`SQLNode`.  FunSQL provides a large collection of `SQLNode` constructors such
+as `From`, `Where`, `Select`, `Get`, and `Fun`.  Many of these constructors
+expect other `SQLNode` objects as arguments so that together they assemble into
+a directed acyclic graph.
+
+FunSQL recognizes two kinds of SQL expressions: *tabular* operations and *row*
+operations.  Tabular operations take a certain number of input datasets and
+produce an output dataset.  Row operations act on a dataset row and produce a
+scalar value.
+
+The majority of tabular operations are parameterized with row expressions.
+Likewise, a row operation may include a tabular expression, which in this case
+is called a (correlated) subquery.
+
+The following tabular operations are available in FunSQL.
+
+| Constructor           | Function                                          |
+| :-------------------- | :------------------------------------------------ |
+| `Append`              | concatenate datasets                              |
+| `As`, `=>`            | introduce a namespace                             |
+| `Bind`                | correlate a subquery in a *join* expression       |
+| `Define`              | add an output column                              |
+| `From`                | produce the content of a database table           |
+| `Group`               | partition the dataset into disjoint groups        |
+| `Join`, `LeftJoin`    | correlate two datasets                            |
+| `Limit`               | truncate the dataset                              |
+| `Order`               | sort the dataset                                  |
+| `Partition`           | add a window to the dataset                       |
+| `Select`              | specify output columns                            |
+| `Where`               | filter the dataset by the given condition         |
+
+The following row operations are available in FunSQL.
+
+| Constructor           | Function                                          |
+| :-------------------- | :------------------------------------------------ |
+| `Agg`                 | invoke an aggregate function                      |
+| `As`, `=>`            | assign a column alias                             |
+| `Bind`                | correlate a subquery                              |
+| `Fun`, *broadcasting* | invoke a scalar function                          |
+| `Get`                 | produce the value of a column                     |
+| `Lit`                 | produce a constant value                          |
+| `Sort`, `Asc`, `Desc` | indicate the sort order                           |
+| `Var`                 | produce the value of a query parameter            |
+
+Note that some `SQLNode` constructors (`As`, `Bind`) can be used both as a
+tabular operation and as a row operation.
 
