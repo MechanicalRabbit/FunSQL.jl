@@ -48,7 +48,7 @@ Data Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an
 open source database schema for observational healthcare data.  In this
 tutorial, we will only use a small fragment of the Common Data Model.
 
-![ERD](erd.drawio.svg)
+![Fragment of the OMOP Common Data Model](omop-common-data-model.drawio.svg)
 
 Before we can start assembling queries with FunSQL, we need to make FunSQL
 aware of the database schema.  Specifically, for each table in the database, we
@@ -124,7 +124,7 @@ age (by the end of 2020)?*
 
 To answer this question, we assemble a simple SQL pipeline.
 
-![From-Where-Select pipeline](from-where-select-pipeline.drawio.svg)
+![Simple query pipeline](from-person-where-birth-select-age.drawio.svg)
 
 In FunSQL notation, pipeline nodes are created using appropriate query
 constructors, such as `From`, `Where`, and `Select`, which are connected
@@ -237,4 +237,82 @@ The following row operations are available in FunSQL.
 
 Note that some `SQLNode` constructors (`As`, `Bind`) can be used both as a
 tabular operation and as a row operation.
+
+
+## `From`, `Where`, and `Select`
+
+Recall the query demonstrated in the [Using FunSQL](@ref) section:
+
+    From(person) |>
+    Where(Fun.and(Get.year_of_birth .>= 1930,
+                  Get.year_of_birth .< 1940)) |>
+    Select(Get.person_id,
+           :age => 2020 .- Get.year_of_birth)
+
+This query is constructed from the tabular operations `From`, `Where`,
+and `Select` arranged in a typical three-component pipeline.
+
+![From-Where-Select template](from-where-select-template.drawio.svg)
+
+The `From` operation takes no inputs and produces the content of a database
+table.  The `From` constructor takes a `SQLTable` object describing the table.
+In a query expression, a `SQLTable` object is implicitly converted to to a
+`From` operation; thus the query above could be written as:
+
+    person |>
+    Where(Fun.and(Get.year_of_birth .>= 1930,
+                  Get.year_of_birth .< 1940)) |>
+    Select(Get.person_id,
+           :age => 2020 .- Get.year_of_birth)
+
+The `Select` operation allows us to specify the output columns.  The name of
+the column is specified using the pair (`=>`) operator, which is in fact
+a shorthand for the `As` operation, so that we can equivalently write:
+
+    using FunSQL: As
+
+    Select(Get.person_id,
+           2020 .- Get.year_of_birth |> As(:age))
+
+If the column name is not given explicitly, it is derived from the expression
+that calculates the column value: the name of the reference if the expression
+is a column reference or the name of the function of the top-level expression
+is an invocation of a SQL function or an operator.
+
+We should note that as opposed to SQL, FunSQL does not require that the query
+has an explicit `Select` constructor, so that the following expression is a
+valid and complete query:
+
+    q = From(person)
+
+This SQL query produces all the columns from the `person` table:
+
+    sql = render(q)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+It is also possible to construct a query without `From`.  When a tabular
+operation, such as `Select`, that expects an input dataset isn't provided with
+one explicitly, it is supplied with the *unit* dataset consisting of one row
+and no columns.  This allows us to create queries that do not depend on the
+content of any database tables.
+
+    q = Select(Fun.current_timestamp())
+
+    sql = render(q)
+
+    print(sql)
+    #-> SELECT CURRENT_TIMESTAMP AS "current_timestamp"
+
+## Column References: `Get`
+
+## Literal Values: `Lit`
+
+## SQL Functions and Operators: `Fun` and Broadcasting
+
+## Correlating Data with `Join`
 
