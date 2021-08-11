@@ -308,7 +308,74 @@ content of any database tables.
     print(sql)
     #-> SELECT CURRENT_TIMESTAMP AS "current_timestamp"
 
+
 ## Column References: `Get`
+
+As we assemble row operations, we often need to reference a column of the input
+dataset.  FunSQL provides two ways to do it: bound references and unbound
+references.
+
+An unbound reference is created using the `Get` constructor:
+
+    Get(:person_id)
+
+A convenient shorthand notation is available:
+
+    Get.person_id
+
+A string value could be used instead of a symbol, which is useful when the name
+of the column is not a valid Julia identifier:
+
+    Get("person_id")
+    Get."person_id"
+
+An unbound column reference is always resolved at the place of use.  The
+reference to the `year_of_birth` column appears several times in the following
+query:
+
+    From(person) |>
+    Where(Fun.and(Get.year_of_birth .>= 1930,
+                  Get.year_of_birth .< 1940)) |>
+    Select(Get.person_id,
+           :age => 2020 .- Get.year_of_birth)
+
+As a part of `Where`, it refers to the column produced by the `From` operation,
+but inside `Select`, it refers to the output of `Where`.
+
+It is also possible to bind column references to particular nodes.  The
+query above could be written as follows:
+
+    q1 = From(person)
+    q2 = q1 |>
+         Where(Fun.and(q1.year_of_birth .>= 1930,
+                       q1.year_of_birth .< 1940))
+    q3 = q2 |>
+         Select(q1.person_id,
+                :age => 2020 .- q1.year_of_birth)
+
+We replaced unbound references `Get.year_of_birth` and `Get.person_id` with
+*bound* references: `q1.year_of_birth` and `q1.person_id`.  If we use a
+bound reference, the node to which the reference is bound must be a part
+of the query; otherwise, an error will be raised.  Note that in the `Select`
+constructor, we could also replace references to `q1` with `q2`, it will
+not change the meaning of the query:
+
+    q3 = q2 |>
+         Select(q2.person_id,
+                :age => 2020 .- q2.year_of_birth)
+
+Use of unbound references makes query composition more modular.  For example,
+we could encapsulate the condition on the birth range in a Julia function and
+use it as follows:
+
+    BirthRange(start, stop) =
+        Fun.and(Get.year_of_birth .>= start,
+                Get.year_of_birth .< stop)
+
+    From(person) |> Where(BirthRange(1930, 1940))
+
+On the other hand, bound references make it easy to disambiguate columns
+of different tables.
 
 ## Literal Values: `Lit`
 
