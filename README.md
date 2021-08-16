@@ -21,15 +21,13 @@ FunSQL allows you to build queries incrementally from small independent
 fragments.  This approach is particularly useful for building applications that
 programmatically construct SQL queries.
 
+If you want to learn more about FunSQL, watch this video or go straight to the
+[FunSQL Tutorial][tutorial-url].
+
 [![FunSQL | JuliaCon 2021][juliacon2021-img]][juliacon2021-url]
 
 
 ## Example
-
-The guiding principle of FunSQL is to allow SQL queries to be constructed from
-components created independently and assembled together on the fly.  In
-particular, FunSQL notation does not rely on macros or bound variables as they
-hinder modular query construction.
 
 To demonstrate a query built with FunSQL, let us consider a question:
 
@@ -91,133 +89,10 @@ Variables `person`, `location`, and `visit_occurrence` are `SQLTable` objects
 describing the corresponding tables.  For the description of this database and
 more examples, see the [Tutorial][tutorial-url].
 
-
-## Supported Features
-
-The following capabilities of SQL are in scope of FunSQL.
-
-- [x] Data retrieval (`SELECT`).
-- [ ] Data manipulation (`INSERT`, `UPDATE`, `DELETE`).
-- [ ] Data definition (`CREATE TABLE`).
-
-FunSQL generates SQL queries, but does not interact with the database directly.
-For this reason, the following features are out of scope of FunSQL.  However,
-they may be provided by a separate library built on top of FunSQL.
-
-- [ ] Database introspection.
-- [ ] Database migrations.
-- [ ] ORM.
-
-Currently, FunSQL is aware of the following SQL dialects:
-
-- `:postgresql`.
-- `:sqlite`.
-- `:mysql`.
-- `:sqlserver`.
-
-This includes dialect-specific serialization of identifiers, literal values,
-query parameters, and certain SQL clauses.
-
-FunSQL performs a limited form of query validation.  It verifies that column
-references are valid and could be resolved against the corresponding `From` or
-`Define` clauses.  Similarly, aggregate and window functions are only permitted
-in a context of `Group` or `Partition`.  FunSQL does *not* validate invocations
-of SQL functions and operators.
-
-Aside from a high-level `SQLNode` interface, FunSQL implements an intermediate
-`SQLCLause` interface, which reflects the lexical structure of a SQL query.
-This interface can be used for customizing serialization of SQL functions and
-operators with irregular syntax.
-
-Here are supported clauses of the `SELECT` statement:
-
-- [x] `SELECT` clause.  Intermediate `SELECT` subqueries are managed by FunSQL
-  automatically, but you can specify an intermediate value with `Define()`.
-
-  - [x] `SELECT DISTINCT` (use `Group` without aggregates).
-  - [ ] `SELECT DISTINCT ON` (PostgreSQL-specific, but could be
-    emulated using window functions).
-  - [ ] `SELECT TOP N PERCENT` (MS SQL Server-specific, but could be
-    emulated using window functions).
-  - [ ] Other hints and extensions to the `SELECT` clause (`FOR UPDATE`, etc).
-
-- [x] `FROM` clause.  `FROM <table>` and `FROM <schema>.<table>` syntax is
-  supported.  `FROM (<subquery>)` is created automatically, when necessary.
-
-  - [ ] `FROM <function>`, e.g., `FROM generate_series(10)` in PostgreSQL.
-  - [ ] `TABLESAMPLE`.
-  - [ ] Other dialect-specific extensions.
-
-- [x] `JOIN` clause.
-
-  - [x] `LEFT JOIN`, `RIGHT JOIN`, `FULL JOIN`
-    (`Join(q, on, left = true, right = true)`).
-  - [x] `CROSS JOIN` (`Join(q, on = true)`).
-  - [x] `JOIN LATERAL` (use `Bind` and `Var` as if it were a correlated
-    subquery).
-
-    - [ ] MS SQL Server-specific syntax `APPLY`.
-
-  - [ ] Automatic join condition inferred from foreign key constraints.
-
-- [x] `WHERE` and `HAVING` clauses; use `Where()`.
-
-- [x] `GROUP BY`.  Use `Group()` without arguments to aggregate over the
-  whole dataset.
-
-  - [ ] `ROLLUP`, `CUBE`, `GROUPING SETS`, including emulation.
-
-- [x] `ORDER BY`.
-
-  - [ ] `USING <operator>` (PostgreSQL).
-  - [ ] Clarify which operations do not affect the order of the rows
-    (`Select`, `Define`, `Limit`, possibly `Where`).
-  - [ ] Some dialects do not like `ORDER BY` in subqueries (MS SQL Server).
-
-- [x] `LIMIT` (`OFFSET`, `FETCH`).
-
-- [x] `UNION ALL`; we call it `Append()` to avoid collision with Julia's
-      `Union` type constructor.
-
-- [ ] `UNION`, `INTERSECT`, `EXCEPT`.
-
-- [ ] `WITH`.  Using the same (`===`) node in the query expression should
-  promote it to a `WITH` subquery.
-
-  - [ ] `WITH` as an alternative SQL rendering strategy, where each tabular
-    operation gets its own `WITH` subquery.
-
-- [ ] `WITH RECURSIVE`.  A prototype exists.  The syntax should be `p |>
-  Iterate(parent_of(p))` or `p |> Iterate(parent_of(Self()))` to suggest `p |>
-  Append(parent_of(p), parent_of(parent_of(p)), ...)`
-
-- [x] Scalar functions and operators.
-
-  - [x] Wrappers are provided for many widely used functions and operators that
-    have irregular syntax (`Fun.and`, `Fun.case`, etc).
-
-  - [ ] Validate that the function exists and the argument types are correct.
-
-    - [ ] Normalize the semantics of broadcasted functions (e.g., map `.+` to
-      `+` or `DATEADD` depending on the argument types and the target dialect).
-
-- [x] Aggregate functions.
-
-  - [x] `DISTINCT`.
-  - [x] `FILTER`.
-  - [x] `ORDER BY`.
-  - [ ] `WITHIN GROUP`.
-  - [ ] Validation is not implemented.
-
-- [x] Window functions.  Use `Partition` to specify the window frame, similar
-  to an explicit `WINDOW` clause.
-
-- [x] Table definition including the names of the table and all the columns.
-
-  - [x] Optional schema name.
-  - [ ] Column types.
-  - [ ] Primary and foreign keys.
-  - [ ] More properties to support customizing `CREATE TABLE`.
+Notably, FunSQL notation does not rely on macros or bound variables as they
+hinder modular query construction.  FunSQL queries and their intermediate
+components are first-class objects that could be constructed independently,
+passed around as values, and freely composed together.
 
 
 [docs-rel-img]: https://img.shields.io/badge/docs-stable-green.svg
@@ -236,4 +111,4 @@ Here are supported clauses of the `SELECT` statement:
 [license-url]: https://raw.githubusercontent.com/MechanicalRabbit/FunSQL.jl/master/LICENSE.md
 [juliacon2021-img]: https://img.youtube.com/vi/rGWwmuvRUYk/maxresdefault.jpg
 [juliacon2021-url]: https://www.youtube.com/watch?v=rGWwmuvRUYk
-[tutorial-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/tutorial/
+[tutorial-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/tutorial/
