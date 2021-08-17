@@ -89,7 +89,7 @@ Variables `person`, `location`, and `visit_occurrence` are `SQLTable` objects
 describing the corresponding tables.  For the description of this database and
 more examples, see the [Tutorial][tutorial-url].
 
-Notably, FunSQL notation does not rely on macros or bound variables as they
+Notably, FunSQL notation does not rely on macros or anonymous functions as they
 hinder modular query construction.  FunSQL queries and their intermediate
 components are first-class objects that could be constructed independently,
 passed around as values, and freely composed together.
