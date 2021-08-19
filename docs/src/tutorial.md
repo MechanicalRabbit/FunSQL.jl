@@ -1,39 +1,59 @@
 # Tutorial
 
+This tutorial will teach you how to build SQL queries using FunSQL.
 
-## Sample Database
+## Test Database
 
-Throughout this tutorial, we use a tiny SQLite database containing a 10 person
-sample of simulated patient data, which is extracted from the [CMS DE-SynPuf
+To demonstrate database queries, we need a test database.  The database we use
+is a tiny 10 person sample of simulated patient data extracted from a much
+larger [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
+For a database engine, we picked [SQLite](https://www.sqlite.org/).  Using
+SQLite in a tutorial is convenient because it does not require a database
+server to run and allows us to distribute the whole database as a single file.
+FunSQL supports SQLite and many other database engines.  The techniques
+discussed here are not specific to SQLite or this particular database.  Once
+you learn them, you should be able to apply them to your own databases.
 
-If you want to follow along with the tutorial, download the database file:
+If you wish to follow along with the tutorial and run the examples, download
+the database file:
 
 ```julia
 const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
 const DB = download(URL)
 ```
 
-To avoid downloading the file more than once, we can register the download URL
-as an [artifact](../Artifacts.toml) and use
+During development, all the code examples here are executed on every update by
+the [NarrativeTest](https://github.com/MechanicalRabbit/NarrativeTest.jl)
+package.  To avoid downloading the database file more than once, we registered
+the download URL as an [artifact](../Artifacts.toml) and use
 [`Pkg.Artifacts`](http://pkgdocs.julialang.org/v1/artifacts/) API to fetch it:
 
     using Pkg.Artifacts, LazyArtifacts
 
     const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
 
-In order to interact with a SQLite database, we need to install the
-[SQLite](https://github.com/JuliaDatabases/SQLite.jl) package.  Once the
-package is installed, we could establish a database connection:
+To interact with a SQLite database from Julia code, we need to install the
+[SQLite](https://github.com/JuliaDatabases/SQLite.jl) package:
+
+```julia
+using Pkg
+
+Pkg.add("SQLite")
+```
+
+Once the package is installed, we can use it to connect to the database:
 
     using SQLite
 
     const conn = SQLite.DB(DB)
 
+Later we will use the `conn` object to execute database queries.
+
 
 ## Database Schema
 
-The data in the sample database is stored in the format of the [OMOP Common
+The data in the test database is stored in the format of the [OMOP Common
 Data Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an
 open source database schema for observational healthcare data.  In this
 tutorial, we will only use a small fragment of the Common Data Model.
@@ -41,9 +61,9 @@ tutorial, we will only use a small fragment of the Common Data Model.
 ![Fragment of the OMOP Common Data Model](omop-common-data-model.drawio.svg)
 
 Before we can start assembling queries with FunSQL, we need to make FunSQL
-aware of the database schema.  Specifically, for each table in the database, we
-need to create a corresponding `SQLTable`(@ref) object, which encapsulates the
-table name and its columns.
+aware of the database schema.  For each table in the database, we need to
+create a corresponding `SQLTable`(@ref) object, which encapsulates the name of
+the table and the names of the columns.
 
     using FunSQL: SQLTable
 
@@ -55,7 +75,7 @@ the table `person`:
                  columns = [:person_id, :year_of_birth, :location_id])
 
 Patient addresses are stored in a separate table `location`, linked to the
-`person` table by the key `location_id`:
+`person` table by the key column `location_id`:
 
     const location =
         SQLTable(:location,
@@ -139,7 +159,7 @@ target SQL dialect such as `:sqlite` or `:postgresql`:
 
 At this point, the job of FunSQL is done.  To submit the SQL query to the
 database engine, we can use the connection object that we created
-[earlier](@ref Sample-Database):
+[earlier](@ref Test-Database):
 
     res = DBInterface.execute(conn, sql)
     #-> SQLite.Query( … )
