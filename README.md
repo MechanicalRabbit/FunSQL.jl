@@ -29,17 +29,14 @@ If you want to learn more about FunSQL, watch this video or go straight to the
 
 ## Example
 
-To demonstrate a query built with FunSQL, let us consider a question:
-
 *When was the last time each person born between 1930 and 1940 and living in
 Illinois was seen by a healthcare provider?*
 
-With FunSQL, it is expressed as a composite `SQLNode` object:
+With FunSQL, this question is expressed as a composite query object:
 
 ```julia
 From(person) |>
-Where(Fun.and(Get.year_of_birth .>= 1930,
-              Get.year_of_birth .<= 1940)) |>
+Where(Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .<= 1940)) |>
 Join(:location => From(location) |>
                   Where(Get.state .== "IL"),
      on = Get.location_id .== Get.location.location_id) |>
@@ -48,11 +45,10 @@ Join(:visit_group => From(visit_occurrence) |>
      on = Get.person_id .== Get.visit_group.person_id,
      left = true) |>
 Select(Get.person_id,
-       :max_visit_start_date =>
-           Get.visit_group |> Agg.max(Get.visit_start_date))
+       :max_visit_start_date => Get.visit_group |> Agg.max(Get.visit_start_date))
 ```
 
-This object is rendered by FunSQL into the following `SELECT` statement:
+This object is rendered by FunSQL into the following SQL statement:
 
 ```sql
 SELECT "person_3"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
@@ -73,10 +69,9 @@ LEFT JOIN (
 ) AS "visit_group_1" ON ("person_3"."person_id" = "visit_group_1"."person_id")
 ```
 
-From this example, you could infer that SQL clauses, such as `FROM`, `WHERE`,
-and `JOIN`, are represented by the respective `SQLNode` constructors `From`,
-`Where`, and `Join`, which are connected together using the pipe (`|>`)
-operator.  Note the absence of a `SQLNode` counterpart to nested `SELECT`
+With FunSQL, SQL clauses such as `FROM`, `WHERE`, and `JOIN` are represented by
+invocations of `From`, `Where`, and `Join` connected together using the pipe
+(`|>`) operator.  Note the absence of a FunSQL counterpart to nested `SELECT`
 clauses; when necessary, FunSQL automatically adds nested subqueries and
 threads through them column references and aggregate expressions.
 
