@@ -1,5 +1,9 @@
 # API Reference
 
+```@meta
+CurrentModule = FunSQL
+```
+
 ```@autodocs
 Modules = [FunSQL]
 Pages = ["FunSQL.jl"]

@@ -1,11 +1,15 @@
 # Tutorial
 
+```@meta
+CurrentModule = FunSQL
+```
+
 This tutorial will teach you how to build SQL queries using FunSQL.
 
 ## Test Database
 
 To demonstrate database queries, we need a test database.  The database we use
-is a tiny 10 person sample of simulated patient data extracted from a much
+here is a tiny 10 person sample of simulated patient data extracted from a much
 larger [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
 For a database engine, we picked [SQLite](https://www.sqlite.org/).  Using
@@ -62,8 +66,8 @@ tutorial, we will only use a small fragment of the Common Data Model.
 
 Before we can start assembling queries with FunSQL, we need to make FunSQL
 aware of the database schema.  For each table in the database, we need to
-create a corresponding `SQLTable`(@ref) object, which encapsulates the name of
-the table and the names of the columns.
+create a corresponding [`SQLTable`](@ref) object, which encapsulates the name
+of the table and the names of the columns.
 
     using FunSQL: SQLTable
 
