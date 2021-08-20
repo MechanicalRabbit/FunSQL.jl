@@ -36,7 +36,7 @@ With FunSQL, this question is expressed as a composite query object:
 
 ```julia
 From(person) |>
-Where(Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .<= 1940)) |>
+Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
 Join(:location => From(location) |>
                   Where(Get.state .== "IL"),
      on = Get.location_id .== Get.location.location_id) |>
@@ -55,7 +55,7 @@ SELECT "person_3"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
 FROM (
   SELECT "person_1"."location_id", "person_1"."person_id"
   FROM "person" AS "person_1"
-  WHERE (("person_1"."year_of_birth" >= 1930) AND ("person_1"."year_of_birth" <= 1940))
+  WHERE ("person_1"."year_of_birth" BETWEEN 1930 AND 1940)
 ) AS "person_3"
 JOIN (
   SELECT "location_1"."location_id"
@@ -75,9 +75,9 @@ invocations of `From`, `Where`, and `Join` connected together using the pipe
 clauses; when necessary, FunSQL automatically adds nested subqueries and
 threads through them column references and aggregate expressions.
 
-Scalar expressions are straightforward.  `Fun.and`, `.>=` and such are examples
-of how FunSQL represents SQL functions and operators; `Agg.max` is a separate
-notation for aggregate functions; `Get.person_id` is a reference to a column.
+Scalar expressions are straightforward: `Fun.between` and `.==` is how FunSQL
+represents SQL functions and operators; `Agg.max` is a separate notation for
+aggregate functions; `Get.person_id` is a reference to a column.
 `Get.location.person_id` refers to a column fenced by `:location =>`.
 
 Variables `person`, `location`, and `visit_occurrence` are `SQLTable` objects

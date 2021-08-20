@@ -46,8 +46,17 @@ collapse(c::KeywordClause) =
 collapse(c::LimitClause) =
     LimitClause(over = collapse(c.over), limit = c.limit, offset = c.offset, with_ties = c.with_ties)
 
-collapse(c::OperatorClause) =
-    OperatorClause(name = c.name, args = collapse(c.args))
+function collapse(c::OperatorClause)
+    args = collapse(c.args)
+    if c.name === :AND && length(args) == 2
+        if (@dissect args[1] LIT(val = val)) && val === true
+            return args[2]
+        elseif @dissect args[1] OP(name = :AND, args = args′)
+            args = SQLClause[args′..., args[2]]
+        end
+    end
+    OperatorClause(name = c.name, args = args)
+end
 
 collapse(c::OrderClause) =
     OrderClause(over = collapse(c.over), by = collapse(c.by))
