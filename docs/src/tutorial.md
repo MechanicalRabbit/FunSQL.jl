@@ -230,7 +230,7 @@ the query and display the result:
 
 Why, instead of embedding a complete SQL query, we may prefer to generate it
 through a query object?  To justify this extra step, consider that in a real
-Julia program, any query problem is likely parameterized by the user input:
+Julia program, any query is likely going to be parameterized:
 
 *Find all patients born between `$start_year` and `$end_year` and living in
 `$states`, and for each patient show the `$output_columns`.*
@@ -241,21 +241,13 @@ fragments, it is tedious, error-prone and definitely not fun.  FunSQL provides
 a more robust and effective approach: build the query as a composite data
 structure.
 
-Here is how a query that depends on user input may be constructed with FunSQL:
+Here is how a parameterized query may be constructed with FunSQL:
 
     function FindPatients(; start_year = nothing,
                             end_year = nothing,
                             states = String[])
-        q = From(person)
-        p = true
-        if start_year !== nothing
-            p = Fun.and(p, Get.year_of_birth .>= start_year)
-        end
-        if end_year !== nothing
-            p = Fun.and(p, Get.year_of_birth .<= end_year)
-        end
-        q = q |>
-            Where(p)
+        q = From(person) |>
+            Where(BirthRange(start_year, end_year))
         if !isempty(states)
             q = q |>
                 Join(:location => From(location) |>
@@ -265,8 +257,19 @@ Here is how a query that depends on user input may be constructed with FunSQL:
         q
     end
 
+    function BirthRange(start_year, end_year)
+        p = true
+        if start_year !== nothing
+            p = Fun.and(p, Get.year_of_birth .>= start_year)
+        end
+        if end_year !== nothing
+            p = Fun.and(p, Get.year_of_birth .<= end_year)
+        end
+        p
+    end
+
 The function `FindPatients` effectively becomes a new `SQLNode` constructor,
-which can be used by itself or as a component of a larger query object:
+which can be used directly or as a component of a larger query:
 
     q = FindPatients()
 
@@ -305,63 +308,67 @@ which can be used by itself or as a component of a larger query object:
     =#
 
 
-## Tabular operations
+## Assembling Queries
 
-Recall the query demonstrated in the [previous](@ref Why-FunSQL?) section:
+Recall the query that was demonstrated in the [previous section](@ref
+Why-FunSQL?):
+
+*Find all patients born between 1930 and 1940 and living in Illinois,
+and for each patient show their current age.*
 
     From(person) |>
-    Where(Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)) |>
+    Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
+    Join(:location => From(location) |>
+                      Where(Get.state .== "IL"),
+         on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
-This query is constructed from tabular operations `From`, `Where`, and `Select`
-arranged in a pipeline using the pipe (`|>`) operator.
+Now we are going to describe various components of this query and how they are
+assembled together.  At the outer level, this query is constructed from tabular
+operations `From`, `Where`, `Join`, and `Select` arranged in a pipeline by the
+pipe (`|>`) operator.  In SQL, a *tabular operation* takes a certain number of
+input datasets and produces an output dataset.  It is helpful to visualize a
+tabular operation as a node with a certain number of input arrows and one
+output arrow.
 
-In SQL, a *tabular operation* takes a certain number of input datasets and
-produces an output dataset.  Tabular operations are typically parameterized by
-*row operations*, which act on a dataset row and produce a scalar value.
+![From, Where, Select, and Join nodes](from-where-select-join-nodes.drawio.svg)
 
-The `From` operation outputs the content of a database table.  It takes one
-argument, a `SQLTable` object describing the table (see section [Database
-Schema](@ref) for the definition of `person`).  In the context of a query
-expression, a `SQLTable` object is automatically converted to `From`;
-thus this query could condensed to:
+Then the whole query can be visualized as a pipeline diagram.  Each arrow in
+this diagram represents a dataset, and each node represents an elementary data
+processing operation.
+
+![Query pipeline](person-by-birth-year-range-and-state.drawio.svg)
+
+The following tabular operations are available in FunSQL.
+
+| Constructor           | Function                                          |
+| :-------------------- | :------------------------------------------------ |
+| [`Append`](@ref)      | concatenate datasets                              |
+| [`As`](@ref)          | wrap all columns in a nested record               |
+| [`Bind`](@ref)        | correlate a subquery in a *join* expression       |
+| [`Define`](@ref)      | add an output column                              |
+| [`From`](@ref)        | produce the content of a database table           |
+| [`Group`](@ref)       | partition the dataset into disjoint groups        |
+| [`Join`](@ref)        | correlate two datasets                            |
+| [`Limit`](@ref)       | truncate the dataset                              |
+| [`Order`](@ref)       | sort the dataset                                  |
+| [`Partition`](@ref)   | add a window to the dataset                       |
+| [`Select`](@ref)      | specify output columns                            |
+| [`Where`](@ref)       | filter the dataset by the given condition         |
+
+We will take a closer look at three of them: `From`, `Select`, and `Join`.
+
+The `From` node outputs the content of a database table.  The constructor
+takes one argument, a `SQLTable` object (see the section [Database
+Schema](@ref)).  In a query, a bare `SQLTable` object is automatically
+converted to a `From` node, so one could write more compactly:
 
     person |>
-    Where(Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)) |>
     Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
-The `Select` operation allows us to customize the output columns.  Column
-names are specified with `=>` or using the `As` constructor, e.g.,
+It is possible for a query not to have a `From` node:
 
-    using FunSQL: As
-
-    2020 .- Get.year_of_birth |> As(:age)
-
-If the column name is not given explicitly, it is derived from the expression
-that calculates the column value.
-
-As opposed to SQL, FunSQL does not require that the query has an explicit
-`Select`, so that the following expression is a valid and complete query:
-
-    q = From(person) |>
-        Where(Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940))
-
-This query produces all the columns from the `person` table:
-
-    sql = render(q)
-
-    print(sql)
-    #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
-    FROM "person" AS "person_1"
-    WHERE (("person_1"."year_of_birth" >= 1930) AND ("person_1"."year_of_birth" < 1940))
-    =#
-
-Neither `From` is mandatory.  When a tabular operation, such as `Select`, that
-expects an input dataset isn't provided with one, it is supplied with the
-*unit* dataset containing one row and no columns.  This allows us to create
-queries that do not depend on the content of any database tables and generate
-one row of output:
+*Show the current date and time.*
 
     q = Select(Fun.current_timestamp())
 
@@ -370,26 +377,116 @@ one row of output:
     print(sql)
     #-> SELECT CURRENT_TIMESTAMP AS "current_timestamp"
 
+In this query, the `Select` node is not connected to any source of data.  In
+such a case, it is supplied with a *unit dataset* containing one row and no
+columns.  Hence this query will generate one row of output.
 
-## Row operations
+In general, the `Select` node is used to specify the output columns.  The name
+of the column is either derived from the expression or set explicitly with `As`
+(or its shorthand `=>`).
 
-Row operations are assembled from literal values, column references, and
-applications of SQL functions and operators.
+As opposed to SQL, FunSQL does not demand that all queries have an explicit
+`Select`.  The following query will produce all columns of the table:
 
-Literal values are created using the `Lit` constructor, although the values
-of type `Bool`, `Number`, `AbstractString` and `AbstractTime` as well as
-`missing` are automatically wrapped with `Lit` when used in a query
-expression:
+*Show all patients.*
+
+    q = From(person)
+
+    sql = render(q)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+The `Join` node correlates the rows of two input datasets.  Predominantly,
+`Join` is used for looking up table records by key.  In the following example,
+`Join` associates each `person` record with their `location` using the key
+column `location_id` that uniquely identifies a `location` record:
+
+*Show all patients together with their state of residence.*
+
+    person |>
+    Join(:location => location,
+         Get.location_id .== Get.location.location_id,
+         left = true) |>
+    Select(Get.person_id, Get.location.state)
+
+The modifier `left = true` tells `Join` that it must output all `person`
+records including those without the corresponding `location`.  Since this is a
+very common requirement, FunSQL provides an alias:
+
+    using FunSQL: LeftJoin
+
+    person |>
+    LeftJoin(:location => location,
+             Get.location_id .== Get.location.location_id) |>
+    Select(Get.person_id, Get.location.state)
+
+Since `Join` needs two input datasets, it must be attached to two input
+pipelines.  The first pipeline is attached using the `|>` operator and the
+second one is provided as an argument to the `Join` constructor.
+Alternatively, both input pipelines can be specified as keyword arguments:
+
+    Join(over = person,
+         joinee = :location => location,
+         on = Get.location_id .== Get.location.location_id,
+         left = true)
+
+The output of `Join` combines columns of both input datasets, which will cause
+ambiguity if both datasets have a column with the same name.  Such is the case
+in the previous example since both tables, `person` and `location`, have a
+column called `location_id`.  To disambiguate them, we can place all columns of
+one of the datasets into a nested record.  This is the action of the arrow
+(`=>`) operator or its full form, the `As` node:
+
+    using FunSQL: As
+
+    From(person) |>
+    LeftJoin(From(location) |>
+             As(:location),
+             on = Get.location_id .== Get.location.location_id)
+    Select(Get.person_id, Get.location.state)
+
+Alternatively, we could use *bound column references*, which are described
+later in this section.
+
+Many tabular operations including `Join`, `Select` and `Where` are
+parameterized with row operations.  A *row operation* acts on an individual row
+of a dataset and produces a scalar value.  Row operations are assembled from
+literal values, column references, and applications of SQL functions and
+operators.  Below is a list of row operations available in FunSQL.
+
+| Constructor           | Function                                          |
+| :-------------------- | :------------------------------------------------ |
+| [`Agg`](@ref)         | apply an aggregate function                       |
+| [`As`](@ref)          | assign a column alias                             |
+| [`Bind`](@ref)        | correlate a subquery                              |
+| [`Fun`](@ref)         | apply a scalar function or a scalar operator      |
+| [`Get`](@ref)         | produce the value of a column                     |
+| [`Lit`](@ref)         | produce a constant value                          |
+| [`Sort`](@ref)        | indicate the sort order                           |
+| [`Var`](@ref)         | produce the value of a query parameter            |
+
+The `Lit` constructor creates a literal value, although we could usually omit
+the constructor:
 
     using FunSQL: Lit
 
     Select(Lit(42))
     Select(42)
 
-The SQL value `NULL` is represented by `missing`.  FunSQL makes a reasonable
-attempt to convert Julia values to their respective SQL equivalents.
+The SQL value `NULL` is represented by the Julia constant `missing`:
 
-Column references are created using the `Get` constructor, which has several
+    q = Select(missing)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #-> SELECT NULL AS "_"
+
+The `Get` constructor creates a column reference.  `Get` admits several
 equivalent forms:
 
     Get.year_of_birth
@@ -397,69 +494,68 @@ equivalent forms:
     Get."year_of_birth"
     Get("year_of_birth")
 
-Column references are always resolved at the place of use.  Here, the same
-reference `Get.year_of_birth` appears several times:
+Such column references are resolved at the place of use against the input
+dataset.  As we mentioned earlier, sometimes column references cannot be
+resolved unambiguously.  To alleviate this problem, we can bind the column
+reference to the node that produces it:
 
-    From(person) |>
-    Where(Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)) |>
-    Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
+    qₚ = From(person)
+    qₗ = From(location)
+    q = qₚ |>
+        LeftJoin(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
+        Select(qₚ.person_id, qₗ.state)
 
-As a part of `Where`, it refers to the column produced by the `From` operation,
-but inside `Select` it refers to the output of `Where`.
+The notation `qₚ.location_id` and `qₗ.location_id` is just syntax sugar for
 
-FunSQL provides an alternative notation for column references.
+    qₚ |> Get(:location_id)
+    qₗ |> Get(:location_id)
 
-    q1 = From(person)
-    q2 = q1 |>
-         Where(Fun.and(q1.year_of_birth .>= 1930, q1.year_of_birth .< 1940))
-    q3 = q2 |>
-         Select(q1.person_id, :age => 2020 .- q1.year_of_birth)
+SQL functions and operators are represented using the `Fun` constructor, which
+also has several equivalent forms:
 
-The *unbound* references `Get.year_of_birth` and `Get.person_id` are replaced
-with *bound* references `q1.year_of_birth` and `q1.person_id`.  If we use a
-bound reference, the node to which the reference is bound must be a part of the
-query.  Note that in `Select`, we could replace `q1` with `q2` without changing
-the meaning of the query:
+    Fun.between(Get.year_of_birth, 1930, 1940)
+    Fun(:between, Get.year_of_birth, 1930, 1940)
+    Fun."between"(Get.year_of_birth, 1930, 1940)
+    Fun("between", Get.year_of_birth, 1930, 1940)
 
-    q3 = q2 |>
-         Select(q2.person_id, :age => 2020 .- q2.year_of_birth)
-
-Use of unbound references makes query composition more modular.  For example,
-we could encapsulate the condition on the birth range in a Julia function
-as follows:
-
-    BirthRange(start, stop) =
-        Fun.and(Get.year_of_birth .>= start, Get.year_of_birth .< stop)
-
-    From(person) |> Where(BirthRange(1930, 1940))
-
-On the other hand, bound references sometimes make it easier to disambiguate
-columns of different tables.
-
-SQL functions and operators are represented using the `Fun` constructor,
-which, just like `Get`, has several equivalent forms:
-
-    Fun.and(Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)
-    Fun(:and, Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)
-    Fun."and"(Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)
-    Fun("and", Get.year_of_birth .>= 1930, Get.year_of_birth .< 1940)
-
-Certain SQL operators, notably comparison operators, also support broadcasting
-notation:
+Certain SQL operators, notably comparison operators, can be represented using
+Julia broadcasting notation:
 
     Fun.">="(Get.year_of_birth, 1930)
     Get.year_of_birth .>= 1930
 
-FunSQL has support for serializing some of the widely used SQL functions and
-operators with irregular notation.  For example:
+We should note that FunSQL does not verify if a SQL function or an operator is
+used correctly or even whether or not it exists.  In such a case, FunSQL will
+generate a SQL query that fails to execute:
 
     q = From(person) |>
-        Select(:generation => Fun.case(Get.year_of_birth .<= 1960,
-                                       "boomer", "millenial"))
+        Select(Fun.frobnicate(Get.year_of_birth))
 
-    print(render(q))
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
     #=>
-    SELECT (CASE WHEN ("person_1"."year_of_birth" <= 1960) THEN 'boomer' ELSE 'millenial' END) AS "generation"
+    SELECT FROBNICATE("person_1"."year_of_birth") AS "frobnicate"
+    FROM "person" AS "person_1"
+    =#
+
+    DBInterface.execute(conn, sql)
+    #-> ERROR: SQLite.SQLiteException("no such function: FROBNICATE")
+
+On the other hand, FunSQL will correctly serialize many SQL functions and
+operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
+`EXISTS`, `CASE`, and others:
+
+*Show the demographic cohort of each patient.*
+
+    q = From(person) |>
+        Select(Fun.case(Get.year_of_birth .<= 1060, "boomer", "millenial"))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT (CASE WHEN ("person_1"."year_of_birth" <= 1060) THEN 'boomer' ELSE 'millenial' END) AS "case"
     FROM "person" AS "person_1"
     =#
 
