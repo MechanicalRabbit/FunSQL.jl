@@ -17,8 +17,8 @@ For a database engine, we picked [SQLite](https://www.sqlite.org/).  Using
 SQLite in a tutorial is convenient because it does not require a database
 server to run and allows us to distribute the whole database as a single file.
 FunSQL supports SQLite and many other database engines.  The techniques
-discussed here are not specific to SQLite or this particular database.  Once
-you learn them, you should be able to apply them to your own databases.
+discussed here are not specific to SQLite and once you learn them, you will be
+able to apply them to any SQL database.
 
 If you wish to follow along with the tutorial and run the examples, download
 the database file:
@@ -28,15 +28,19 @@ const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/down
 const DB = download(URL)
 ```
 
-During development, all the code examples here are executed on every update by
-the [NarrativeTest](https://github.com/MechanicalRabbit/NarrativeTest.jl)
-package.  To avoid downloading the database file more than once, we registered
-the download URL as an [artifact](../Artifacts.toml) and use
+While working on this tutorial, we run all the code examples on every update
+(using the
+[NarrativeTest](https://github.com/MechanicalRabbit/NarrativeTest.jl) package).
+To avoid downloading the database file more than once, we registered the
+download URL as an [artifact](../Artifacts.toml) and use
 [`Pkg.Artifacts`](http://pkgdocs.julialang.org/v1/artifacts/) API to fetch it:
 
     using Pkg.Artifacts, LazyArtifacts
 
     const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
+
+
+## Database Connection
 
 To interact with a SQLite database from Julia code, we need to install the
 [SQLite](https://github.com/JuliaDatabases/SQLite.jl) package:
@@ -58,10 +62,10 @@ Later we will use the `conn` object to execute database queries.
 
 ## Database Schema
 
-The data in the test database is stored in the format of the [OMOP Common
-Data Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an
-open source database schema for observational healthcare data.  In this
-tutorial, we will only use a small fragment of the Common Data Model.
+The data in the test database is stored in the format of the [OMOP Common Data
+Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an open
+source database schema for observational healthcare data.  In this tutorial, we
+will only use a small fragment of the Common Data Model.
 
 ![Fragment of the OMOP Common Data Model](omop-common-data-model.drawio.svg)
 
@@ -72,15 +76,15 @@ of the table together with the names of the columns.
 
     using FunSQL: SQLTable
 
-The patient data, including basic demographic information, is stored in
-the table `person`:
+The patient data, including basic demographic information, is stored in the
+table `person`:
 
     const person =
         SQLTable(:person,
                  columns = [:person_id, :year_of_birth, :location_id])
 
-Patient addresses are stored in a separate table `location`, linked to the
-`person` table by the key column `location_id`:
+Patient addresses are stored in a separate table `location`, linked to `person`
+by the key column `location_id`:
 
     const location =
         SQLTable(:location,
@@ -103,8 +107,8 @@ etc.  In this tutorial we only use two types of events, visits and conditions:
                             :condition_start_date, :condition_end_date])
 
 The specific type of the event (e.g., *Inpatient* visit or *Essential
-hypertension* condition) is indicated using a *concept id* column, which
-refers to the `concept` table:
+hypertension* condition) is indicated using a *concept id* column, which refers
+to the `concept` table:
 
     const concept =
         SQLTable(:concept,
@@ -122,11 +126,11 @@ corresponding table:
 
 ## Why FunSQL?
 
-Let us start with clarifying why you may want to use FunSQL.  Consider
-a problem:
+Let us start with clarifying why you may want to use FunSQL.  Consider a
+problem:
 
-*Find all patients born between 1930 and 1940 and living in Illinois,
-and for each patient show their current age (by the end of 2020).*
+*Find all patients born between 1930 and 1940 and living in Illinois, and for
+each patient show their current age (by the end of 2020).*
 
 The answer can be obtained with the following SQL query:
 
@@ -147,7 +151,7 @@ string literal:
     WHERE (p.year_of_birth BETWEEN 1930 AND 1940) AND (l.state = 'IL')
     """
 
-Using an appropriate [database engine
+Using the appropriate [database engine
 API](https://juliadatabases.org/SQLite.jl/stable/#DBInterface.execute) and the
 connection object created [earlier](@ref Test-Database), we can execute this
 query and get back the answer:
@@ -269,7 +273,9 @@ Here is how a parameterized query may be constructed with FunSQL:
     end
 
 The function `FindPatients` effectively becomes a new `SQLNode` constructor,
-which can be used directly or as a component of a larger query:
+which can be used directly or as a component of a larger query.
+
+*Show all patients.*
 
     q = FindPatients()
 
@@ -278,6 +284,8 @@ which can be used directly or as a component of a larger query:
     SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
+
+*Show all patients born in or after 1930.*
 
     q = FindPatients(start_year = 1930) |>
         Select(Get.person_id)
@@ -288,6 +296,9 @@ which can be used directly or as a component of a larger query:
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" >= 1930)
     =#
+
+*Find all patients born between 1930 and 1940 and living in Illinois, and for
+each patient show their current age.*
 
     q = FindPatients(start_year = 1930, end_year = 1940, states = ["IL"]) |>
         Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
@@ -308,13 +319,13 @@ which can be used directly or as a component of a larger query:
     =#
 
 
-## Assembling Queries
+## Tabular Operations
 
 Recall the query that was demonstrated in the [previous section](@ref
 Why-FunSQL?):
 
-*Find all patients born between 1930 and 1940 and living in Illinois,
-and for each patient show their current age.*
+*Find all patients born between 1930 and 1940 and living in Illinois, and for
+each patient show their current age.*
 
     From(person) |>
     Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
@@ -323,13 +334,11 @@ and for each patient show their current age.*
          on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
-Now we are going to describe various components of this query and how they are
-assembled together.  At the outer level, this query is constructed from tabular
-operations `From`, `Where`, `Join`, and `Select` arranged in a pipeline by the
-pipe (`|>`) operator.  In SQL, a *tabular operation* takes a certain number of
-input datasets and produces an output dataset.  It is helpful to visualize a
-tabular operation as a node with a certain number of input arrows and one
-output arrow.
+At the outer level, this query is constructed from tabular operations `From`,
+`Where`, `Join`, and `Select` arranged in a pipeline by the pipe (`|>`)
+operator.  In SQL, a *tabular operation* takes a certain number of input
+datasets and produces an output dataset.  It is helpful to visualize a tabular
+operation as a node with a certain number of input arrows and one output arrow.
 
 ![From, Where, Select, and Join nodes](from-where-select-join-nodes.drawio.svg)
 
@@ -356,12 +365,18 @@ The following tabular operations are available in FunSQL.
 | [`Select`](@ref)      | specify output columns                            |
 | [`Where`](@ref)       | filter the dataset by the given condition         |
 
-We will take a closer look at three of them: `From`, `Select`, and `Join`.
+Next, we will take a closer look at three of them: `From`, `Select`, and
+`Join`.
+
+
+## `From`
 
 The `From` node outputs the content of a database table.  The constructor
 takes one argument, a `SQLTable` object (see the section [Database
 Schema](@ref)).  In a query, a bare `SQLTable` object is automatically
 converted to a `From` node, so one could write more compactly:
+
+*For each patient, show their current age.*
 
     person |>
     Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
@@ -381,9 +396,12 @@ In this query, the `Select` node is not connected to any source of data.  In
 such a case, it is supplied with a *unit dataset* containing one row and no
 columns.  Hence this query will generate one row of output.
 
+
+## `Select`
+
 In general, the `Select` node is used to specify the output columns.  The name
 of the column is either derived from the expression or set explicitly with `As`
-(or its shorthand `=>`).
+(or its shorthand, the arrow (`=>`) operator).
 
 As opposed to SQL, FunSQL does not demand that all queries have an explicit
 `Select`.  The following query will produce all columns of the table:
@@ -399,6 +417,9 @@ As opposed to SQL, FunSQL does not demand that all queries have an explicit
     SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
+
+
+## `Join`
 
 The `Join` node correlates the rows of two input datasets.  Predominantly,
 `Join` is used for looking up table records by key.  In the following example,
@@ -432,7 +453,8 @@ Alternatively, both input pipelines can be specified as keyword arguments:
     Join(over = person,
          joinee = :location => location,
          on = Get.location_id .== Get.location.location_id,
-         left = true)
+         left = true) |>
+    Select(Get.person_id, Get.location.state)
 
 The output of `Join` combines columns of both input datasets, which will cause
 ambiguity if both datasets have a column with the same name.  Such is the case
@@ -446,11 +468,14 @@ one of the datasets into a nested record.  This is the action of the arrow
     From(person) |>
     LeftJoin(From(location) |>
              As(:location),
-             on = Get.location_id .== Get.location.location_id)
+             on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, Get.location.state)
 
 Alternatively, we could use *bound column references*, which are described
-later in this section.
+in a [later section](@ref Get).
+
+
+## Row Operations
 
 Many tabular operations including `Join`, `Select` and `Where` are
 parameterized with row operations.  A *row operation* acts on an individual row
@@ -469,6 +494,9 @@ operators.  Below is a list of row operations available in FunSQL.
 | [`Sort`](@ref)        | indicate the sort order                           |
 | [`Var`](@ref)         | produce the value of a query parameter            |
 
+
+## `Lit`
+
 The `Lit` constructor creates a literal value, although we could usually omit
 the constructor:
 
@@ -486,6 +514,9 @@ The SQL value `NULL` is represented by the Julia constant `missing`:
     print(sql)
     #-> SELECT NULL AS "_"
 
+
+## `Get`
+
 The `Get` constructor creates a column reference.  `Get` admits several
 equivalent forms:
 
@@ -499,6 +530,8 @@ dataset.  As we mentioned earlier, sometimes column references cannot be
 resolved unambiguously.  To alleviate this problem, we can bind the column
 reference to the node that produces it:
 
+*Show all patients with their state of residence.*
+
     qₚ = From(person)
     qₗ = From(location)
     q = qₚ |>
@@ -509,6 +542,9 @@ The notation `qₚ.location_id` and `qₗ.location_id` is just syntax sugar for
 
     qₚ |> Get(:location_id)
     qₗ |> Get(:location_id)
+
+
+## `Fun`
 
 SQL functions and operators are represented using the `Fun` constructor, which
 also has several equivalent forms:
@@ -525,7 +561,7 @@ Julia broadcasting notation:
     Get.year_of_birth .>= 1930
 
 We should note that FunSQL does not verify if a SQL function or an operator is
-used correctly or even whether or not it exists.  In such a case, FunSQL will
+used correctly or even whether it exists or not.  In such a case, FunSQL will
 generate a SQL query that fails to execute:
 
     q = From(person) |>
@@ -549,13 +585,83 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
 *Show the demographic cohort of each patient.*
 
     q = From(person) |>
-        Select(Fun.case(Get.year_of_birth .<= 1060, "boomer", "millenial"))
+        Select(Fun.case(Get.year_of_birth .<= 1960, "boomer", "millenial"))
 
     sql = render(q, dialect = :sqlite)
 
     print(sql)
     #=>
-    SELECT (CASE WHEN ("person_1"."year_of_birth" <= 1060) THEN 'boomer' ELSE 'millenial' END) AS "case"
+    SELECT (CASE WHEN ("person_1"."year_of_birth" <= 1960) THEN 'boomer' ELSE 'millenial' END) AS "case"
     FROM "person" AS "person_1"
+    =#
+
+
+## Query Parameters
+
+A SQL query may include a reference to a *query parameter*.  When we execute
+such a query, we must supply the actual values for all parameters used in the
+query.  This is a restricted form of dynamic query construction directly
+supported by SQL syntax.
+
+*Show all patients born between `$start_year` and `$end_year`.*
+
+    sql = """
+    SELECT p.person_id
+    FROM person p
+    WHERE p.year_of_birth BETWEEN ? AND ?
+    """
+
+    res = DBInterface.execute(conn, sql, (1930, 1940))
+
+    DataFrame(res)
+    #=>
+    3×1 DataFrame
+     Row │ person_id
+         │ Int64
+    ─────┼───────────
+       1 │      1780
+       2 │     30091
+       3 │     72120
+    =#
+
+FunSQL can be used to construct a query with parameters.  Similar to `Get`,
+parameter references are created using the constructor `Var`.
+
+    using FunSQL: Var
+
+    q = From(person) |>
+        Where(Fun.between(Get.year_of_birth, Var.start_year, Var.end_year)) |>
+        Select(Get.person_id)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" BETWEEN ?1 AND ?2)
+    =#
+
+While we specified parameters by name, in the generated SQL query the same
+parameters are numbered.  If we know the values of the parameters and we wish
+to execute the query with them, we need to pack the values in the order in
+which parameters appear in the SQL query:
+
+    using FunSQL: pack
+
+    params = pack(sql, (start_year = 1930, end_year = 1940))
+    #-> Any[1930, 1940]
+
+    res = DBInterface.execute(conn, sql, params)
+
+    DataFrame(res)
+    #=>
+    3×1 DataFrame
+     Row │ person_id
+         │ Int64
+    ─────┼───────────
+       1 │      1780
+       2 │     30091
+       3 │     72120
     =#
 
