@@ -607,6 +607,28 @@ Partitions created by `Group` are summarized using aggregate expressions.
     GROUP BY "person_1"."year_of_birth"
     =#
 
+`Group` will create a single instance of an aggregate function even if it is
+used more than once.
+
+    q = From(person) |>
+        Join(:visit_group => From(visit_occurrence) |>
+                             Group(Get.person_id),
+             on = Get.person_id .== Get.visit_group.person_id) |>
+        Where(Agg.count(over = Get.visit_group) .>= 2) |>
+        Select(Get.person_id, Agg.count(over = Get.visit_group))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "visit_group_1"."count_1" AS "count"
+    FROM "person" AS "person_1"
+    JOIN (
+      SELECT "visit_occurrence_1"."person_id", COUNT(*) AS "count_1"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
+    WHERE ("visit_group_1"."count_1" >= 2)
+    =#
+
 `Group` accepts an empty list of keys.
 
     q = From(person) |>
