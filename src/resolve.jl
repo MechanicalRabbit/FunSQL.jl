@@ -796,12 +796,18 @@ function resolve(n::GroupNode, req)
         end
     end
     repl = Dict{SQLNode, Symbol}()
+    seen_agg = Dict{SQLClause, Symbol}()
     for ref in req.refs
         if @dissect ref (nothing |> Get(name = name))
             if name in keys(indexes)
                 repl[ref] = name
             end
         elseif @dissect ref (nothing |> Agg(name = name))
+            c = translate(ref, treq)
+            if c in keys(seen_agg)
+                repl[ref] = seen_agg[c]
+                continue
+            end
             name′ = name
             if name in keys(dups)
                 k = dups[name]
@@ -812,8 +818,9 @@ function resolve(n::GroupNode, req)
                 end
                 dups[name] = k + 1
             end
-            push!(list, AS(over = translate(ref, treq), name = name′))
+            push!(list, AS(over = c, name = name′))
             repl[ref] = name′
+            seen_agg[c] = name′
         end
     end
     @assert !isempty(list)
