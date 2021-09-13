@@ -52,28 +52,28 @@ rebase(c::SQLClause, c′) =
 rebase(::Nothing, c′) =
     c′
 
-Base.isequal(@nospecialize(::AbstractSQLClause), @nospecialize(::AbstractSQLClause)) =
+Base.:(==)(@nospecialize(::AbstractSQLClause), @nospecialize(::AbstractSQLClause)) =
     false
 
-Base.isequal(c1::SQLClause, c2::SQLClause) =
-    isequal(c1[], c2[])
+Base.:(==)(c1::SQLClause, c2::SQLClause) =
+    c1[] == c2[]
 
-Base.isequal(c1::SQLClause, @nospecialize(c2::AbstractSQLClause)) =
-    isequal(c1[], c2)
+Base.:(==)(c1::SQLClause, @nospecialize(c2::AbstractSQLClause)) =
+    c1[] == c2
 
-Base.isequal(@nospecialize(c1::AbstractSQLClause), c2::SQLClause) =
-    isequal(c1, c2[])
+Base.:(==)(@nospecialize(c1::AbstractSQLClause), c2::SQLClause) =
+    c1 == c2[]
+
+@generated function Base.:(==)(c1::C, c2::C) where {C <: AbstractSQLClause}
+    exs = Expr[]
+    for f in fieldnames(c1)
+        push!(exs, :(isequal(c1.$(f), c2.$(f))))
+    end
+    Expr(:||, :(c1 === c2), Expr(:&&, exs...))
+end
 
 Base.hash(c::SQLClause, h::UInt) =
     hash(c[], h)
-
-@generated function Base.isequal(c1::C, c2::C) where {C <: AbstractSQLClause}
-    exs = Expr[]
-    for f in fieldnames(c1)
-        push!(exs, :(Base.isequal(c1.$(f), c2.$(f))))
-    end
-    Expr(:||, (c1 === c2), Expr(:&&, exs...))
-end
 
 @generated function Base.hash(c::AbstractSQLClause, h::UInt)
     ex = :(h + $(hash(c)))
