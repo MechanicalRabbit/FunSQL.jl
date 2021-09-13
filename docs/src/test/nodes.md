@@ -619,14 +619,14 @@ used more than once.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "visit_group_1"."count_1" AS "count"
+    SELECT "person_1"."person_id", "visit_group_1"."count"
     FROM "person" AS "person_1"
     JOIN (
-      SELECT "visit_occurrence_1"."person_id", COUNT(*) AS "count_1"
+      SELECT "visit_occurrence_1"."person_id", COUNT(*) AS "count"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
-    WHERE ("visit_group_1"."count_1" >= 2)
+    WHERE ("visit_group_1"."count" >= 2)
     =#
 
 `Group` accepts an empty list of keys.
@@ -678,10 +678,10 @@ used more than once.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "visit_group_1"."max_1" AS "max_visit_start_date", "visit_group_1"."max_2" AS "max_visit_end_date"
+    SELECT "person_1"."person_id", "visit_group_1"."max" AS "max_visit_start_date", "visit_group_1"."max_2" AS "max_visit_end_date"
     FROM "person" AS "person_1"
     JOIN (
-      SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max_1", MAX("visit_occurrence_1"."visit_end_date") AS "max_2"
+      SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max", MAX("visit_occurrence_1"."visit_end_date") AS "max_2"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")

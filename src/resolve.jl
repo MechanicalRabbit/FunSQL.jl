@@ -450,6 +450,55 @@ end
 
 # Resolving deferred SELECT list.
 
+function make_repl(refs::Vector{SQLNode})::Dict{SQLNode, Symbol}
+    repl = Dict{SQLNode, Symbol}()
+    dups = Dict{Symbol, Int}()
+    for ref in refs
+        name′ = name = default_alias(ref)
+        k = get(dups, name, 0) + 1
+        if k > 1
+            name′ = Symbol(name, '_', k)
+            while name′ in keys(dups)
+                k += 1
+                name′ = Symbol(name, '_', k)
+            end
+            dups[name] = k
+        end
+        repl[ref] = name
+        dups[name′] = 1
+    end
+    repl
+end
+
+function make_repl(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLNode, Symbol}, Vector{SQLClause}}
+    repl = Dict{SQLNode, Symbol}()
+    list = SQLClause[]
+    dups = Dict{Symbol, Int}()
+    renames = Dict{Tuple{Symbol, SQLClause}, Symbol}()
+    for (ref, c) in trns
+        name′ = name = default_alias(ref)
+        k = get(dups, name, 0) + 1
+        if k > 1
+            name′ = get(renames, (name, c), nothing)
+            if name′ !== nothing
+                repl[ref] = name′
+                continue
+            end
+            name′ = Symbol(name, '_', k)
+            while name′ in keys(dups)
+                k += 1
+                name′ = Symbol(name, '_', k)
+            end
+            dups[name] = k
+        end
+        push!(list, AS(over = c, name = name′))
+        dups[name′] = 1
+        renames[name, c] = name′
+        repl[ref] = name′
+    end
+    (repl, list)
+end
+
 function resolve(n::SQLNode; dialect = :default)
     ctx = ResolveContext(dialect)
     req = ResolveRequest(ctx, refs = default_list(n))
@@ -590,15 +639,10 @@ function resolve(n::AppendNode, req)
             seen[name] = ref
         end
     end
-    repl = Dict{SQLNode, Symbol}()
-    for ref in refs
-        if ref in keys(dups)
-            repl[ref] = repl[dups[ref]]
-        else
-            name = default_alias(ref)
-            @assert !(name in keys(repl))
-            repl[ref] = name
-        end
+    urefs = SQLNode[ref for ref in refs if !(ref in keys(dups))]
+    repl = make_repl(urefs)
+    for (ref, uref) in dups
+        repl[ref] = repl[uref]
     end
     cs = SQLClause[]
     for (as, res) in results
@@ -670,36 +714,28 @@ function resolve(n::DefineNode, req)
     treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()
-    list = SQLClause[]
-    seen = Set{Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    tr_cache = Dict{Symbol, SQLClause}()
+    base_cache = Dict{Symbol, SQLClause}()
     for ref in req.refs
         if (@dissect ref (nothing |> Get(name = name))) && name in keys(indexes)
-            repl[ref] = name
-            !(name in seen) || continue
-            push!(seen, name)
-            col = n.list[indexes[name]]
-            push!(list, AS(over = translate(col, treq), name = name))
-        elseif ref in keys(base_res.repl)
-            name′ = name = base_res.repl[ref]
-            if name in keys(dups)
-                k = dups[name]
-                name′ = Symbol(name, '_', k)
-                while name′ in keys(indexes) || name′ in keys(dups)
-                    k += 1
-                    name′ = Symbol(name, '_', k)
-                end
-                dups[name] = k + 1
+            c = get!(tr_cache, name) do
+                col = n.list[indexes[name]]
+                translate(col, treq)
             end
-            repl[ref] = name′
-            !(name′ in seen) || continue
-            push!(seen, name′)
-            id = ID(over = base_as, name = name)
-            push!(list, AS(over = id, name = name′))
+            push!(trns, ref => c)
+        elseif ref in keys(base_res.repl)
+            name = base_res.repl[ref]
+            c = get!(base_cache, name) do
+                ID(over = base_as, name = name)
+            end
+            push!(trns, ref => c)
         end
         if ref in base_res.ambs
             push!(ambs, ref)
         end
     end
+    repl, list = make_repl(trns)
     if isempty(list)
         push!(list, missing)
     end
@@ -778,51 +814,26 @@ function resolve(n::GroupNode, req)
         return resolve(nothing, req)
     end
     by = SQLClause[]
-    list = SQLClause[]
+    tr_cache = Dict{Symbol, SQLClause}()
     for (i, key) in enumerate(n.by)
+        name = aliases[i]
         ckey = translate(key, treq)
         push!(by, ckey)
-        push!(list, AS(over = ckey, name = aliases[i]))
+        tr_cache[name] = ckey
     end
-    dups = Dict{Symbol, Int}([alias => 1 for alias in aliases])
-    seen = Set{Symbol}()
-    for ref in req.refs
-        if @dissect ref (nothing |> Agg(name = name))
-            if name in seen
-                dups[name] = 1
-            else
-                push!(seen, name)
-            end
-        end
-    end
-    repl = Dict{SQLNode, Symbol}()
-    seen_agg = Dict{SQLClause, Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
     for ref in req.refs
         if @dissect ref (nothing |> Get(name = name))
             if name in keys(indexes)
-                repl[ref] = name
+                ckey = tr_cache[name]
+                push!(trns, ref => ckey)
             end
         elseif @dissect ref (nothing |> Agg(name = name))
             c = translate(ref, treq)
-            if c in keys(seen_agg)
-                repl[ref] = seen_agg[c]
-                continue
-            end
-            name′ = name
-            if name in keys(dups)
-                k = dups[name]
-                name′ = Symbol(name, '_', k)
-                while name′ in keys(indexes) || name′ in seen
-                    k += 1
-                    name′ = Symbol(name, '_', k)
-                end
-                dups[name] = k + 1
-            end
-            push!(list, AS(over = c, name = name′))
-            repl[ref] = name′
-            seen_agg[c] = name′
+            push!(trns, ref => c)
         end
     end
+    repl, list = make_repl(trns)
     @assert !isempty(list)
     f = FROM(AS(over = base_res.clause, name = base_as))
     if has_aggregates
@@ -867,38 +878,28 @@ function resolve(n::JoinNode, req)
     end
     treq = TranslateRequest(req.ctx, subs, ambs)
     on = translate(n.on, treq)
-    list = SQLClause[]
-    left_names = Set{Symbol}(values(left_res.repl))
-    right_names = Set{Symbol}(values(right_res.repl))
-    name_dups = intersect(left_names, right_names)
-    name_remap = Dict{Symbol, Symbol}()
-    for dup in name_dups
-        name′ = Symbol(right_as, '_', dup)
-        while name′ in left_names || name′ in right_names
-            name′ = Symbol(name′, '_')
-        end
-        name_remap[dup] = name′
-    end
-    repl = Dict{SQLNode, Symbol}()
-    seen = Set{Symbol}()
+    l_cache = Dict{Symbol, SQLClause}()
+    r_cache = Dict{Symbol, SQLClause}()
+    trns = Pair{SQLNode, SQLClause}[]
     for ref in req.refs
         !(ref in ambs) || continue
         if ref in keys(left_res.repl)
-            name = name′ = left_res.repl[ref]
-            over = left_as
+            name = left_res.repl[ref]
+            c = get!(l_cache, name) do
+                ID(over = left_as, name = name)
+            end
+            push!(trns, ref => c)
         elseif ref in keys(right_res.repl)
             name = right_res.repl[ref]
-            name′ = get(name_remap, name, name)
-            over = right_as
+            c = get!(r_cache, name) do
+                ID(over = right_as, name = name)
+            end
+            push!(trns, ref => c)
         else
             continue
         end
-        repl[ref] = name′
-        !(name′ in seen) || continue
-        push!(seen, name′)
-        id = ID(over = over, name = name)
-        push!(list, AS(over = id, name = name′))
     end
+    repl, list = make_repl(trns)
     if isempty(list)
         push!(list, missing)
     end
@@ -920,24 +921,22 @@ function resolve(n::LimitNode, req)
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
-    list = SQLClause[]
-    repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()
-    seen = Set{Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    base_cache = Dict{Symbol, SQLClause}()
     for ref in req.refs
         if ref in keys(base_res.repl)
             name = base_res.repl[ref]
-            repl[ref] = name
-            !(name in seen) || continue
-            push!(seen, name)
-            id = ID(over = base_as, name = name)
-            push!(list, AS(over = id, name = name))
+            c = get(base_cache, name) do
+                ID(over = base_as, name = name)
+            end
+            push!(trns, ref => c)
         end
         if ref in base_res.ambs
             push!(ambs, ref)
         end
     end
+    repl, list = make_repl(trns)
     if isempty(list)
         push!(list, missing)
     end
@@ -964,23 +963,22 @@ function resolve(n::OrderNode, req)
     end
     treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     by = translate(n.by, treq)
-    list = SQLClause[]
-    repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()
-    seen = Set{Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    base_cache = Dict{Symbol, SQLClause}()
     for ref in req.refs
         if ref in keys(base_res.repl)
             name = base_res.repl[ref]
-            repl[ref] = name
-            !(name in seen) || continue
-            push!(seen, name)
-            id = ID(over = base_as, name = name)
-            push!(list, AS(over = id, name = name))
+            c = get(base_cache, name) do
+                ID(over = base_as, name = name)
+            end
+            push!(trns, ref => c)
         end
         if ref in base_res.ambs
             push!(ambs, ref)
         end
     end
+    repl, list = make_repl(trns)
     if isempty(list)
         push!(list, missing)
     end
@@ -1030,31 +1028,24 @@ function resolve(n::PartitionNode, req)
     by = translate(n.by, treq)
     order_by = translate(n.order_by, treq)
     partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
-    list = SQLClause[]
-    repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()
-    seen = Set{Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    base_cache = Dict{Symbol, SQLClause}()
     for ref in req.refs
         if @dissect ref (nothing |> Agg(name = name))
-            name′ = name
-            if name in keys(dups)
-                k = dups[name]
-                name′ = Symbol(name, '_', k)
-                dups[name] = k + 1
-            end
-            push!(list, AS(over = partition |> translate(ref, treq), name = name′))
-            repl[ref] = name′
+            c = partition |> translate(ref, treq)
+            push!(trns, ref => c)
         elseif ref in keys(base_res.repl)
             name = base_res.repl[ref]
-            repl[ref] = name
-            !(name in seen) || continue
-            push!(seen, name)
-            id = ID(over = base_as, name = name)
-            push!(list, AS(over = id, name = name))
+            c = get!(base_cache, name) do
+                ID(over = base_as, name = name)
+            end
+            push!(trns, ref => c)
         elseif ref in base_res.ambs
             push!(ambs, ref)
         end
     end
+    repl, list = make_repl(trns)
     if isempty(list)
         push!(list, missing)
     end
@@ -1125,23 +1116,22 @@ function resolve(n::WhereNode, req)
     end
     treq = TranslateRequest(req.ctx, subs, base_res.ambs)
     condition = translate(n.condition, treq)
-    list = SQLClause[]
-    repl = Dict{SQLNode, Symbol}()
     ambs = Set{SQLNode}()
-    seen = Set{Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    base_cache = Dict{Symbol, SQLClause}()
     for ref in req.refs
         if ref in keys(base_res.repl)
             name = base_res.repl[ref]
-            repl[ref] = name
-            !(name in seen) || continue
-            push!(seen, name)
-            id = ID(over = base_as, name = name)
-            push!(list, AS(over = id, name = name))
+            c = get(base_cache, name) do
+                ID(over = base_as, name = name)
+            end
+            push!(trns, ref => c)
         end
         if ref in base_res.ambs
             push!(ambs, ref)
         end
     end
+    repl, list = make_repl(trns)
     if isempty(list)
         push!(list, missing)
     end
