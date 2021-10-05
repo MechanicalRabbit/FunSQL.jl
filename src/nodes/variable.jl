@@ -49,3 +49,6 @@ Base.getindex(::typeof(Var), name::Union{Symbol, AbstractString}) =
 PrettyPrinting.quoteof(n::VariableNode, qctx::SQLNodeQuoteContext) =
     Expr(:., nameof(Var), quoteof(n.name))
 
+label(n::VariableNode) =
+    n.name
+

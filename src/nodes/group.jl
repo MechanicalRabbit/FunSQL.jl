@@ -3,9 +3,25 @@
 mutable struct GroupNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
 
-    GroupNode(; over = nothing, by = SQLNode[]) =
-        new(over, by)
+    function GroupNode(; over = nothing, by = SQLNode[], label_map = nothing)
+        if label_map !== nothing
+            return new(over, by, label_map)
+        end
+        n = new(over, by, OrderedDict{Symbol, Int}())
+        for (i, l) in enumerate(n.by)
+            name = label(l)
+            if name in keys(n.label_map)
+                err = DuplicateAliasError(name)
+                push!(err.stack, l)
+                push!(err.stack, n)
+                throw(err)
+            end
+            n.label_map[name] = i
+        end
+        n
+    end
 end
 
 GroupNode(by...; over = nothing) =
@@ -64,6 +80,9 @@ function PrettyPrinting.quoteof(n::GroupNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::GroupNode) =
+    label(n.over)
+
 rebase(n::GroupNode, n′) =
-    GroupNode(over = rebase(n.over, n′), by = n.by)
+    GroupNode(over = rebase(n.over, n′), by = n.by, label_map = n.label_map)
 

@@ -60,6 +60,9 @@ function PrettyPrinting.quoteof(n::BindNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::BindNode) =
+    label(n.over)
+
 rebase(n::BindNode, n′) =
     BindNode(over = rebase(n.over, n′), list = n.list)
 

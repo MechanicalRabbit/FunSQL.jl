@@ -4,6 +4,7 @@ module FunSQL
 
 using Dates
 using PrettyPrinting: PrettyPrinting, pprint, quoteof, tile_expr, literal
+using OrderedCollections: OrderedDict
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
@@ -14,6 +15,12 @@ const SQLLiteralType =
 Convert the given SQL node or clause object to a SQL string.
 """
 function render
+end
+
+"""
+Base error class for all errors raised by FunSQL.
+"""
+abstract type FunSQLError <: Exception
 end
 
 include("dissect.jl")

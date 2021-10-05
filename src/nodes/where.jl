@@ -51,6 +51,9 @@ function PrettyPrinting.quoteof(n::WhereNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::WhereNode) =
+    label(n.over)
+
 rebase(n::WhereNode, n′) =
     WhereNode(over = rebase(n.over, n′), condition = n.condition)
 

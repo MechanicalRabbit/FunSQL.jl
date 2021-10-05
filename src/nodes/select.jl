@@ -3,9 +3,25 @@
 mutable struct SelectNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
 
-    SelectNode(; over = nothing, list) =
-        new(over, list)
+    function SelectNode(; over = nothing, list, label_map = nothing)
+        if label_map !== nothing
+            return new(over, list, label_map)
+        end
+        n = new(over, list, OrderedDict{Symbol, Int}())
+        for (i, l) in enumerate(n.list)
+            name = label(l)
+            if name in keys(n.label_map)
+                err = DuplicateAliasError(name)
+                push!(err.stack, l)
+                push!(err.stack, n)
+                throw(err)
+            end
+            n.label_map[name] = i
+        end
+        n
+    end
 end
 
 SelectNode(list...; over = nothing) =
@@ -54,6 +70,9 @@ function PrettyPrinting.quoteof(n::SelectNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::SelectNode) =
+    label(n.over)
+
 rebase(n::SelectNode, n′) =
-    SelectNode(over = rebase(n.over, n′), list = n.list)
+    SelectNode(over = rebase(n.over, n′), list = n.list, label_map = n.label_map)
 

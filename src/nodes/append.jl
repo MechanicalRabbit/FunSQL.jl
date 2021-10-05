@@ -70,6 +70,9 @@ function PrettyPrinting.quoteof(n::AppendNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::AppendNode) =
+    :union
+
 rebase(n::AppendNode, n′) =
     AppendNode(over = rebase(n.over, n′), list = n.list)
 

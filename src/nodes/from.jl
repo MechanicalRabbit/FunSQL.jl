@@ -50,3 +50,6 @@ function PrettyPrinting.quoteof(n::FromNode, qctx::SQLNodeQuoteContext)
     Expr(:call, nameof(From), tex)
 end
 
+label(n::FromNode) =
+    n.table.name
+

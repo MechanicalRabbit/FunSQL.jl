@@ -1,202 +1,6 @@
 # Translation to SQL syntax tree.
 
 
-# Rendering SQL query.
-
-function render(n; dialect = :default)
-    res = resolve(n, dialect = dialect)
-    c = collapse(res.clause)
-    render(c, dialect = dialect)
-end
-
-
-# Error types.
-
-abstract type FunSQLError <: Exception
-end
-
-abstract type ErrorWithStack <: FunSQLError
-end
-
-struct GetError <: ErrorWithStack
-    name::Symbol
-    stack::Vector{SQLNode}
-    ambiguous::Bool
-
-    GetError(name; ambiguous = false) =
-        new(name, SQLNode[], ambiguous)
-end
-
-function Base.showerror(io::IO, ex::GetError)
-    if ex.ambiguous
-        print(io, "GetError: ambiguous $(ex.name)")
-    else
-        print(io, "GetError: cannot find $(ex.name)")
-    end
-    showstack(io, ex.stack)
-end
-
-struct DuplicateAliasError <: ErrorWithStack
-    name::Symbol
-    stack::Vector{SQLNode}
-
-    DuplicateAliasError(name) =
-        new(name, SQLNode[])
-end
-
-function Base.showerror(io::IO, ex::DuplicateAliasError)
-    print(io, "DuplicateAliasError: $(ex.name)")
-    showstack(io, ex.stack)
-end
-
-function showstack(io, stack::Vector{SQLNode})
-    if !isempty(stack)
-        q = highlight(stack)
-        println(io, " in:")
-        pprint(io, q)
-    end
-end
-
-function highlight(stack::Vector{SQLNode}, color = Base.error_color())
-    @assert !isempty(stack)
-    n = Highlight(over = stack[1], color = color)
-    for k = 2:lastindex(stack)
-        n = substitute(stack[k], stack[k-1], n)
-    end
-    n
-end
-
-
-# Generic traversal and substitution.
-
-function visit(f, n::SQLNode)
-    visit(f, n[])
-    f(n)
-    nothing
-end
-
-function visit(f, ns::Vector{SQLNode})
-    for n in ns
-        visit(f, n)
-    end
-end
-
-visit(f, ::Nothing) =
-    nothing
-
-@generated function visit(f, n::AbstractSQLNode)
-    exs = Expr[]
-    for f in fieldnames(n)
-        t = fieldtype(n, f)
-        if t === SQLNode || t === Union{SQLNode, Nothing} || t === Vector{SQLNode}
-            ex = quote
-                visit(f, n.$(f))
-            end
-            push!(exs, ex)
-        end
-    end
-    push!(exs, :(return nothing))
-    Expr(:block, exs...)
-end
-
-substitute(n::SQLNode, c::SQLNode, c′::SQLNode) =
-    SQLNode(substitute(n[], c, c′))
-
-function substitute(ns::Vector{SQLNode}, c::SQLNode, c′::SQLNode)
-    i = findfirst(isequal(c), ns)
-    i !== nothing || return ns
-    ns′ = copy(ns)
-    ns′[i] = c′
-    ns′
-end
-
-substitute(::Nothing, ::SQLNode, ::SQLNode) =
-    nothing
-
-@generated function substitute(n::AbstractSQLNode, c::SQLNode, c′::SQLNode)
-    exs = Expr[]
-    fs = fieldnames(n)
-    for f in fs
-        t = fieldtype(n, f)
-        if t === SQLNode || t === Union{SQLNode, Nothing}
-            ex = quote
-                if n.$(f) === c
-                    return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(c′))
-                                    for f′ in fs]...))
-                end
-            end
-            push!(exs, ex)
-        elseif t === Vector{SQLNode}
-            ex = quote
-                let cs′ = substitute(n.$(f), c, c′)
-                    if cs′ !== n.$(f)
-                        return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(cs′))
-                                        for f′ in fs]...))
-                    end
-                end
-            end
-            push!(exs, ex)
-        end
-    end
-    push!(exs, :(return n))
-    Expr(:block, exs...)
-end
-
-
-# Alias for an expression or a subquery.
-
-default_alias(n::SQLNode) =
-    default_alias(n[])::Symbol
-
-default_alias(::Union{AbstractSQLNode, Nothing}) =
-    :_
-
-default_alias(n::Union{AggregateNode, AsNode, FunctionNode, GetNode}) =
-    n.name
-
-default_alias(::AppendNode) =
-    :union
-
-default_alias(n::Union{BindNode, DefineNode, GroupNode, HighlightNode, JoinNode, LimitNode, OrderNode, PartitionNode, SelectNode, SortNode, WhereNode}) =
-    default_alias(n.over)
-
-default_alias(n::FromNode) =
-    n.table.name
-
-
-# Default export list in the absense of a Select node.
-
-default_list(n::SQLNode) =
-    default_list(n[])::Vector{SQLNode}
-
-default_list(::Union{AbstractSQLNode, Nothing}) =
-    SQLNode[]
-
-function default_list(n::AppendNode)
-    names = [default_alias(col) for col in default_list(n.over)]
-    for l in n.list
-        seen = Set{Symbol}([default_alias(col) for col in default_list(l)])
-        names = [name for name in names if name in seen]
-    end
-    SQLNode[Get(over = n, name = name) for name in names]
-end
-
-default_list(n::Union{BindNode, DefineNode, HighlightNode, LimitNode, OrderNode, PartitionNode, WhereNode}) =
-    default_list(n.over)
-
-default_list(n::FromNode) =
-    SQLNode[Get(over = n, name = col) for col in n.table.columns]
-
-default_list(n::GroupNode) =
-    SQLNode[Get(over = n, name = default_alias(col)) for col in n.by]
-
-default_list(n::JoinNode) =
-    vcat(default_list(n.over), default_list(n.joinee))
-
-default_list(n::SelectNode) =
-    SQLNode[Get(over = n, name = default_alias(col)) for col in n.list]
-
-
 # Collecting references to resolve.
 
 function gather!(refs::Vector{SQLNode}, n::SQLNode)
@@ -241,7 +45,7 @@ mutable struct ResolveContext
 end
 
 allocate_alias(ctx::ResolveContext, n) =
-    allocate_alias(ctx, default_alias(n))
+    allocate_alias(ctx, label(n))
 
 function allocate_alias(ctx::ResolveContext, alias::Symbol)
     n = get(ctx.aliases, alias, 0) + 1
@@ -253,25 +57,21 @@ struct ResolveRequest
     ctx::ResolveContext
     refs::Vector{SQLNode}
     subs::Dict{SQLNode, SQLClause}
-    ambs::Set{SQLNode}
 
     ResolveRequest(ctx;
                    refs = SQLNode[],
-                   subs = Dict{SQLNode, SQLClause}(),
-                   ambs = Set{SQLNode}()) =
-        new(ctx, refs, subs, ambs)
+                   subs = Dict{SQLNode, SQLClause}()) =
+        new(ctx, refs, subs)
 end
 
 struct ResolveResult
     clause::SQLClause
     repl::Dict{SQLNode, Symbol}
-    ambs::Set{SQLNode}
 end
 
 struct TranslateRequest
     ctx::ResolveContext
     subs::Dict{SQLNode, SQLClause}
-    ambs::Set{SQLNode}
 end
 
 # Substituting references and translating expressions.
@@ -322,7 +122,7 @@ function translate(n::BindNode, treq)
     vars = treq.ctx.vars
     vars′ = copy(vars)
     for v in n.list
-        name = default_alias(v)
+        name = label(v)
         vars′[name] = translate(v, treq)
     end
     treq.ctx.vars = vars′
@@ -434,9 +234,6 @@ end
 translate(n::SortNode, treq) =
     SORT(over = translate(n.over, treq), value = n.value, nulls = n.nulls)
 
-translate(n::GetNode, treq) =
-    throw(GetError(n.name, ambiguous = SQLNode(n) in treq.ambs))
-
 translate(n::LiteralNode, treq) =
     LiteralClause(n.val)
 
@@ -454,7 +251,7 @@ function make_repl(refs::Vector{SQLNode})::Dict{SQLNode, Symbol}
     repl = Dict{SQLNode, Symbol}()
     dups = Dict{Symbol, Int}()
     for ref in refs
-        name′ = name = default_alias(ref)
+        name′ = name = label(ref)
         k = get(dups, name, 0) + 1
         if k > 1
             name′ = Symbol(name, '_', k)
@@ -476,7 +273,7 @@ function make_repl(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLNode, 
     dups = Dict{Symbol, Int}()
     renames = Dict{Tuple{Symbol, SQLClause}, Symbol}()
     for (ref, c) in trns
-        name′ = name = default_alias(ref)
+        name′ = name = label(ref)
         k = get(dups, name, 0) + 1
         if k > 1
             name′ = get(renames, (name, c), nothing)
@@ -499,133 +296,894 @@ function make_repl(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLNode, 
     (repl, list)
 end
 
-function resolve(n::SQLNode; dialect = :default)
-    ctx = ResolveContext(dialect)
-    req = ResolveRequest(ctx, refs = default_list(n))
-    resolve(n, req)
+
+# Types of SQL nodes.
+
+abstract type AbstractSQLType
 end
 
-resolve(n; kws...) =
-    resolve(convert(SQLNode, n); kws...)
+struct EmptyType <: AbstractSQLType
+end
 
-replace_over(n::SQLNode, over′) =
-    convert(SQLNode, replace_over(n[], over′))
+PrettyPrinting.quoteof(::EmptyType, ::SQLNodeQuoteContext) =
+    Expr(:call, nameof(EmptyType))
 
-replace_over(n::GetNode, over′) =
-    GetNode(over = over′, name = n.name)
+struct RowType <: AbstractSQLType
+    fields::OrderedDict{Symbol, AbstractSQLType}
+    group::AbstractSQLType
 
-replace_over(n::AggregateNode, over′) =
-    AggregateNode(over = over′, name = n.name, distinct = n.distinct, args = n.args, filter = n.filter)
+    RowType(fields, group = EmptyType()) =
+        new(fields, group)
+end
 
-function deprefix(n::SQLNode, prefix::SQLNode)
-    if @dissect n (tail |> (Get() || Agg()))
-        if tail === prefix
-            return replace_over(n, nothing)
-        else
-            tail′ = deprefix(tail, prefix)
-            if tail′ !== nothing
-                return replace_over(n, tail′)
+RowType() =
+    RowType(OrderedDict{Symbol, AbstractSQLType}())
+
+function PrettyPrinting.quoteof(t::RowType, qctx::SQLNodeQuoteContext)
+    ex = Expr(:call, nameof(RowType))
+    if qctx.limit
+        push!(ex.args, :…)
+    else
+        push!(ex.args, quoteof(t.fields))
+        if !(t.group isa EmptyType)
+            push!(ex.args, quoteof(t.group, qctx))
+        end
+    end
+    ex
+end
+
+function PrettyPrinting.quoteof(d::Dict{Symbol, AbstractSQLType}, qctx::SQLNodeQuoteContext)
+    ex = Expr(:call, nameof(Dict))
+    for (k, v) in d
+        push!(ex.args, Expr(:call, :(=>), QuoteNode(k), quoteof(v, qctx)))
+    end
+    ex
+end
+
+struct ScalarType <: AbstractSQLType
+end
+
+PrettyPrinting.quoteof(::ScalarType, ::SQLNodeQuoteContext) =
+    Expr(:call, nameof(ScalarType))
+
+struct AmbiguousType <: AbstractSQLType
+end
+
+PrettyPrinting.quoteof(::AmbiguousType, ::SQLNodeQuoteContext) =
+    Expr(:call, nameof(AmbiguousType))
+
+Base.intersect(::AbstractSQLType, ::AbstractSQLType) =
+    EmptyType()
+
+Base.intersect(::ScalarType, ::ScalarType) =
+    ScalarType()
+
+Base.intersect(::AmbiguousType, ::AmbiguousType) =
+    AmbiguousType()
+
+function Base.intersect(t1::RowType, t2::RowType)
+    fields = OrderedDict{Symbol, AbstractSQLType}()
+    for f in keys(t1.fields)
+        if f in keys(t2.fields)
+            t = intersect(t1.fields[f], t2.fields[f])
+            if !isa(t, EmptyType)
+                fields[f] = t
             end
         end
     end
-    nothing
+    group = intersect(t1.group, t2.group)
+    RowType(fields, group)
 end
 
-function deprefix(n::SQLNode, prefix::Symbol)
-    if @dissect n (nothing |> Get(name = base_name) |> (Get() || Agg()))
-        if base_name === prefix
-            return replace_over(n, nothing)
+Base.union(::AbstractSQLType, ::AbstractSQLType) =
+    AmbiguousType()
+
+Base.union(::EmptyType, ::EmptyType) =
+    EmptyType()
+
+Base.union(::EmptyType, t::AbstractSQLType) =
+    t
+
+Base.union(t::AbstractSQLType, ::EmptyType) =
+    t
+
+Base.union(::ScalarType, ::ScalarType) =
+    ScalarType()
+
+function Base.union(t1::RowType, t2::RowType)
+    fields = OrderedDict{Symbol, AbstractSQLType}()
+    for (f, t) in t1.fields
+        if f in keys(t2.fields)
+            t′ = t2.fields[f]
+            if t isa RowType && t′ isa RowType
+                t = union(t, t′)
+            else
+                t = AmbiguousType()
+            end
         end
-    elseif @dissect n ((tail := Get()) |> (Get() || Agg()))
-        tail′ = deprefix(tail, prefix)
-        if tail′ !== nothing
-            return replace_over(n, tail′)
-        end
-    elseif @dissect n (tail |> (Get() || Agg()))
-        if tail !== nothing
-            return n
+        fields[f] = t
+    end
+    for (f, t) in t2.fields
+        if !(f in keys(t1.fields))
+            fields[f] = t
         end
     end
-    nothing
+    if t1.group isa EmptyType
+        group = t2.group
+    elseif t2.group isa EmptyType
+        group = t1.group
+    else
+        group = AmbiguousType()
+    end
+    RowType(fields, group)
 end
 
-deprefix(::Nothing, prefix) =
-    nothing
 
-deprefix(n::SQLNode, prefix::SQLNode, ::Nothing) =
-    something(deprefix(n, prefix), n)
+# Auxiliary nodes.
 
-function deprefix(n::SQLNode, node_prefix::SQLNode, alias_prefix::Symbol)
-    n′ = deprefix(n, node_prefix)
-    if n′ === nothing
-        n′ = deprefix(n, alias_prefix)
+mutable struct NameBoundNode <: AbstractSQLNode
+    over::SQLNode
+    name::Symbol
+
+    NameBoundNode(; over, name) =
+        new(over, name)
+end
+
+NameBound(args...; kws...) =
+    NameBoundNode(args...; kws...) |> SQLNode
+
+dissect(scr::Symbol, ::typeof(NameBound), pats::Vector{Any}) =
+    dissect(scr, NameBoundNode, pats)
+
+mutable struct NodeBoundNode <: AbstractSQLNode
+    over::SQLNode
+    node::SQLNode
+
+    NodeBoundNode(; over, node) =
+        new(over, node)
+end
+
+NodeBound(args...; kws...) =
+    NodeBoundNode(args...; kws...) |> SQLNode
+
+dissect(scr::Symbol, ::typeof(NodeBound), pats::Vector{Any}) =
+    dissect(scr, NodeBoundNode, pats)
+
+mutable struct TerminalNode <: AbstractSQLNode
+end
+
+Terminal() = TerminalNode() |> SQLNode
+
+mutable struct ExportNode <: AbstractSQLNode
+    over::SQLNode
+    name::Symbol
+    type::RowType
+    node_map::Dict{SQLNode, RowType} # Set{SQLNode}
+    origin::SQLNode
+    refs::Vector{SQLNode}
+
+    ExportNode(;
+               over,
+               name::Symbol,
+               type::RowType,
+               node_map::Dict{SQLNode, RowType},
+               origin,
+               refs::Vector{SQLNode} = SQLNode[]) =
+        new(over, name, type, node_map, origin, refs)
+end
+
+Export(args...; kws...) =
+    ExportNode(args...; kws...) |> SQLNode
+
+function PrettyPrinting.quoteof(n::ExportNode, qctx::SQLNodeQuoteContext)
+    ex = Expr(:call, nameof(Export))
+    push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
+    push!(ex.args, Expr(:kw, :type, quoteof(n.type, qctx)))
+    if !isempty(n.refs)
+        push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, qctx)...)))
     end
+    ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+    ex
+end
+
+label(n::ExportNode) =
+    n.name
+
+label(n::Union{NameBoundNode, NodeBoundNode}) =
+    label(n.over)
+
+get_export(n::SQLNode) =
+    get_export(n[])
+
+get_export(n::ExportNode) =
+    n
+
+get_export(::AbstractSQLNode) =
+    error()
+
+
+# Building a SQL query out of a SQL node tree.
+
+asterix(n::SQLNode) =
+    asterix(get_export(n).type)
+
+function asterix(t::RowType)
+    list = SQLNode[]
+    for (f, ft) in t.fields
+        !(ft isa RowType) || continue
+        push!(list, Get(f))
+    end
+    list
+end
+
+function render(n; dialect = :default)
+    actx = AnnotateContext()
+    n′ = annotate(actx, convert(SQLNode, n))
+    ctx = ResolveContext(dialect)
+    req = ResolveRequest(ctx, refs = asterix(n′))
+    populate!(actx, n′, req)
+    res = build(n′, ctx)
+    c = collapse(res.clause)
+    render(c, dialect = dialect)
+end
+
+
+# Annotating SQL nodes.
+
+struct AnnotateContext
+    paths::Vector{Tuple{SQLNode, Int}}
+    origins::Dict{SQLNode, Int}
+    stack::Vector{Int}
+
+    AnnotateContext() =
+        new(Tuple{SQLNode, Int}[], Dict{SQLNode, Int}(), Int[0])
+end
+
+function get_stack(actx::AnnotateContext, n::SQLNode)
+    stack = SQLNode[]
+    idx = get(actx.origins, n, 0)
+    while idx != 0
+        n, idx = actx.paths[idx]
+        push!(stack, n)
+    end
+    stack
+end
+
+function validate(name::Symbol, t::RowType, T::Type{<:AbstractSQLType})
+    if !(name in keys(t.fields))
+        throw(GetError(name))
+    end
+    t′ = t.fields[name]
+    if t′ isa AmbiguousType
+        throw(GetError(name, ambiguous = true))
+    end
+    if t′ isa T
+        return t′
+    else
+        error()
+    end
+end
+
+function validate(ref::SQLNode, t::RowType)
+    if @dissect ref over |> NameBound(name = name)
+        t = validate(name, t, RowType)
+        return validate(over, t)
+    elseif @dissect ref Get(name = name)
+        return validate(name, t, ScalarType)
+    elseif @dissect ref over |> Agg(name = name)
+        if t.group isa RowType
+            return t.group
+        end
+        error()
+    else
+        error()
+    end
+end
+
+function validate(ref::SQLNode, t::RowType, node_map::Dict{SQLNode, RowType})
+    if @dissect ref over |> NodeBound(node = node)
+        if haskey(node_map, node)
+            t = node_map[node]
+            return validate(over, t)
+        else
+            error()
+        end
+    end
+    return validate(ref, t)
+end
+
+function validate(actx::AnnotateContext, ref::SQLNode, exp::ExportNode)
+    try
+        validate(ref, exp.type, exp.node_map)
+    catch err
+        if err isa GetError
+            append!(err.stack, get_stack(actx, ref))
+        end
+        rethrow()
+    end
+end
+
+function annotate(actx::AnnotateContext, n::SQLNode)
+    push!(actx.paths, (n, actx.stack[end]))
+    idx = length(actx.paths)
+    push!(actx.stack, idx)
+    n′ = convert(SQLNode, annotate(actx, n[]))
+    actx.origins[n′] = idx
+    pop!(actx.stack)
     n′
 end
 
-function resolve(n::SQLNode, req)
-    alias_prefix = nothing
-    @dissect n As(name = alias_prefix)
-    remaps = Dict{SQLNode, SQLNode}()
+function annotate_scalar(actx::AnnotateContext, n::SQLNode)
+    push!(actx.paths, (n, actx.stack[end]))
+    idx = length(actx.paths)
+    push!(actx.stack, idx)
+    n′ = convert(SQLNode, annotate_scalar(actx, n[]))
+    actx.origins[n′] = idx
+    pop!(actx.stack)
+    n′
+end
+
+annotate(actx::AnnotateContext, ns::Vector{SQLNode}) =
+    SQLNode[annotate(actx, n) for n in ns]
+
+annotate_scalar(actx::AnnotateContext, ns::Vector{SQLNode}) =
+    SQLNode[annotate_scalar(actx, n) for n in ns]
+
+annotate_scalar(actx::AnnotateContext, n::SubqueryNode) =
+    annotate(actx, n)
+
+function annotate(actx::AnnotateContext, ::Nothing)
+    n = Terminal()
+    actx.origins[n] = actx.stack[end]
+    exp = ExportNode(over = n, name = :_, type = RowType(), node_map = Dict{SQLNode, RowType}(), origin = n)
+    actx.origins[convert(SQLNode, exp)] = actx.stack[end]
+    exp
+end
+
+bind(actx::AnnotateContext, ::Nothing, base) =
+    base
+
+function bind(actx::AnnotateContext, node, base)
+    actx.origins[base] = actx.stack[end]
+    if @dissect node over |> Get(name = name)
+        bind(actx, over, NameBound(over = base, name = name))
+    else
+        return NodeBound(over = base, node = node)
+    end
+end
+
+function gather!(refs::Vector{SQLNode}, n::Union{NameBoundNode, NodeBoundNode})
+    push!(refs, n)
+end
+
+function annotate_scalar(actx::AnnotateContext, n::GetNode)
+    bind(actx, n.over, Get(name = n.name))
+end
+
+function annotate_scalar(actx::AnnotateContext, n::FunctionNode)
+    args′ = annotate_scalar(actx, n.args)
+    FunctionNode(name = n.name, args = args′)
+end
+
+function annotate_scalar(actx::AnnotateContext, n::AggregateNode)
+    args′ = annotate_scalar(actx, n.args)
+    filter′ = annotate_scalar(actx, n.filter)
+    n′ = AggregateNode(name = n.name, distinct = n.distinct, args = args′, filter = filter′)
+    bind(actx, n.over, convert(SQLNode, n′))
+end
+
+function annotate_scalar(actx::AnnotateContext, n::SortNode)
+    over′ = annotate_scalar(actx, n.over)
+    SortNode(over = over′, value = n.value, nulls = n.nulls)
+end
+
+function annotate_scalar(actx::AnnotateContext, n::HighlightNode)
+    over′ = annotate_scalar(actx, n.over)
+    HighlightNode(over = over′, color = n.color)
+end
+
+function annotate(actx::AnnotateContext, n::HighlightNode)
+    over′ = annotate(actx, n.over)
+    n′ = Highlight(over = over′, color = n.color)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = exp.name, type = exp.type, node_map = node_map, origin = n)
+end
+
+annotate_scalar(actx::AnnotateContext, n::Union{Nothing, LiteralNode, VariableNode}) =
+    n
+
+function annotate(actx::AnnotateContext, n::AppendNode)
+    over′ = annotate(actx, n.over)
+    list′ = annotate(actx, n.list)
+    n′ = Append(over = over′, list = list′)
+    actx.origins[n′] = actx.stack[end]
+    lexp = get_export(over′)
+    t = lexp.type
+    node_map = lexp.node_map
+    for r in list′
+        rexp = get_export(r)
+        t = intersect(t, rexp.type)
+        node_map′ = Dict{SQLNode, RowType}()
+        for (k, kt) in node_map
+            if haskey(rexp.node_map, k)
+                node_map′[k] = intersect(kt, rexp.node_map[k])
+            end
+        end
+        node_map = node_map′
+    end
+    node_map[convert(SQLNode, n)] = t
+    ExportNode(over = n′, name = :union, type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::AsNode)
+    over′ = annotate(actx, n.over)
+    n′ = As(over = over′, name = n.name)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    t = exp.type
+    fields = OrderedDict{Symbol, AbstractSQLType}(n.name => t)
+    t′ = RowType(fields)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = t
+    ExportNode(over = n′, name = n.name, type = t′, node_map = node_map, origin = n)
+end
+
+function annotate_scalar(actx::AnnotateContext, n::AsNode)
+    over′ = annotate_scalar(actx, n.over)
+    AsNode(over = over′, name = n.name)
+end
+
+annotate_scalar(actx::AnnotateContext, n::BindNode) =
+    annotate(actx, n)
+
+function annotate(actx::AnnotateContext, n::BindNode)
+    over′ = annotate(actx, n.over)
+    list′ = annotate_scalar(actx, n.list)
+    n′ = Bind(over = over′, list = list′)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::DefineNode)
+    over′ = annotate(actx, n.over)
+    list′ = annotate_scalar(actx, n.list)
+    n′ = Define(over = over′, list = list′, label_map = n.label_map)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    fields = OrderedDict{Symbol, AbstractSQLType}()
+    for (f, t) in exp.type.fields
+        if f in keys(n.label_map)
+            t = ScalarType()
+        end
+        fields[f] = t
+    end
+    for f in keys(n.label_map)
+        if !haskey(fields, f)
+            fields[f] = ScalarType()
+        end
+    end
+    t = RowType(fields)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = label(n), type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::FromNode)
+    actx.origins[convert(SQLNode, n)] = actx.stack[end]
+    fields = OrderedDict{Symbol, AbstractSQLType}()
+    for f in n.table.columns
+        fields[f] = ScalarType()
+    end
+    t = RowType(fields)
+    node_map = Dict{SQLNode, RowType}(convert(SQLNode, n) => t)
+    ExportNode(over = n, name = n.table.name, type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::GroupNode)
+    over′ = annotate(actx, n.over)
+    by′ = annotate_scalar(actx, n.by)
+    n′ = Group(over = over′, by = by′, label_map = n.label_map)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    fields = Dict{Symbol, AbstractSQLType}()
+    for name in keys(n.label_map)
+        fields[name] = ScalarType()
+    end
+    t = RowType(fields, exp.type)
+    node_map = Dict{SQLNode, RowType}(convert(SQLNode, n) => t)
+    ExportNode(over = n′, name = exp.name, type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::JoinNode)
+    over′ = annotate(actx, n.over)
+    joinee′ = annotate(actx, n.joinee)
+    on′ = annotate_scalar(actx, n.on)
+    n′ = Join(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right)
+    actx.origins[n′] = actx.stack[end]
+    lexp = get_export(over′)
+    rexp = get_export(joinee′)
+    t = union(lexp.type, rexp.type)
+    node_map = Dict{SQLNode, RowType}()
+    for l in keys(lexp.node_map)
+        if haskey(rexp.node_map, l)
+            node_map[l] = AmbiguousType()
+        else
+            node_map[l] = lexp.node_map[l]
+        end
+    end
+    for l in keys(rexp.node_map)
+        if !haskey(lexp.node_map, l)
+            node_map[l] = rexp.node_map[l]
+        end
+    end
+    node_map[convert(SQLNode, n)] = t
+    ExportNode(over = n′, name = lexp.name, type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::LimitNode)
+    over′ = annotate(actx, n.over)
+    n′ = Limit(over = over′, offset = n.offset, limit = n.limit)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::OrderNode)
+    over′ = annotate(actx, n.over)
+    by′ = annotate_scalar(actx, n.by)
+    n′ = Order(over = over′, by = by′)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::PartitionNode)
+    over′ = annotate(actx, n.over)
+    by′ = annotate_scalar(actx, n.by)
+    order_by′ = annotate_scalar(actx, n.order_by)
+    n′ = Partition(over = over′, by = by′, order_by = order_by′, frame = n.frame)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    t = RowType(exp.type.fields, exp.type)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = label(n), type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::SelectNode)
+    over′ = annotate(actx, n.over)
+    list′ = annotate_scalar(actx, n.list)
+    n′ = Select(over = over′, list = list′, label_map = n.label_map)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    fields = OrderedDict{Symbol, AbstractSQLType}()
+    for name in keys(n.label_map)
+        fields[name] = ScalarType()
+    end
+    t = RowType(fields)
+    node_map = Dict{SQLNode, RowType}(convert(SQLNode, n) => t)
+    ExportNode(over = n′, name = exp.name, type = t, node_map = node_map, origin = n)
+end
+
+function annotate(actx::AnnotateContext, n::WhereNode)
+    over′ = annotate(actx, n.over)
+    condition′ = annotate_scalar(actx, n.condition)
+    n′ = Where(over = over′, condition = condition′)
+    actx.origins[n′] = actx.stack[end]
+    exp = get_export(over′)
+    node_map = copy(exp.node_map)
+    node_map[convert(SQLNode, n)] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+end
+
+
+# Populating export list of SQL subqueries.
+
+gather!(refs::Vector{SQLNode}, n::ExportNode) =
+    gather!(refs, n.over)
+
+populate!(actx::AnnotateContext, n::SQLNode, req::ResolveRequest) =
+    populate!(actx, n[], req)
+
+populate!(actx::AnnotateContext, exp::ExportNode, n::SQLNode, req::ResolveRequest) =
+    populate!(actx, exp, n[], req)
+
+function populate!(actx::AnnotateContext, ns::Vector{SQLNode}, req::ResolveRequest)
+    for n in ns
+        populate!(actx, n, req)
+    end
+end
+
+function populate!(actx::AnnotateContext, ::Nothing, req::ResolveRequest)
+    t = RowType()
+    for ref in req.refs
+        validate(actx, ref, t)
+    end
+end
+
+populate!(actx::AnnotateContext, n::Union{AsNode, HighlightNode, NameBoundNode, NodeBoundNode, SortNode}, req::ResolveRequest) =
+    populate!(actx, n.over, req)
+
+populate!(::AnnotateContext, ::Union{GetNode, LiteralNode, TerminalNode, VariableNode}, ::ResolveRequest) =
+    nothing
+
+populate!(actx::AnnotateContext, n::FunctionNode, req::ResolveRequest) =
+    populate!(actx, n.args, req)
+
+function populate!(actx::AnnotateContext, n::AggregateNode, req::ResolveRequest)
+    populate!(actx, n.args, req)
+    populate!(actx, n.filter, req)
+end
+
+function populate!(actx::AnnotateContext, n::ExportNode, req::ResolveRequest)
+    for ref in req.refs
+        validate(actx, ref, n)
+    end
+    append!(n.refs, req.refs)
     refs′ = SQLNode[]
     for ref in req.refs
-        !(ref in keys(remaps)) || continue
-        ref′ = deprefix(ref, n, alias_prefix)
-        if ref′ !== nothing
-            remaps[ref] = ref′
-            push!(refs′, ref′)
+        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+            push!(refs′, over)
+        else
+            push!(refs′, ref)
         end
     end
-    req′ = ResolveRequest(req.ctx, refs = refs′, subs = req.subs, ambs = req.ambs)
-    res′ =
-        try
-            resolve(n[], req′)::ResolveResult
-        catch ex
-            if ex isa ErrorWithStack
-                push!(ex.stack, n)
-            end
-            rethrow()
-        end
-    repl = Dict{SQLNode, Symbol}()
-    ambs = Set{SQLNode}()
-    for ref in req.refs
-        ref′ = get(remaps, ref, nothing)
-        ref′ !== nothing || continue
-        name = get(res′.repl, ref′, nothing)
-        if name !== nothing
-            repl[ref] = name
-        end
-        if ref′ in res′.ambs
-            push!(ambs, ref)
-        end
-    end
-    ResolveResult(res′.clause, repl, ambs)
+    populate!(actx, n, n.over, ResolveRequest(req.ctx, refs = refs′))
 end
 
-function resolve(::Nothing, req)
+function populate!(actx::AnnotateContext, exp::ExportNode, n::AppendNode, req::ResolveRequest)
+    populate!(actx, n.over, req)
+    for l in n.list
+        populate!(actx, l, req)
+    end
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::AsNode, req::ResolveRequest)
+    refs′ = SQLNode[]
+    for ref in req.refs
+        if @dissect ref over |> NameBound(name = name)
+            @assert name == n.name
+            push!(refs′, over)
+        elseif @dissect ref NodeBound()
+            push!(refs′, ref)
+        else
+            error()
+        end
+    end
+    populate!(actx, n.over, ResolveRequest(req.ctx, refs = refs′))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::BindNode, req::ResolveRequest)
+    base_req = ResolveRequest(req.ctx, refs = req.refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.list, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::DefineNode, req::ResolveRequest)
+    base_refs = SQLNode[]
+    base_refs = SQLNode[]
+    seen = Set{Symbol}()
+    for ref in req.refs
+        if (@dissect ref (nothing |> Get(name = name))) && name in keys(n.label_map)
+            !(name in seen) || continue
+            push!(seen, name)
+            col = n.list[n.label_map[name]]
+            gather!(base_refs, col)
+        else
+            push!(base_refs, ref)
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.list, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::GroupNode, req::ResolveRequest)
+    base_refs = SQLNode[]
+    gather!(base_refs, n.by)
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(args = args, filter = filter))
+            gather!(base_refs, args)
+            if filter !== nothing
+                gather!(base_refs, filter)
+            end
+            has_aggregates = true
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.by, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::HighlightNode, req::ResolveRequest)
+    populate!(actx, n.over, req)
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::JoinNode, req::ResolveRequest)
+    lexp = get_export(n.over)
+    rexp = get_export(n.joinee)
+    refs = SQLNode[]
+    gather!(refs, n.on)
+    for ref in refs
+        validate(actx, ref, exp)
+    end
+    append!(refs, req.refs)
+    lrefs = SQLNode[]
+    rrefs = SQLNode[]
+    for ref in refs
+        lvalid =
+            try
+                validate(actx, ref, lexp)
+                true
+            catch
+                false
+            end
+        rvalid =
+            try
+                validate(actx, ref, rexp)
+                true
+            catch
+                false
+            end
+        @assert lvalid != rvalid
+        if lvalid
+            push!(lrefs, ref)
+        end
+        if rvalid
+            push!(rrefs, ref)
+        end
+    end
+    gather!(lrefs, n.joinee)
+    populate!(actx, n.over, ResolveRequest(req.ctx, refs = lrefs))
+    populate!(actx, n.joinee, ResolveRequest(req.ctx, refs = rrefs))
+    populate!(actx, n.on, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::LimitNode, req::ResolveRequest)
+    populate!(actx, n.over, req)
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::OrderNode, req::ResolveRequest)
+    base_refs = copy(req.refs)
+    gather!(base_refs, n.by)
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.by, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::PartitionNode, req::ResolveRequest)
+    base_refs = SQLNode[]
+    gather!(base_refs, n.by)
+    gather!(base_refs, n.order_by)
+    for ref in req.refs
+        if @dissect ref (nothing |> Agg(args = args, filter = filter))
+            gather!(base_refs, args)
+            if filter !== nothing
+                gather!(base_refs, filter)
+            end
+        else
+            push!(base_refs, ref)
+        end
+    end
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.by, ResolveRequest(req.ctx))
+    populate!(actx, n.order_by, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::SelectNode, req::ResolveRequest)
+    base_refs = SQLNode[]
+    gather!(base_refs, n.list)
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.list, ResolveRequest(req.ctx))
+end
+
+function populate!(actx::AnnotateContext, exp::ExportNode, n::WhereNode, req::ResolveRequest)
+    base_refs = copy(req.refs)
+    gather!(base_refs, n.condition)
+    base_req = ResolveRequest(req.ctx, refs = base_refs)
+    populate!(actx, n.over, base_req)
+    populate!(actx, n.condition, ResolveRequest(req.ctx))
+end
+
+populate!(actx::AnnotateContext, ::ExportNode, ::Union{FromNode, TerminalNode}, ::ResolveRequest) =
+    nothing
+
+
+# Building SQL clauses.
+
+build(n::SQLNode, ctx::ResolveContext) =
+    build(n[], ctx)
+
+build(n::SQLNode, treq::TranslateRequest) =
+    build(n[], treq)
+
+function build(::Nothing, ctx::ResolveContext)
     c = SELECT(list = SQLClause[missing])
     repl = Dict{SQLNode, Symbol}()
-    ambs = Set{SQLNode}()
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::AppendNode, req)
-    base_req = ResolveRequest(req.ctx, refs = req.refs)
-    base_res = resolve(n.over, base_req)
-    as = allocate_alias(req.ctx, n.over)
+build(n::SQLNode, ctx::ResolveContext, refs::Vector{SQLNode}) =
+    build(n[], ctx, refs)
+
+build(n::SQLNode, treq::TranslateRequest, refs::Vector{SQLNode}) =
+    build(n[], treq, refs)
+
+build(n::SubqueryNode, treq::TranslateRequest, refs::Vector{SQLNode}) =
+    build(n, treq.ctx, refs)
+
+translate(n::ExportNode, treq::TranslateRequest) =
+    build(n, treq).clause
+
+function build(n::ExportNode, ctx::ResolveContext)
+    refs′ = SQLNode[]
+    for ref in n.refs
+        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+            push!(refs′, over)
+        else
+            push!(refs′, ref)
+        end
+    end
+    res = build(n.over, ctx, refs′)
+    repl′ = Dict{SQLNode, Symbol}()
+    for ref in n.refs
+        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+            repl′[ref] = res.repl[over]
+        else
+            repl′[ref] = res.repl[ref]
+        end
+    end
+    ResolveResult(res.clause, repl′)
+end
+
+function build(n::ExportNode, treq::TranslateRequest)
+    refs′ = SQLNode[]
+    for ref in n.refs
+        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+            push!(refs′, over)
+        else
+            push!(refs′, ref)
+        end
+    end
+    res = build(n.over, treq, refs′)
+    repl′ = Dict{SQLNode, Symbol}()
+    for ref in n.refs
+        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+            repl′[ref] = res.repl[over]
+        else
+            repl′[ref] = res.repl[ref]
+        end
+    end
+    ResolveResult(res.clause, repl′)
+end
+
+function build(n::TerminalNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    c = SELECT(list = SQLClause[missing])
+    repl = Dict{SQLNode, Symbol}()
+    ResolveResult(c, repl)
+end
+
+function build(n::AppendNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    as = allocate_alias(ctx, n.over)
     results = [as => base_res]
     for l in n.list
-        res = resolve(l, base_req)
-        as = allocate_alias(req.ctx, l)
+        res = build(l, ctx)
+        as = allocate_alias(ctx, l)
         push!(results, as => res)
     end
-    refs = req.refs
-    ambs = req.refs
-    for (as, res) in results
-        refs = [ref for ref in refs if ref in keys(res.repl)]
-        ambs = [amb for amb in ambs if amb in keys(res.repl) || amb in res.ambs]
-    end
-    ambs = Set{SQLNode}([amb for amb in ambs if !(amb in refs)])
     dups = Dict{SQLNode, SQLNode}()
     seen = Dict{Symbol, SQLNode}()
     for ref in refs
@@ -661,66 +1219,56 @@ function resolve(n::AppendNode, req)
         push!(cs, c)
     end
     c = UNION(over = cs[1], all = true, list = cs[2:end])
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-resolve(n::Union{AsNode, HighlightNode}, req) =
-    resolve(n.over, req)
+function build(n::AsNode, ctx::Union{ResolveContext, TranslateRequest}, refs::Vector{SQLNode})
+    res = build(n.over, ctx)
+    repl′ = Dict{SQLNode, Symbol}()
+    for ref in refs
+        if @dissect ref over |> NameBound()
+            @assert over !== nothing
+            repl′[ref] = res.repl[over]
+        else
+            repl′[ref] = res.repl[ref]
+        end
+    end
+    ResolveResult(res.clause, repl′)
+end
 
-function resolve(n::BindNode, req)
-    treq = TranslateRequest(req.ctx, req.subs, req.ambs)
-    vars = req.ctx.vars
+function build(n::BindNode, treq::TranslateRequest, refs::Vector{SQLNode})
+    ctx = treq.ctx
+    vars = ctx.vars
     vars′ = copy(vars)
     for v in n.list
-        name = default_alias(v)
+        name = label(v)
         vars′[name] = translate(v, treq)
     end
-    treq.ctx.vars = vars′
-    res = resolve(n.over, req)
-    treq.ctx.vars = vars
+    ctx.vars = vars′
+    res = build(n.over, ctx)
+    ctx.vars = vars
     res
 end
 
-function resolve(n::DefineNode, req)
-    aliases = Symbol[default_alias(col) for col in n.list]
-    indexes = Dict{Symbol, Int}()
-    for (i, alias) in enumerate(aliases)
-        if alias in keys(indexes)
-            ex = DuplicateAliasError(alias)
-            push!(ex.stack, n.by[i])
-            throw(ex)
-        end
-        indexes[alias] = i
-    end
-    base_refs = SQLNode[]
-    dups = Dict{Symbol, Int}()
-    for ref in req.refs
-        if (@dissect ref (nothing |> Get(name = name))) && name in keys(indexes)
-            !(name in keys(dups)) || continue
-            dups[name] = 1
-            col = n.list[indexes[name]]
-            gather!(base_refs, col)
-        else
-            push!(base_refs, ref)
-        end
-    end
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+build(n::BindNode, ctx::ResolveContext, refs::Vector{SQLNode}) =
+    build(n, TranslateRequest(ctx, Dict{SQLNode, SQLClause}()), refs)
+
+function build(n::DefineNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    treq = TranslateRequest(ctx, subs)
     repl = Dict{SQLNode, Symbol}()
-    ambs = Set{SQLNode}()
     trns = Pair{SQLNode, SQLClause}[]
     tr_cache = Dict{Symbol, SQLClause}()
     base_cache = Dict{Symbol, SQLClause}()
-    for ref in req.refs
-        if (@dissect ref (nothing |> Get(name = name))) && name in keys(indexes)
+    for ref in refs
+        if (@dissect ref (nothing |> Get(name = name))) && name in keys(n.label_map)
             c = get!(tr_cache, name) do
-                col = n.list[indexes[name]]
+                col = n.list[n.label_map[name]]
                 translate(col, treq)
             end
             push!(trns, ref => c)
@@ -731,9 +1279,6 @@ function resolve(n::DefineNode, req)
             end
             push!(trns, ref => c)
         end
-        if ref in base_res.ambs
-            push!(ambs, ref)
-        end
     end
     repl, list = make_repl(trns)
     if isempty(list)
@@ -741,19 +1286,19 @@ function resolve(n::DefineNode, req)
     end
     f = FROM(AS(over = base_res.clause, name = base_as))
     c = SELECT(over = f, list = list)
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::FromNode, req)
+function build(n::FromNode, ctx::ResolveContext, refs::Vector{SQLNode})
     output_columns = Set{Symbol}()
-    for ref in req.refs
-        if @dissect ref (nothing |> Get(name = ref_name))
-            if ref_name in n.table.column_set && !(ref_name in output_columns)
-                push!(output_columns, ref_name)
-            end
+    for ref in refs
+        match = @dissect ref (nothing |> Get(name = name))
+        @assert match && name in n.table.column_set
+        if !(name in output_columns)
+            push!(output_columns, name)
         end
     end
-    as = allocate_alias(req.ctx, n.table.name)
+    as = allocate_alias(ctx, n.table.name)
     list = SQLClause[AS(over = ID(over = as, name = col), name = col)
                      for col in n.table.columns
                      if col in output_columns]
@@ -764,74 +1309,46 @@ function resolve(n::FromNode, req)
     c = SELECT(over = FROM(AS(over = tbl, name = as)),
                list = list)
     repl = Dict{SQLNode, Symbol}()
-    for ref in req.refs
-        if @dissect ref (nothing |> Get(name = ref_name))
-            if ref_name in output_columns
-                repl[ref] = ref_name
-            end
+    for ref in refs
+        if @dissect ref (nothing |> Get(name = name))
+            repl[ref] = name
         end
     end
-    ambs = Set{SQLNode}()
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::GroupNode, req)
-    aliases = Symbol[default_alias(col) for col in n.by]
-    indexes = Dict{Symbol, Int}()
-    for (i, alias) in enumerate(aliases)
-        if alias in keys(indexes)
-            ex = DuplicateAliasError(alias)
-            push!(ex.stack, n.by[i])
-            throw(ex)
-        end
-        indexes[alias] = i
-    end
-    base_refs = SQLNode[]
-    has_keys = false
-    if !isempty(n.by)
-        gather!(base_refs, n.by)
-        has_keys = true
-    end
-    has_aggregates = false
-    for ref in req.refs
-        if @dissect ref (nothing |> Agg(args = args, filter = filter))
-            gather!(base_refs, args)
-            if filter !== nothing
-                gather!(base_refs, filter)
-            end
-            has_aggregates = true
-        end
-    end
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+function build(n::GroupNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
-    if !has_keys && !has_aggregates
-        return resolve(nothing, req)
-    end
+    treq = TranslateRequest(ctx, subs)
     by = SQLClause[]
     tr_cache = Dict{Symbol, SQLClause}()
-    for (i, key) in enumerate(n.by)
-        name = aliases[i]
+    for (i, name) in enumerate(keys(n.label_map))
+        key = n.by[i]
         ckey = translate(key, treq)
         push!(by, ckey)
         tr_cache[name] = ckey
     end
+    has_keys = !isempty(by)
+    has_aggregates = false
     trns = Pair{SQLNode, SQLClause}[]
-    for ref in req.refs
+    for ref in refs
         if @dissect ref (nothing |> Get(name = name))
-            if name in keys(indexes)
-                ckey = tr_cache[name]
-                push!(trns, ref => ckey)
-            end
+            @assert name in keys(n.label_map)
+            ckey = tr_cache[name]
+            push!(trns, ref => ckey)
         elseif @dissect ref (nothing |> Agg(name = name))
             c = translate(ref, treq)
             push!(trns, ref => c)
+            has_aggregates = true
         end
+    end
+    if !has_keys && !has_aggregates
+        return build(nothing, ctx)
     end
     repl, list = make_repl(trns)
     @assert !isempty(list)
@@ -842,47 +1359,43 @@ function resolve(n::GroupNode, req)
     else
         c = SELECT(over = f, distinct = true, list = list)
     end
-    ambs = Set{SQLNode}()
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::JoinNode, req)
-    right_refs = SQLNode[]
-    gather!(right_refs, n.on)
-    append!(right_refs, req.refs)
-    left_refs = copy(right_refs)
-    gather!(left_refs, n.joinee)
-    lateral = length(left_refs) > length(right_refs)
-    left_req = ResolveRequest(req.ctx, refs = left_refs)
-    left_res = resolve(n.over, left_req)
-    left_as = allocate_alias(req.ctx, n.over)
-    subs = Dict{SQLNode, SQLClause}()
-    for (ref, name) in left_res.repl
-        subs[ref] = ID(over = left_as, name = name)
+build(n::HighlightNode, ctx::ResolveContext, refs::Vector{SQLNode}) =
+    build(n.over, ctx)
+
+function build(n::JoinNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    left_res = build(n.over, ctx)
+    left_as = allocate_alias(ctx, n.over)
+    lrefs = SQLNode[]
+    gather!(lrefs, n.joinee)
+    lateral = !isempty(lrefs)
+    if lateral
+        lsubs = Dict{SQLNode, SQLClause}()
+        for ref in lrefs
+            name = left_res.repl[ref]
+            lsubs[ref] = ID(over = left_as, name = name)
+        end
+        treq = TranslateRequest(ctx, lsubs)
+        right_res = build(n.joinee, treq)
+    else
+        right_res = build(n.joinee, ctx)
     end
-    right_req = ResolveRequest(req.ctx,
-                               refs = right_refs,
-                               subs = subs,
-                               ambs = left_res.ambs)
-    right_res = resolve(n.joinee, right_req)
-    right_as = allocate_alias(req.ctx, n.joinee)
-    ambs = intersect(keys(left_res.repl), keys(right_res.repl))
+    right_as = allocate_alias(ctx, n.joinee)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in left_res.repl
-        !(ref in ambs) || continue
         subs[ref] = ID(over = left_as, name = name)
     end
     for (ref, name) in right_res.repl
-        !(ref in ambs) || continue
         subs[ref] = ID(over = right_as, name = name)
     end
-    treq = TranslateRequest(req.ctx, subs, ambs)
+    treq = TranslateRequest(ctx, subs)
     on = translate(n.on, treq)
     l_cache = Dict{Symbol, SQLClause}()
     r_cache = Dict{Symbol, SQLClause}()
     trns = Pair{SQLNode, SQLClause}[]
-    for ref in req.refs
-        !(ref in ambs) || continue
+    for ref in refs
         if ref in keys(left_res.repl)
             name = left_res.repl[ref]
             c = get!(l_cache, name) do
@@ -896,7 +1409,7 @@ function resolve(n::JoinNode, req)
             end
             push!(trns, ref => c)
         else
-            continue
+            error()
         end
     end
     repl, list = make_repl(trns)
@@ -910,31 +1423,24 @@ function resolve(n::JoinNode, req)
              right = n.right,
              lateral = lateral)
     c = SELECT(over = j, list = list)
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::LimitNode, req)
-    base_req = ResolveRequest(req.ctx, refs = req.refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+function build(n::LimitNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    ambs = Set{SQLNode}()
     trns = Pair{SQLNode, SQLClause}[]
     base_cache = Dict{Symbol, SQLClause}()
-    for ref in req.refs
-        if ref in keys(base_res.repl)
-            name = base_res.repl[ref]
-            c = get(base_cache, name) do
-                ID(over = base_as, name = name)
-            end
-            push!(trns, ref => c)
+    for ref in refs
+        name = base_res.repl[ref]
+        c = get(base_cache, name) do
+            ID(over = base_as, name = name)
         end
-        if ref in base_res.ambs
-            push!(ambs, ref)
-        end
+        push!(trns, ref => c)
     end
     repl, list = make_repl(trns)
     if isempty(list)
@@ -947,36 +1453,26 @@ function resolve(n::LimitNode, req)
         l = f
     end
     c = SELECT(over = l, list = list)
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::OrderNode, req)
-    base_refs = SQLNode[]
-    gather!(base_refs, n.by)
-    append!(base_refs, req.refs)
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+function build(n::OrderNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    treq = TranslateRequest(ctx, subs)
     by = translate(n.by, treq)
-    ambs = Set{SQLNode}()
     trns = Pair{SQLNode, SQLClause}[]
     base_cache = Dict{Symbol, SQLClause}()
-    for ref in req.refs
-        if ref in keys(base_res.repl)
-            name = base_res.repl[ref]
-            c = get(base_cache, name) do
-                ID(over = base_as, name = name)
-            end
-            push!(trns, ref => c)
+    for ref in refs
+        name = base_res.repl[ref]
+        c = get(base_cache, name) do
+            ID(over = base_as, name = name)
         end
-        if ref in base_res.ambs
-            push!(ambs, ref)
-        end
+        push!(trns, ref => c)
     end
     repl, list = make_repl(trns)
     if isempty(list)
@@ -989,60 +1485,33 @@ function resolve(n::OrderNode, req)
         o = f
     end
     c = SELECT(over = o, list = list)
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::PartitionNode, req)
-    base_refs = SQLNode[]
-    gather!(base_refs, n.by)
-    gather!(base_refs, n.order_by)
-    for ref in req.refs
-        if @dissect ref (nothing |> Agg(args = args, filter = filter))
-            gather!(base_refs, args)
-            if filter !== nothing
-                gather!(base_refs, filter)
-            end
-        else
-            push!(base_refs, ref)
-        end
-    end
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+function build(n::PartitionNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    dups = Dict{Symbol, Int}()
-    seen = Set{Symbol}()
-    for ref in req.refs
-        if @dissect ref (nothing |> Agg(name = name))
-            if name in seen
-                dups[name] = 1
-            else
-                push!(seen, name)
-            end
-        end
-    end
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    treq = TranslateRequest(ctx, subs)
     by = translate(n.by, treq)
     order_by = translate(n.order_by, treq)
     partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
-    ambs = Set{SQLNode}()
     trns = Pair{SQLNode, SQLClause}[]
     base_cache = Dict{Symbol, SQLClause}()
-    for ref in req.refs
+    for ref in refs
         if @dissect ref (nothing |> Agg(name = name))
             c = partition |> translate(ref, treq)
             push!(trns, ref => c)
-        elseif ref in keys(base_res.repl)
+        else
+            @assert ref in keys(base_res.repl)
             name = base_res.repl[ref]
             c = get!(base_cache, name) do
                 ID(over = base_as, name = name)
             end
             push!(trns, ref => c)
-        elseif ref in base_res.ambs
-            push!(ambs, ref)
         end
     end
     repl, list = make_repl(trns)
@@ -1051,36 +1520,22 @@ function resolve(n::PartitionNode, req)
     end
     w = WINDOW(over = FROM(AS(over = base_res.clause, name = base_as)), list = [])
     c = SELECT(over = w, list = list)
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::SelectNode, req)
-    aliases = Symbol[default_alias(col) for col in n.list]
-    indexes = Dict{Symbol, Int}()
-    for (i, alias) in enumerate(aliases)
-        if alias in keys(indexes)
-            ex = DuplicateAliasError(alias)
-            push!(ex.stack, n.list[i])
-            throw(ex)
-        end
-        indexes[alias] = i
-    end
-    base_refs = SQLNode[]
-    for (i, col) in enumerate(n.list)
-        gather!(base_refs, col)
-    end
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+function build(n::SelectNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
     list = SQLClause[]
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
-    for (i, col) in enumerate(n.list)
+    treq = TranslateRequest(ctx, subs)
+    for (i, name) in enumerate(keys(n.label_map))
+        col = n.list[i]
         c = translate(col, treq)
-        c = AS(over = c, name = aliases[i])
+        c = AS(over = c, name = name)
         push!(list, c)
     end
     if isempty(list)
@@ -1089,47 +1544,33 @@ function resolve(n::SelectNode, req)
     c = SELECT(over = FROM(AS(over = base_res.clause, name = base_as)),
                list = list)
     repl = Dict{SQLNode, Symbol}()
-    ambs = Set{SQLNode}()
-    for ref in req.refs
-        if @dissect ref (nothing |> Get(name = ref_name))
-            if ref_name in keys(indexes)
-                repl[ref] = ref_name
-            end
-        end
-        if ref in base_res.ambs
-            push!(ambs, ref)
-        end
+    for ref in refs
+        ref_name = nothing
+        @dissect ref (nothing |> Get(name = name))
+        @assert name !== nothing
+        repl[ref] = name
     end
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 
-function resolve(n::WhereNode, req)
-    base_refs = SQLNode[]
-    gather!(base_refs, n.condition)
-    append!(base_refs, req.refs)
-    base_req = ResolveRequest(req.ctx, refs = base_refs)
-    base_res = resolve(n.over, base_req)
-    base_as = allocate_alias(req.ctx, n.over)
+function build(n::WhereNode, ctx::ResolveContext, refs::Vector{SQLNode})
+    base_res = build(n.over, ctx)
+    base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
     for (ref, name) in base_res.repl
         subs[ref] = ID(over = base_as, name = name)
     end
-    treq = TranslateRequest(req.ctx, subs, base_res.ambs)
+    treq = TranslateRequest(ctx, subs)
     condition = translate(n.condition, treq)
-    ambs = Set{SQLNode}()
     trns = Pair{SQLNode, SQLClause}[]
     base_cache = Dict{Symbol, SQLClause}()
-    for ref in req.refs
-        if ref in keys(base_res.repl)
-            name = base_res.repl[ref]
-            c = get(base_cache, name) do
-                ID(over = base_as, name = name)
-            end
-            push!(trns, ref => c)
+    for ref in refs
+        @assert ref in keys(base_res.repl)
+        name = base_res.repl[ref]
+        c = get(base_cache, name) do
+            ID(over = base_as, name = name)
         end
-        if ref in base_res.ambs
-            push!(ambs, ref)
-        end
+        push!(trns, ref => c)
     end
     repl, list = make_repl(trns)
     if isempty(list)
@@ -1138,6 +1579,6 @@ function resolve(n::WhereNode, req)
     w = WHERE(over = FROM(AS(over = base_res.clause, name = base_as)),
               condition = condition)
     c = SELECT(over = w, list = list)
-    ResolveResult(c, repl, ambs)
+    ResolveResult(c, repl)
 end
 

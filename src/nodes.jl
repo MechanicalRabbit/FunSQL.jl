@@ -49,8 +49,90 @@ Base.convert(::Type{SQLNode}, obj) =
 (n::AbstractSQLNode)(n′::SQLNode) =
     rebase(n, n′)
 
+label(n::SQLNode) =
+    label(n[])::Symbol
+
+label(::Union{AbstractSQLNode, Nothing}) =
+    :_
+
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))
+
+
+# Generic traversal and substitution.
+
+function visit(f, n::SQLNode)
+    visit(f, n[])
+    f(n)
+    nothing
+end
+
+function visit(f, ns::Vector{SQLNode})
+    for n in ns
+        visit(f, n)
+    end
+end
+
+visit(f, ::Nothing) =
+    nothing
+
+@generated function visit(f, n::AbstractSQLNode)
+    exs = Expr[]
+    for f in fieldnames(n)
+        t = fieldtype(n, f)
+        if t === SQLNode || t === Union{SQLNode, Nothing} || t === Vector{SQLNode}
+            ex = quote
+                visit(f, n.$(f))
+            end
+            push!(exs, ex)
+        end
+    end
+    push!(exs, :(return nothing))
+    Expr(:block, exs...)
+end
+
+substitute(n::SQLNode, c::SQLNode, c′::SQLNode) =
+    SQLNode(substitute(n[], c, c′))
+
+function substitute(ns::Vector{SQLNode}, c::SQLNode, c′::SQLNode)
+    i = findfirst(isequal(c), ns)
+    i !== nothing || return ns
+    ns′ = copy(ns)
+    ns′[i] = c′
+    ns′
+end
+
+substitute(::Nothing, ::SQLNode, ::SQLNode) =
+    nothing
+
+@generated function substitute(n::AbstractSQLNode, c::SQLNode, c′::SQLNode)
+    exs = Expr[]
+    fs = fieldnames(n)
+    for f in fs
+        t = fieldtype(n, f)
+        if t === SQLNode || t === Union{SQLNode, Nothing}
+            ex = quote
+                if n.$(f) === c
+                    return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(c′))
+                                    for f′ in fs]...))
+                end
+            end
+            push!(exs, ex)
+        elseif t === Vector{SQLNode}
+            ex = quote
+                let cs′ = substitute(n.$(f), c, c′)
+                    if cs′ !== n.$(f)
+                        return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(cs′))
+                                        for f′ in fs]...))
+                    end
+                end
+            end
+            push!(exs, ex)
+        end
+    end
+    push!(exs, :(return n))
+    Expr(:block, exs...)
+end
 
 
 # Pretty-printing.
@@ -154,6 +236,57 @@ PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
     else
         Any[:…]
     end
+
+
+# Errors.
+
+struct GetError <: FunSQLError
+    name::Symbol
+    stack::Vector{SQLNode}
+    ambiguous::Bool
+
+    GetError(name; stack = SQLNode[], ambiguous = false) =
+        new(name, stack, ambiguous)
+end
+
+function Base.showerror(io::IO, ex::GetError)
+    if ex.ambiguous
+        print(io, "GetError: ambiguous $(ex.name)")
+    else
+        print(io, "GetError: cannot find $(ex.name)")
+    end
+    showstack(io, ex.stack)
+end
+
+struct DuplicateAliasError <: FunSQLError
+    name::Symbol
+    stack::Vector{SQLNode}
+
+    DuplicateAliasError(name) =
+        new(name, SQLNode[])
+end
+
+function Base.showerror(io::IO, ex::DuplicateAliasError)
+    print(io, "DuplicateAliasError: $(ex.name)")
+    showstack(io, ex.stack)
+end
+
+function showstack(io, stack::Vector{SQLNode})
+    if !isempty(stack)
+        q = highlight(stack)
+        println(io, " in:")
+        pprint(io, q)
+    end
+end
+
+function highlight(stack::Vector{SQLNode}, color = Base.error_color())
+    @assert !isempty(stack)
+    n = Highlight(over = stack[1], color = color)
+    for k = 2:lastindex(stack)
+        n = substitute(stack[k], stack[k-1], n)
+    end
+    n
+end
 
 
 # Concrete node types.

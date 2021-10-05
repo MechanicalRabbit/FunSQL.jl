@@ -86,6 +86,9 @@ function PrettyPrinting.quoteof(n::GetNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::GetNode) =
+    n.name
+
 rebase(n::GetNode, n′) =
     GetNode(over = rebase(n.over, n′), name = n.name)
 

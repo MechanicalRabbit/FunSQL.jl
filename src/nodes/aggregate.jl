@@ -103,6 +103,9 @@ function PrettyPrinting.quoteof(n::AggregateNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::AggregateNode) =
+    n.name
+
 rebase(n::AggregateNode, n′) =
     AggregateNode(over = rebase(n.over, n′),
                   name = n.name,

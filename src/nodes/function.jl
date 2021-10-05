@@ -49,6 +49,9 @@ PrettyPrinting.quoteof(n::FunctionNode, qctx::SQLNodeQuoteContext) =
                   QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))),
          quoteof(n.args, qctx)...)
 
+label(n::FunctionNode) =
+    n.name
+
 
 # Notation for making function nodes.
 

@@ -3,7 +3,7 @@
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
         Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLNode,
-        SQLTable, Select, Sort, Var, Where, render, resolve
+        SQLTable, Select, Sort, Var, Where, render
 
 We start with specifying the database model.
 
@@ -199,7 +199,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: GetError: cannot find person_id in:
+    ERROR: GetError: cannot find q in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> As(:p) |> Select(Get.q.person_id)
@@ -244,7 +244,7 @@ constructor.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT "person_1"."person_id", …, (NOW() - "person_1"."birth_datetime") AS "age"
     FROM "person" AS "person_1"
     =#
 
@@ -253,7 +253,7 @@ attribute.
 
     print(render(q |> Where(Get.age .> "16 years")))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT "person_1"."person_id", …, (NOW() - "person_1"."birth_datetime") AS "age"
     FROM "person" AS "person_1"
     WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
     =#
@@ -653,15 +653,9 @@ used more than once.
 
     q = From(person) |>
         Group(Get.person_id, Get.person_id)
-
-    print(render(q))
     #=>
     ERROR: DuplicateAliasError: person_id in:
-    let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> Group(Get.person_id, Get.person_id)
-        q2
-    end
+    Group(Get.person_id, Get.person_id)
     =#
 
 `Group` ensures that each aggregate expression gets a unique alias.
@@ -885,9 +879,9 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q0(1)))
     #=>
-    SELECT "visit_occurrence_4"."visit_occurrence_id", …, "visit_occurrence_4"."visit_end_date"
+    SELECT "visit_occurrence_4"."visit_occurrence_id", "visit_occurrence_4"."person_id", "visit_occurrence_4"."visit_start_date", "visit_occurrence_4"."visit_end_date"
     FROM (
-      SELECT (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number", "visit_occurrence_1"."visit_occurrence_id", …, "visit_occurrence_1"."visit_end_date"
+      SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."person_id", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date", (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = 1)
     ) AS "visit_occurrence_4"
@@ -910,7 +904,7 @@ Nested subqueries that are combined with `Join` may fail to collapse.
     CROSS JOIN LATERAL (
       SELECT "visit_occurrence_4"."visit_occurrence_id", "visit_occurrence_4"."visit_start_date"
       FROM (
-        SELECT (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number", "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."visit_start_date"
+        SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."visit_start_date", (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
         FROM "visit_occurrence" AS "visit_occurrence_1"
         WHERE ("visit_occurrence_1"."person_id" = "person_2"."person_id")
       ) AS "visit_occurrence_4"
@@ -1089,15 +1083,9 @@ The `Select` constructor creates a subquery that fixes the output columns.
 
     q = From(person) |>
         Select(Get.person_id, Get.person_id)
-
-    print(render(q))
     #=>
     ERROR: DuplicateAliasError: person_id in:
-    let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> Select(Get.person_id, Get.person_id)
-        q2
-    end
+    Select(Get.person_id, Get.person_id)
     =#
 
 

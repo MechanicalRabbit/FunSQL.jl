@@ -66,6 +66,9 @@ function PrettyPrinting.quoteof(n::LimitNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::LimitNode) =
+    label(n.over)
+
 rebase(n::LimitNode, n′) =
     LimitNode(over = rebase(n.over, n′), offset = n.offset, limit = n.limit)
 

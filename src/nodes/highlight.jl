@@ -72,6 +72,9 @@ function PrettyPrinting.quoteof(n::HighlightNode, qctx::SQLNodeQuoteContext)
     EscWrapper(ex, n.color, copy(qctx.colors))
 end
 
+label(n::HighlightNode) =
+    label(n.over)
+
 rebase(n::HighlightNode, n′) =
     HighlightNode(over = rebase(n.over, n′), color = n.color)
 

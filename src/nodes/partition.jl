@@ -74,6 +74,9 @@ function PrettyPrinting.quoteof(n::PartitionNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::PartitionNode) =
+    label(n.over)
+
 rebase(n::PartitionNode, n′) =
     PartitionNode(over = rebase(n.over, n′), by = n.by, order_by = n.order_by, frame = n.frame)
 

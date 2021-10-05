@@ -77,6 +77,9 @@ function PrettyPrinting.quoteof(n::SortNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+label(n::SortNode) =
+    label(n.over)
+
 rebase(n::SortNode, n′) =
     SortNode(over = rebase(n.over, n′), value = n.value, nulls = n.nulls)
 
