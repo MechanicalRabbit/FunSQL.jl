@@ -396,19 +396,19 @@ NameBound(args...; kws...) =
 dissect(scr::Symbol, ::typeof(NameBound), pats::Vector{Any}) =
     dissect(scr, NameBoundNode, pats)
 
-mutable struct NodeBoundNode <: AbstractSQLNode
+mutable struct HandleBoundNode <: AbstractSQLNode
     over::SQLNode
-    node::SQLNode
+    handle::Int
 
-    NodeBoundNode(; over, node) =
-        new(over, node)
+    HandleBoundNode(; over, handle) =
+        new(over, handle)
 end
 
-NodeBound(args...; kws...) =
-    NodeBoundNode(args...; kws...) |> SQLNode
+HandleBound(args...; kws...) =
+    HandleBoundNode(args...; kws...) |> SQLNode
 
-dissect(scr::Symbol, ::typeof(NodeBound), pats::Vector{Any}) =
-    dissect(scr, NodeBoundNode, pats)
+dissect(scr::Symbol, ::typeof(HandleBound), pats::Vector{Any}) =
+    dissect(scr, HandleBoundNode, pats)
 
 mutable struct TerminalNode <: AbstractSQLNode
 end
@@ -419,8 +419,8 @@ mutable struct ExportNode <: AbstractSQLNode
     over::SQLNode
     name::Symbol
     type::RowType
-    node_map::Dict{SQLNode, RowType} # Set{SQLNode}
-    origin::SQLNode
+    handle_map::Dict{Int, RowType}
+    handle::Int
     refs::Vector{SQLNode}
     lateral_refs::Vector{SQLNode}
 
@@ -428,11 +428,11 @@ mutable struct ExportNode <: AbstractSQLNode
                over,
                name::Symbol,
                type::RowType,
-               node_map::Dict{SQLNode, RowType},
-               origin,
+               handle_map::Dict{Int, RowType},
+               handle,
                refs::Vector{SQLNode} = SQLNode[],
                lateral_refs::Vector{SQLNode} = SQLNode[]) =
-        new(over, name, type, node_map, origin, refs, lateral_refs)
+        new(over, name, type, handle_map, handle, refs, lateral_refs)
 end
 
 Export(args...; kws...) =
@@ -452,7 +452,7 @@ end
 label(n::ExportNode) =
     n.name
 
-label(n::Union{NameBoundNode, NodeBoundNode}) =
+label(n::Union{NameBoundNode, HandleBoundNode}) =
     label(n.over)
 
 get_export(n::SQLNode) =
@@ -498,19 +498,29 @@ struct AnnotateContext
     paths::Vector{Tuple{SQLNode, Int}}
     origins::Dict{SQLNode, Int}
     stack::Vector{Int}
+    handles::Dict{SQLNode, Int}
 
     AnnotateContext() =
-        new(Tuple{SQLNode, Int}[], Dict{SQLNode, Int}(), Int[0])
+        new(Tuple{SQLNode, Int}[], Dict{SQLNode, Int}(), Int[0], Dict{SQLNode, Int}())
 end
+
+function get_handle(actx::AnnotateContext, node::SQLNode)
+    get!(actx.handles, node) do
+        length(actx.handles) + 1
+    end
+end
+
+get_handle(actx::AnnotateContext, n::AbstractSQLNode) =
+    get_handle(actx, convert(SQLNode, n))
 
 struct ValidateContext
     paths::Vector{Tuple{SQLNode, Int}}
     origins::Dict{SQLNode, Int}
     type::RowType
-    node_map::Dict{SQLNode, RowType}
+    handle_map::Dict{Int, RowType}
 
     ValidateContext(actx::AnnotateContext, exp::ExportNode) =
-        new(actx.paths, actx.origins, exp.type, exp.node_map)
+        new(actx.paths, actx.origins, exp.type, exp.handle_map)
 end
 
 function get_stack(vctx::ValidateContext, n::SQLNode)
@@ -561,9 +571,9 @@ function validate(vctx::ValidateContext, ref::SQLNode, t::RowType)
 end
 
 function validate(vctx::ValidateContext, ref::SQLNode)
-    if @dissect ref over |> NodeBound(node = node)
-        if haskey(vctx.node_map, node)
-            t = vctx.node_map[node]
+    if @dissect ref over |> HandleBound(handle = handle)
+        if haskey(vctx.handle_map, handle)
+            t = vctx.handle_map[handle]
             validate(vctx, over, t)
         else
             error()
@@ -611,9 +621,9 @@ function route(lt::RowType, rt::RowType, ref::SQLNode)
 end
 
 function route(lvctx::ValidateContext, rvctx::ValidateContext, ref::SQLNode)
-    if @dissect ref over |> NodeBound(node = node)
-        lturn = haskey(lvctx.node_map, node)
-        rturn = haskey(rvctx.node_map, node)
+    if @dissect ref over |> HandleBound(handle = handle)
+        lturn = haskey(lvctx.handle_map, handle)
+        rturn = haskey(rvctx.handle_map, handle)
         @assert lturn != rturn
         return lturn ? -1 : 1
     else
@@ -655,7 +665,7 @@ gather!(vctx::ValidateContext, refs::Vector{SQLNode}, n::FunctionNode) =
 gather!(vctx::ValidateContext, refs::Vector{SQLNode}, n::ExportNode) =
     gather!(vctx, refs, n.over)
 
-function gather!(vctx::ValidateContext, refs::Vector{SQLNode}, n::Union{NameBoundNode, NodeBoundNode})
+function gather!(vctx::ValidateContext, refs::Vector{SQLNode}, n::Union{NameBoundNode, HandleBoundNode})
     validate(vctx, convert(SQLNode, n))
     push!(refs, n)
 end
@@ -692,7 +702,7 @@ annotate_scalar(actx::AnnotateContext, n::SubqueryNode) =
 function annotate(actx::AnnotateContext, ::Nothing)
     n = Terminal()
     actx.origins[n] = actx.stack[end]
-    exp = ExportNode(over = n, name = :_, type = RowType(), node_map = Dict{SQLNode, RowType}(), origin = n)
+    exp = ExportNode(over = n, name = :_, type = RowType(), handle_map = Dict{Int, RowType}(), handle = 0)
     actx.origins[convert(SQLNode, exp)] = actx.stack[end]
     exp
 end
@@ -705,7 +715,8 @@ function bind(actx::AnnotateContext, node, base)
     if @dissect node over |> Get(name = name)
         bind(actx, over, NameBound(over = base, name = name))
     else
-        return NodeBound(over = base, node = node)
+        handle = get_handle(actx, node)
+        return HandleBound(over = base, handle = handle)
     end
 end
 
@@ -740,9 +751,10 @@ function annotate(actx::AnnotateContext, n::HighlightNode)
     n′ = Highlight(over = over′, color = n.color)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = exp.name, type = exp.type, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = exp.name, type = exp.type, handle_map = handle_map, handle = handle)
 end
 
 annotate_scalar(actx::AnnotateContext, n::Union{Nothing, LiteralNode, VariableNode}) =
@@ -755,20 +767,21 @@ function annotate(actx::AnnotateContext, n::AppendNode)
     actx.origins[n′] = actx.stack[end]
     lexp = get_export(over′)
     t = lexp.type
-    node_map = lexp.node_map
+    handle_map = lexp.handle_map
     for r in list′
         rexp = get_export(r)
         t = intersect(t, rexp.type)
-        node_map′ = Dict{SQLNode, RowType}()
-        for (k, kt) in node_map
-            if haskey(rexp.node_map, k)
-                node_map′[k] = intersect(kt, rexp.node_map[k])
+        handle_map′ = Dict{Int, RowType}()
+        for (k, kt) in handle_map
+            if haskey(rexp.handle_map, k)
+                handle_map′[k] = intersect(kt, rexp.handle_map[k])
             end
         end
-        node_map = node_map′
+        handle_map = handle_map′
     end
-    node_map[convert(SQLNode, n)] = t
-    ExportNode(over = n′, name = :union, type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map[handle] = t
+    ExportNode(over = n′, name = :union, type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::AsNode)
@@ -779,9 +792,10 @@ function annotate(actx::AnnotateContext, n::AsNode)
     t = exp.type
     fields = OrderedDict{Symbol, AbstractSQLType}(n.name => t)
     t′ = RowType(fields)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = t
-    ExportNode(over = n′, name = n.name, type = t′, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = t
+    ExportNode(over = n′, name = n.name, type = t′, handle_map = handle_map, handle = handle)
 end
 
 function annotate_scalar(actx::AnnotateContext, n::AsNode)
@@ -798,9 +812,10 @@ function annotate(actx::AnnotateContext, n::BindNode)
     n′ = Bind(over = over′, list = list′)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::DefineNode)
@@ -822,9 +837,10 @@ function annotate(actx::AnnotateContext, n::DefineNode)
         end
     end
     t = RowType(fields)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = label(n), type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = label(n), type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::FromNode)
@@ -834,8 +850,9 @@ function annotate(actx::AnnotateContext, n::FromNode)
         fields[f] = ScalarType()
     end
     t = RowType(fields)
-    node_map = Dict{SQLNode, RowType}(convert(SQLNode, n) => t)
-    ExportNode(over = n, name = n.table.name, type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = Dict{Int, RowType}(handle => t)
+    ExportNode(over = n, name = n.table.name, type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::GroupNode)
@@ -849,8 +866,9 @@ function annotate(actx::AnnotateContext, n::GroupNode)
         fields[name] = ScalarType()
     end
     t = RowType(fields, exp.type)
-    node_map = Dict{SQLNode, RowType}(convert(SQLNode, n) => t)
-    ExportNode(over = n′, name = exp.name, type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = Dict{Int, RowType}(handle => t)
+    ExportNode(over = n′, name = exp.name, type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::JoinNode)
@@ -862,21 +880,22 @@ function annotate(actx::AnnotateContext, n::JoinNode)
     lexp = get_export(over′)
     rexp = get_export(joinee′)
     t = union(lexp.type, rexp.type)
-    node_map = Dict{SQLNode, RowType}()
-    for l in keys(lexp.node_map)
-        if haskey(rexp.node_map, l)
-            node_map[l] = AmbiguousType()
+    handle_map = Dict{Int, RowType}()
+    for l in keys(lexp.handle_map)
+        if haskey(rexp.handle_map, l)
+            handle_map[l] = AmbiguousType()
         else
-            node_map[l] = lexp.node_map[l]
+            handle_map[l] = lexp.handle_map[l]
         end
     end
-    for l in keys(rexp.node_map)
-        if !haskey(lexp.node_map, l)
-            node_map[l] = rexp.node_map[l]
+    for l in keys(rexp.handle_map)
+        if !haskey(lexp.handle_map, l)
+            handle_map[l] = rexp.handle_map[l]
         end
     end
-    node_map[convert(SQLNode, n)] = t
-    ExportNode(over = n′, name = lexp.name, type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map[handle] = t
+    ExportNode(over = n′, name = lexp.name, type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::LimitNode)
@@ -884,9 +903,10 @@ function annotate(actx::AnnotateContext, n::LimitNode)
     n′ = Limit(over = over′, offset = n.offset, limit = n.limit)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::OrderNode)
@@ -895,9 +915,10 @@ function annotate(actx::AnnotateContext, n::OrderNode)
     n′ = Order(over = over′, by = by′)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::PartitionNode)
@@ -908,9 +929,10 @@ function annotate(actx::AnnotateContext, n::PartitionNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     t = RowType(exp.type.fields, exp.type)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = label(n), type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = label(n), type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::SelectNode)
@@ -924,8 +946,9 @@ function annotate(actx::AnnotateContext, n::SelectNode)
         fields[name] = ScalarType()
     end
     t = RowType(fields)
-    node_map = Dict{SQLNode, RowType}(convert(SQLNode, n) => t)
-    ExportNode(over = n′, name = exp.name, type = t, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = Dict{Int, RowType}(handle => t)
+    ExportNode(over = n′, name = exp.name, type = t, handle_map = handle_map, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::WhereNode)
@@ -934,9 +957,10 @@ function annotate(actx::AnnotateContext, n::WhereNode)
     n′ = Where(over = over′, condition = condition′)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
-    node_map = copy(exp.node_map)
-    node_map[convert(SQLNode, n)] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, node_map = node_map, origin = n)
+    handle = get_handle(actx, n)
+    handle_map = copy(exp.handle_map)
+    handle_map[handle] = exp.type
+    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
 end
 
 
@@ -958,7 +982,7 @@ function populate!(actx::AnnotateContext, ::Nothing, req::ResolveRequest)
     nothing
 end
 
-populate!(actx::AnnotateContext, n::Union{AsNode, HighlightNode, NameBoundNode, NodeBoundNode, SortNode}, req::ResolveRequest) =
+populate!(actx::AnnotateContext, n::Union{AsNode, HighlightNode, NameBoundNode, HandleBoundNode, SortNode}, req::ResolveRequest) =
     populate!(actx, n.over, req)
 
 populate!(::AnnotateContext, ::Union{GetNode, LiteralNode, TerminalNode, VariableNode}, ::ResolveRequest) =
@@ -976,7 +1000,7 @@ function populate!(actx::AnnotateContext, n::ExportNode, req::ResolveRequest)
     append!(n.refs, req.refs)
     refs′ = SQLNode[]
     for ref in req.refs
-        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+        if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
             push!(refs′, over)
         else
             push!(refs′, ref)
@@ -998,7 +1022,7 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::AsNode, req::Resol
         if @dissect ref over |> NameBound(name = name)
             @assert name == n.name
             push!(refs′, over)
-        elseif @dissect ref NodeBound()
+        elseif @dissect ref HandleBound()
             push!(refs′, ref)
         else
             error()
@@ -1165,7 +1189,7 @@ translate(n::ExportNode, treq::TranslateRequest) =
 function build(n::ExportNode, ctx::ResolveContext)
     refs′ = SQLNode[]
     for ref in n.refs
-        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+        if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
             push!(refs′, over)
         else
             push!(refs′, ref)
@@ -1174,7 +1198,7 @@ function build(n::ExportNode, ctx::ResolveContext)
     res = build(n.over, ctx, refs′, n.lateral_refs)
     repl′ = Dict{SQLNode, Symbol}()
     for ref in n.refs
-        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+        if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
             repl′[ref] = res.repl[over]
         else
             repl′[ref] = res.repl[ref]
@@ -1186,7 +1210,7 @@ end
 function build(n::ExportNode, treq::TranslateRequest)
     refs′ = SQLNode[]
     for ref in n.refs
-        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+        if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
             push!(refs′, over)
         else
             push!(refs′, ref)
@@ -1195,7 +1219,7 @@ function build(n::ExportNode, treq::TranslateRequest)
     res = build(n.over, treq, refs′, n.lateral_refs)
     repl′ = Dict{SQLNode, Symbol}()
     for ref in n.refs
-        if (@dissect ref over |> NodeBoundNode(node = node)) && node === n.origin
+        if (@dissect ref over |> HandleBoundNode(node = node)) && handle == n.handle
             repl′[ref] = res.repl[over]
         else
             repl′[ref] = res.repl[ref]
