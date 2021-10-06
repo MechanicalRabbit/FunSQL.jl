@@ -262,8 +262,8 @@ struct DuplicateAliasError <: FunSQLError
     name::Symbol
     stack::Vector{SQLNode}
 
-    DuplicateAliasError(name) =
-        new(name, SQLNode[])
+    DuplicateAliasError(name; stack = SQLNode[]) =
+        new(name, stack)
 end
 
 function Base.showerror(io::IO, ex::DuplicateAliasError)
