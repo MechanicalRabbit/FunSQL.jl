@@ -288,27 +288,20 @@ HandleBound(args...; kws...) =
 dissect(scr::Symbol, ::typeof(HandleBound), pats::Vector{Any}) =
     dissect(scr, HandleBoundNode, pats)
 
-mutable struct TerminalNode <: AbstractSQLNode
-end
-
-Terminal() = TerminalNode() |> SQLNode
-
 mutable struct ExportNode <: AbstractSQLNode
-    over::SQLNode
+    over::Union{SQLNode, Nothing}
     name::Symbol
     type::ExportType
     handle::Int
     refs::Vector{SQLNode}
-    lateral_refs::Vector{SQLNode}
 
     ExportNode(;
                over,
                name::Symbol,
                type::ExportType,
                handle,
-               refs::Vector{SQLNode} = SQLNode[],
-               lateral_refs::Vector{SQLNode} = SQLNode[]) =
-        new(over, name, type, handle, refs, lateral_refs)
+               refs::Vector{SQLNode} = SQLNode[]) =
+        new(over, name, type, handle, refs)
 end
 
 Export(args...; kws...) =
@@ -325,6 +318,22 @@ function PrettyPrinting.quoteof(n::ExportNode, qctx::SQLNodeQuoteContext)
     ex
 end
 
+mutable struct ExtendedJoinNode <: AbstractSQLNode
+    over::Union{SQLNode, Nothing}
+    joinee::SQLNode
+    on::SQLNode
+    left::Bool
+    right::Bool
+    type::ExportType
+    lateral::Vector{SQLNode}
+
+    ExtendedJoinNode(; over = nothing, joinee, on, left, right, type, lateral = SQLNode[]) =
+        new(over, joinee, on, left, right, type, lateral)
+end
+
+ExtendedJoin(args...; kws...) =
+    ExtendedJoinNode(args...; kws...) |> SQLNode
+
 label(n::ExportNode) =
     n.name
 
@@ -340,11 +349,14 @@ get_export(n::ExportNode) =
 get_export(::AbstractSQLNode) =
     error()
 
+export_type(n) =
+    get_export(n).type
+
 
 # Building a SQL query out of a SQL node tree.
 
 asterix(n::SQLNode) =
-    asterix(get_export(n).type)
+    asterix(export_type(n))
 
 asterix(t::ExportType) =
     asterix(t.row)
@@ -397,8 +409,8 @@ struct ValidateContext
     origins::Dict{SQLNode, Int}
     type::ExportType
 
-    ValidateContext(actx::AnnotateContext, exp::ExportNode) =
-        new(actx.paths, actx.origins, exp.type)
+    ValidateContext(actx::AnnotateContext, type::ExportType) =
+        new(actx.paths, actx.origins, type)
 end
 
 function get_stack(vctx::ValidateContext, n::SQLNode)
@@ -501,14 +513,14 @@ function route(lt::RowType, rt::RowType, ref::SQLNode)
     end
 end
 
-function route(lvctx::ValidateContext, rvctx::ValidateContext, ref::SQLNode)
+function route(lt::ExportType, rt::ExportType, ref::SQLNode)
     if @dissect ref over |> HandleBound(handle = handle)
-        lturn = haskey(lvctx.type.handle_map, handle)
-        rturn = haskey(rvctx.type.handle_map, handle)
+        lturn = haskey(lt.handle_map, handle)
+        rturn = haskey(rt.handle_map, handle)
         @assert lturn != rturn
         return lturn ? -1 : 1
     else
-        return route(lvctx.type.row, rvctx.type.row, ref)
+        return route(lt.row, rt.row, ref)
     end
 end
 
@@ -581,10 +593,8 @@ annotate_scalar(actx::AnnotateContext, n::SubqueryNode) =
     annotate(actx, n)
 
 function annotate(actx::AnnotateContext, ::Nothing)
-    n = Terminal()
-    actx.origins[n] = actx.stack[end]
     t = ExportType(RowType(), Dict{Int, RowType}())
-    exp = ExportNode(over = n, name = :_, type = t, handle = 0)
+    exp = ExportNode(over = nothing, name = :_, type = t, handle = 0)
     actx.origins[convert(SQLNode, exp)] = actx.stack[end]
     exp
 end
@@ -758,11 +768,11 @@ function annotate(actx::AnnotateContext, n::JoinNode)
     over′ = annotate(actx, n.over)
     joinee′ = annotate(actx, n.joinee)
     on′ = annotate_scalar(actx, n.on)
-    n′ = Join(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right)
-    actx.origins[n′] = actx.stack[end]
     lexp = get_export(over′)
     rexp = get_export(joinee′)
     t = union(lexp.type, rexp.type)
+    n′ = ExtendedJoin(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right, type = t)
+    actx.origins[n′] = actx.stack[end]
     handle = get_handle(actx, n)
     handle_map = copy(t.handle_map)
     handle_map[handle] = t.row
@@ -846,9 +856,6 @@ end
 populate!(actx::AnnotateContext, n::SQLNode, req::ResolveRequest) =
     populate!(actx, n[], req)
 
-populate!(actx::AnnotateContext, exp::ExportNode, n::SQLNode, req::ResolveRequest) =
-    populate!(actx, exp, n[], req)
-
 function populate!(actx::AnnotateContext, ns::Vector{SQLNode}, req::ResolveRequest)
     for n in ns
         populate!(actx, n, req)
@@ -862,7 +869,7 @@ end
 populate!(actx::AnnotateContext, n::Union{AsNode, HighlightNode, NameBoundNode, HandleBoundNode, SortNode}, req::ResolveRequest) =
     populate!(actx, n.over, req)
 
-populate!(::AnnotateContext, ::Union{GetNode, LiteralNode, TerminalNode, VariableNode}, ::ResolveRequest) =
+populate!(::AnnotateContext, ::Union{Nothing, FromNode, GetNode, LiteralNode, VariableNode}, ::ResolveRequest) =
     nothing
 
 populate!(actx::AnnotateContext, n::FunctionNode, req::ResolveRequest) =
@@ -883,17 +890,17 @@ function populate!(actx::AnnotateContext, n::ExportNode, req::ResolveRequest)
             push!(refs′, ref)
         end
     end
-    populate!(actx, n, n.over, ResolveRequest(req.ctx, refs = refs′))
+    populate!(actx, n.over, ResolveRequest(req.ctx, refs = refs′))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::AppendNode, req::ResolveRequest)
+function populate!(actx::AnnotateContext, n::AppendNode, req::ResolveRequest)
     populate!(actx, n.over, req)
     for l in n.list
         populate!(actx, l, req)
     end
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::AsNode, req::ResolveRequest)
+function populate!(actx::AnnotateContext, n::AsNode, req::ResolveRequest)
     refs′ = SQLNode[]
     for ref in req.refs
         if @dissect ref over |> NameBound(name = name)
@@ -908,14 +915,14 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::AsNode, req::Resol
     populate!(actx, n.over, ResolveRequest(req.ctx, refs = refs′))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::BindNode, req::ResolveRequest)
+function populate!(actx::AnnotateContext, n::BindNode, req::ResolveRequest)
     base_req = ResolveRequest(req.ctx, refs = req.refs)
     populate!(actx, n.over, base_req)
     populate!(actx, n.list, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::DefineNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, get_export(n.over))
+function populate!(actx::AnnotateContext, n::DefineNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, export_type(n.over))
     base_refs = SQLNode[]
     seen = Set{Symbol}()
     for ref in req.refs
@@ -933,8 +940,8 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::DefineNode, req::R
     populate!(actx, n.list, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::GroupNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, get_export(n.over))
+function populate!(actx::AnnotateContext, n::GroupNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, export_type(n.over))
     base_refs = SQLNode[]
     gather!(vctx, base_refs, n.by)
     for ref in req.refs
@@ -951,42 +958,41 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::GroupNode, req::Re
     populate!(actx, n.by, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::HighlightNode, req::ResolveRequest)
+function populate!(actx::AnnotateContext, n::HighlightNode, req::ResolveRequest)
     populate!(actx, n.over, req)
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::JoinNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, exp)
-    lexp = get_export(n.over)
-    rexp = get_export(n.joinee)
+function populate!(actx::AnnotateContext, n::ExtendedJoinNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, n.type)
+    lt = export_type(n.over)
+    rt = export_type(n.joinee)
     refs = SQLNode[]
     gather!(vctx, refs, n.on)
     append!(refs, req.refs)
     lrefs = SQLNode[]
     rrefs = SQLNode[]
-    lvctx = ValidateContext(actx, lexp)
-    rvctx = ValidateContext(actx, rexp)
     for ref in refs
-        turn = route(lvctx, rvctx, ref)
+        turn = route(lt, rt, ref)
         if turn < 0
             push!(lrefs, ref)
         else
             push!(rrefs, ref)
         end
     end
-    gather!(lvctx, exp.lateral_refs, n.joinee)
-    append!(lrefs, exp.lateral_refs)
+    lvctx = ValidateContext(actx, lt)
+    gather!(lvctx, n.lateral, n.joinee)
+    append!(lrefs, n.lateral)
     populate!(actx, n.over, ResolveRequest(req.ctx, refs = lrefs))
     populate!(actx, n.joinee, ResolveRequest(req.ctx, refs = rrefs))
     populate!(actx, n.on, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::LimitNode, req::ResolveRequest)
+function populate!(actx::AnnotateContext, n::LimitNode, req::ResolveRequest)
     populate!(actx, n.over, req)
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::OrderNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, get_export(n.over))
+function populate!(actx::AnnotateContext, n::OrderNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, export_type(n.over))
     base_refs = copy(req.refs)
     gather!(vctx, base_refs, n.by)
     base_req = ResolveRequest(req.ctx, refs = base_refs)
@@ -994,8 +1000,8 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::OrderNode, req::Re
     populate!(actx, n.by, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::PartitionNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, get_export(n.over))
+function populate!(actx::AnnotateContext, n::PartitionNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, export_type(n.over))
     base_refs = SQLNode[]
     gather!(vctx, base_refs, n.by)
     gather!(vctx, base_refs, n.order_by)
@@ -1015,8 +1021,8 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::PartitionNode, req
     populate!(actx, n.order_by, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::SelectNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, get_export(n.over))
+function populate!(actx::AnnotateContext, n::SelectNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, export_type(n.over))
     base_refs = SQLNode[]
     gather!(vctx, base_refs, n.list)
     base_req = ResolveRequest(req.ctx, refs = base_refs)
@@ -1024,17 +1030,14 @@ function populate!(actx::AnnotateContext, exp::ExportNode, n::SelectNode, req::R
     populate!(actx, n.list, ResolveRequest(req.ctx))
 end
 
-function populate!(actx::AnnotateContext, exp::ExportNode, n::WhereNode, req::ResolveRequest)
-    vctx = ValidateContext(actx, get_export(n.over))
+function populate!(actx::AnnotateContext, n::WhereNode, req::ResolveRequest)
+    vctx = ValidateContext(actx, export_type(n.over))
     base_refs = copy(req.refs)
     gather!(vctx, base_refs, n.condition)
     base_req = ResolveRequest(req.ctx, refs = base_refs)
     populate!(actx, n.over, base_req)
     populate!(actx, n.condition, ResolveRequest(req.ctx))
 end
-
-populate!(actx::AnnotateContext, ::ExportNode, ::Union{FromNode, TerminalNode}, ::ResolveRequest) =
-    nothing
 
 
 # Building SQL clauses.
@@ -1051,11 +1054,8 @@ function build(::Nothing, ctx::ResolveContext)
     ResolveResult(c, repl)
 end
 
-build(n::AbstractSQLNode, ctx::Union{ResolveContext, TranslateRequest}, refs::Vector{SQLNode}, lateral_refs::Vector{SQLNode}) =
-    build(n, ctx, refs)
-
-build(n::SQLNode, ctx::Union{ResolveContext, TranslateRequest}, refs::Vector{SQLNode}, lateral_refs::Vector{SQLNode}) =
-    build(n[], ctx, refs, lateral_refs)
+build(n::SQLNode, ctx::Union{ResolveContext, TranslateRequest}, refs::Vector{SQLNode}) =
+    build(n[], ctx, refs)
 
 build(n::SubqueryNode, treq::TranslateRequest, refs::Vector{SQLNode}) =
     build(n, treq.ctx, refs)
@@ -1072,7 +1072,7 @@ function build(n::ExportNode, ctx::ResolveContext)
             push!(refs′, ref)
         end
     end
-    res = build(n.over, ctx, refs′, n.lateral_refs)
+    res = build(n.over, ctx, refs′)
     repl′ = Dict{SQLNode, Symbol}()
     for ref in n.refs
         if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
@@ -1093,7 +1093,7 @@ function build(n::ExportNode, treq::TranslateRequest)
             push!(refs′, ref)
         end
     end
-    res = build(n.over, treq, refs′, n.lateral_refs)
+    res = build(n.over, treq, refs′)
     repl′ = Dict{SQLNode, Symbol}()
     for ref in n.refs
         if (@dissect ref over |> HandleBoundNode(node = node)) && handle == n.handle
@@ -1105,7 +1105,7 @@ function build(n::ExportNode, treq::TranslateRequest)
     ResolveResult(res.clause, repl′)
 end
 
-function build(n::TerminalNode, ctx::ResolveContext, refs::Vector{SQLNode})
+function build(::Nothing, ctx::ResolveContext, refs::Vector{SQLNode})
     c = SELECT(list = SQLClause[missing])
     repl = Dict{SQLNode, Symbol}()
     ResolveResult(c, repl)
@@ -1301,13 +1301,13 @@ end
 build(n::HighlightNode, ctx::ResolveContext, refs::Vector{SQLNode}) =
     build(n.over, ctx)
 
-function build(n::JoinNode, ctx::ResolveContext, refs::Vector{SQLNode}, lateral_refs::Vector{SQLNode})
+function build(n::ExtendedJoinNode, ctx::ResolveContext, refs::Vector{SQLNode})
     left_res = build(n.over, ctx)
     left_as = allocate_alias(ctx, n.over)
-    lateral = !isempty(lateral_refs)
+    lateral = !isempty(n.lateral)
     if lateral
         lsubs = Dict{SQLNode, SQLClause}()
-        for ref in lateral_refs
+        for ref in n.lateral
             name = left_res.repl[ref]
             lsubs[ref] = ID(over = left_as, name = name)
         end
