@@ -25,6 +25,7 @@ end
 
 include("dissect.jl")
 include("dialects.jl")
+include("types.jl")
 include("statements.jl")
 include("entities.jl")
 include("clauses.jl")

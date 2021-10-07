@@ -258,128 +258,6 @@ function make_repl(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLNode, 
 end
 
 
-# Types of SQL nodes.
-
-abstract type AbstractSQLType
-end
-
-struct EmptyType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::EmptyType, ::SQLNodeQuoteContext) =
-    Expr(:call, nameof(EmptyType))
-
-struct RowType <: AbstractSQLType
-    fields::OrderedDict{Symbol, AbstractSQLType}
-    group::AbstractSQLType
-
-    RowType(fields, group = EmptyType()) =
-        new(fields, group)
-end
-
-RowType() =
-    RowType(OrderedDict{Symbol, AbstractSQLType}())
-
-function PrettyPrinting.quoteof(t::RowType, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(RowType))
-    if qctx.limit
-        push!(ex.args, :…)
-    else
-        push!(ex.args, quoteof(t.fields))
-        if !(t.group isa EmptyType)
-            push!(ex.args, quoteof(t.group, qctx))
-        end
-    end
-    ex
-end
-
-function PrettyPrinting.quoteof(d::Dict{Symbol, AbstractSQLType}, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Dict))
-    for (k, v) in d
-        push!(ex.args, Expr(:call, :(=>), QuoteNode(k), quoteof(v, qctx)))
-    end
-    ex
-end
-
-struct ScalarType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::ScalarType, ::SQLNodeQuoteContext) =
-    Expr(:call, nameof(ScalarType))
-
-struct AmbiguousType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::AmbiguousType, ::SQLNodeQuoteContext) =
-    Expr(:call, nameof(AmbiguousType))
-
-Base.intersect(::AbstractSQLType, ::AbstractSQLType) =
-    EmptyType()
-
-Base.intersect(::ScalarType, ::ScalarType) =
-    ScalarType()
-
-Base.intersect(::AmbiguousType, ::AmbiguousType) =
-    AmbiguousType()
-
-function Base.intersect(t1::RowType, t2::RowType)
-    fields = OrderedDict{Symbol, AbstractSQLType}()
-    for f in keys(t1.fields)
-        if f in keys(t2.fields)
-            t = intersect(t1.fields[f], t2.fields[f])
-            if !isa(t, EmptyType)
-                fields[f] = t
-            end
-        end
-    end
-    group = intersect(t1.group, t2.group)
-    RowType(fields, group)
-end
-
-Base.union(::AbstractSQLType, ::AbstractSQLType) =
-    AmbiguousType()
-
-Base.union(::EmptyType, ::EmptyType) =
-    EmptyType()
-
-Base.union(::EmptyType, t::AbstractSQLType) =
-    t
-
-Base.union(t::AbstractSQLType, ::EmptyType) =
-    t
-
-Base.union(::ScalarType, ::ScalarType) =
-    ScalarType()
-
-function Base.union(t1::RowType, t2::RowType)
-    fields = OrderedDict{Symbol, AbstractSQLType}()
-    for (f, t) in t1.fields
-        if f in keys(t2.fields)
-            t′ = t2.fields[f]
-            if t isa RowType && t′ isa RowType
-                t = union(t, t′)
-            else
-                t = AmbiguousType()
-            end
-        end
-        fields[f] = t
-    end
-    for (f, t) in t2.fields
-        if !(f in keys(t1.fields))
-            fields[f] = t
-        end
-    end
-    if t1.group isa EmptyType
-        group = t2.group
-    elseif t2.group isa EmptyType
-        group = t1.group
-    else
-        group = AmbiguousType()
-    end
-    RowType(fields, group)
-end
-
-
 # Auxiliary nodes.
 
 mutable struct NameBoundNode <: AbstractSQLNode
@@ -418,8 +296,7 @@ Terminal() = TerminalNode() |> SQLNode
 mutable struct ExportNode <: AbstractSQLNode
     over::SQLNode
     name::Symbol
-    type::RowType
-    handle_map::Dict{Int, RowType}
+    type::ExportType
     handle::Int
     refs::Vector{SQLNode}
     lateral_refs::Vector{SQLNode}
@@ -427,12 +304,11 @@ mutable struct ExportNode <: AbstractSQLNode
     ExportNode(;
                over,
                name::Symbol,
-               type::RowType,
-               handle_map::Dict{Int, RowType},
+               type::ExportType,
                handle,
                refs::Vector{SQLNode} = SQLNode[],
                lateral_refs::Vector{SQLNode} = SQLNode[]) =
-        new(over, name, type, handle_map, handle, refs, lateral_refs)
+        new(over, name, type, handle, refs, lateral_refs)
 end
 
 Export(args...; kws...) =
@@ -441,7 +317,7 @@ Export(args...; kws...) =
 function PrettyPrinting.quoteof(n::ExportNode, qctx::SQLNodeQuoteContext)
     ex = Expr(:call, nameof(Export))
     push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
-    push!(ex.args, Expr(:kw, :type, quoteof(n.type, qctx)))
+    push!(ex.args, Expr(:kw, :type, quoteof(n.type)))
     if !isempty(n.refs)
         push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, qctx)...)))
     end
@@ -469,6 +345,9 @@ get_export(::AbstractSQLNode) =
 
 asterix(n::SQLNode) =
     asterix(get_export(n).type)
+
+asterix(t::ExportType) =
+    asterix(t.row)
 
 function asterix(t::RowType)
     list = SQLNode[]
@@ -516,11 +395,10 @@ get_handle(actx::AnnotateContext, n::AbstractSQLNode) =
 struct ValidateContext
     paths::Vector{Tuple{SQLNode, Int}}
     origins::Dict{SQLNode, Int}
-    type::RowType
-    handle_map::Dict{Int, RowType}
+    type::ExportType
 
     ValidateContext(actx::AnnotateContext, exp::ExportNode) =
-        new(actx.paths, actx.origins, exp.type, exp.handle_map)
+        new(actx.paths, actx.origins, exp.type)
 end
 
 function get_stack(vctx::ValidateContext, n::SQLNode)
@@ -570,17 +448,20 @@ function validate(vctx::ValidateContext, ref::SQLNode, t::RowType)
     nothing
 end
 
-function validate(vctx::ValidateContext, ref::SQLNode)
+function validate(vctx::ValidateContext, ref::SQLNode, t::ExportType)
     if @dissect ref over |> HandleBound(handle = handle)
-        if haskey(vctx.handle_map, handle)
-            t = vctx.handle_map[handle]
-            validate(vctx, over, t)
+        if haskey(t.handle_map, handle)
+            validate(vctx, over, t.handle_map[handle])
         else
             error()
         end
     else
-        validate(vctx, ref, vctx.type)
+        validate(vctx, ref, t.row)
     end
+end
+
+function validate(vctx::ValidateContext, ref::SQLNode)
+    validate(vctx, ref, vctx.type)
 end
 
 function route(lt::RowType, rt::RowType, ref::SQLNode)
@@ -622,12 +503,12 @@ end
 
 function route(lvctx::ValidateContext, rvctx::ValidateContext, ref::SQLNode)
     if @dissect ref over |> HandleBound(handle = handle)
-        lturn = haskey(lvctx.handle_map, handle)
-        rturn = haskey(rvctx.handle_map, handle)
+        lturn = haskey(lvctx.type.handle_map, handle)
+        rturn = haskey(rvctx.type.handle_map, handle)
         @assert lturn != rturn
         return lturn ? -1 : 1
     else
-        return route(lvctx.type, rvctx.type, ref)
+        return route(lvctx.type.row, rvctx.type.row, ref)
     end
 end
 
@@ -702,7 +583,8 @@ annotate_scalar(actx::AnnotateContext, n::SubqueryNode) =
 function annotate(actx::AnnotateContext, ::Nothing)
     n = Terminal()
     actx.origins[n] = actx.stack[end]
-    exp = ExportNode(over = n, name = :_, type = RowType(), handle_map = Dict{Int, RowType}(), handle = 0)
+    t = ExportType(RowType(), Dict{Int, RowType}())
+    exp = ExportNode(over = n, name = :_, type = t, handle = 0)
     actx.origins[convert(SQLNode, exp)] = actx.stack[end]
     exp
 end
@@ -751,10 +633,12 @@ function annotate(actx::AnnotateContext, n::HighlightNode)
     n′ = Highlight(over = over′, color = n.color)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
+    t = exp.type
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = exp.name, type = exp.type, handle_map = handle_map, handle = handle)
+    handle_map = copy(t.handle_map)
+    handle_map[handle] = t.row
+    t = ExportType(t.row, handle_map)
+    ExportNode(over = n′, name = exp.name, type = t, handle = handle)
 end
 
 annotate_scalar(actx::AnnotateContext, n::Union{Nothing, LiteralNode, VariableNode}) =
@@ -767,21 +651,15 @@ function annotate(actx::AnnotateContext, n::AppendNode)
     actx.origins[n′] = actx.stack[end]
     lexp = get_export(over′)
     t = lexp.type
-    handle_map = lexp.handle_map
     for r in list′
         rexp = get_export(r)
         t = intersect(t, rexp.type)
-        handle_map′ = Dict{Int, RowType}()
-        for (k, kt) in handle_map
-            if haskey(rexp.handle_map, k)
-                handle_map′[k] = intersect(kt, rexp.handle_map[k])
-            end
-        end
-        handle_map = handle_map′
     end
     handle = get_handle(actx, n)
-    handle_map[handle] = t
-    ExportNode(over = n′, name = :union, type = t, handle_map = handle_map, handle = handle)
+    handle_map = copy(t.handle_map)
+    handle_map[handle] = t.row
+    t = ExportType(t.row, handle_map)
+    ExportNode(over = n′, name = :union, type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::AsNode)
@@ -790,12 +668,13 @@ function annotate(actx::AnnotateContext, n::AsNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     t = exp.type
-    fields = OrderedDict{Symbol, AbstractSQLType}(n.name => t)
-    t′ = RowType(fields)
+    fields = OrderedDict{Symbol, AbstractSQLType}(n.name => t.row)
+    row′ = RowType(fields)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = t
-    ExportNode(over = n′, name = n.name, type = t′, handle_map = handle_map, handle = handle)
+    handle_map = copy(t.handle_map)
+    handle_map[handle] = row′
+    t′ = ExportType(row′, handle_map)
+    ExportNode(over = n′, name = n.name, type = t′, handle = handle)
 end
 
 function annotate_scalar(actx::AnnotateContext, n::AsNode)
@@ -813,9 +692,10 @@ function annotate(actx::AnnotateContext, n::BindNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
+    handle_map = copy(exp.type.handle_map)
+    handle_map[handle] = exp.type.row
+    t = ExportType(exp.type.row, handle_map)
+    ExportNode(over = n′, name = label(n), type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::DefineNode)
@@ -825,7 +705,7 @@ function annotate(actx::AnnotateContext, n::DefineNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     fields = OrderedDict{Symbol, AbstractSQLType}()
-    for (f, t) in exp.type.fields
+    for (f, t) in exp.type.row.fields
         if f in keys(n.label_map)
             t = ScalarType()
         end
@@ -836,11 +716,12 @@ function annotate(actx::AnnotateContext, n::DefineNode)
             fields[f] = ScalarType()
         end
     end
-    t = RowType(fields)
+    row = RowType(fields)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = label(n), type = t, handle_map = handle_map, handle = handle)
+    handle_map = copy(exp.type.handle_map)
+    handle_map[handle] = exp.type.row
+    t = ExportType(row, handle_map)
+    ExportNode(over = n′, name = label(n), type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::FromNode)
@@ -849,10 +730,11 @@ function annotate(actx::AnnotateContext, n::FromNode)
     for f in n.table.columns
         fields[f] = ScalarType()
     end
-    t = RowType(fields)
+    row = RowType(fields)
     handle = get_handle(actx, n)
-    handle_map = Dict{Int, RowType}(handle => t)
-    ExportNode(over = n, name = n.table.name, type = t, handle_map = handle_map, handle = handle)
+    handle_map = Dict{Int, RowType}(handle => row)
+    t = ExportType(row, handle_map)
+    ExportNode(over = n, name = n.table.name, type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::GroupNode)
@@ -865,10 +747,11 @@ function annotate(actx::AnnotateContext, n::GroupNode)
     for name in keys(n.label_map)
         fields[name] = ScalarType()
     end
-    t = RowType(fields, exp.type)
+    row = RowType(fields, exp.type.row)
     handle = get_handle(actx, n)
-    handle_map = Dict{Int, RowType}(handle => t)
-    ExportNode(over = n′, name = exp.name, type = t, handle_map = handle_map, handle = handle)
+    handle_map = Dict{Int, RowType}(handle => row)
+    t = ExportType(row, handle_map)
+    ExportNode(over = n′, name = exp.name, type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::JoinNode)
@@ -880,22 +763,11 @@ function annotate(actx::AnnotateContext, n::JoinNode)
     lexp = get_export(over′)
     rexp = get_export(joinee′)
     t = union(lexp.type, rexp.type)
-    handle_map = Dict{Int, RowType}()
-    for l in keys(lexp.handle_map)
-        if haskey(rexp.handle_map, l)
-            handle_map[l] = AmbiguousType()
-        else
-            handle_map[l] = lexp.handle_map[l]
-        end
-    end
-    for l in keys(rexp.handle_map)
-        if !haskey(lexp.handle_map, l)
-            handle_map[l] = rexp.handle_map[l]
-        end
-    end
     handle = get_handle(actx, n)
-    handle_map[handle] = t
-    ExportNode(over = n′, name = lexp.name, type = t, handle_map = handle_map, handle = handle)
+    handle_map = copy(t.handle_map)
+    handle_map[handle] = t.row
+    t = ExportType(t.row, handle_map)
+    ExportNode(over = n′, name = lexp.name, type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::LimitNode)
@@ -904,9 +776,10 @@ function annotate(actx::AnnotateContext, n::LimitNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
+    handle_map = copy(exp.type.handle_map)
+    handle_map[handle] = exp.type.row
+    t = ExportType(exp.type.row, handle_map)
+    ExportNode(over = n′, name = label(n), type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::OrderNode)
@@ -916,9 +789,10 @@ function annotate(actx::AnnotateContext, n::OrderNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
+    handle_map = copy(exp.type.handle_map)
+    handle_map[handle] = exp.type.row
+    t = ExportType(exp.type.row, handle_map)
+    ExportNode(over = n′, name = label(n), type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::PartitionNode)
@@ -928,11 +802,12 @@ function annotate(actx::AnnotateContext, n::PartitionNode)
     n′ = Partition(over = over′, by = by′, order_by = order_by′, frame = n.frame)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
-    t = RowType(exp.type.fields, exp.type)
+    row = RowType(exp.type.row.fields, exp.type.row)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = label(n), type = t, handle_map = handle_map, handle = handle)
+    handle_map = copy(exp.type.handle_map)
+    handle_map[handle] = row
+    t = ExportType(row, handle_map)
+    ExportNode(over = n′, name = label(n), type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::SelectNode)
@@ -945,10 +820,11 @@ function annotate(actx::AnnotateContext, n::SelectNode)
     for name in keys(n.label_map)
         fields[name] = ScalarType()
     end
-    t = RowType(fields)
+    row = RowType(fields)
     handle = get_handle(actx, n)
-    handle_map = Dict{Int, RowType}(handle => t)
-    ExportNode(over = n′, name = exp.name, type = t, handle_map = handle_map, handle = handle)
+    handle_map = Dict{Int, RowType}(handle => row)
+    t = ExportType(row, handle_map)
+    ExportNode(over = n′, name = exp.name, type = t, handle = handle)
 end
 
 function annotate(actx::AnnotateContext, n::WhereNode)
@@ -958,9 +834,10 @@ function annotate(actx::AnnotateContext, n::WhereNode)
     actx.origins[n′] = actx.stack[end]
     exp = get_export(over′)
     handle = get_handle(actx, n)
-    handle_map = copy(exp.handle_map)
-    handle_map[handle] = exp.type
-    ExportNode(over = n′, name = label(n), type = exp.type, handle_map = handle_map, handle = handle)
+    handle_map = copy(exp.type.handle_map)
+    handle_map[handle] = exp.type.row
+    t = ExportType(exp.type.row, handle_map)
+    ExportNode(over = n′, name = label(n), type = t, handle = handle)
 end
 
 
