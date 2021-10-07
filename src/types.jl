@@ -54,6 +54,7 @@ PrettyPrinting.quoteof(::AmbiguousType) =
     Expr(:call, nameof(AmbiguousType))
 
 struct ExportType
+    name::Symbol
     row::RowType
     handle_map::Dict{Int, RowType}
 end
@@ -91,7 +92,7 @@ function Base.intersect(t1::ExportType, t2::ExportType)
             end
         end
     end
-    ExportType(intersect(t1.row, t2.row), handle_map)
+    ExportType(:union, intersect(t1.row, t2.row), handle_map)
 end
 
 Base.union(::AbstractSQLType, ::AbstractSQLType) =
@@ -151,7 +152,7 @@ function Base.union(t1::ExportType, t2::ExportType)
             handle_map[l] = t2.handle_map[l]
         end
     end
-    ExportType(union(t1.row, t2.row), handle_map)
+    ExportType(t1.name, union(t1.row, t2.row), handle_map)
 end
 
 
