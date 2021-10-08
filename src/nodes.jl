@@ -240,50 +240,62 @@ PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
 
 # Errors.
 
-struct GetError <: FunSQLError
-    name::Symbol
-    stack::Vector{SQLNode}
-    ambiguous::Bool
-
-    GetError(name; stack = SQLNode[], ambiguous = false) =
-        new(name, stack, ambiguous)
-end
-
-function Base.showerror(io::IO, ex::GetError)
-    if ex.ambiguous
-        print(io, "GetError: ambiguous $(ex.name)")
-    else
-        print(io, "GetError: cannot find $(ex.name)")
-    end
-    showstack(io, ex.stack)
-end
-
 struct DuplicateAliasError <: FunSQLError
     name::Symbol
-    stack::Vector{SQLNode}
+    path::Vector{SQLNode}
 
-    DuplicateAliasError(name; stack = SQLNode[]) =
-        new(name, stack)
+    DuplicateAliasError(name; path = SQLNode[]) =
+        new(name, path)
 end
 
-function Base.showerror(io::IO, ex::DuplicateAliasError)
-    print(io, "DuplicateAliasError: $(ex.name)")
-    showstack(io, ex.stack)
+function Base.showerror(io::IO, err::DuplicateAliasError)
+    print(io, "DuplicateAliasError: $(err.name)")
+    showpath(io, err.path)
 end
 
-function showstack(io, stack::Vector{SQLNode})
-    if !isempty(stack)
-        q = highlight(stack)
+struct IllFormedError <: FunSQLError
+    path::Vector{SQLNode}
+
+    IllFormedError(; path = SQLNode[]) =
+        new(path)
+end
+
+function Base.showerror(io::IO, err::IllFormedError)
+    print(io, "IllFormedError")
+    showpath(io, err.path)
+end
+
+struct GetError <: FunSQLError
+    name::Symbol
+    path::Vector{SQLNode}
+    ambiguous::Bool
+
+    GetError(name; path = SQLNode[], ambiguous = false) =
+        new(name, path, ambiguous)
+end
+
+function Base.showerror(io::IO, err::GetError)
+    if err.ambiguous
+        print(io, "GetError: ambiguous $(err.name)")
+    else
+        print(io, "GetError: cannot find $(err.name)")
+    end
+    showpath(io, err.path)
+end
+
+function showpath(io, path::Vector{SQLNode})
+    if !isempty(path)
+        q = highlight(path)
         println(io, " in:")
         pprint(io, q)
     end
 end
 
-function highlight(stack::Vector{SQLNode}, color = Base.error_color())
-    @assert !isempty(stack)
-    n = Highlight(over = stack[1], color = color)
-    for k = 2:lastindex(stack)
-        n = substitute(stack[k], stack[k-1], n)
+function highlight(path::Vector{SQLNode}, color = Base.error_color())
+    @assert !isempty(path)
+    n = Highlight(over = path[1], color = color)
+    for k = 2:lastindex(path)
+        n = substitute(path[k], path[k-1], n)
     end
     n
 end

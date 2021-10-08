@@ -9,6 +9,18 @@ end
 PrettyPrinting.quoteof(::EmptyType) =
     Expr(:call, nameof(EmptyType))
 
+struct AmbiguousType <: AbstractSQLType
+end
+
+PrettyPrinting.quoteof(::AmbiguousType) =
+    Expr(:call, nameof(AmbiguousType))
+
+struct ScalarType <: AbstractSQLType
+end
+
+PrettyPrinting.quoteof(::ScalarType) =
+    Expr(:call, nameof(ScalarType))
+
 struct RowType <: AbstractSQLType
     fields::OrderedDict{Symbol, AbstractSQLType}
     group::AbstractSQLType
@@ -20,44 +32,41 @@ end
 RowType() =
     RowType(OrderedDict{Symbol, AbstractSQLType}())
 
+RowType(fields::Pair{Symbol, <:AbstractSQLType}...; group = EmptyType()) =
+    RowType(OrderedDict{Symbol, AbstractSQLType}(fields...), group)
+
 function PrettyPrinting.quoteof(t::RowType)
     ex = Expr(:call, nameof(RowType))
-    if qctx.limit
-        push!(ex.args, :…)
-    else
-        push!(ex.args, quoteof(t.fields))
-        if !(t.group isa EmptyType)
-            push!(ex.args, quoteof(t.group))
-        end
+    for (f, ft) in t.fields
+        push!(ex.args, Expr(:(=>), QuoteNode(f), quoteof(ft)))
+    end
+    if !(t.group isa EmptyType)
+        push!(ex.args, Expr(:kw, :group, quoteof(t.group)))
     end
     ex
 end
 
-function PrettyPrinting.quoteof(d::Dict{Symbol, AbstractSQLType})
-    ex = Expr(:call, nameof(Dict))
-    for (k, v) in d
-        push!(ex.args, Expr(:call, :(=>), QuoteNode(k), quoteof(v)))
-    end
-    ex
-end
-
-struct ScalarType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::ScalarType) =
-    Expr(:call, nameof(ScalarType))
-
-struct AmbiguousType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::AmbiguousType) =
-    Expr(:call, nameof(AmbiguousType))
-
-struct ExportType
+struct BoxType
     name::Symbol
     row::RowType
     handle_map::Dict{Int, RowType}
 end
+
+BoxType(name, row) =
+    BoxType(name, row, Dict{Int, RowType}())
+
+const EMPTY_BOX = BoxType(:_, RowType(), Dict{Int, RowType}())
+
+function add_handle(t::BoxType, handle::Int)
+    if handle != 0
+        handle_map = copy(t.handle_map)
+        handle_map[handle] = t.row
+        t = BoxType(t.name, t.row, handle_map)
+    end
+    t
+end
+
+# Type of `Append` (UNION ALL).
 
 Base.intersect(::AbstractSQLType, ::AbstractSQLType) =
     EmptyType()
@@ -69,6 +78,9 @@ Base.intersect(::AmbiguousType, ::AmbiguousType) =
     AmbiguousType()
 
 function Base.intersect(t1::RowType, t2::RowType)
+    if t1 === t2
+        return t1
+    end
     fields = OrderedDict{Symbol, AbstractSQLType}()
     for f in keys(t1.fields)
         if f in keys(t2.fields)
@@ -82,7 +94,10 @@ function Base.intersect(t1::RowType, t2::RowType)
     RowType(fields, group)
 end
 
-function Base.intersect(t1::ExportType, t2::ExportType)
+function Base.intersect(t1::BoxType, t2::BoxType)
+    if t1 === t2
+        return t1
+    end
     handle_map = Dict{Int, RowType}()
     for h in keys(t1.handle_map)
         if h in keys(t2.handle_map)
@@ -92,7 +107,8 @@ function Base.intersect(t1::ExportType, t2::ExportType)
             end
         end
     end
-    ExportType(:union, intersect(t1.row, t2.row), handle_map)
+    name = t1.name == t2.name ? t2.name : :union
+    BoxType(name, intersect(t1.row, t2.row), handle_map)
 end
 
 Base.union(::AbstractSQLType, ::AbstractSQLType) =
@@ -138,7 +154,7 @@ function Base.union(t1::RowType, t2::RowType)
     RowType(fields, group)
 end
 
-function Base.union(t1::ExportType, t2::ExportType)
+function Base.union(t1::BoxType, t2::BoxType)
     handle_map = Dict{Int, RowType}()
     for l in keys(t1.handle_map)
         if haskey(t2.handle_map, l)
@@ -152,7 +168,7 @@ function Base.union(t1::ExportType, t2::ExportType)
             handle_map[l] = t2.handle_map[l]
         end
     end
-    ExportType(t1.name, union(t1.row, t2.row), handle_map)
+    BoxType(t1.name, union(t1.row, t2.row), handle_map)
 end
 
 

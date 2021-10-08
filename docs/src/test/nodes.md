@@ -72,6 +72,19 @@ The SQL query is generated using the function `render()`.
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
 
+Ill-formed queries are detected.
+
+    q = From(person) |> Agg.count() |> Select(Get.person_id)
+    render(q)
+    #=>
+    ERROR: IllFormedError in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Agg.count() |> Select(Get.person_id)
+        q2
+    end
+    =#
+
 
 ## Literals
 
