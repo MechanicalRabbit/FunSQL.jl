@@ -354,7 +354,7 @@ end
 
 function resolve(actx::AnnotateContext, n::AsNode)
     t = box_type(n.over)
-    fields = OrderedDict{Symbol, AbstractSQLType}(n.name => t.row)
+    fields = FieldTypeMap(n.name => t.row)
     row = RowType(fields)
     BoxType(n.name, row, t.handle_map)
 end
@@ -364,7 +364,7 @@ resolve(actx::AnnotateContext, n::Union{BindNode, HighlightNode, LimitNode, Orde
 
 function resolve(actx::AnnotateContext, n::DefineNode)
     t = box_type(n.over)
-    fields = OrderedDict{Symbol, AbstractSQLType}()
+    fields = FieldTypeMap()
     for (f, ft) in t.row.fields
         if f in keys(n.label_map)
             ft = ScalarType()
@@ -389,7 +389,7 @@ function resolve(actx::AnnotateContext, n::ExtendedJoinNode)
 end
 
 function resolve(actx::AnnotateContext, n::FromNode)
-    fields = OrderedDict{Symbol, AbstractSQLType}()
+    fields = FieldTypeMap()
     for f in n.table.columns
         fields[f] = ScalarType()
     end
@@ -399,7 +399,7 @@ end
 
 function resolve(actx::AnnotateContext, n::GroupNode)
     t = box_type(n.over)
-    fields = Dict{Symbol, AbstractSQLType}()
+    fields = FieldTypeMap()
     for name in keys(n.label_map)
         fields[name] = ScalarType()
     end
@@ -415,11 +415,282 @@ end
 
 function resolve(actx::AnnotateContext, n::SelectNode)
     t = box_type(n.over)
-    fields = OrderedDict{Symbol, AbstractSQLType}()
+    fields = FieldTypeMap()
     for name in keys(n.label_map)
         fields[name] = ScalarType()
     end
     row = RowType(fields)
     BoxType(t.name, row)
+end
+
+# Collecting references.
+
+gather!(refs::Vector{SQLNode}, n::SQLNode) =
+    gather!(refs, n[])
+
+function gather!(refs::Vector{SQLNode}, ns::Vector{SQLNode})
+    for n in ns
+        gather!(refs, n)
+    end
+end
+
+gather!(refs::Vector{SQLNode}, ::Union{AbstractSQLNode, Nothing}) =
+    nothing
+
+gather!(refs::Vector{SQLNode}, n::Union{AsNode, BoxNode, HighlightNode, SortNode}) =
+    gather!(refs, n.over)
+
+function gather!(refs::Vector{SQLNode}, n::BindNode)
+    gather!(refs, n.over)
+    gather!(refs, n.list)
+end
+
+gather!(refs::Vector{SQLNode}, n::FunctionNode) =
+    gather!(refs, n.args)
+
+function gather!(refs::Vector{SQLNode}, n::Union{AggregateNode, GetNode, HandleBoundNode, NameBoundNode})
+    push!(refs, n)
+end
+
+# Validating references.
+
+function validate(actx::AnnotateContext, t::BoxType, refs::Vector{SQLNode})
+    for ref in refs
+        validate(actx, t, ref)
+    end
+end
+
+function validate(actx::AnnotateContext, t::BoxType, ref::SQLNode)
+    if @dissect ref over |> HandleBound(handle = handle)
+        if handle in keys(t.handle_map)
+            ht = t.handle_map[handle]
+            if ht isa AmbiguousType
+                throw(ReferenceError(AMBIGUOUS_HANDLE, path = get_path(actx, ref)))
+            end
+            validate(actx, ht, over)
+        else
+            throw(ReferenceError(UNDEFINED_HANDLE, path = get_path(actx, ref)))
+        end
+    else
+        validate(actx, t.row, ref)
+    end
+end
+
+function validate(actx::AnnotateContext, t::RowType, ref::SQLNode)
+    while @dissect ref over |> NameBound(name = name)
+        ft = get(t.fields, name, EmptyType())
+        if !(ft isa RowType)
+            type =
+                ft isa EmptyType ? UNDEFINED_NAME :
+                ft isa ScalarType ? UNEXPECTED_SCALAR_TYPE :
+                ft isa AmbiguousType ? AMBIGUOUS_NAME : error()
+            throw(ReferenceError(type, name = name, path = get_path(actx, ref)))
+        end
+        t = ft
+        ref = over
+    end
+    if @dissect ref nothing |> Get(name = name)
+        ft = get(t.fields, name, EmptyType())
+        if !(ft isa ScalarType)
+            type =
+                ft isa EmptyType ? UNDEFINED_NAME :
+                ft isa RowType ? UNEXPECTED_ROW_TYPE :
+                ft isa AmbiguousType ? AMBIGUOUS_NAME : error()
+            throw(ReferenceError(type, name = name, path = get_path(actx, ref)))
+        end
+    elseif @dissect ref nothing |> Agg(name = name)
+        if !(t.group isa RowType)
+            type =
+                t.group isa EmptyType ? UNEXPECTED_AGGREGATE :
+                t.group isa AmbiguousType ? AMBIGUOUS_AGGREGATE : error()
+            throw(ReferenceError(type, path = get_path(actx, ref)))
+        end
+    else
+        error()
+    end
+end
+
+function gather_and_validate!(refs::Vector{SQLNode}, n, actx::AnnotateContext, t::BoxType)
+    start = length(refs) + 1
+    gather!(refs, n)
+    for k in start:length(refs)
+        validate(actx, t, refs[k])
+    end
+end
+
+function route(lt::BoxType, rt::BoxType, ref::SQLNode)
+    if @dissect ref over |> HandleBound(handle = handle)
+        if get(lt.handle_map, ref, EmptyType()) isa RowType
+            return -1
+        else
+            return 1
+        end
+    end
+    return route(lt.row, rt.row, ref)
+end
+
+function route(lt::RowType, rt::RowType, ref::SQLNode)
+    while @dissect ref over |> NameBound(name = name)
+        lt′ = get(lt.fields, name, EmptyType())
+        if lt′ isa EmptyType
+            return 1
+        end
+        rt′ = get(rt.fields, name, EmptyType())
+        if rt′ isa EmptyType
+            return -1
+        end
+        @assert lt′ isa RowType && rt′ isa RowType
+        lt = lt′
+        rt = rt′
+        ref = over
+    end
+    if @dissect ref Get(name = name)
+        if name in keys(lt.fields)
+            return -1
+        else
+            return 1
+        end
+    elseif @dissect ref over |> Agg(name = name)
+        if lt.group isa RowType
+            return -1
+        else
+            return 1
+        end
+    else
+        error()
+    end
+end
+
+# Linking references through box nodes.
+
+function link!(actx::AnnotateContext)
+    root_box = actx.boxes[end]
+    for (f, ft) in root_box.type.row.fields
+        if ft isa ScalarType
+            push!(root_box.refs, Get(f))
+        end
+    end
+    for box in reverse(actx.boxes)
+        box.over !== nothing || continue
+        refs′ = SQLNode[]
+        for ref in box.refs
+            if (@dissect ref over |> HandleBound(handle = handle)) && handle == box.handle
+                push!(refs′, over)
+            else
+                push!(refs′, ref)
+            end
+        end
+        link!(actx, box.over[], refs′)
+    end
+end
+
+function link!(actx::AnnotateContext, n::AppendNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    append!(box.refs, refs)
+    for l in n.list
+        box = l[]::BoxNode
+        append!(box.refs, refs)
+    end
+end
+
+function link!(actx::AnnotateContext, n::AsNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    for ref in refs
+        if @dissect ref over |> NameBound(name = name)
+            @assert name == n.name
+            push!(box.refs, over)
+        elseif @dissect ref HandleBound()
+            push!(box.refs, ref)
+        else
+            error()
+        end
+    end
+end
+
+function link!(actx::AnnotateContext, n::Union{BindNode, HighlightNode, LimitNode}, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    append!(box.refs, refs)
+end
+
+function link!(actx::AnnotateContext, n::DefineNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    seen = Set{Symbol}()
+    for ref in refs
+        if (@dissect ref (nothing |> Get(name = name))) && name in keys(n.label_map)
+            !(name in seen) || continue
+            push!(seen, name)
+            col = n.list[n.label_map[name]]
+            gather_and_validate!(box.refs, col, actx, box.type)
+        else
+            push!(box.refs, ref)
+        end
+    end
+end
+
+function link!(actx::AnnotateContext, n::ExtendedJoinNode, refs::Vector{SQLNode})
+    lbox = n.over[]::BoxNode
+    rbox = n.joinee[]::BoxNode
+    gather_and_validate!(n.lateral, n.joinee, actx, lbox.type)
+    append!(lbox.refs, n.lateral)
+    refs′ = SQLNode[]
+    gather_and_validate!(refs′, n.on, actx, n.type)
+    append!(refs′, refs)
+    for ref in refs′
+        turn = route(lbox.type, rbox.type, ref)
+        if turn < 0
+            push!(lbox.refs, ref)
+        else
+            push!(rbox.refs, ref)
+        end
+    end
+end
+
+link!(::AnnotateContext, ::FromNode, ::Vector{SQLNode}) =
+    nothing
+
+function link!(actx::AnnotateContext, n::GroupNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    gather_and_validate!(box.refs, n.by, actx, box.type)
+    for ref in refs
+        if @dissect ref nothing |> Agg(args = args, filter = filter)
+            gather_and_validate!(box.refs, args, actx, box.type)
+            if filter !== nothing
+                gather_and_validate!(box.refs, filter, actx, box.type)
+            end
+        end
+    end
+end
+
+function link!(actx::AnnotateContext, n::OrderNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    append!(box.refs, refs)
+    gather_and_validate!(box.refs, n.by, actx, box.type)
+end
+
+function link!(actx::AnnotateContext, n::PartitionNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    for ref in refs
+        if @dissect ref nothing |> Agg(args = args, filter = filter)
+            gather_and_validate!(box.refs, args, actx, box.type)
+            if filter !== nothing
+                gather_and_validate!(box.refs, filter, actx, box.type)
+            end
+        else
+            push!(box.refs, ref)
+        end
+    end
+    gather_and_validate!(box.refs, n.by, actx, box.type)
+    gather_and_validate!(box.refs, n.order_by, actx, box.type)
+end
+
+function link!(actx::AnnotateContext, n::SelectNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    gather_and_validate!(box.refs, n.list, actx, box.type)
+end
+
+function link!(actx::AnnotateContext, n::WhereNode, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    append!(box.refs, refs)
+    gather_and_validate!(box.refs, n.condition, actx, box.type)
 end
 

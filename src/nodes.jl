@@ -265,20 +265,30 @@ function Base.showerror(io::IO, err::IllFormedError)
     showpath(io, err.path)
 end
 
-struct GetError <: FunSQLError
-    name::Symbol
-    path::Vector{SQLNode}
-    ambiguous::Bool
-
-    GetError(name; path = SQLNode[], ambiguous = false) =
-        new(name, path, ambiguous)
+@enum ReferenceErrorType::UInt8 begin
+    UNDEFINED_HANDLE
+    AMBIGUOUS_HANDLE
+    UNDEFINED_NAME
+    AMBIGUOUS_NAME
+    UNEXPECTED_ROW_TYPE
+    UNEXPECTED_SCALAR_TYPE
+    UNEXPECTED_AGGREGATE
+    AMBIGUOUS_AGGREGATE
 end
 
-function Base.showerror(io::IO, err::GetError)
-    if err.ambiguous
-        print(io, "GetError: ambiguous $(err.name)")
-    else
-        print(io, "GetError: cannot find $(err.name)")
+struct ReferenceError <: FunSQLError
+    type::ReferenceErrorType
+    name::Union{Symbol, Nothing}
+    path::Vector{SQLNode}
+
+    ReferenceError(type; name = nothing, path = SQLNode[]) =
+        new(type, name, path)
+end
+
+function Base.showerror(io::IO, err::ReferenceError)
+    print(io, "ReferenceError: $(err.type)")
+    if err.name !== nothing
+        print(io, " ($(err.name))")
     end
     showpath(io, err.path)
 end

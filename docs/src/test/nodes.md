@@ -202,7 +202,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: GetError: cannot find person_id in:
+    ERROR: ReferenceError: UNDEFINED_NAME (person_id) in:
     Select(Get.person_id)
     =#
 
@@ -212,7 +212,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: GetError: cannot find q in:
+    ERROR: ReferenceError: UNDEFINED_NAME (q) in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> As(:p) |> Select(Get.q.person_id)
@@ -229,7 +229,7 @@ unambiguously.
 
     print(render(q))
     #=>
-    ERROR: GetError: ambiguous person_id in:
+    ERROR: ReferenceError: AMBIGUOUS_NAME (person_id) in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = From(person),

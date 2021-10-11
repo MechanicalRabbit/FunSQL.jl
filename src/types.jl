@@ -9,31 +9,35 @@ end
 PrettyPrinting.quoteof(::EmptyType) =
     Expr(:call, nameof(EmptyType))
 
-struct AmbiguousType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::AmbiguousType) =
-    Expr(:call, nameof(AmbiguousType))
-
 struct ScalarType <: AbstractSQLType
 end
 
 PrettyPrinting.quoteof(::ScalarType) =
     Expr(:call, nameof(ScalarType))
 
+struct AmbiguousType <: AbstractSQLType
+end
+
+PrettyPrinting.quoteof(::AmbiguousType) =
+    Expr(:call, nameof(AmbiguousType))
+
 struct RowType <: AbstractSQLType
-    fields::OrderedDict{Symbol, AbstractSQLType}
-    group::AbstractSQLType
+    fields::OrderedDict{Symbol, Union{ScalarType, AmbiguousType, RowType}}
+    group::Union{EmptyType, AmbiguousType, RowType}
 
     RowType(fields, group = EmptyType()) =
         new(fields, group)
 end
 
+const FieldTypeMap = OrderedDict{Symbol, Union{ScalarType, AmbiguousType, RowType}}
+const GroupType = Union{EmptyType, AmbiguousType, RowType}
+const HandleTypeMap = Dict{Int, Union{AmbiguousType, RowType}}
+
 RowType() =
-    RowType(OrderedDict{Symbol, AbstractSQLType}())
+    RowType(FieldTypeMap())
 
 RowType(fields::Pair{Symbol, <:AbstractSQLType}...; group = EmptyType()) =
-    RowType(OrderedDict{Symbol, AbstractSQLType}(fields...), group)
+    RowType(FieldTypeMap(fields...), group)
 
 function PrettyPrinting.quoteof(t::RowType)
     ex = Expr(:call, nameof(RowType))
@@ -49,13 +53,13 @@ end
 struct BoxType
     name::Symbol
     row::RowType
-    handle_map::Dict{Int, RowType}
+    handle_map::HandleTypeMap
 end
 
 BoxType(name, row) =
-    BoxType(name, row, Dict{Int, RowType}())
+    BoxType(name, row, HandleTypeMap())
 
-const EMPTY_BOX = BoxType(:_, RowType(), Dict{Int, RowType}())
+const EMPTY_BOX = BoxType(:_, RowType(), HandleTypeMap())
 
 function add_handle(t::BoxType, handle::Int)
     if handle != 0
@@ -81,7 +85,7 @@ function Base.intersect(t1::RowType, t2::RowType)
     if t1 === t2
         return t1
     end
-    fields = OrderedDict{Symbol, AbstractSQLType}()
+    fields = FieldTypeMap()
     for f in keys(t1.fields)
         if f in keys(t2.fields)
             t = intersect(t1.fields[f], t2.fields[f])
@@ -98,7 +102,7 @@ function Base.intersect(t1::BoxType, t2::BoxType)
     if t1 === t2
         return t1
     end
-    handle_map = Dict{Int, RowType}()
+    handle_map = HandleTypeMap()
     for h in keys(t1.handle_map)
         if h in keys(t2.handle_map)
             t = intersect(t1.handle_map[h], t2.handle_map[h])
@@ -127,7 +131,7 @@ Base.union(::ScalarType, ::ScalarType) =
     ScalarType()
 
 function Base.union(t1::RowType, t2::RowType)
-    fields = OrderedDict{Symbol, AbstractSQLType}()
+    fields = FieldTypeMap()
     for (f, t) in t1.fields
         if f in keys(t2.fields)
             t′ = t2.fields[f]
@@ -155,7 +159,7 @@ function Base.union(t1::RowType, t2::RowType)
 end
 
 function Base.union(t1::BoxType, t2::BoxType)
-    handle_map = Dict{Int, RowType}()
+    handle_map = HandleTypeMap()
     for l in keys(t1.handle_map)
         if haskey(t2.handle_map, l)
             handle_map[l] = AmbiguousType()
