@@ -3,11 +3,23 @@
 mutable struct BindNode <: AbstractSQLNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
 
-    BindNode(;
-             over = nothing,
-             list) =
-        new(over, list)
+    function BindNode(; over = nothing, list, label_map = nothing)
+        if label_map !== nothing
+            return new(over, list, label_map)
+        end
+        n = new(over, list, OrderedDict{Symbol, Int}())
+        for (i, l) in enumerate(n.list)
+            name = label(l)
+            if name in keys(n.label_map)
+                err = DuplicateAliasError(name, path = [l, n])
+                throw(err)
+            end
+            n.label_map[name] = i
+        end
+        n
+    end
 end
 
 BindNode(list...; over = nothing) =

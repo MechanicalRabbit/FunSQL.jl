@@ -31,7 +31,7 @@ include("entities.jl")
 include("clauses.jl")
 include("nodes.jl")
 include("annotate.jl")
-include("resolve.jl")
+include("translate.jl")
 include("collapse.jl")
 include("render.jl")
 
