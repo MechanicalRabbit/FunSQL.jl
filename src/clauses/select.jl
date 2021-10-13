@@ -73,7 +73,7 @@ SELECT(args...; kws...) =
 dissect(scr::Symbol, ::typeof(SELECT), pats::Vector{Any}) =
     dissect(scr, SelectClause, pats)
 
-function PrettyPrinting.quoteof(c::SelectClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::SelectClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(SELECT))
     if c.top !== nothing
         push!(ex.args, Expr(:kw, :top, quoteof(c.top)))
@@ -84,10 +84,10 @@ function PrettyPrinting.quoteof(c::SelectClause, qctx::SQLClauseQuoteContext)
     if isempty(c.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, qctx))
+        append!(ex.args, quoteof(c.list, ctx))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

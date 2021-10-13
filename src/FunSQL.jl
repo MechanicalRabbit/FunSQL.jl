@@ -4,7 +4,7 @@ module FunSQL
 
 using Dates
 using PrettyPrinting: PrettyPrinting, pprint, quoteof, tile_expr, literal
-using OrderedCollections: OrderedDict
+using OrderedCollections: OrderedDict, OrderedSet
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
@@ -28,6 +28,7 @@ include("dialects.jl")
 include("types.jl")
 include("statements.jl")
 include("entities.jl")
+include("quote.jl")
 include("clauses.jl")
 include("nodes.jl")
 include("annotate.jl")

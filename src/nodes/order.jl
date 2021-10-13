@@ -44,15 +44,15 @@ Order(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Order), pats::Vector{Any}) =
     dissect(scr, OrderNode, pats)
 
-function PrettyPrinting.quoteof(n::OrderNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::OrderNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Order))
     if isempty(n.by)
         push!(ex.args, Expr(:kw, :by, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.by, qctx))
+        append!(ex.args, quoteof(n.by, ctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

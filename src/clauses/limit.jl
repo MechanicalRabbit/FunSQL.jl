@@ -50,7 +50,7 @@ LIMIT(args...; kws...) =
 dissect(scr::Symbol, ::typeof(LIMIT), pats::Vector{Any}) =
     dissect(scr, LimitClause, pats)
 
-function PrettyPrinting.quoteof(c::LimitClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::LimitClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(LIMIT))
     if c.offset !== nothing
         push!(ex.args, c.offset)
@@ -60,7 +60,7 @@ function PrettyPrinting.quoteof(c::LimitClause, qctx::SQLClauseQuoteContext)
         push!(ex.args, Expr(:kw, :with_ties, c.with_ties))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

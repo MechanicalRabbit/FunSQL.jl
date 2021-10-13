@@ -70,10 +70,10 @@ Group(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
     dissect(scr, GroupNode, pats)
 
-function PrettyPrinting.quoteof(n::GroupNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Group), quoteof(n.by, qctx)...)
+function PrettyPrinting.quoteof(n::GroupNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Group), quoteof(n.by, ctx)...)
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

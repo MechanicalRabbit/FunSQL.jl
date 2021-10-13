@@ -45,6 +45,6 @@ dissect(scr::Symbol, ::typeof(LIT), pats::Vector{Any}) =
 Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
     LiteralClause(val)
 
-PrettyPrinting.quoteof(c::LiteralClause, ::SQLClauseQuoteContext) =
+PrettyPrinting.quoteof(c::LiteralClause, ::QuoteContext) =
     Expr(:call, nameof(LIT), c.val)
 

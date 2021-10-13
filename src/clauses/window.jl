@@ -39,15 +39,15 @@ WINDOW(args...; kws...) =
 dissect(scr::Symbol, ::typeof(WINDOW), pats::Vector{Any}) =
     dissect(scr, WindowClause, pats)
 
-function PrettyPrinting.quoteof(c::WindowClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::WindowClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(WINDOW))
     if isempty(c.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, qctx))
+        append!(ex.args, quoteof(c.list, ctx))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

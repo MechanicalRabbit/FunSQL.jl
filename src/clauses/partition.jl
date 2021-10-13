@@ -144,17 +144,17 @@ PARTITION(args...; kws...) =
 dissect(scr::Symbol, ::typeof(PARTITION), pats::Vector{Any}) =
     dissect(scr, PartitionClause, pats)
 
-function PrettyPrinting.quoteof(c::PartitionClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::PartitionClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(PARTITION))
-    append!(ex.args, quoteof(c.by, qctx))
+    append!(ex.args, quoteof(c.by, ctx))
     if !isempty(c.order_by)
-        push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(c.order_by, qctx)...)))
+        push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(c.order_by, ctx)...)))
     end
     if c.frame !== nothing
         push!(ex.args, Expr(:kw, :frame, quoteof(c.frame)))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

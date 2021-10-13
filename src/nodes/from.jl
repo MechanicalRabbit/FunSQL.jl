@@ -42,8 +42,8 @@ dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
 Base.convert(::Type{AbstractSQLNode}, table::SQLTable) =
     FromNode(table)
 
-function PrettyPrinting.quoteof(n::FromNode, qctx::SQLNodeQuoteContext)
-    tex = get(qctx.vars, n.table, nothing)
+function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
+    tex = get(ctx.vars, n.table, nothing)
     if tex === nothing
         tex = quoteof(n.table, limit = true)
     end

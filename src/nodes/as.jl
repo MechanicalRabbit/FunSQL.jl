@@ -39,10 +39,10 @@ dissect(scr::Symbol, ::typeof(As), pats::Vector{Any}) =
 Base.convert(::Type{AbstractSQLNode}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsNode(name = first(p), over = convert(SQLNode, last(p)))
 
-function PrettyPrinting.quoteof(n::AsNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::AsNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(As), quoteof(n.name))
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

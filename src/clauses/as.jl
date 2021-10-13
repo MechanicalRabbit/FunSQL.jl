@@ -37,10 +37,10 @@ dissect(scr::Symbol, ::typeof(AS), pats::Vector{Any}) =
 Base.convert(::Type{AbstractSQLClause}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsClause(name = first(p), over = convert(SQLClause, last(p)))
 
-function PrettyPrinting.quoteof(c::AsClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::AsClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(AS), quoteof(c.name))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

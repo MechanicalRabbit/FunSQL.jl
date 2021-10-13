@@ -52,8 +52,8 @@ JOIN(args...; kws...) =
 dissect(scr::Symbol, ::typeof(JOIN), pats::Vector{Any}) =
     dissect(scr, JoinClause, pats)
 
-function PrettyPrinting.quoteof(c::JoinClause, qctx::SQLClauseQuoteContext)
-    ex = Expr(:call, nameof(JOIN), quoteof([c.joinee, c.on], qctx)...)
+function PrettyPrinting.quoteof(c::JoinClause, ctx::QuoteContext)
+    ex = Expr(:call, nameof(JOIN), quoteof([c.joinee, c.on], ctx)...)
     if c.left
         push!(ex.args, Expr(:kw, :left, c.left))
     end
@@ -64,7 +64,7 @@ function PrettyPrinting.quoteof(c::JoinClause, qctx::SQLClauseQuoteContext)
         push!(ex.args, Expr(:kw, :lateral, c.lateral))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

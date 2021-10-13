@@ -77,13 +77,13 @@ Box(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Box), pats::Vector{Any}) =
     dissect(scr, BoxNode, pats)
 
-function PrettyPrinting.quoteof(n::BoxNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::BoxNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Box))
     push!(ex.args, Expr(:kw, :type, quoteof(n.type)))
     if !isempty(n.refs)
-        push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, qctx)...)))
+        push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, ctx)...)))
     end
-    ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+    ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     ex
 end
 

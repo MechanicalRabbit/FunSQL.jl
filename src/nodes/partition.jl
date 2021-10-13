@@ -60,16 +60,16 @@ Partition(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Partition), pats::Vector{Any}) =
     dissect(scr, PartitionNode, pats)
 
-function PrettyPrinting.quoteof(n::PartitionNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Partition), quoteof(n.by, qctx)...)
+function PrettyPrinting.quoteof(n::PartitionNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Partition), quoteof(n.by, ctx)...)
     if !isempty(n.order_by)
-        push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(n.order_by, qctx)...)))
+        push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(n.order_by, ctx)...)))
     end
     if n.frame !== nothing
         push!(ex.args, Expr(:kw, :frame, quoteof(n.frame)))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

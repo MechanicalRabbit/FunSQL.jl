@@ -59,15 +59,15 @@ Bind(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Bind), pats::Vector{Any}) =
     dissect(scr, BindNode, pats)
 
-function PrettyPrinting.quoteof(n::BindNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::BindNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Bind))
     if isempty(n.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, qctx))
+        append!(ex.args, quoteof(n.list, ctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

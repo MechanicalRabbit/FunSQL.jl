@@ -45,10 +45,10 @@ KW(args...; kws...) =
 dissect(scr::Symbol, ::typeof(KW), pats::Vector{Any}) =
     dissect(scr, KeywordClause, pats)
 
-function PrettyPrinting.quoteof(c::KeywordClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::KeywordClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(KW), quoteof(c.name))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

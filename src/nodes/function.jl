@@ -43,11 +43,11 @@ Fun(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Fun), pats::Vector{Any}) =
     dissect(scr, FunctionNode, pats)
 
-PrettyPrinting.quoteof(n::FunctionNode, qctx::SQLNodeQuoteContext) =
+PrettyPrinting.quoteof(n::FunctionNode, ctx::QuoteContext) =
     Expr(:call,
          Expr(:., nameof(Fun),
                   QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))),
-         quoteof(n.args, qctx)...)
+         quoteof(n.args, ctx)...)
 
 label(n::FunctionNode) =
     n.name

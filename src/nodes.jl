@@ -143,67 +143,54 @@ Base.show(io::IO, n::AbstractSQLNode) =
 Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
     pprint(io, n)
 
-struct SQLNodeQuoteContext
-    limit::Bool
-    vars::IdDict{Any, Symbol}
-    colors::Vector{Symbol}
-
-    SQLNodeQuoteContext(;
-                        limit = false,
-                        vars = IdDict{Any, Symbol}(),
-                        colors = [:normal]) =
-        new(limit, vars, colors)
-end
-
 function PrettyPrinting.quoteof(n::SQLNode;
                                 limit::Bool = false,
                                 unwrap::Bool = false)
     if limit
-        qctx = SQLNodeQuoteContext(limit = true)
-        ex = quoteof(n[], qctx)
+        ctx = QuoteContext(limit = true)
+        ex = quoteof(n[], ctx)
         if unwrap
             ex = Expr(:ref, ex)
         end
         return ex
     end
-    tables_ordered = SQLTable[]
-    tables_seen = Set{SQLTable}()
-    queries_ordered = SQLNode[]
-    queries_seen = Set{SQLNode}()
+    tables_seen = OrderedSet{SQLTable}()
+    nodes_seen = OrderedSet{SQLNode}()
+    nodes_toplevel = Set{SQLNode}()
     visit(n) do n
         core = n[]
         if core isa FromNode
-            if !(core.table in tables_seen)
-                push!(tables_ordered, core.table)
-                push!(tables_seen, core.table)
-            end
+            push!(tables_seen, core.table)
         end
         if core isa SubqueryNode
-            if !(n in queries_seen)
-                push!(queries_ordered, n)
-                push!(queries_seen, n)
-            end
+            push!(nodes_seen, n)
+            push!(nodes_toplevel, n)
+        elseif n in nodes_seen
+            push!(nodes_toplevel, n)
+        else
+            push!(nodes_seen, n)
         end
     end
-    qctx = SQLNodeQuoteContext()
+    ctx = QuoteContext()
     defs = Any[]
-    if length(queries_ordered) >= 2 || (length(queries_ordered) == 1 && queries_ordered[1] !== n)
-        for t in tables_ordered
+    if length(nodes_toplevel) >= 2 || (length(nodes_toplevel) == 1 && !(n in nodes_toplevel))
+        for t in tables_seen
             def = quoteof(t, limit = true)
             name = t.name
             push!(defs, Expr(:(=), name, def))
-            qctx.vars[t] = name
+            ctx.vars[t] = name
         end
         qidx = 0
-        for n in queries_ordered
-            def = quoteof(n, qctx)
+        for n in nodes_seen
+            n in nodes_toplevel || continue
+            def = quoteof(n, ctx)
             qidx += 1
             name = Symbol('q', qidx)
             push!(defs, Expr(:(=), name, def))
-            qctx.vars[n] = name
+            ctx.vars[n] = name
         end
     end
-    ex = quoteof(n, qctx)
+    ex = quoteof(n, ctx)
     if unwrap
         ex = Expr(:ref, ex)
     end
@@ -216,23 +203,23 @@ end
 PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
     quoteof(convert(SQLNode, n), limit = limit, unwrap = true)
 
-PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext) =
-    if !qctx.limit
-        var = get(qctx.vars, n, nothing)
+PrettyPrinting.quoteof(n::SQLNode, ctx::QuoteContext) =
+    if !ctx.limit
+        var = get(ctx.vars, n, nothing)
         if var !== nothing
             var
         else
-            quoteof(n[], qctx)
+            quoteof(n[], ctx)
         end
     else
         :…
     end
 
-PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
+PrettyPrinting.quoteof(ns::Vector{SQLNode}, ctx::QuoteContext) =
     if isempty(ns)
         Any[]
-    elseif !qctx.limit
-        Any[quoteof(n, qctx) for n in ns]
+    elseif !ctx.limit
+        Any[quoteof(n, ctx) for n in ns]
     else
         Any[:…]
     end

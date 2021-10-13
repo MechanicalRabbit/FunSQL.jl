@@ -86,19 +86,19 @@ Agg(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Agg), pats::Vector{Any}) =
     dissect(scr, AggregateNode, pats)
 
-function PrettyPrinting.quoteof(n::AggregateNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::AggregateNode, ctx::QuoteContext)
     ex = Expr(:call,
               Expr(:., nameof(Agg),
                    QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))))
     if n.distinct
         push!(ex.args, Expr(:kw, :distinct, n.distinct))
     end
-    append!(ex.args, quoteof(n.args, qctx))
+    append!(ex.args, quoteof(n.args, ctx))
     if n.filter !== nothing
-        push!(ex.args, Expr(:kw, :filter, quoteof(n.filter, qctx)))
+        push!(ex.args, Expr(:kw, :filter, quoteof(n.filter, ctx)))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

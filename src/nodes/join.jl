@@ -60,11 +60,11 @@ LeftJoin(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Join), pats::Vector{Any}) =
     dissect(scr, JoinNode, pats)
 
-function PrettyPrinting.quoteof(n::JoinNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Join))
-    if !qctx.limit
-        push!(ex.args, quoteof(n.joinee, qctx))
-        push!(ex.args, quoteof(n.on, qctx))
+    if !ctx.limit
+        push!(ex.args, quoteof(n.joinee, ctx))
+        push!(ex.args, quoteof(n.on, ctx))
         if n.left
             push!(ex.args, Expr(:kw, :left, n.left))
         end
@@ -75,7 +75,7 @@ function PrettyPrinting.quoteof(n::JoinNode, qctx::SQLNodeQuoteContext)
         push!(ex.args, :…)
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

@@ -53,10 +53,10 @@ Define(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
     dissect(scr, DefineNode, pats)
 
-function PrettyPrinting.quoteof(n::DefineNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Define), quoteof(n.list, qctx)...)
+function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Define), quoteof(n.list, ctx)...)
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

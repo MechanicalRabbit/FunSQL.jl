@@ -38,10 +38,10 @@ WHERE(args...; kws...) =
 dissect(scr::Symbol, ::typeof(WHERE), pats::Vector{Any}) =
     dissect(scr, WhereClause, pats)
 
-function PrettyPrinting.quoteof(c::WhereClause, qctx::SQLClauseQuoteContext)
-    ex = Expr(:call, nameof(WHERE), quoteof(c.condition, qctx))
+function PrettyPrinting.quoteof(c::WhereClause, ctx::QuoteContext)
+    ex = Expr(:call, nameof(WHERE), quoteof(c.condition, ctx))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

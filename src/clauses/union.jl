@@ -44,7 +44,7 @@ UNION(args...; kws...) =
 dissect(scr::Symbol, ::typeof(UNION), pats::Vector{Any}) =
     dissect(scr, UnionClause, pats)
 
-function PrettyPrinting.quoteof(c::UnionClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::UnionClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(UNION))
     if c.all !== false
         push!(ex.args, Expr(:kw, :all, c.all))
@@ -52,10 +52,10 @@ function PrettyPrinting.quoteof(c::UnionClause, qctx::SQLClauseQuoteContext)
     if isempty(c.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, qctx))
+        append!(ex.args, quoteof(c.list, ctx))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

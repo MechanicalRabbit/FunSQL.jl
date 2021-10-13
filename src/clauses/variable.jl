@@ -31,6 +31,6 @@ VAR(args...; kws...) =
 dissect(scr::Symbol, ::typeof(VAR), pats::Vector{Any}) =
     dissect(scr, VariableClause, pats)
 
-PrettyPrinting.quoteof(c::VariableClause, qctx::SQLClauseQuoteContext) =
+PrettyPrinting.quoteof(c::VariableClause, ctx::QuoteContext) =
     Expr(:call, nameof(VAR), quoteof(c.name))
 

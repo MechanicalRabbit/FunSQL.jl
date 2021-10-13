@@ -96,7 +96,7 @@ DESC(; kws...) =
 dissect(scr::Symbol, ::typeof(SORT), pats::Vector{Any}) =
     dissect(scr, SortClause, pats)
 
-function PrettyPrinting.quoteof(c::SortClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::SortClause, ctx::QuoteContext)
     if c.value == VALUE_ORDER.ASC
         ex = Expr(:call, nameof(ASC))
     elseif c.value == VALUE_ORDER.DESC
@@ -108,7 +108,7 @@ function PrettyPrinting.quoteof(c::SortClause, qctx::SQLClauseQuoteContext)
         push!(ex.args, Expr(:kw, :nulls, QuoteNode(Symbol(c.nulls))))
     end
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

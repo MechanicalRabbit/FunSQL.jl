@@ -43,10 +43,10 @@ Where(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Where), pats::Vector{Any}) =
     dissect(scr, WhereNode, pats)
 
-function PrettyPrinting.quoteof(n::WhereNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Where), quoteof(n.condition, qctx))
+function PrettyPrinting.quoteof(n::WhereNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Where), quoteof(n.condition, ctx))
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

@@ -38,11 +38,11 @@ GROUP(args...; kws...) =
 dissect(scr::Symbol, ::typeof(GROUP), pats::Vector{Any}) =
     dissect(scr, GroupClause, pats)
 
-function PrettyPrinting.quoteof(c::GroupClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::GroupClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(GROUP))
-    append!(ex.args, quoteof(c.by, qctx))
+    append!(ex.args, quoteof(c.by, ctx))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

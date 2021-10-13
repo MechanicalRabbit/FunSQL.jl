@@ -55,15 +55,15 @@ Select(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
     dissect(scr, SelectNode, pats)
 
-function PrettyPrinting.quoteof(n::SelectNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::SelectNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Select))
     if isempty(n.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, qctx))
+        append!(ex.args, quoteof(n.list, ctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

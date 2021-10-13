@@ -31,12 +31,12 @@ CASE(args...; kws...) =
 dissect(scr::Symbol, ::typeof(CASE), pats::Vector{Any}) =
     dissect(scr, CaseClause, pats)
 
-function PrettyPrinting.quoteof(c::CaseClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::CaseClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(CASE))
     if length(c.args) < 2
-        push!(ex.args, Expr(:kw, :args, Expr(:vect, quoteof(c.args, qctx)...)))
+        push!(ex.args, Expr(:kw, :args, Expr(:vect, quoteof(c.args, ctx)...)))
     else
-        append!(ex.args, quoteof(c.args, qctx))
+        append!(ex.args, quoteof(c.args, ctx))
     end
     ex
 end
