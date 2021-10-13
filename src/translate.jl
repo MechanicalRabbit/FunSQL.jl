@@ -75,7 +75,7 @@ end
 translate(n::Union{AsNode, HighlightNode}, ctx) =
     translate(n.over, ctx)
 
-function translate(n::BindNode, ctx)
+function translate(n::ExtendedBindNode, ctx)
     vars′ = copy(ctx.vars)
     for (name, i) in n.label_map
         vars′[name] = translate(n.list[i], ctx)
@@ -86,7 +86,7 @@ end
 
 function translate(n::BoxNode, ctx::TranslateContext)
     res = assemble(n, ctx)
-    res.clause
+    complete(res)
 end
 
 translate(n::FunctionNode, ctx) =
@@ -247,8 +247,32 @@ function make_repl(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLNode, 
 end
 
 struct Assemblage
-    clause::SQLClause
+    clause::Union{SQLClause, Nothing}
+    incomplete::Bool
     repl::Dict{SQLNode, Symbol}
+    cols::OrderedDict{Symbol, SQLClause}
+
+    Assemblage(clause; incomplete = false, repl = Dict{SQLNode, Symbol}(), cols = OrderedDict{Symbol, SQLClause}()) =
+        new(clause, incomplete, repl, cols)
+end
+
+function complete(res::Assemblage)
+    clause = res.clause
+    if res.incomplete
+        list = SQLClause[]
+        for (name, c) in res.cols
+            if !((@dissect c ID(name = id_name)) && id_name == name)
+                c = AS(over = c, name = name)
+            end
+            push!(list, c)
+        end
+        if isempty(list)
+            push!(list, LIT(missing))
+        end
+        clause = SELECT(over = clause, list = list)
+    end
+    @assert clause !== nothing
+    clause
 end
 
 assemble(n::SQLNode, ctx::TranslateContext) =
@@ -272,7 +296,7 @@ function assemble(n::BoxNode, ctx::TranslateContext)
             repl′[ref] = res.repl[ref]
         end
     end
-    Assemblage(res.clause, repl′)
+    Assemblage(res.clause, repl = repl′, incomplete = res.incomplete, cols = res.cols)
 end
 
 assemble(n::SQLNode, ctx::TranslateContext, refs::Vector{SQLNode}) =
@@ -280,9 +304,7 @@ assemble(n::SQLNode, ctx::TranslateContext, refs::Vector{SQLNode}) =
 
 function assemble(::Nothing, ctx::TranslateContext, refs::Vector{SQLNode})
     @assert isempty(refs)
-    c = SELECT(list = SQLClause[missing])
-    repl = Dict{SQLNode, Symbol}()
-    Assemblage(c, repl)
+    Assemblage(nothing, incomplete = true)
 end
 
 function assemble(n::AppendNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -324,12 +346,12 @@ function assemble(n::AppendNode, ctx::TranslateContext, refs::Vector{SQLNode})
         if isempty(list)
             push!(list, missing)
         end
-        c = SELECT(over = FROM(AS(over = res.clause, name = as)),
+        c = SELECT(over = FROM(AS(over = complete(res), name = as)),
                    list = list)
         push!(cs, c)
     end
     c = UNION(over = cs[1], all = true, list = cs[2:end])
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::AsNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -343,10 +365,10 @@ function assemble(n::AsNode, ctx::TranslateContext, refs::Vector{SQLNode})
             repl′[ref] = res.repl[ref]
         end
     end
-    Assemblage(res.clause, repl′)
+    Assemblage(res.clause, repl = repl′, incomplete = res.incomplete, cols = res.cols)
 end
 
-function assemble(n::BindNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::ExtendedBindNode, ctx::TranslateContext, refs::Vector{SQLNode})
     vars′ = copy(ctx.vars)
     for (name, i) in n.label_map
         vars′[name] = translate(n.list[i], ctx)
@@ -385,9 +407,9 @@ function assemble(n::DefineNode, ctx::TranslateContext, refs::Vector{SQLNode})
     if isempty(list)
         push!(list, missing)
     end
-    f = FROM(AS(over = base_res.clause, name = base_as))
+    f = FROM(AS(over = complete(base_res), name = base_as))
     c = SELECT(over = f, list = list)
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::ExtendedJoinNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -437,14 +459,14 @@ function assemble(n::ExtendedJoinNode, ctx::TranslateContext, refs::Vector{SQLNo
     if isempty(list)
         push!(list, missing)
     end
-    j = JOIN(over = FROM(AS(over = left_res.clause, name = left_as)),
-             joinee = AS(over = right_res.clause, name = right_as),
+    j = JOIN(over = FROM(AS(over = complete(left_res), name = left_as)),
+             joinee = AS(over = complete(right_res), name = right_as),
              on = on,
              left = n.left,
              right = n.right,
              lateral = lateral)
     c = SELECT(over = j, list = list)
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 
@@ -473,7 +495,7 @@ function assemble(n::FromNode, ctx::TranslateContext, refs::Vector{SQLNode})
             repl[ref] = name
         end
     end
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::GroupNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -510,14 +532,14 @@ function assemble(n::GroupNode, ctx::TranslateContext, refs::Vector{SQLNode})
     end
     repl, list = make_repl(trns)
     @assert !isempty(list)
-    f = FROM(AS(over = base_res.clause, name = base_as))
+    f = FROM(AS(over = complete(base_res), name = base_as))
     if has_aggregates
         g = GROUP(over = f, by = by)
         c = SELECT(over = g, list = list)
     else
         c = SELECT(over = f, distinct = true, list = list)
     end
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 assemble(n::HighlightNode, ctx::TranslateContext, ::Vector{SQLNode}) =
@@ -543,14 +565,14 @@ function assemble(n::LimitNode, ctx::TranslateContext, refs::Vector{SQLNode})
     if isempty(list)
         push!(list, missing)
     end
-    f = FROM(AS(over = base_res.clause, name = base_as))
+    f = FROM(AS(over = complete(base_res), name = base_as))
     if n.offset !== nothing || n.limit !== nothing
         l = LIMIT(over = f, offset = n.offset, limit = n.limit)
     else
         l = f
     end
     c = SELECT(over = l, list = list)
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::OrderNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -574,14 +596,14 @@ function assemble(n::OrderNode, ctx::TranslateContext, refs::Vector{SQLNode})
     if isempty(list)
         push!(list, missing)
     end
-    f = FROM(AS(over = base_res.clause, name = base_as))
+    f = FROM(AS(over = complete(base_res), name = base_as))
     if !isempty(by)
         o = ORDER(over = f, by = by)
     else
         o = f
     end
     c = SELECT(over = o, list = list)
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::PartitionNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -614,9 +636,9 @@ function assemble(n::PartitionNode, ctx::TranslateContext, refs::Vector{SQLNode}
     if isempty(list)
         push!(list, missing)
     end
-    w = WINDOW(over = FROM(AS(over = base_res.clause, name = base_as)), list = [])
+    w = WINDOW(over = FROM(AS(over = complete(base_res), name = base_as)), list = [])
     c = SELECT(over = w, list = list)
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::SelectNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -636,7 +658,7 @@ function assemble(n::SelectNode, ctx::TranslateContext, refs::Vector{SQLNode})
     if isempty(list)
         push!(list, missing)
     end
-    c = SELECT(over = FROM(AS(over = base_res.clause, name = base_as)),
+    c = SELECT(over = FROM(AS(over = complete(base_res), name = base_as)),
                list = list)
     repl = Dict{SQLNode, Symbol}()
     for ref in refs
@@ -645,7 +667,7 @@ function assemble(n::SelectNode, ctx::TranslateContext, refs::Vector{SQLNode})
         @assert name !== nothing
         repl[ref] = name
     end
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 
 function assemble(n::WhereNode, ctx::TranslateContext, refs::Vector{SQLNode})
@@ -670,9 +692,9 @@ function assemble(n::WhereNode, ctx::TranslateContext, refs::Vector{SQLNode})
     if isempty(list)
         push!(list, missing)
     end
-    w = WHERE(over = FROM(AS(over = base_res.clause, name = base_as)),
+    w = WHERE(over = FROM(AS(over = complete(base_res), name = base_as)),
               condition = condition)
     c = SELECT(over = w, list = list)
-    Assemblage(c, repl)
+    Assemblage(c, repl = repl)
 end
 

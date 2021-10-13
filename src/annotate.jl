@@ -28,6 +28,20 @@ HandleBound(args...; kws...) =
 dissect(scr::Symbol, ::typeof(HandleBound), pats::Vector{Any}) =
     dissect(scr, HandleBoundNode, pats)
 
+
+mutable struct ExtendedBindNode <: AbstractSQLNode
+    over::Union{SQLNode, Nothing}
+    list::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
+    owned::Bool
+
+    ExtendedBindNode(; over = nothing, list, label_map, owned = false) =
+        new(over, list, label_map, owned)
+end
+
+ExtendedBind(args...; kws...) =
+    ExtendedBindNode(args...; kws...) |> SQLNode
+
 mutable struct ExtendedJoinNode <: AbstractSQLNode
     over::Union{SQLNode, Nothing}
     joinee::SQLNode
@@ -44,7 +58,7 @@ end
 ExtendedJoin(args...; kws...) =
     ExtendedJoinNode(args...; kws...) |> SQLNode
 
-label(n::Union{NameBoundNode, HandleBoundNode, ExtendedJoinNode}) =
+label(n::Union{NameBoundNode, HandleBoundNode, ExtendedBindNode, ExtendedJoinNode}) =
     label(n.over)
 
 mutable struct BoxNode <: AbstractSQLNode
@@ -247,7 +261,7 @@ end
 function annotate(ctx::AnnotateContext, n::BindNode)
     over′ = annotate(ctx, n.over)
     list′ = annotate_scalar(ctx, n.list)
-    Bind(over = over′, list = list′)
+    ExtendedBind(over = over′, list = list′, label_map = n.label_map)
 end
 
 annotate_scalar(ctx::AnnotateContext, n::BindNode) =
@@ -365,9 +379,6 @@ function resolve(ctx::AnnotateContext, n::AsNode)
     BoxType(n.name, row, t.handle_map)
 end
 
-resolve(ctx::AnnotateContext, n::Union{BindNode, HighlightNode, LimitNode, OrderNode, WhereNode}) =
-    box_type(n.over)
-
 function resolve(ctx::AnnotateContext, n::DefineNode)
     t = box_type(n.over)
     fields = FieldTypeMap()
@@ -385,6 +396,9 @@ function resolve(ctx::AnnotateContext, n::DefineNode)
     row = RowType(fields)
     BoxType(t.name, row, t.handle_map)
 end
+
+resolve(ctx::AnnotateContext, n::Union{ExtendedBindNode, HighlightNode, LimitNode, OrderNode, WhereNode}) =
+    box_type(n.over)
 
 function resolve(ctx::AnnotateContext, n::ExtendedJoinNode)
     lt = box_type(n.over)
@@ -446,9 +460,10 @@ gather!(refs::Vector{SQLNode}, ::Union{AbstractSQLNode, Nothing}) =
 gather!(refs::Vector{SQLNode}, n::Union{AsNode, BoxNode, HighlightNode, SortNode}) =
     gather!(refs, n.over)
 
-function gather!(refs::Vector{SQLNode}, n::BindNode)
+function gather!(refs::Vector{SQLNode}, n::ExtendedBindNode)
     gather!(refs, n.over)
     gather!(refs, n.list)
+    n.owned = true
 end
 
 gather!(refs::Vector{SQLNode}, n::FunctionNode) =
@@ -613,11 +628,6 @@ function link!(ctx::AnnotateContext, n::AsNode, refs::Vector{SQLNode})
     end
 end
 
-function link!(ctx::AnnotateContext, n::Union{BindNode, HighlightNode, LimitNode}, refs::Vector{SQLNode})
-    box = n.over[]::BoxNode
-    append!(box.refs, refs)
-end
-
 function link!(ctx::AnnotateContext, n::DefineNode, refs::Vector{SQLNode})
     box = n.over[]::BoxNode
     seen = Set{Symbol}()
@@ -631,6 +641,14 @@ function link!(ctx::AnnotateContext, n::DefineNode, refs::Vector{SQLNode})
             push!(box.refs, ref)
         end
     end
+end
+
+function link!(ctx::AnnotateContext, n::ExtendedBindNode, refs::Vector{SQLNode})
+    if !n.owned
+        gather_and_validate!(SQLNode[], n.list, ctx, EMPTY_BOX)
+    end
+    box = n.over[]::BoxNode
+    append!(box.refs, refs)
 end
 
 function link!(ctx::AnnotateContext, n::ExtendedJoinNode, refs::Vector{SQLNode})
@@ -665,6 +683,11 @@ function link!(ctx::AnnotateContext, n::GroupNode, refs::Vector{SQLNode})
             end
         end
     end
+end
+
+function link!(ctx::AnnotateContext, n::Union{HighlightNode, LimitNode}, refs::Vector{SQLNode})
+    box = n.over[]::BoxNode
+    append!(box.refs, refs)
 end
 
 function link!(ctx::AnnotateContext, n::OrderNode, refs::Vector{SQLNode})

@@ -13,7 +13,7 @@ mutable struct GroupNode <: SubqueryNode
         for (i, l) in enumerate(n.by)
             name = label(l)
             if name in keys(n.label_map)
-                err = DuplicateAliasError(name, path = [l, n])
+                err = DuplicateLabelError(name, path = [l, n])
                 throw(err)
             end
             n.label_map[name] = i

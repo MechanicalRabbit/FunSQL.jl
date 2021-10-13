@@ -240,16 +240,16 @@ PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
 
 # Errors.
 
-struct DuplicateAliasError <: FunSQLError
+struct DuplicateLabelError <: FunSQLError
     name::Symbol
     path::Vector{SQLNode}
 
-    DuplicateAliasError(name; path = SQLNode[]) =
+    DuplicateLabelError(name; path = SQLNode[]) =
         new(name, path)
 end
 
-function Base.showerror(io::IO, err::DuplicateAliasError)
-    print(io, "DuplicateAliasError: $(err.name)")
+function Base.showerror(io::IO, err::DuplicateLabelError)
+    print(io, "FunSQL.DuplicateLabelError: $(err.name) is used more than once")
     showpath(io, err.path)
 end
 
@@ -261,7 +261,7 @@ struct IllFormedError <: FunSQLError
 end
 
 function Base.showerror(io::IO, err::IllFormedError)
-    print(io, "IllFormedError")
+    print(io, "FunSQL.IllFormedError")
     showpath(io, err.path)
 end
 
@@ -286,9 +286,23 @@ struct ReferenceError <: FunSQLError
 end
 
 function Base.showerror(io::IO, err::ReferenceError)
-    print(io, "ReferenceError: $(err.type)")
-    if err.name !== nothing
-        print(io, " ($(err.name))")
+    print(io, "FunSQL.ReferenceError: ")
+    if err.type == UNDEFINED_HANDLE
+        print(io, "node-bound reference failed to resolve")
+    elseif err.type == AMBIGUOUS_HANDLE
+        print(io, "node-bound reference is ambiguous")
+    elseif err.type == UNDEFINED_NAME
+        print(io, "cannot find $(err.name)")
+    elseif err.type == AMBIGUOUS_NAME
+        print(io, "$(err.name) is ambiguous")
+    elseif err.type == UNEXPECTED_ROW_TYPE
+        print(io, "incomplete reference $(err.name)")
+    elseif err.type == UNEXPECTED_SCALAR_TYPE
+        print(io, "unexpected reference after $(err.name)")
+    elseif err.type == UNEXPECTED_AGGREGATE
+        print(io, "aggregate expression requires Group or Partition")
+    elseif err.type == AMBIGUOUS_AGGREGATE
+        print(io, "aggregate expression is ambiguous")
     end
     showpath(io, err.path)
 end

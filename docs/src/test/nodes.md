@@ -77,7 +77,7 @@ Ill-formed queries are detected.
     q = From(person) |> Agg.count() |> Select(Get.person_id)
     render(q)
     #=>
-    ERROR: IllFormedError in:
+    ERROR: FunSQL.IllFormedError in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> Agg.count() |> Select(Get.person_id)
@@ -202,7 +202,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: ReferenceError: UNDEFINED_NAME (person_id) in:
+    ERROR: FunSQL.ReferenceError: cannot find person_id in:
     Select(Get.person_id)
     =#
 
@@ -212,7 +212,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: ReferenceError: UNDEFINED_NAME (q) in:
+    ERROR: FunSQL.ReferenceError: cannot find q in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> As(:p) |> Select(Get.q.person_id)
@@ -229,7 +229,7 @@ unambiguously.
 
     print(render(q))
     #=>
-    ERROR: ReferenceError: AMBIGUOUS_NAME (person_id) in:
+    ERROR: FunSQL.ReferenceError: person_id is ambiguous in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = From(person),
@@ -667,7 +667,7 @@ used more than once.
     q = From(person) |>
         Group(Get.person_id, Get.person_id)
     #=>
-    ERROR: DuplicateAliasError: person_id in:
+    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
     Group(Get.person_id, Get.person_id)
     =#
 
@@ -1097,7 +1097,7 @@ The `Select` constructor creates a subquery that fixes the output columns.
     q = From(person) |>
         Select(Get.person_id, Get.person_id)
     #=>
-    ERROR: DuplicateAliasError: person_id in:
+    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
     Select(Get.person_id, Get.person_id)
     =#
 
