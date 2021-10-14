@@ -1,7 +1,8 @@
+# Translating a SQL node graph to a SQL statement.
 
 function render(n; dialect = :default)
     actx = AnnotateContext()
-    n′ = annotate(actx, convert(SQLNode, n))
+    n′ = annotate(convert(SQLNode, n), actx)
     resolve!(actx)
     link!(actx)
     tctx = TranslateContext(dialect, actx.path_map)
@@ -35,12 +36,15 @@ function allocate_alias(ctx::TranslateContext, alias::Symbol)
     Symbol(alias, '_', n)
 end
 
+
+# Translating scalar nodes.
+
 function translate(n, ctx::TranslateContext, subs::Dict{SQLNode, SQLClause})
     ctx′ = TranslateContext(ctx, subs = subs)
     translate(n, ctx′)
 end
 
-function translate(n::SQLNode, ctx::TranslateContext)
+function translate(n::SQLNode, ctx)
     c = get(ctx.subs, n, nothing)
     if c === nothing
         c = convert(SQLClause, translate(n[], ctx))
@@ -48,10 +52,10 @@ function translate(n::SQLNode, ctx::TranslateContext)
     c
 end
 
-translate(ns::Vector{SQLNode}, ctx::TranslateContext) =
+translate(ns::Vector{SQLNode}, ctx) =
     SQLClause[translate(n, ctx) for n in ns]
 
-translate(::Nothing, ::TranslateContext) =
+translate(::Nothing, ctx) =
     nothing
 
 translate(n::AggregateNode, ctx) =
@@ -84,7 +88,7 @@ function translate(n::ExtendedBindNode, ctx)
     translate(n.over, ctx′)
 end
 
-function translate(n::BoxNode, ctx::TranslateContext)
+function translate(n::BoxNode, ctx)
     res = assemble(n, ctx)
     complete(res)
 end
@@ -197,6 +201,38 @@ function translate(n::VariableNode, ctx)
     c
 end
 
+
+# Translating subquery nodes.
+
+struct Assemblage
+    clause::Union{SQLClause, Nothing}
+    incomplete::Bool
+    repl::Dict{SQLNode, Symbol}
+    cols::OrderedDict{Symbol, SQLClause}
+
+    Assemblage(clause; incomplete = false, repl = Dict{SQLNode, Symbol}(), cols = OrderedDict{Symbol, SQLClause}()) =
+        new(clause, incomplete, repl, cols)
+end
+
+function complete(res::Assemblage)
+    clause = res.clause
+    if res.incomplete
+        list = SQLClause[]
+        for (name, c) in res.cols
+            if !((@dissect c ID(name = id_name)) && id_name == name)
+                c = AS(over = c, name = name)
+            end
+            push!(list, c)
+        end
+        if isempty(list)
+            push!(list, LIT(missing))
+        end
+        clause = SELECT(over = clause, list = list)
+    end
+    @assert clause !== nothing
+    clause
+end
+
 function make_repl(refs::Vector{SQLNode})::Dict{SQLNode, Symbol}
     repl = Dict{SQLNode, Symbol}()
     dups = Dict{Symbol, Int}()
@@ -246,39 +282,10 @@ function make_repl(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLNode, 
     (repl, list)
 end
 
-struct Assemblage
-    clause::Union{SQLClause, Nothing}
-    incomplete::Bool
-    repl::Dict{SQLNode, Symbol}
-    cols::OrderedDict{Symbol, SQLClause}
-
-    Assemblage(clause; incomplete = false, repl = Dict{SQLNode, Symbol}(), cols = OrderedDict{Symbol, SQLClause}()) =
-        new(clause, incomplete, repl, cols)
-end
-
-function complete(res::Assemblage)
-    clause = res.clause
-    if res.incomplete
-        list = SQLClause[]
-        for (name, c) in res.cols
-            if !((@dissect c ID(name = id_name)) && id_name == name)
-                c = AS(over = c, name = name)
-            end
-            push!(list, c)
-        end
-        if isempty(list)
-            push!(list, LIT(missing))
-        end
-        clause = SELECT(over = clause, list = list)
-    end
-    @assert clause !== nothing
-    clause
-end
-
-assemble(n::SQLNode, ctx::TranslateContext) =
+assemble(n::SQLNode, ctx) =
     assemble(n[], ctx)
 
-function assemble(n::BoxNode, ctx::TranslateContext)
+function assemble(n::BoxNode, ctx)
     refs′ = SQLNode[]
     for ref in n.refs
         if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
@@ -287,7 +294,7 @@ function assemble(n::BoxNode, ctx::TranslateContext)
             push!(refs′, ref)
         end
     end
-    res = assemble(n.over, ctx, refs′)
+    res = assemble(n.over, refs′, ctx)
     repl′ = Dict{SQLNode, Symbol}()
     for ref in n.refs
         if (@dissect ref over |> HandleBoundNode(handle = handle)) && handle == n.handle
@@ -299,15 +306,15 @@ function assemble(n::BoxNode, ctx::TranslateContext)
     Assemblage(res.clause, repl = repl′, incomplete = res.incomplete, cols = res.cols)
 end
 
-assemble(n::SQLNode, ctx::TranslateContext, refs::Vector{SQLNode}) =
-    assemble(n[], ctx, refs)
+assemble(n::SQLNode, refs, ctx) =
+    assemble(n[], refs, ctx)
 
-function assemble(::Nothing, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(::Nothing, refs, ctx)
     @assert isempty(refs)
     Assemblage(nothing, incomplete = true)
 end
 
-function assemble(n::AppendNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::AppendNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     as = allocate_alias(ctx, n.over)
     results = [as => base_res]
@@ -354,7 +361,7 @@ function assemble(n::AppendNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::AsNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::AsNode, refs, ctx)
     res = assemble(n.over, ctx)
     repl′ = Dict{SQLNode, Symbol}()
     for ref in refs
@@ -368,7 +375,7 @@ function assemble(n::AsNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(res.clause, repl = repl′, incomplete = res.incomplete, cols = res.cols)
 end
 
-function assemble(n::ExtendedBindNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::ExtendedBindNode, refs, ctx)
     vars′ = copy(ctx.vars)
     for (name, i) in n.label_map
         vars′[name] = translate(n.list[i], ctx)
@@ -377,7 +384,7 @@ function assemble(n::ExtendedBindNode, ctx::TranslateContext, refs::Vector{SQLNo
     assemble(n.over, ctx′)
 end
 
-function assemble(n::DefineNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::DefineNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
@@ -412,7 +419,7 @@ function assemble(n::DefineNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::ExtendedJoinNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::ExtendedJoinNode, refs, ctx)
     left_res = assemble(n.over, ctx)
     left_as = allocate_alias(ctx, n.over)
     lateral = !isempty(n.lateral)
@@ -470,7 +477,7 @@ function assemble(n::ExtendedJoinNode, ctx::TranslateContext, refs::Vector{SQLNo
 end
 
 
-function assemble(n::FromNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::FromNode, refs, ctx)
     output_columns = Set{Symbol}()
     for ref in refs
         match = @dissect ref (nothing |> Get(name = name))
@@ -498,7 +505,7 @@ function assemble(n::FromNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::GroupNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::GroupNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
@@ -528,7 +535,7 @@ function assemble(n::GroupNode, ctx::TranslateContext, refs::Vector{SQLNode})
         end
     end
     if !has_keys && !has_aggregates
-        return assemble(nothing, ctx, refs)
+        return assemble(nothing, refs, ctx)
     end
     repl, list = make_repl(trns)
     @assert !isempty(list)
@@ -542,10 +549,10 @@ function assemble(n::GroupNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-assemble(n::HighlightNode, ctx::TranslateContext, ::Vector{SQLNode}) =
+assemble(n::HighlightNode, refs, ctx) =
     assemble(n.over, ctx)
 
-function assemble(n::LimitNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::LimitNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
@@ -575,7 +582,7 @@ function assemble(n::LimitNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::OrderNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::OrderNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
@@ -606,7 +613,7 @@ function assemble(n::OrderNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::PartitionNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::PartitionNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
@@ -641,7 +648,7 @@ function assemble(n::PartitionNode, ctx::TranslateContext, refs::Vector{SQLNode}
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::SelectNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::SelectNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()
@@ -670,7 +677,7 @@ function assemble(n::SelectNode, ctx::TranslateContext, refs::Vector{SQLNode})
     Assemblage(c, repl = repl)
 end
 
-function assemble(n::WhereNode, ctx::TranslateContext, refs::Vector{SQLNode})
+function assemble(n::WhereNode, refs, ctx)
     base_res = assemble(n.over, ctx)
     base_as = allocate_alias(ctx, n.over)
     subs = Dict{SQLNode, SQLClause}()

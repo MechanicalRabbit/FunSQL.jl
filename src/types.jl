@@ -1,4 +1,4 @@
-# Types of SQL nodes.
+# Types for SQL nodes.
 
 abstract type AbstractSQLType
 end
@@ -42,7 +42,7 @@ RowType(fields::Pair{Symbol, <:AbstractSQLType}...; group = EmptyType()) =
 function PrettyPrinting.quoteof(t::RowType)
     ex = Expr(:call, nameof(RowType))
     for (f, ft) in t.fields
-        push!(ex.args, Expr(:(=>), QuoteNode(f), quoteof(ft)))
+        push!(ex.args, Expr(:call, :(=>), QuoteNode(f), quoteof(ft)))
     end
     if !(t.group isa EmptyType)
         push!(ex.args, Expr(:kw, :group, quoteof(t.group)))
@@ -56,8 +56,35 @@ struct BoxType
     handle_map::HandleTypeMap
 end
 
-BoxType(name, row) =
+BoxType(name::Symbol, row::RowType) =
     BoxType(name, row, HandleTypeMap())
+
+function BoxType(name::Symbol, fields::Pair{<:Union{Symbol, Int}, <:AbstractSQLType}...; group = EmptyType())
+    field_map = FieldTypeMap()
+    handle_map = HandleTypeMap()
+    for (key, val) in fields
+        if key isa Symbol
+            field_map[key] = val
+        else
+            handle_map[key] = val
+        end
+    end
+    BoxType(name, RowType(field_map, group), handle_map)
+end
+
+function PrettyPrinting.quoteof(t::BoxType)
+    ex = Expr(:call, nameof(BoxType), QuoteNode(t.name))
+    for (f, ft) in t.row.fields
+        push!(ex.args, Expr(:call, :(=>), QuoteNode(f), quoteof(ft)))
+    end
+    if !(t.row.group isa EmptyType)
+        push!(ex.args, Expr(:kw, :group, quoteof(t.row.group)))
+    end
+    for (h, ht) in sort(t.handle_map)
+        push!(ex.args, Expr(:call, :(=>), h, quoteof(ht)))
+    end
+    ex
+end
 
 const EMPTY_BOX = BoxType(:_, RowType(), HandleTypeMap())
 
@@ -69,6 +96,7 @@ function add_handle(t::BoxType, handle::Int)
     end
     t
 end
+
 
 # Type of `Append` (UNION ALL).
 
@@ -114,6 +142,9 @@ function Base.intersect(t1::BoxType, t2::BoxType)
     name = t1.name == t2.name ? t2.name : :union
     BoxType(name, intersect(t1.row, t2.row), handle_map)
 end
+
+
+# Type of `Join`.
 
 Base.union(::AbstractSQLType, ::AbstractSQLType) =
     AmbiguousType()
@@ -174,5 +205,4 @@ function Base.union(t1::BoxType, t2::BoxType)
     end
     BoxType(t1.name, union(t1.row, t2.row), handle_map)
 end
-
 

@@ -38,6 +38,7 @@ download URL as an [artifact](../Artifacts.toml) and use
     using Pkg.Artifacts, LazyArtifacts
 
     const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
+    #-> ⋮
 
 
 ## Database Connection
