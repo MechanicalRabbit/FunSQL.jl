@@ -33,7 +33,6 @@ include("clauses.jl")
 include("nodes.jl")
 include("annotate.jl")
 include("translate.jl")
-include("collapse.jl")
 include("render.jl")
 
 const Not = Fun.not

@@ -868,17 +868,17 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q))
     #=>
-    SELECT "person_3"."person_id", "location_3"."city"
+    SELECT "person_2"."person_id", "location_2"."city"
     FROM (
       SELECT "person_1"."location_id", "person_1"."person_id"
       FROM "person" AS "person_1"
       WHERE ("person_1"."year_of_birth" > 1970)
-    ) AS "person_3"
+    ) AS "person_2"
     JOIN (
       SELECT "location_1"."location_id", "location_1"."city"
       FROM "location" AS "location_1"
       WHERE ("location_1"."state" = 'IL')
-    ) AS "location_3" ON ("person_3"."location_id" = "location_3"."location_id")
+    ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
     =#
 
 `Join` can be applied to correlated subqueries.
@@ -892,13 +892,13 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q0(1)))
     #=>
-    SELECT "visit_occurrence_4"."visit_occurrence_id", "visit_occurrence_4"."person_id", "visit_occurrence_4"."visit_start_date", "visit_occurrence_4"."visit_end_date"
+    SELECT "visit_occurrence_2"."visit_occurrence_id", "visit_occurrence_2"."person_id", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
     FROM (
       SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."person_id", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date", (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = 1)
-    ) AS "visit_occurrence_4"
-    WHERE ("visit_occurrence_4"."row_number" = 1)
+    ) AS "visit_occurrence_2"
+    WHERE ("visit_occurrence_2"."row_number" = 1)
     =#
 
     q = From(person) |>
@@ -909,19 +909,16 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id", "visit_1"."visit_occurrence_id", "visit_1"."visit_start_date"
-    FROM (
-      SELECT "person_1"."person_id"
-      FROM "person" AS "person_1"
-    ) AS "person_2"
+    SELECT "person_1"."person_id", "visit_1"."visit_occurrence_id", "visit_1"."visit_start_date"
+    FROM "person" AS "person_1"
     CROSS JOIN LATERAL (
-      SELECT "visit_occurrence_4"."visit_occurrence_id", "visit_occurrence_4"."visit_start_date"
+      SELECT "visit_occurrence_2"."visit_occurrence_id", "visit_occurrence_2"."visit_start_date"
       FROM (
         SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."visit_start_date", (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
         FROM "visit_occurrence" AS "visit_occurrence_1"
-        WHERE ("visit_occurrence_1"."person_id" = "person_2"."person_id")
-      ) AS "visit_occurrence_4"
-      WHERE ("visit_occurrence_4"."row_number" = 1)
+        WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
+      ) AS "visit_occurrence_2"
+      WHERE ("visit_occurrence_2"."row_number" = 1)
     ) AS "visit_1"
     =#
 
@@ -1079,7 +1076,8 @@ The `Select` constructor creates a subquery that fixes the output columns.
     FROM "person" AS "person_1"
     =#
 
-`Select` does not have to be the last subquery in a chain.
+`Select` does not have to be the last subquery in a chain, but it always
+creates a complete subquery.
 
     q = From(person) |>
         Select(Get.year_of_birth) |>
@@ -1087,9 +1085,12 @@ The `Select` constructor creates a subquery that fixes the output columns.
 
     print(render(q))
     #=>
-    SELECT "person_1"."year_of_birth"
-    FROM "person" AS "person_1"
-    WHERE ("person_1"."year_of_birth" > 2000)
+    SELECT "person_2"."year_of_birth"
+    FROM (
+      SELECT "person_1"."year_of_birth"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    WHERE ("person_2"."year_of_birth" > 2000)
     =#
 
 `Select` requires all columns in the list to have unique aliases.
