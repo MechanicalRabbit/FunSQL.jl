@@ -460,14 +460,17 @@ function assemble(n::ExtendedJoinNode, refs, ctx)
         right = assemble(n.joinee, ctx)
     end
     if @dissect right.clause ((joinee := nothing |> ID() |> AS(name = right_as)) |> FROM())
+        for (ref, name) in right.repl
+            subs[ref] = right.cols[name]
+        end
     else
         right_as = allocate_alias(ctx, n.joinee)
         joinee = AS(over = complete(right), name = right_as)
-    end
-    right_cache = Dict{Symbol, SQLClause}()
-    for (ref, name) in right.repl
-        subs[ref] = get(right_cache, name) do
-            ID(over = right_as, name = name)
+        right_cache = Dict{Symbol, SQLClause}()
+        for (ref, name) in right.repl
+            subs[ref] = get(right_cache, name) do
+                ID(over = right_as, name = name)
+            end
         end
     end
     on = translate(n.on, ctx, subs)
