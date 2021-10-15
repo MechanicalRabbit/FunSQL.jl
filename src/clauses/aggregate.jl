@@ -65,17 +65,17 @@ AGG(args...; kws...) =
 dissect(scr::Symbol, ::typeof(AGG), pats::Vector{Any}) =
     dissect(scr, AggregateClause, pats)
 
-function PrettyPrinting.quoteof(c::AggregateClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::AggregateClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(AGG), string(c.name))
     if c.distinct
         push!(ex.args, Expr(:kw, :distinct, c.distinct))
     end
-    append!(ex.args, quoteof(c.args, qctx))
+    append!(ex.args, quoteof(c.args, ctx))
     if c.filter !== nothing
-        push!(ex.args, Expr(:kw, :filter, quoteof(c.filter, qctx)))
+        push!(ex.args, Expr(:kw, :filter, quoteof(c.filter, ctx)))
     end
     if c.over !== nothing
-        push!(ex.args, Expr(:kw, :over, quoteof(c.over, qctx)))
+        push!(ex.args, Expr(:kw, :over, quoteof(c.over, ctx)))
     end
     ex
 end

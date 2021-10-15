@@ -38,11 +38,11 @@ ORDER(args...; kws...) =
 dissect(scr::Symbol, ::typeof(ORDER), pats::Vector{Any}) =
     dissect(scr, OrderClause, pats)
 
-function PrettyPrinting.quoteof(c::OrderClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::OrderClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(ORDER))
-    append!(ex.args, quoteof(c.by, qctx))
+    append!(ex.args, quoteof(c.by, ctx))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

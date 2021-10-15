@@ -58,19 +58,22 @@ Highlight(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Highlight), pats::Vector{Any}) =
     dissect(scr, HighlightNode, pats)
 
-function PrettyPrinting.quoteof(n::HighlightNode, qctx::SQLNodeQuoteContext)
-    if qctx.limit
+function PrettyPrinting.quoteof(n::HighlightNode, ctx::QuoteContext)
+    if ctx.limit
         ex = Expr(:call, nameof(Highlight), quoteof(n.color))
         if n.over !== nothing
-            ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+            ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
         end
         return ex
     end
-    push!(qctx.colors, n.color)
-    ex = quoteof(n.over, qctx)
-    pop!(qctx.colors)
-    EscWrapper(ex, n.color, copy(qctx.colors))
+    push!(ctx.colors, n.color)
+    ex = quoteof(n.over, ctx)
+    pop!(ctx.colors)
+    EscWrapper(ex, n.color, copy(ctx.colors))
 end
+
+label(n::HighlightNode) =
+    label(n.over)
 
 rebase(n::HighlightNode, n′) =
     HighlightNode(over = rebase(n.over, n′), color = n.color)

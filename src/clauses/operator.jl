@@ -38,6 +38,6 @@ OP(args...; kws...) =
 dissect(scr::Symbol, ::typeof(OP), pats::Vector{Any}) =
     dissect(scr, OperatorClause, pats)
 
-PrettyPrinting.quoteof(c::OperatorClause, qctx::SQLClauseQuoteContext) =
-    Expr(:call, nameof(OP), string(c.name), quoteof(c.args, qctx)...)
+PrettyPrinting.quoteof(c::OperatorClause, ctx::QuoteContext) =
+    Expr(:call, nameof(OP), string(c.name), quoteof(c.args, ctx)...)
 

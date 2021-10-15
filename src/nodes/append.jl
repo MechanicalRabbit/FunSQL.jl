@@ -57,18 +57,21 @@ Append(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Append), pats::Vector{Any}) =
     dissect(scr, AppendNode, pats)
 
-function PrettyPrinting.quoteof(n::AppendNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::AppendNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Append))
     if isempty(n.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, qctx))
+        append!(ex.args, quoteof(n.list, ctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
+
+label(n::AppendNode) =
+    :union
 
 rebase(n::AppendNode, n′) =
     AppendNode(over = rebase(n.over, n′), list = n.list)

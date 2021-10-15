@@ -32,10 +32,10 @@ FROM(args...; kws...) =
 dissect(scr::Symbol, ::typeof(FROM), pats::Vector{Any}) =
     dissect(scr, FromClause, pats)
 
-function PrettyPrinting.quoteof(c::FromClause, qctx::SQLClauseQuoteContext)
+function PrettyPrinting.quoteof(c::FromClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(FROM))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

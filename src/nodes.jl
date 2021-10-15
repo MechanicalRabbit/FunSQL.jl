@@ -49,8 +49,90 @@ Base.convert(::Type{SQLNode}, obj) =
 (n::AbstractSQLNode)(n′::SQLNode) =
     rebase(n, n′)
 
+label(n::SQLNode) =
+    label(n[])::Symbol
+
+label(::Union{AbstractSQLNode, Nothing}) =
+    :_
+
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))
+
+
+# Generic traversal and substitution.
+
+function visit(f, n::SQLNode)
+    visit(f, n[])
+    f(n)
+    nothing
+end
+
+function visit(f, ns::Vector{SQLNode})
+    for n in ns
+        visit(f, n)
+    end
+end
+
+visit(f, ::Nothing) =
+    nothing
+
+@generated function visit(f, n::AbstractSQLNode)
+    exs = Expr[]
+    for f in fieldnames(n)
+        t = fieldtype(n, f)
+        if t === SQLNode || t === Union{SQLNode, Nothing} || t === Vector{SQLNode}
+            ex = quote
+                visit(f, n.$(f))
+            end
+            push!(exs, ex)
+        end
+    end
+    push!(exs, :(return nothing))
+    Expr(:block, exs...)
+end
+
+substitute(n::SQLNode, c::SQLNode, c′::SQLNode) =
+    SQLNode(substitute(n[], c, c′))
+
+function substitute(ns::Vector{SQLNode}, c::SQLNode, c′::SQLNode)
+    i = findfirst(isequal(c), ns)
+    i !== nothing || return ns
+    ns′ = copy(ns)
+    ns′[i] = c′
+    ns′
+end
+
+substitute(::Nothing, ::SQLNode, ::SQLNode) =
+    nothing
+
+@generated function substitute(n::AbstractSQLNode, c::SQLNode, c′::SQLNode)
+    exs = Expr[]
+    fs = fieldnames(n)
+    for f in fs
+        t = fieldtype(n, f)
+        if t === SQLNode || t === Union{SQLNode, Nothing}
+            ex = quote
+                if n.$(f) === c
+                    return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(c′))
+                                    for f′ in fs]...))
+                end
+            end
+            push!(exs, ex)
+        elseif t === Vector{SQLNode}
+            ex = quote
+                let cs′ = substitute(n.$(f), c, c′)
+                    if cs′ !== n.$(f)
+                        return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(cs′))
+                                        for f′ in fs]...))
+                    end
+                end
+            end
+            push!(exs, ex)
+        end
+    end
+    push!(exs, :(return n))
+    Expr(:block, exs...)
+end
 
 
 # Pretty-printing.
@@ -61,67 +143,54 @@ Base.show(io::IO, n::AbstractSQLNode) =
 Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode) =
     pprint(io, n)
 
-struct SQLNodeQuoteContext
-    limit::Bool
-    vars::IdDict{Any, Symbol}
-    colors::Vector{Symbol}
-
-    SQLNodeQuoteContext(;
-                        limit = false,
-                        vars = IdDict{Any, Symbol}(),
-                        colors = [:normal]) =
-        new(limit, vars, colors)
-end
-
 function PrettyPrinting.quoteof(n::SQLNode;
                                 limit::Bool = false,
                                 unwrap::Bool = false)
     if limit
-        qctx = SQLNodeQuoteContext(limit = true)
-        ex = quoteof(n[], qctx)
+        ctx = QuoteContext(limit = true)
+        ex = quoteof(n[], ctx)
         if unwrap
             ex = Expr(:ref, ex)
         end
         return ex
     end
-    tables_ordered = SQLTable[]
-    tables_seen = Set{SQLTable}()
-    queries_ordered = SQLNode[]
-    queries_seen = Set{SQLNode}()
+    tables_seen = OrderedSet{SQLTable}()
+    nodes_seen = OrderedSet{SQLNode}()
+    nodes_toplevel = Set{SQLNode}()
     visit(n) do n
         core = n[]
         if core isa FromNode
-            if !(core.table in tables_seen)
-                push!(tables_ordered, core.table)
-                push!(tables_seen, core.table)
-            end
+            push!(tables_seen, core.table)
         end
         if core isa SubqueryNode
-            if !(n in queries_seen)
-                push!(queries_ordered, n)
-                push!(queries_seen, n)
-            end
+            push!(nodes_seen, n)
+            push!(nodes_toplevel, n)
+        elseif n in nodes_seen
+            push!(nodes_toplevel, n)
+        else
+            push!(nodes_seen, n)
         end
     end
-    qctx = SQLNodeQuoteContext()
+    ctx = QuoteContext()
     defs = Any[]
-    if length(queries_ordered) >= 2 || (length(queries_ordered) == 1 && queries_ordered[1] !== n)
-        for t in tables_ordered
+    if length(nodes_toplevel) >= 2 || (length(nodes_toplevel) == 1 && !(n in nodes_toplevel))
+        for t in tables_seen
             def = quoteof(t, limit = true)
             name = t.name
             push!(defs, Expr(:(=), name, def))
-            qctx.vars[t] = name
+            ctx.vars[t] = name
         end
         qidx = 0
-        for n in queries_ordered
-            def = quoteof(n, qctx)
+        for n in nodes_seen
+            n in nodes_toplevel || continue
+            def = quoteof(n, ctx)
             qidx += 1
             name = Symbol('q', qidx)
             push!(defs, Expr(:(=), name, def))
-            qctx.vars[n] = name
+            ctx.vars[n] = name
         end
     end
-    ex = quoteof(n, qctx)
+    ex = quoteof(n, ctx)
     if unwrap
         ex = Expr(:ref, ex)
     end
@@ -134,26 +203,113 @@ end
 PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
     quoteof(convert(SQLNode, n), limit = limit, unwrap = true)
 
-PrettyPrinting.quoteof(n::SQLNode, qctx::SQLNodeQuoteContext) =
-    if !qctx.limit
-        var = get(qctx.vars, n, nothing)
+PrettyPrinting.quoteof(n::SQLNode, ctx::QuoteContext) =
+    if !ctx.limit
+        var = get(ctx.vars, n, nothing)
         if var !== nothing
             var
         else
-            quoteof(n[], qctx)
+            quoteof(n[], ctx)
         end
     else
         :…
     end
 
-PrettyPrinting.quoteof(ns::Vector{SQLNode}, qctx::SQLNodeQuoteContext) =
+PrettyPrinting.quoteof(ns::Vector{SQLNode}, ctx::QuoteContext) =
     if isempty(ns)
         Any[]
-    elseif !qctx.limit
-        Any[quoteof(n, qctx) for n in ns]
+    elseif !ctx.limit
+        Any[quoteof(n, ctx) for n in ns]
     else
         Any[:…]
     end
+
+
+# Errors.
+
+struct DuplicateLabelError <: FunSQLError
+    name::Symbol
+    path::Vector{SQLNode}
+
+    DuplicateLabelError(name; path = SQLNode[]) =
+        new(name, path)
+end
+
+function Base.showerror(io::IO, err::DuplicateLabelError)
+    print(io, "FunSQL.DuplicateLabelError: $(err.name) is used more than once")
+    showpath(io, err.path)
+end
+
+struct IllFormedError <: FunSQLError
+    path::Vector{SQLNode}
+
+    IllFormedError(; path = SQLNode[]) =
+        new(path)
+end
+
+function Base.showerror(io::IO, err::IllFormedError)
+    print(io, "FunSQL.IllFormedError")
+    showpath(io, err.path)
+end
+
+@enum ReferenceErrorType::UInt8 begin
+    UNDEFINED_HANDLE
+    AMBIGUOUS_HANDLE
+    UNDEFINED_NAME
+    AMBIGUOUS_NAME
+    UNEXPECTED_ROW_TYPE
+    UNEXPECTED_SCALAR_TYPE
+    UNEXPECTED_AGGREGATE
+    AMBIGUOUS_AGGREGATE
+end
+
+struct ReferenceError <: FunSQLError
+    type::ReferenceErrorType
+    name::Union{Symbol, Nothing}
+    path::Vector{SQLNode}
+
+    ReferenceError(type; name = nothing, path = SQLNode[]) =
+        new(type, name, path)
+end
+
+function Base.showerror(io::IO, err::ReferenceError)
+    print(io, "FunSQL.ReferenceError: ")
+    if err.type == UNDEFINED_HANDLE
+        print(io, "node-bound reference failed to resolve")
+    elseif err.type == AMBIGUOUS_HANDLE
+        print(io, "node-bound reference is ambiguous")
+    elseif err.type == UNDEFINED_NAME
+        print(io, "cannot find $(err.name)")
+    elseif err.type == AMBIGUOUS_NAME
+        print(io, "$(err.name) is ambiguous")
+    elseif err.type == UNEXPECTED_ROW_TYPE
+        print(io, "incomplete reference $(err.name)")
+    elseif err.type == UNEXPECTED_SCALAR_TYPE
+        print(io, "unexpected reference after $(err.name)")
+    elseif err.type == UNEXPECTED_AGGREGATE
+        print(io, "aggregate expression requires Group or Partition")
+    elseif err.type == AMBIGUOUS_AGGREGATE
+        print(io, "aggregate expression is ambiguous")
+    end
+    showpath(io, err.path)
+end
+
+function showpath(io, path::Vector{SQLNode})
+    if !isempty(path)
+        q = highlight(path)
+        println(io, " in:")
+        pprint(io, q)
+    end
+end
+
+function highlight(path::Vector{SQLNode}, color = Base.error_color())
+    @assert !isempty(path)
+    n = Highlight(over = path[1], color = color)
+    for k = 2:lastindex(path)
+        n = substitute(path[k], path[k-1], n)
+    end
+    n
+end
 
 
 # Concrete node types.

@@ -44,6 +44,6 @@ Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
 Base.convert(::Type{AbstractSQLNode}, ref::Base.RefValue) =
     LiteralNode(ref.x)
 
-PrettyPrinting.quoteof(n::LiteralNode, qctx::SQLNodeQuoteContext) =
+PrettyPrinting.quoteof(n::LiteralNode, ctx::QuoteContext) =
     Expr(:call, nameof(Lit), n.val)
 

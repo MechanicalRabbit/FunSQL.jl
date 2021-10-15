@@ -63,15 +63,15 @@ Base.getproperty(n::SQLNode, name::AbstractString) =
 Base.getindex(n::SQLNode, name::Union{Symbol, AbstractString}) =
     Get(name, over = n)
 
-function PrettyPrinting.quoteof(n::GetNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::GetNode, ctx::QuoteContext)
     path = Symbol[n.name]
     over = n.over
-    while over !== nothing && (nested = over[]; nested isa GetNode)
+    while over !== nothing && (nested = over[]; nested isa GetNode) && !(over in keys(ctx.vars))
         push!(path, nested.name)
         over = nested.over
     end
-    if over !== nothing && over in keys(qctx.vars)
-        ex = qctx.vars[over]
+    if over !== nothing && over in keys(ctx.vars)
+        ex = ctx.vars[over]
         over = nothing
     else
         ex = nameof(Get)
@@ -81,10 +81,13 @@ function PrettyPrinting.quoteof(n::GetNode, qctx::SQLNodeQuoteContext)
         ex = Expr(:., ex, quoteof(name))
     end
     if over !== nothing
-        ex = Expr(:call, :|>, quoteof(over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(over, ctx), ex)
     end
     ex
 end
+
+label(n::GetNode) =
+    n.name
 
 rebase(n::GetNode, n′) =
     GetNode(over = rebase(n.over, n′), name = n.name)

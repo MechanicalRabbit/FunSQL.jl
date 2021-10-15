@@ -40,10 +40,10 @@ HAVING(args...; kws...) =
 dissect(scr::Symbol, ::typeof(HAVING), pats::Vector{Any}) =
     dissect(scr, HavingClause, pats)
 
-function PrettyPrinting.quoteof(c::HavingClause, qctx::SQLClauseQuoteContext)
-    ex = Expr(:call, nameof(HAVING), quoteof(c.condition, qctx))
+function PrettyPrinting.quoteof(c::HavingClause, ctx::QuoteContext)
+    ex = Expr(:call, nameof(HAVING), quoteof(c.condition, ctx))
     if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
     ex
 end

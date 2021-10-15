@@ -3,9 +3,23 @@
 mutable struct DefineNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
 
-    DefineNode(; over = nothing, list = []) =
-        new(over, list)
+    function DefineNode(; over = nothing, list = [], label_map = nothing)
+        if label_map !== nothing
+            return new(over, list, label_map)
+        end
+        n = new(over, list, OrderedDict{Symbol, Int}())
+        for (i, l) in enumerate(n.list)
+            name = label(l)
+            if name in keys(n.label_map)
+                err = DuplicateLabelError(name, path = [l, n])
+                throw(err)
+            end
+            n.label_map[name] = i
+        end
+        n
+    end
 end
 
 DefineNode(list...; over = nothing) =
@@ -39,14 +53,17 @@ Define(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
     dissect(scr, DefineNode, pats)
 
-function PrettyPrinting.quoteof(n::DefineNode, qctx::SQLNodeQuoteContext)
-    ex = Expr(:call, nameof(Define), quoteof(n.list, qctx)...)
+function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Define), quoteof(n.list, ctx)...)
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
 
+label(n::DefineNode) =
+    label(n.over)
+
 rebase(n::DefineNode, n′) =
-    DefineNode(over = rebase(n.over, n′), list = n.list)
+    DefineNode(over = rebase(n.over, n′), list = n.list, label_map = n.label_map)
 

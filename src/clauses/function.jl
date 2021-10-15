@@ -38,6 +38,6 @@ FUN(args...; kws...) =
 dissect(scr::Symbol, ::typeof(FUN), pats::Vector{Any}) =
     dissect(scr, FunctionClause, pats)
 
-PrettyPrinting.quoteof(c::FunctionClause, qctx::SQLClauseQuoteContext) =
-    Expr(:call, nameof(FUN), string(c.name), quoteof(c.args, qctx)...)
+PrettyPrinting.quoteof(c::FunctionClause, ctx::QuoteContext) =
+    Expr(:call, nameof(FUN), string(c.name), quoteof(c.args, ctx)...)
 

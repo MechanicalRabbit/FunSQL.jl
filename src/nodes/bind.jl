@@ -3,11 +3,23 @@
 mutable struct BindNode <: AbstractSQLNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
 
-    BindNode(;
-             over = nothing,
-             list) =
-        new(over, list)
+    function BindNode(; over = nothing, list, label_map = nothing)
+        if label_map !== nothing
+            return new(over, list, label_map)
+        end
+        n = new(over, list, OrderedDict{Symbol, Int}())
+        for (i, l) in enumerate(n.list)
+            name = label(l)
+            if name in keys(n.label_map)
+                err = DuplicateLabelError(name, path = [l, n])
+                throw(err)
+            end
+            n.label_map[name] = i
+        end
+        n
+    end
 end
 
 BindNode(list...; over = nothing) =
@@ -47,18 +59,21 @@ Bind(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Bind), pats::Vector{Any}) =
     dissect(scr, BindNode, pats)
 
-function PrettyPrinting.quoteof(n::BindNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::BindNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Bind))
     if isempty(n.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, qctx))
+        append!(ex.args, quoteof(n.list, ctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
+
+label(n::BindNode) =
+    label(n.over)
 
 rebase(n::BindNode, n′) =
     BindNode(over = rebase(n.over, n′), list = n.list)

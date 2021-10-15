@@ -54,17 +54,20 @@ Limit(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Limit), pats::Vector{Any}) =
     dissect(scr, LimitNode, pats)
 
-function PrettyPrinting.quoteof(n::LimitNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::LimitNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Limit))
     if n.offset !== nothing
         push!(ex.args, n.offset)
     end
     push!(ex.args, n.limit)
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
+
+label(n::LimitNode) =
+    label(n.over)
 
 rebase(n::LimitNode, n′) =
     LimitNode(over = rebase(n.over, n′), offset = n.offset, limit = n.limit)

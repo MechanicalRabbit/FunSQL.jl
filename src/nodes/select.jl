@@ -3,9 +3,23 @@
 mutable struct SelectNode <: SubqueryNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
+    label_map::OrderedDict{Symbol, Int}
 
-    SelectNode(; over = nothing, list) =
-        new(over, list)
+    function SelectNode(; over = nothing, list, label_map = nothing)
+        if label_map !== nothing
+            return new(over, list, label_map)
+        end
+        n = new(over, list, OrderedDict{Symbol, Int}())
+        for (i, l) in enumerate(n.list)
+            name = label(l)
+            if name in keys(n.label_map)
+                err = DuplicateLabelError(name, path = [l, n])
+                throw(err)
+            end
+            n.label_map[name] = i
+        end
+        n
+    end
 end
 
 SelectNode(list...; over = nothing) =
@@ -41,19 +55,22 @@ Select(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
     dissect(scr, SelectNode, pats)
 
-function PrettyPrinting.quoteof(n::SelectNode, qctx::SQLNodeQuoteContext)
+function PrettyPrinting.quoteof(n::SelectNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Select))
     if isempty(n.list)
         push!(ex.args, Expr(:kw, :list, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, qctx))
+        append!(ex.args, quoteof(n.list, ctx))
     end
     if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, qctx), ex)
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
 
+label(n::SelectNode) =
+    label(n.over)
+
 rebase(n::SelectNode, n′) =
-    SelectNode(over = rebase(n.over, n′), list = n.list)
+    SelectNode(over = rebase(n.over, n′), list = n.list, label_map = n.label_map)
 

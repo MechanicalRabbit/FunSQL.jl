@@ -92,16 +92,9 @@ Base.show(io::IO, c::AbstractSQLClause) =
 Base.show(io::IO, ::MIME"text/plain", c::AbstractSQLClause) =
     pprint(io, c)
 
-struct SQLClauseQuoteContext
-    limit::Bool
-
-    SQLClauseQuoteContext(; limit = false) =
-        new(limit)
-end
-
 function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, unwrap::Bool = false)
-    qctx = SQLClauseQuoteContext(limit = limit)
-    ex = quoteof(c[], qctx)
+    ctx = QuoteContext(limit = limit)
+    ex = quoteof(c[], ctx)
     if unwrap
         ex = Expr(:ref, ex)
     end
@@ -111,18 +104,18 @@ end
 PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
     quoteof(convert(SQLClause, c), limit = limit, unwrap = true)
 
-PrettyPrinting.quoteof(c::SQLClause, qctx::SQLClauseQuoteContext) =
-    if !qctx.limit
-        quoteof(c[], qctx)
+PrettyPrinting.quoteof(c::SQLClause, ctx::QuoteContext) =
+    if !ctx.limit
+        quoteof(c[], ctx)
     else
         :…
     end
 
-PrettyPrinting.quoteof(cs::Vector{SQLClause}, qctx::SQLClauseQuoteContext) =
+PrettyPrinting.quoteof(cs::Vector{SQLClause}, ctx::QuoteContext) =
     if isempty(cs)
         Any[]
-    elseif !qctx.limit
-        Any[quoteof(c, qctx) for c in cs]
+    elseif !ctx.limit
+        Any[quoteof(c, ctx) for c in cs]
     else
         Any[:…]
     end
