@@ -9,6 +9,8 @@ if VERSION >= v"1.7-DEV"
         getfield(x, s)
 end
 
+ENV["COLUMNS"] = "80"
+
 if isempty(ARGS)
 
     @testset "FunSQL" begin
