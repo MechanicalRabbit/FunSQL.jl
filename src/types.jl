@@ -80,7 +80,7 @@ function PrettyPrinting.quoteof(t::BoxType)
     if !(t.row.group isa EmptyType)
         push!(ex.args, Expr(:kw, :group, quoteof(t.row.group)))
     end
-    for (h, ht) in sort(t.handle_map)
+    for (h, ht) in sort!(collect(t.handle_map))
         push!(ex.args, Expr(:call, :(=>), h, quoteof(ht)))
     end
     ex
