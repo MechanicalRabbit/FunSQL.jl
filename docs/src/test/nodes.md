@@ -1,9 +1,9 @@
 # SQL Nodes
 
     using FunSQL:
-        Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
-        Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLNode,
-        SQLTable, Select, Sort, Var, Where, render
+        Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
+        Group, Highlight, Join, LeftJoin, Limit, Lit, Order, Partition,
+        SQLNode, SQLTable, Select, Sort, Var, Where, render
 
 We start with specifying the database model.
 
@@ -1202,5 +1202,173 @@ The `Highlight` node does not otherwise affect processing of the query.
     SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
+    =#
+
+
+## Debugging
+
+Call `render()` with the parameter `debug` to get some insight on how FunSQL
+translates a query object into SQL.  Set `debug` to the name of
+a translation stage and `render()` will return the result of this stage.
+
+Consider the following query.
+
+    q = From(person) |>
+        Where(Get.year_of_birth .<= 2000) |>
+        Join(:location => From(location) |>
+                          Where(Get.state .== "IL"),
+             on = (Get.location_id .== Get.location.location_id)) |>
+        Join(:visit_group => From(visit_occurrence) |>
+                             Group(Get.person_id),
+             on = (Get.person_id .== Get.visit_group.person_id),
+             left = true) |>
+        Select(Get.person_id,
+               :max_visit_start_date =>
+                   Get.visit_group |> Agg.max(Get.visit_start_date))
+
+At the first stage of the translation, `render()` augments the query object
+with some additional nodes.  A `Box` node is inserted in front of each
+tabular node and hierarchical `Get` nodes are reversed.
+
+    display(render(q, debug = :annotate))
+    #=>
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        visit_occurrence = SQLTable(:visit_occurrence, …),
+        q1 = From(person),
+        q2 = q1 |> Box(),
+        ⋮
+        q19 = q18 |>
+              Select(Get.person_id,
+                     NameBound(over = Agg.max(Get.visit_start_date),
+                               name = :visit_group) |>
+                     As(:max_visit_start_date)),
+        q20 = q19 |> Box()
+        q20
+    end
+    =#
+
+Next, `render()` determines the type of each tabular node and attaches
+it to the corresponding `Box` node.
+
+    display(render(q, debug = :resolve))
+    #=>
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        visit_occurrence = SQLTable(:visit_occurrence, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Box(type = BoxType(:person,
+                                :person_id => ScalarType(),
+                                :gender_concept_id => ScalarType(),
+                                :year_of_birth => ScalarType(),
+                                :month_of_birth => ScalarType(),
+                                :day_of_birth => ScalarType(),
+                                :birth_datetime => ScalarType(),
+                                :location_id => ScalarType())),
+        ⋮
+        q19 = q18 |>
+              Select(Get.person_id,
+                     NameBound(over = Agg.max(Get.visit_start_date),
+                               name = :visit_group) |>
+                     As(:max_visit_start_date)),
+        q20 = q19 |>
+              Box(type = BoxType(:person,
+                                 :person_id => ScalarType(),
+                                 :max_visit_start_date => ScalarType()))
+        q20
+    end
+    =#
+
+Next, `render()` validates column references and aggregate functions
+and determine the columns to be provided by each tabular query.
+
+    display(render(q, debug = :link))
+    #=>
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        visit_occurrence = SQLTable(:visit_occurrence, …),
+        q1 = From(person),
+        q2 = Get.location_id,
+        q3 = Get.person_id,
+        q4 = Get.person_id,
+        q5 = Get.year_of_birth,
+        q6 = q1 |>
+             Box(type = BoxType(:person,
+                                :person_id => ScalarType(),
+                                :gender_concept_id => ScalarType(),
+                                :year_of_birth => ScalarType(),
+                                :month_of_birth => ScalarType(),
+                                :day_of_birth => ScalarType(),
+                                :birth_datetime => ScalarType(),
+                                :location_id => ScalarType()),
+                 refs = [q2, q3, q4, q5]),
+        ⋮
+        q32 = q31 |> Select(q4, q28 |> As(:max_visit_start_date)),
+        q33 = q32 |>
+              Box(type = BoxType(:person,
+                                 :person_id => ScalarType(),
+                                 :max_visit_start_date => ScalarType()),
+                  refs = [Get.person_id, Get.max_visit_start_date])
+        q33
+    end
+    =#
+
+On the next stage, the query object is converted to a SQL syntax tree.
+
+    display(render(q, debug = :translate))
+    #=>
+    ID(:person) |>
+    AS(:person_1) |>
+    FROM() |>
+    WHERE(OP("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
+    SELECT(ID(:person_1) |> ID(:location_id), ID(:person_1) |> ID(:person_id)) |>
+    AS(:person_2) |>
+    FROM() |>
+    JOIN(ID(:location) |>
+         AS(:location_1) |>
+         FROM() |>
+         WHERE(OP("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
+         SELECT(ID(:location_1) |> ID(:location_id)) |>
+         AS(:location_2),
+         OP("=",
+            ID(:person_2) |> ID(:location_id),
+            ID(:location_2) |> ID(:location_id))) |>
+    JOIN(ID(:visit_occurrence) |>
+         AS(:visit_occurrence_1) |>
+         FROM() |>
+         GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
+         SELECT(ID(:visit_occurrence_1) |> ID(:person_id),
+                AGG("MAX", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
+                AS(:max)) |>
+         AS(:visit_group_1),
+         OP("=",
+            ID(:person_2) |> ID(:person_id),
+            ID(:visit_group_1) |> ID(:person_id)),
+         left = true) |>
+    SELECT(ID(:person_2) |> ID(:person_id),
+           ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date))
+    =#
+
+Finally, the SQL tree is serialized into SQL.
+
+    print(render(q, debug = :render))
+    #=>
+    SELECT "person_2"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+    FROM (
+      SELECT "person_1"."location_id", "person_1"."person_id"
+      FROM "person" AS "person_1"
+      WHERE ("person_1"."year_of_birth" <= 2000)
+    ) AS "person_2"
+    JOIN (
+      SELECT "location_1"."location_id"
+      FROM "location" AS "location_1"
+      WHERE ("location_1"."state" = 'IL')
+    ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
+    LEFT JOIN (
+      SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")
     =#
 
