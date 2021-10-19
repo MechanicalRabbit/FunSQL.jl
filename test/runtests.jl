@@ -3,11 +3,7 @@
 using Documenter, Logging, NarrativeTest, Test
 using FunSQL
 
-# Suppress deprecation warnings on the use of `kwargs.data` in DBInterface.
-if VERSION >= v"1.7-DEV"
-    Base.getproperty(x::Base.Pairs, s::Symbol) =
-        getfield(x, s)
-end
+ENV["COLUMNS"] = "80"
 
 if isempty(ARGS)
 
@@ -23,9 +19,9 @@ if isempty(ARGS)
                 Agg, Append, As, Asc, Bind, Define, Desc, From, Fun, Get,
                 Group, Highlight, Join, LeftJoin, Limit, Order, Partition,
                 Select, Sort, Var, Where,
-                AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN,
+                AGG, AS, ASC, CASE, CTE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN,
                 KW, LIMIT, LIT, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR,
-                WHERE, WINDOW,
+                WHERE, WINDOW, WITH,
                 render
             using Dates
         end)

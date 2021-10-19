@@ -39,6 +39,18 @@ function render(ctx, name::Symbol)
     end
 end
 
+function render(ctx, names::Vector{Symbol})
+    first = true
+    for name in names
+        if !first
+            print(ctx, ", ")
+        else
+            first = false
+        end
+        render(ctx, name)
+    end
+end
+
 render(ctx, ::Missing) =
     print(ctx, "NULL")
 
@@ -132,6 +144,29 @@ function render(ctx, c::CaseClause)
         render(ctx, arg)
     end
     print(ctx, " END)")
+end
+
+function render(ctx, c::CTEClause)
+    over = c.over
+    columns = c.columns
+    render(ctx, c.name)
+    if columns !== nothing
+        print(ctx, " (")
+        render(ctx, columns)
+        print(ctx, ')')
+    end
+    if over !== nothing
+        print(ctx, " AS ")
+        if c.materialized === true
+            print(ctx, "MATERIALIZED ")
+        elseif c.materialized === false
+            print(ctx, "NOT MATERIALIZED ")
+        end
+        nested = ctx.nested
+        ctx.nested = true
+        render(ctx, over)
+        ctx.nested = nested
+    end
 end
 
 function render(ctx, c::FromClause)
@@ -494,5 +529,28 @@ function render(ctx, c::WindowClause)
     newline(ctx)
     print(ctx, "WINDOW ")
     render(ctx, c.list)
+end
+
+function render(ctx, c::WithClause)
+    if !isempty(c.list)
+        print(ctx, "WITH ")
+        if c.recursive
+            print(ctx, "RECURSIVE ")
+        end
+        first = true
+        for l in c.list
+            if !first
+                print(ctx, ",")
+                newline(ctx)
+            else
+                first = false
+            end
+            render(ctx, l)
+        end
+        newline(ctx)
+    end
+    if c.over !== nothing
+        render(ctx, c.over)
+    end
 end
 
