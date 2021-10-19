@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Nodes · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../tutorial/">Tutorial</a></li><li><a class="tocitem" href="../../api/">API Reference</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Nodes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Nodes</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/nodes.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Nodes"><a class="docs-heading-anchor" href="#SQL-Nodes">SQL Nodes</a><a id="SQL-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Nodes" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
-    Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
-    Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLNode,
-    SQLTable, Select, Sort, Var, Where, render</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia hljs">const concept =
+    Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
+    Group, Highlight, Join, LeftJoin, Limit, Lit, Order, Partition,
+    SQLNode, SQLTable, Select, Sort, Var, Where, render</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia hljs">const concept =
     SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code])
 
 const location =
@@ -858,4 +858,137 @@ end
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.9 on <span class="colophon-date" title="Tuesday 19 October 2021 14:12">Tuesday 19 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre><h2 id="Debugging"><a class="docs-heading-anchor" href="#Debugging">Debugging</a><a id="Debugging-1"></a><a class="docs-heading-anchor-permalink" href="#Debugging" title="Permalink"></a></h2><p>Call <code>render()</code> with the parameter <code>debug</code> to get some insight on how FunSQL translates a query object into SQL.  Set <code>debug</code> to the name of a translation stage and <code>render()</code> will return the result of this stage.</p><p>Consider the following query.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Where(Get.year_of_birth .&lt;= 2000) |&gt;
+    Join(:location =&gt; From(location) |&gt;
+                      Where(Get.state .== &quot;IL&quot;),
+         on = (Get.location_id .== Get.location.location_id)) |&gt;
+    Join(:visit_group =&gt; From(visit_occurrence) |&gt;
+                         Group(Get.person_id),
+         on = (Get.person_id .== Get.visit_group.person_id),
+         left = true) |&gt;
+    Select(Get.person_id,
+           :max_visit_start_date =&gt;
+               Get.visit_group |&gt; Agg.max(Get.visit_start_date))</code></pre><p>At the first stage of the translation, <code>render()</code> augments the query object with some additional nodes.  A <code>Box</code> node is inserted in front of each tabular node and hierarchical <code>Get</code> nodes are reversed.</p><pre><code class="language-julia hljs">display(render(q, debug = :annotate))
+#=&gt;
+let person = SQLTable(:person, …),
+    location = SQLTable(:location, …),
+    visit_occurrence = SQLTable(:visit_occurrence, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Box(),
+    ⋮
+    q19 = q18 |&gt;
+          Select(Get.person_id,
+                 NameBound(over = Agg.max(Get.visit_start_date),
+                           name = :visit_group) |&gt;
+                 As(:max_visit_start_date)),
+    q20 = q19 |&gt; Box()
+    q20
+end
+=#</code></pre><p>Next, <code>render()</code> determines the type of each tabular node and attaches it to the corresponding <code>Box</code> node.</p><pre><code class="language-julia hljs">display(render(q, debug = :resolve))
+#=&gt;
+let person = SQLTable(:person, …),
+    location = SQLTable(:location, …),
+    visit_occurrence = SQLTable(:visit_occurrence, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Box(type = BoxType(:person,
+                            :person_id =&gt; ScalarType(),
+                            :gender_concept_id =&gt; ScalarType(),
+                            :year_of_birth =&gt; ScalarType(),
+                            :month_of_birth =&gt; ScalarType(),
+                            :day_of_birth =&gt; ScalarType(),
+                            :birth_datetime =&gt; ScalarType(),
+                            :location_id =&gt; ScalarType())),
+    ⋮
+    q19 = q18 |&gt;
+          Select(Get.person_id,
+                 NameBound(over = Agg.max(Get.visit_start_date),
+                           name = :visit_group) |&gt;
+                 As(:max_visit_start_date)),
+    q20 = q19 |&gt;
+          Box(type = BoxType(:person,
+                             :person_id =&gt; ScalarType(),
+                             :max_visit_start_date =&gt; ScalarType()))
+    q20
+end
+=#</code></pre><p>Next, <code>render()</code> validates column references and aggregate functions and determine the columns to be provided by each tabular query.</p><pre><code class="language-julia hljs">display(render(q, debug = :link))
+#=&gt;
+let person = SQLTable(:person, …),
+    location = SQLTable(:location, …),
+    visit_occurrence = SQLTable(:visit_occurrence, …),
+    q1 = From(person),
+    q2 = Get.location_id,
+    q3 = Get.person_id,
+    q4 = Get.person_id,
+    q5 = Get.year_of_birth,
+    q6 = q1 |&gt;
+         Box(type = BoxType(:person,
+                            :person_id =&gt; ScalarType(),
+                            :gender_concept_id =&gt; ScalarType(),
+                            :year_of_birth =&gt; ScalarType(),
+                            :month_of_birth =&gt; ScalarType(),
+                            :day_of_birth =&gt; ScalarType(),
+                            :birth_datetime =&gt; ScalarType(),
+                            :location_id =&gt; ScalarType()),
+             refs = [q2, q3, q4, q5]),
+    ⋮
+    q32 = q31 |&gt; Select(q4, q28 |&gt; As(:max_visit_start_date)),
+    q33 = q32 |&gt;
+          Box(type = BoxType(:person,
+                             :person_id =&gt; ScalarType(),
+                             :max_visit_start_date =&gt; ScalarType()),
+              refs = [Get.person_id, Get.max_visit_start_date])
+    q33
+end
+=#</code></pre><p>On the next stage, the query object is converted to a SQL syntax tree.</p><pre><code class="language-julia hljs">display(render(q, debug = :translate))
+#=&gt;
+ID(:person) |&gt;
+AS(:person_1) |&gt;
+FROM() |&gt;
+WHERE(OP(&quot;&lt;=&quot;, ID(:person_1) |&gt; ID(:year_of_birth), LIT(2000))) |&gt;
+SELECT(ID(:person_1) |&gt; ID(:location_id), ID(:person_1) |&gt; ID(:person_id)) |&gt;
+AS(:person_2) |&gt;
+FROM() |&gt;
+JOIN(ID(:location) |&gt;
+     AS(:location_1) |&gt;
+     FROM() |&gt;
+     WHERE(OP(&quot;=&quot;, ID(:location_1) |&gt; ID(:state), LIT(&quot;IL&quot;))) |&gt;
+     SELECT(ID(:location_1) |&gt; ID(:location_id)) |&gt;
+     AS(:location_2),
+     OP(&quot;=&quot;,
+        ID(:person_2) |&gt; ID(:location_id),
+        ID(:location_2) |&gt; ID(:location_id))) |&gt;
+JOIN(ID(:visit_occurrence) |&gt;
+     AS(:visit_occurrence_1) |&gt;
+     FROM() |&gt;
+     GROUP(ID(:visit_occurrence_1) |&gt; ID(:person_id)) |&gt;
+     SELECT(ID(:visit_occurrence_1) |&gt; ID(:person_id),
+            AGG(&quot;MAX&quot;, ID(:visit_occurrence_1) |&gt; ID(:visit_start_date)) |&gt;
+            AS(:max)) |&gt;
+     AS(:visit_group_1),
+     OP(&quot;=&quot;,
+        ID(:person_2) |&gt; ID(:person_id),
+        ID(:visit_group_1) |&gt; ID(:person_id)),
+     left = true) |&gt;
+SELECT(ID(:person_2) |&gt; ID(:person_id),
+       ID(:visit_group_1) |&gt; ID(:max) |&gt; AS(:max_visit_start_date))
+=#</code></pre><p>Finally, the SQL tree is serialized into SQL.</p><pre><code class="language-julia hljs">print(render(q, debug = :render))
+#=&gt;
+SELECT &quot;person_2&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
+FROM (
+  SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 2000)
+) AS &quot;person_2&quot;
+JOIN (
+  SELECT &quot;location_1&quot;.&quot;location_id&quot;
+  FROM &quot;location&quot; AS &quot;location_1&quot;
+  WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
+) AS &quot;location_2&quot; ON (&quot;person_2&quot;.&quot;location_id&quot; = &quot;location_2&quot;.&quot;location_id&quot;)
+LEFT JOIN (
+  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.9 on <span class="colophon-date" title="Tuesday 19 October 2021 18:07">Tuesday 19 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
