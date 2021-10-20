@@ -869,7 +869,8 @@ WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
          left = true) |&gt;
     Select(Get.person_id,
            :max_visit_start_date =&gt;
-               Get.visit_group |&gt; Agg.max(Get.visit_start_date))</code></pre><p>At the first stage of the translation, <code>render()</code> augments the query object with some additional nodes.  A <code>Box</code> node is inserted in front of each tabular node and hierarchical <code>Get</code> nodes are reversed.</p><pre><code class="language-julia hljs">withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.annotate&quot;) do
+               Get.visit_group |&gt; Agg.max(Get.visit_start_date))</code></pre><p>At the first stage of the translation, <code>render()</code> augments the query object with some additional nodes.  A <code>Box</code> node is inserted in front of each tabular node and hierarchical <code>Get</code> nodes are reversed.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;    # https://github.com/JuliaLang/julia/issues/26798
+withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.annotate&quot;) do
     render(q)
 end;
 #=&gt;
@@ -889,7 +890,8 @@ end;
 │     q20
 │ end
 └ @ FunSQL …
-=#</code></pre><p>Next, <code>render()</code> determines the type of each tabular node and attaches it to the corresponding <code>Box</code> node.</p><pre><code class="language-julia hljs">withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.resolve!&quot;) do
+=#</code></pre><p>Next, <code>render()</code> determines the type of each tabular node and attaches it to the corresponding <code>Box</code> node.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
+withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.resolve!&quot;) do
     render(q)
 end;
 #=&gt;
@@ -920,7 +922,8 @@ end;
 │     q20
 │ end
 └ @ FunSQL …
-=#</code></pre><p>Next, <code>render()</code> validates column references and aggregate functions and determine the columns to be provided by each tabular query.</p><pre><code class="language-julia hljs">withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.link!&quot;) do
+=#</code></pre><p>Next, <code>render()</code> validates column references and aggregate functions and determine the columns to be provided by each tabular query.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
+withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.link!&quot;) do
     render(q)
 end;
 #=&gt;
@@ -953,7 +956,8 @@ end;
 │     q33
 │ end
 └ @ FunSQL …
-=#</code></pre><p>On the next stage, the query object is converted to a SQL syntax tree.</p><pre><code class="language-julia hljs">withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.translate&quot;) do
+=#</code></pre><p>On the next stage, the query object is converted to a SQL syntax tree.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
+withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.translate&quot;) do
     render(q)
 end;
 #=&gt;
@@ -989,7 +993,8 @@ end;
 │ SELECT(ID(:person_2) |&gt; ID(:person_id),
 │        ID(:visit_group_1) |&gt; ID(:max) |&gt; AS(:max_visit_start_date))
 └ @ FunSQL …
-=#</code></pre><p>Finally, the SQL tree is serialized into SQL.</p><pre><code class="language-julia hljs">withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.render&quot;) do
+=#</code></pre><p>Finally, the SQL tree is serialized into SQL.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
+withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.render&quot;) do
     render(q)
 end;
 #=&gt;
@@ -1011,4 +1016,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 20 October 2021 12:56">Wednesday 20 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 20 October 2021 16:07">Wednesday 20 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
