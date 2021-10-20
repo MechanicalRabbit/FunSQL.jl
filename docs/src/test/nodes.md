@@ -1230,6 +1230,7 @@ At the first stage of the translation, `render()` augments the query object
 with some additional nodes.  A `Box` node is inserted in front of each
 tabular node and hierarchical `Get` nodes are reversed.
 
+    #? VERSION >= v"1.7"    # https://github.com/JuliaLang/julia/issues/26798
     withenv("JULIA_DEBUG" => "FunSQL.annotate") do
         render(q)
     end;
@@ -1255,6 +1256,7 @@ tabular node and hierarchical `Get` nodes are reversed.
 Next, `render()` determines the type of each tabular node and attaches
 it to the corresponding `Box` node.
 
+    #? VERSION >= v"1.7"
     withenv("JULIA_DEBUG" => "FunSQL.resolve!") do
         render(q)
     end;
@@ -1291,6 +1293,7 @@ it to the corresponding `Box` node.
 Next, `render()` validates column references and aggregate functions
 and determine the columns to be provided by each tabular query.
 
+    #? VERSION >= v"1.7"
     withenv("JULIA_DEBUG" => "FunSQL.link!") do
         render(q)
     end;
@@ -1328,6 +1331,7 @@ and determine the columns to be provided by each tabular query.
 
 On the next stage, the query object is converted to a SQL syntax tree.
 
+    #? VERSION >= v"1.7"
     withenv("JULIA_DEBUG" => "FunSQL.translate") do
         render(q)
     end;
@@ -1368,6 +1372,7 @@ On the next stage, the query object is converted to a SQL syntax tree.
 
 Finally, the SQL tree is serialized into SQL.
 
+    #? VERSION >= v"1.7"
     withenv("JULIA_DEBUG" => "FunSQL.render") do
         render(q)
     end;
