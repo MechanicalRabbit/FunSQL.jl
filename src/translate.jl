@@ -1,19 +1,18 @@
 # Translating a SQL node graph to a SQL statement.
 
-function render(n; dialect = :default, debug = nothing)
+function render(n; dialect = :default)
     actx = AnnotateContext()
     n′ = annotate(convert(SQLNode, n), actx)
-    debug === :annotate && return n′
+    @debug "FunSQL.annotate\n" * sprint(pprint, n′) _group = Symbol("FunSQL.annotate")
     resolve!(actx)
-    debug === :resolve && return n′
+    @debug "FunSQL.resolve!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.resolve!")
     link!(actx)
-    debug === :link && return n′
+    @debug "FunSQL.link!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.link!")
     tctx = TranslateContext(dialect, actx.path_map)
     c = translate(n′, tctx)
-    debug === :translate && return c
+    @debug "FunSQL.translate\n" * sprint(pprint, c) _group = Symbol("FunSQL.translate")
     sql = render(c, dialect = dialect)
-    debug === :render && return sql
-    @assert debug === nothing
+    @debug "FunSQL.render\n" * sql _group = Symbol("FunSQL.render")
     sql
 end
 
