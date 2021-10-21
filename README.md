@@ -37,23 +37,19 @@ With FunSQL, this question is expressed as a composite query object:
 ```julia
 From(person) |>
 Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-Join(From(location) |>
-     Where(Get.state .== "IL") |>
-     As(:location),
+Join(From(location) |> Where(Get.state .== "IL") |> As(:location),
      on = Get.location_id .== Get.location.location_id) |>
-Join(From(visit_occurrence) |>
-     Group(Get.person_id) |>
-     As(:visit_group),
+Join(From(visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
      on = Get.person_id .== Get.visit_group.person_id,
      left = true) |>
 Select(Get.person_id,
-       Get.visit_group |> Agg.max(Get.visit_start_date) |> As(:max_visit_start_date))
+       Get.visit_group |> Agg.max(Get.visit_start_date) |> As(:last_visit_date))
 ```
 
 This object is rendered by FunSQL into the following SQL statement:
 
 ```sql
-SELECT "person_2"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+SELECT "person_2"."person_id", "visit_group_1"."max" AS "last_visit_date"
 FROM (
   SELECT "person_1"."location_id", "person_1"."person_id"
   FROM "person" AS "person_1"
