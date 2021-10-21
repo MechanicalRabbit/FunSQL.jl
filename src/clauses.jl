@@ -120,6 +120,15 @@ PrettyPrinting.quoteof(cs::Vector{SQLClause}, ctx::QuoteContext) =
         Any[:…]
     end
 
+PrettyPrinting.quoteof(names::Vector{Symbol}, ctx::QuoteContext) =
+    if isempty(names)
+        Any[]
+    elseif !ctx.limit
+        Any[QuoteNode(name) for name in names]
+    else
+        Any[:…]
+    end
+
 
 # Concrete clause types.
 

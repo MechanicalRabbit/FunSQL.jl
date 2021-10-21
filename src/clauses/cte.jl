@@ -52,7 +52,7 @@ dissect(scr::Symbol, ::typeof(CTE), pats::Vector{Any}) =
 function PrettyPrinting.quoteof(c::CTEClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(CTE), quoteof(c.name))
     if c.columns !== nothing
-        push!(ex.args, Expr(:kw, :columns, Expr(:vect, Any[QuoteNode(col) for col in c.columns]...)))
+        push!(ex.args, Expr(:kw, :columns, Expr(:vect, quoteof(c.columns, ctx)...)))
     end
     if c.materialized !== nothing
         push!(ex.args, Expr(:kw, :materialized, c.materialized))
