@@ -51,22 +51,22 @@ Select(Get.person_id,
 This object is rendered by FunSQL into the following SQL statement:
 
 ```sql
-SELECT "person_3"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+SELECT "person_2"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
 FROM (
   SELECT "person_1"."location_id", "person_1"."person_id"
   FROM "person" AS "person_1"
   WHERE ("person_1"."year_of_birth" BETWEEN 1930 AND 1940)
-) AS "person_3"
+) AS "person_2"
 JOIN (
   SELECT "location_1"."location_id"
   FROM "location" AS "location_1"
   WHERE ("location_1"."state" = 'IL')
-) AS "location_3" ON ("person_3"."location_id" = "location_3"."location_id")
+) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
 LEFT JOIN (
   SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
   FROM "visit_occurrence" AS "visit_occurrence_1"
   GROUP BY "visit_occurrence_1"."person_id"
-) AS "visit_group_1" ON ("person_3"."person_id" = "visit_group_1"."person_id")
+) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")
 ```
 
 With FunSQL, SQL clauses such as `FROM`, `WHERE`, and `JOIN` are represented by
@@ -76,9 +76,9 @@ clauses; when necessary, FunSQL automatically adds nested subqueries and
 threads through them column references and aggregate expressions.
 
 Scalar expressions are straightforward: `Fun.between` and `.==` is how FunSQL
-represents SQL functions and operators; `Agg.max` is a separate notation for
-aggregate functions; `Get.person_id` is a reference to a column.
-`Get.location.person_id` refers to a column fenced by `:location =>`.
+represents SQL functions and operators; `Agg.max` is a notation for aggregate
+functions; `Get.person_id` is a reference to a column; `Get.location.person_id`
+refers to a column fenced by `:location =>`.
 
 Variables `person`, `location`, and `visit_occurrence` are `SQLTable` objects
 describing the corresponding tables.  For the description of this database and
