@@ -126,6 +126,28 @@ print(render(q))
 #=&gt;
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>This is particularly useful when you need to disambiguate the output of <code>Join</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    As(:p) |&gt;
+    Join(From(location) |&gt; As(:l),
+         on = Get.p.location_id .== Get.l.location_id) |&gt;
+    Select(Get.p.person_id, Get.l.state)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
+=#</code></pre><p>Alternatively, node-bound references could be used for this purpose.</p><pre><code class="language-julia hljs">qₚ = From(person)
+qₗ = From(location)
+q = qₚ |&gt;
+    Join(qₗ, on = qₚ.location_id .== qₗ.location_id) |&gt;
+    Select(qₚ.person_id, qₗ.state)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
 =#</code></pre><p>When <code>Get</code> refers to an unknown attribute, an error is reported.</p><pre><code class="language-julia hljs">q = Select(Get.person_id)
 
 print(render(q))
@@ -160,6 +182,64 @@ let person = SQLTable(:person, …),
     q4 = q3 |&gt; Select(Get.person_id)
     q4
 end
+=#</code></pre><p>An incomplete hierarchical reference, as well as an unexpected hierarchical reference, will result in an error.</p><pre><code class="language-julia hljs">q = person |&gt;
+    As(:p) |&gt;
+    Select(Get.p)
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: incomplete reference p in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; As(:p) |&gt; Select(Get.p)
+    q2
+end
+=#
+
+q = person |&gt;
+    Select(Get.person_id.year_of_birth)
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: unexpected reference after person_id in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Select(Get.person_id.year_of_birth)
+    q2
+end
+=#</code></pre><p>A node-bound reference that is bound to an unrelated node will cause an error.</p><pre><code class="language-julia hljs">q = (qₚ = From(person)) |&gt;
+    Join(:location =&gt; From(location) |&gt; Where(qₚ.year_of_birth .&gt;= 1950),
+         on = Get.location_id .== Get.location.location_id)
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: node-bound reference failed to resolve in:
+let person = SQLTable(:person, …),
+    location = SQLTable(:location, …),
+    q1 = From(person),
+    q2 = From(location),
+    q3 = q2 |&gt; Where(Fun.&quot;&gt;=&quot;(q1.year_of_birth, Lit(1950))),
+    q4 = q1 |&gt;
+         Join(q3 |&gt; As(:location),
+              Fun.&quot;==&quot;(Get.location_id, Get.location.location_id))
+    q4
+end
+=#</code></pre><p>A node-bound reference which cannot be resolved unambiguously will also cause an error.</p><pre><code class="language-julia hljs">q = (qₚ = From(person)) |&gt;
+    Join(:another =&gt; qₚ,
+         on = Get.person_id .!= Get.another.person_id) |&gt;
+    Select(qₚ.person_id)
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: node-bound reference is ambiguous in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Join(q1 |&gt; As(:another),
+              Fun.&quot;!=&quot;(Get.person_id, Get.another.person_id)),
+    q3 = q2 |&gt; Select(q1.person_id)
+    q3
+end
 =#</code></pre><p>Any expression could be given a name and attached to a query using the <code>Define</code> constructor.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Define(:age =&gt; Fun.now() .- Get.birth_datetime)
 #-&gt; (…) |&gt; Define(…)
@@ -182,6 +262,20 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, (NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE ((NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) &gt; &#39;16 years&#39;)
+=#</code></pre><p><code>Define</code> can be used to override an existing field.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Define(:person_id =&gt; Get.year_of_birth, :year_of_birth =&gt; Get.person_id)
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;year_of_birth&quot; AS &quot;person_id&quot;, …, &quot;person_1&quot;.&quot;person_id&quot; AS &quot;year_of_birth&quot;, …
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>Define</code> requires that all definitions have a unique alias.</p><pre><code class="language-julia hljs">From(person) |&gt;
+Define(:age =&gt; Fun.now() .- Get.birth_datetime,
+       :age =&gt; Fun.current_timestamp() .- Get.birth_datetime)
+#=&gt;
+ERROR: FunSQL.DuplicateLabelError: age is used more than once in:
+Define(Fun.&quot;-&quot;(Fun.now(), Get.birth_datetime) |&gt; As(:age),
+       Fun.&quot;-&quot;(Fun.current_timestamp(), Get.birth_datetime) |&gt; As(:age))
 =#</code></pre><h2 id="Variables"><a class="docs-heading-anchor" href="#Variables">Variables</a><a id="Variables-1"></a><a class="docs-heading-anchor-permalink" href="#Variables" title="Permalink"></a></h2><p>A query variable is created with the <code>Var</code> constructor.</p><pre><code class="language-julia hljs">e = Var(:year)
 #-&gt; Var.year</code></pre><p>Alternatively, use shorthand notation.</p><pre><code class="language-julia hljs">Var.year
 #-&gt; Var.year
@@ -241,7 +335,14 @@ WHERE (EXISTS (
   WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
 ))
 =#</code></pre><p>An empty <code>Bind</code> can be created.</p><pre><code class="language-julia hljs">Bind(list = [])
-#-&gt; Bind(list = [])</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
+#-&gt; Bind(list = [])</code></pre><p><code>Bind</code> requires that all variables have a unique name.</p><pre><code class="language-julia hljs">Bind(:person_id =&gt; 1, :person_id =&gt; 2)
+#=&gt;
+ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+Bind(Lit(1) |&gt; As(:person_id), Lit(2) |&gt; As(:person_id))
+=#</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;
+#-&gt; Fun.:(&quot;&gt;&quot;)
+
+e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)
 
 display(e)
@@ -406,7 +507,10 @@ print(render(q))
 #=&gt;
 SELECT DISTINCT &quot;person_1&quot;.&quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-=#</code></pre><p>Partitions created by <code>Group</code> are summarized using aggregate expressions.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+=#</code></pre><p>Partitions created by <code>Group</code> are summarized using aggregate expressions.</p><pre><code class="language-julia hljs">Agg.count
+#-&gt; Agg.count
+
+q = From(person) |&gt;
     Group(Get.year_of_birth) |&gt;
     Select(Get.year_of_birth, Agg.count())
 
@@ -492,6 +596,60 @@ print(render(q))
 #=&gt;
 SELECT (COUNT(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950))) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>It is an error for an aggregate expression to be used without <code>Group</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt; Select(Agg.count())
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: aggregate expression requires Group or Partition in:
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Select(Agg.count())
+    q2
+end
+=#</code></pre><p>It is also an error when <code>Group</code> cannot be determined unambiguously.</p><pre><code class="language-julia hljs">qₚ = From(person)
+qᵥ = From(visit_occurrence) |&gt; Group(Get.person_id)
+qₘ = From(measurement) |&gt; Group(Get.person_id)
+
+q = qₚ |&gt;
+    Join(qᵥ, on = qₚ.person_id .== qᵥ.person_id, left = true) |&gt;
+    Join(qₘ, on = qₚ.person_id .== qₘ.person_id, left = true) |&gt;
+    Select(qₚ.person_id, :count =&gt; Fun.coalesce(Agg.count(), 0))
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: aggregate expression is ambiguous in:
+let person = SQLTable(:person, …),
+    visit_occurrence = SQLTable(:visit_occurrence, …),
+    measurement = SQLTable(:measurement, …),
+    q1 = From(person),
+    q2 = From(visit_occurrence),
+    q3 = Get.person_id,
+    q4 = q2 |&gt; Group(q3),
+    q5 = q1 |&gt; Join(q4, Fun.&quot;==&quot;(q1.person_id, q4.person_id), left = true),
+    q6 = From(measurement),
+    q7 = Get.person_id,
+    q8 = q6 |&gt; Group(q7),
+    q9 = q5 |&gt; Join(q8, Fun.&quot;==&quot;(q1.person_id, q8.person_id), left = true),
+    q10 = q9 |&gt;
+          Select(q1.person_id, Fun.coalesce(Agg.count(), Lit(0)) |&gt; As(:count))
+    q10
+end
+=#</code></pre><p>It is still possible to use an aggregate in the context of a Join when the corresponding <code>Group</code> could be determined unambiguously.</p><pre><code class="language-julia hljs">qₚ = From(person)
+qᵥ = From(visit_occurrence) |&gt; Group(Get.person_id)
+
+q = qₚ |&gt;
+    Join(qᵥ, on = qₚ.person_id .== qᵥ.person_id, left = true) |&gt;
+    Select(qₚ.person_id, :count =&gt; Fun.coalesce(Agg.count(), 0))
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;, COALESCE(&quot;visit_occurrence_2&quot;.&quot;count&quot;, 0) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+LEFT JOIN (
+  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, COUNT(*) AS &quot;count&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+) AS &quot;visit_occurrence_2&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_2&quot;.&quot;person_id&quot;)
 =#</code></pre><h2 id="Partition"><a class="docs-heading-anchor" href="#Partition"><code>Partition</code></a><a id="Partition-1"></a><a class="docs-heading-anchor-permalink" href="#Partition" title="Permalink"></a></h2><p>The <code>Partition</code> constructor creates a subquery that partitions the rows by the given keys.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Partition(Get.year_of_birth, order_by = [Get.month_of_birth, Get.day_of_birth])
 #-&gt; (…) |&gt; Partition(…, order_by = […])
@@ -1016,4 +1174,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Thursday 21 October 2021 08:18">Thursday 21 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Friday 22 October 2021 10:24">Friday 22 October 2021</span>. Using Julia version 1.6.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
