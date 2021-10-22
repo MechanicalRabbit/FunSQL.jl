@@ -252,6 +252,8 @@ function Base.showerror(io::IO, err::IllFormedError)
     showpath(io, err.path)
 end
 
+module REFERENCE_ERROR_TYPE
+
 @enum ReferenceErrorType::UInt8 begin
     UNDEFINED_HANDLE
     AMBIGUOUS_HANDLE
@@ -262,6 +264,10 @@ end
     UNEXPECTED_AGGREGATE
     AMBIGUOUS_AGGREGATE
 end
+
+end
+
+import .REFERENCE_ERROR_TYPE.ReferenceErrorType
 
 struct ReferenceError <: FunSQLError
     type::ReferenceErrorType
@@ -274,21 +280,21 @@ end
 
 function Base.showerror(io::IO, err::ReferenceError)
     print(io, "FunSQL.ReferenceError: ")
-    if err.type == UNDEFINED_HANDLE
+    if err.type == REFERENCE_ERROR_TYPE.UNDEFINED_HANDLE
         print(io, "node-bound reference failed to resolve")
-    elseif err.type == AMBIGUOUS_HANDLE
+    elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_HANDLE
         print(io, "node-bound reference is ambiguous")
-    elseif err.type == UNDEFINED_NAME
+    elseif err.type == REFERENCE_ERROR_TYPE.UNDEFINED_NAME
         print(io, "cannot find $(err.name)")
-    elseif err.type == AMBIGUOUS_NAME
+    elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME
         print(io, "$(err.name) is ambiguous")
-    elseif err.type == UNEXPECTED_ROW_TYPE
+    elseif err.type == REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE
         print(io, "incomplete reference $(err.name)")
-    elseif err.type == UNEXPECTED_SCALAR_TYPE
+    elseif err.type == REFERENCE_ERROR_TYPE.UNEXPECTED_SCALAR_TYPE
         print(io, "unexpected reference after $(err.name)")
-    elseif err.type == UNEXPECTED_AGGREGATE
+    elseif err.type == REFERENCE_ERROR_TYPE.UNEXPECTED_AGGREGATE
         print(io, "aggregate expression requires Group or Partition")
-    elseif err.type == AMBIGUOUS_AGGREGATE
+    elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_AGGREGATE
         print(io, "aggregate expression is ambiguous")
     end
     showpath(io, err.path)

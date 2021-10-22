@@ -70,8 +70,13 @@ function PrettyPrinting.quoteof(n::AppendNode, ctx::QuoteContext)
     ex
 end
 
-label(n::AppendNode) =
-    :union
+function label(n::AppendNode)
+    lbl = label(n.over)
+    for l in n.list
+        label(l) === lbl || return :union
+    end
+    lbl
+end
 
 rebase(n::AppendNode, n′) =
     AppendNode(over = rebase(n.over, n′), list = n.list)

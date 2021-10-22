@@ -565,22 +565,18 @@ end
 
 # Validating references.
 
-function validate(t::BoxType, refs::Vector{SQLNode}, ctx)
-    for ref in refs
-        validate(t, ref, ctx)
-    end
-end
-
 function validate(t::BoxType, ref::SQLNode, ctx)
     if @dissect ref over |> HandleBound(handle = handle)
         if handle in keys(t.handle_map)
             ht = t.handle_map[handle]
             if ht isa AmbiguousType
-                throw(ReferenceError(AMBIGUOUS_HANDLE, path = get_path(ctx, ref)))
+                throw(ReferenceError(REFERENCE_ERROR_TYPE.AMBIGUOUS_HANDLE,
+                                     path = get_path(ctx, ref)))
             end
             validate(ht, over, ctx)
         else
-            throw(ReferenceError(UNDEFINED_HANDLE, path = get_path(ctx, ref)))
+            throw(ReferenceError(REFERENCE_ERROR_TYPE.UNDEFINED_HANDLE,
+                                 path = get_path(ctx, ref)))
         end
     else
         validate(t.row, ref, ctx)
@@ -592,9 +588,9 @@ function validate(t::RowType, ref::SQLNode, ctx)
         ft = get(t.fields, name, EmptyType())
         if !(ft isa RowType)
             type =
-                ft isa EmptyType ? UNDEFINED_NAME :
-                ft isa ScalarType ? UNEXPECTED_SCALAR_TYPE :
-                ft isa AmbiguousType ? AMBIGUOUS_NAME : error()
+                ft isa EmptyType ? REFERENCE_ERROR_TYPE.UNDEFINED_NAME :
+                ft isa ScalarType ? REFERENCE_ERROR_TYPE.UNEXPECTED_SCALAR_TYPE :
+                ft isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME : error()
             throw(ReferenceError(type, name = name, path = get_path(ctx, ref)))
         end
         t = ft
@@ -604,16 +600,16 @@ function validate(t::RowType, ref::SQLNode, ctx)
         ft = get(t.fields, name, EmptyType())
         if !(ft isa ScalarType)
             type =
-                ft isa EmptyType ? UNDEFINED_NAME :
-                ft isa RowType ? UNEXPECTED_ROW_TYPE :
-                ft isa AmbiguousType ? AMBIGUOUS_NAME : error()
+                ft isa EmptyType ? REFERENCE_ERROR_TYPE.UNDEFINED_NAME :
+                ft isa RowType ? REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE :
+                ft isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME : error()
             throw(ReferenceError(type, name = name, path = get_path(ctx, ref)))
         end
     elseif @dissect ref nothing |> Agg(name = name)
         if !(t.group isa RowType)
             type =
-                t.group isa EmptyType ? UNEXPECTED_AGGREGATE :
-                t.group isa AmbiguousType ? AMBIGUOUS_AGGREGATE : error()
+                t.group isa EmptyType ? REFERENCE_ERROR_TYPE.UNEXPECTED_AGGREGATE :
+                t.group isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_AGGREGATE : error()
             throw(ReferenceError(type, path = get_path(ctx, ref)))
         end
     else

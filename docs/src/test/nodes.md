@@ -196,6 +196,36 @@ Hierarchical notation is supported.
     FROM "person" AS "person_1"
     =#
 
+This is particularly useful when you need to disambiguate the output of `Join`.
+
+    q = From(person) |>
+        As(:p) |>
+        Join(From(location) |> As(:l),
+             on = Get.p.location_id .== Get.l.location_id) |>
+        Select(Get.p.person_id, Get.l.state)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "location_1"."state"
+    FROM "person" AS "person_1"
+    JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
+    =#
+
+Alternatively, node-bound references could be used for this purpose.
+
+    qₚ = From(person)
+    qₗ = From(location)
+    q = qₚ |>
+        Join(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
+        Select(qₚ.person_id, qₗ.state)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "location_1"."state"
+    FROM "person" AS "person_1"
+    JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
+    =#
+
 When `Get` refers to an unknown attribute, an error is reported.
 
     q = Select(Get.person_id)
@@ -239,6 +269,78 @@ unambiguously.
     end
     =#
 
+An incomplete hierarchical reference, as well as an unexpected hierarchical
+reference, will result in an error.
+
+    q = person |>
+        As(:p) |>
+        Select(Get.p)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: incomplete reference p in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> As(:p) |> Select(Get.p)
+        q2
+    end
+    =#
+
+    q = person |>
+        Select(Get.person_id.year_of_birth)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: unexpected reference after person_id in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Select(Get.person_id.year_of_birth)
+        q2
+    end
+    =#
+
+A node-bound reference that is bound to an unrelated node will cause an error.
+
+    q = (qₚ = From(person)) |>
+        Join(:location => From(location) |> Where(qₚ.year_of_birth .>= 1950),
+             on = Get.location_id .== Get.location.location_id)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: node-bound reference failed to resolve in:
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        q1 = From(person),
+        q2 = From(location),
+        q3 = q2 |> Where(Fun.">="(q1.year_of_birth, Lit(1950))),
+        q4 = q1 |>
+             Join(q3 |> As(:location),
+                  Fun."=="(Get.location_id, Get.location.location_id))
+        q4
+    end
+    =#
+
+A node-bound reference which cannot be resolved unambiguously will also cause
+an error.
+
+    q = (qₚ = From(person)) |>
+        Join(:another => qₚ,
+             on = Get.person_id .!= Get.another.person_id) |>
+        Select(qₚ.person_id)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: node-bound reference is ambiguous in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Join(q1 |> As(:another),
+                  Fun."!="(Get.person_id, Get.another.person_id)),
+        q3 = q2 |> Select(q1.person_id)
+        q3
+    end
+    =#
+
 Any expression could be given a name and attached to a query using the `Define`
 constructor.
 
@@ -269,6 +371,28 @@ attribute.
     SELECT "person_1"."person_id", …, (NOW() - "person_1"."birth_datetime") AS "age"
     FROM "person" AS "person_1"
     WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
+    =#
+
+`Define` can be used to override an existing field.
+
+    q = From(person) |>
+        Define(:person_id => Get.year_of_birth, :year_of_birth => Get.person_id)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth" AS "person_id", …, "person_1"."person_id" AS "year_of_birth", …
+    FROM "person" AS "person_1"
+    =#
+
+`Define` requires that all definitions have a unique alias.
+
+    From(person) |>
+    Define(:age => Fun.now() .- Get.birth_datetime,
+           :age => Fun.current_timestamp() .- Get.birth_datetime)
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: age is used more than once in:
+    Define(Fun."-"(Fun.now(), Get.birth_datetime) |> As(:age),
+           Fun."-"(Fun.current_timestamp(), Get.birth_datetime) |> As(:age))
     =#
 
 
@@ -357,10 +481,21 @@ An empty `Bind` can be created.
     Bind(list = [])
     #-> Bind(list = [])
 
+`Bind` requires that all variables have a unique name.
+
+    Bind(:person_id => 1, :person_id => 2)
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+    Bind(Lit(1) |> As(:person_id), Lit(2) |> As(:person_id))
+    =#
+
 
 ## Functions and Operations
 
 A function or an operator invocation is created with the `Fun` constructor.
+
+    Fun.">"
+    #-> Fun.:(">")
 
     e = Fun.">"(Get.year_of_birth, 2000)
     #-> Fun.:(">")(…)
@@ -609,6 +744,9 @@ by the given keys.
 
 Partitions created by `Group` are summarized using aggregate expressions.
 
+    Agg.count
+    #-> Agg.count
+
     q = From(person) |>
         Group(Get.year_of_birth) |>
         Select(Get.year_of_birth, Agg.count())
@@ -724,6 +862,73 @@ Aggregate expressions can be applied to a filtered portion of a partition.
     #=>
     SELECT (COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" > 1950))) AS "count"
     FROM "person" AS "person_1"
+    =#
+
+It is an error for an aggregate expression to be used without `Group`.
+
+    q = From(person) |> Select(Agg.count())
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: aggregate expression requires Group or Partition in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Select(Agg.count())
+        q2
+    end
+    =#
+
+It is also an error when `Group` cannot be determined unambiguously.
+
+    qₚ = From(person)
+    qᵥ = From(visit_occurrence) |> Group(Get.person_id)
+    qₘ = From(measurement) |> Group(Get.person_id)
+
+    q = qₚ |>
+        Join(qᵥ, on = qₚ.person_id .== qᵥ.person_id, left = true) |>
+        Join(qₘ, on = qₚ.person_id .== qₘ.person_id, left = true) |>
+        Select(qₚ.person_id, :count => Fun.coalesce(Agg.count(), 0))
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: aggregate expression is ambiguous in:
+    let person = SQLTable(:person, …),
+        visit_occurrence = SQLTable(:visit_occurrence, …),
+        measurement = SQLTable(:measurement, …),
+        q1 = From(person),
+        q2 = From(visit_occurrence),
+        q3 = Get.person_id,
+        q4 = q2 |> Group(q3),
+        q5 = q1 |> Join(q4, Fun."=="(q1.person_id, q4.person_id), left = true),
+        q6 = From(measurement),
+        q7 = Get.person_id,
+        q8 = q6 |> Group(q7),
+        q9 = q5 |> Join(q8, Fun."=="(q1.person_id, q8.person_id), left = true),
+        q10 = q9 |>
+              Select(q1.person_id, Fun.coalesce(Agg.count(), Lit(0)) |> As(:count))
+        q10
+    end
+    =#
+
+It is still possible to use an aggregate in the context of a Join when the
+corresponding `Group` could be determined unambiguously.
+
+    qₚ = From(person)
+    qᵥ = From(visit_occurrence) |> Group(Get.person_id)
+
+    q = qₚ |>
+        Join(qᵥ, on = qₚ.person_id .== qᵥ.person_id, left = true) |>
+        Select(qₚ.person_id, :count => Fun.coalesce(Agg.count(), 0))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", COALESCE("visit_occurrence_2"."count", 0) AS "count"
+    FROM "person" AS "person_1"
+    LEFT JOIN (
+      SELECT "visit_occurrence_1"."person_id", COUNT(*) AS "count"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_occurrence_2" ON ("person_1"."person_id" = "visit_occurrence_2"."person_id")
     =#
 
 
