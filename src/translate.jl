@@ -164,7 +164,7 @@ translate(::Val{Symbol("is null")}, n::FunctionNode, ctx) =
     OP(:IS, SQLClause[translate(arg, ctx) for arg in n.args]..., missing)
 
 translate(::Val{Symbol("is not null")}, n::FunctionNode, ctx) =
-    OP(:IS, SQLClause[translate(arg, ctx) for arg in n.args]..., OP(:NOT, missing))
+    OP("IS NOT", SQLClause[translate(arg, ctx) for arg in n.args]..., missing)
 
 translate(::Val{:case}, n::FunctionNode, ctx) =
     CASE(args = SQLClause[translate(arg, ctx) for arg in n.args])
@@ -280,7 +280,7 @@ function make_repl(refs::Vector{SQLNode})::Dict{SQLNode, Symbol}
             end
             dups[name] = k
         end
-        repl[ref] = name
+        repl[ref] = name′
         dups[name′] = 1
     end
     repl
@@ -583,8 +583,8 @@ function assemble(n::OrderNode, refs, ctx)
     if @dissect base.clause (tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
         base_as = nothing
     else
-        tail = FROM(AS(over = complete(base), name = base_as))
         base_as = allocate_alias(ctx, n.over)
+        tail = FROM(AS(over = complete(base), name = base_as))
     end
     subs = make_subs(base, base_as)
     by = translate(n.by, ctx, subs)

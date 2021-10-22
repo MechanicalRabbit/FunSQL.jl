@@ -21,10 +21,10 @@ We start with specifying the database model.
         SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
 
     const measurement =
-        SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_date])
+        SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_concept_id, :measurement_date])
 
     const observation =
-        SQLTable(:observation, columns = [:observation_id, :person_id, :observation_date])
+        SQLTable(:observation, columns = [:observation_id, :person_id, :observation_concept_id, :observation_date])
 
 In FunSQL, a SQL query is generated from a tree of `SQLNode` objects.  The
 nodes are created using constructors with familiar SQL names and connected
@@ -384,6 +384,33 @@ attribute.
     FROM "person" AS "person_1"
     =#
 
+`Define` has no effect if none of the defined fields are used in the query.
+
+    q = From(person) |>
+        Define(:age => 2020 .- Get.year_of_birth) |>
+        Select(Get.person_id, Get.year_of_birth)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    =#
+
+`Define` can be used after `Select`.
+
+    q = From(person) |>
+        Select(Get.person_id, Get.year_of_birth) |>
+        Define(:age => 2020 .- Get.year_of_birth)
+
+    print(render(q))
+    #=>
+    SELECT "person_2"."person_id", "person_2"."year_of_birth", (2020 - "person_2"."year_of_birth") AS "age"
+    FROM (
+      SELECT "person_1"."person_id", "person_1"."year_of_birth"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    =#
+
 `Define` requires that all definitions have a unique alias.
 
     From(person) |>
@@ -551,11 +578,104 @@ A function invocation may include a nested query.
     ))
     =#
 
+FunSQL can properly represents many SQL functions and operators with irregular
+syntax.
+
+    q = From(person) |>
+        Where(Fun.and(Fun."is null"(Get.birth_datetime), Fun."is not null"(Get.year_of_birth)))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE (("person_1"."birth_datetime" IS NULL) AND ("person_1"."year_of_birth" IS NOT NULL))
+    =#
+
+FunSQL can simplify logical expressions.
+
+    q = From(person) |>
+        Where(Fun.and())
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+    q = From(person) |>
+        Select(Get.person_id) |>
+        Where(Fun.and())
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id"
+    FROM "person" AS "person_1"
+    =#
+
+    q = From(person) |>
+        Where(Fun.and(Get.year_of_birth .> 1950))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 1950)
+    =#
+
+    q = From(person) |>
+        Where(foldl(Fun.and, [Get.year_of_birth .> 1950, Get.year_of_birth .< 1960, Get.year_of_birth .!= 1955], init = Fun.and()))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE (("person_1"."year_of_birth" > 1950) AND ("person_1"."year_of_birth" < 1960) AND ("person_1"."year_of_birth" <> 1955))
+    =#
+
+    q = From(person) |>
+        Where(Fun.or())
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE FALSE
+    =#
+
+    q = From(person) |>
+        Where(Fun.or(Get.year_of_birth .> 1950))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > 1950)
+    =#
+
+    q = From(person) |>
+        Where(Fun.or(Fun.or(Fun.or(), Get.year_of_birth .> 1950), Get.year_of_birth .< 1960))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE (("person_1"."year_of_birth" > 1950) OR ("person_1"."year_of_birth" < 1960))
+    =#
+
+    q = From(person) |>
+        Where(Fun."not in"(Get.person_id))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
 
 ## `Append`
 
-The `Append` constructor creates a subquery that merges the output
-of multiple queries.
+The `Append` constructor creates a subquery that merges the output of multiple
+queries.
 
     q = From(measurement) |>
         Define(:date => Get.measurement_date) |>
@@ -586,6 +706,81 @@ of multiple queries.
       SELECT "observation_1"."person_id", "observation_1"."observation_date" AS "date"
       FROM "observation" AS "observation_1"
     ) AS "union_1"
+    =#
+
+`Append` will automatically assign unique aliases to the exported columns.
+
+    q = From(measurement) |>
+        Define(:concept_id => Get.measurement_concept_id) |>
+        Group(Get.person_id) |>
+        Define(:count_2 => 1) |>
+        Append(From(observation) |>
+               Define(:concept_id => Get.observation_concept_id) |>
+               Group(Get.person_id) |>
+               Define(:count_2 => 2)) |>
+        Select(Get.person_id, Agg.count(), Get.count_2, :count_distinct => Agg.count(distinct = true, Get.concept_id))
+
+    print(render(q))
+    #=>
+    SELECT "union_1"."person_id", "union_1"."count", "union_1"."count_2", "union_1"."count_3" AS "count_distinct"
+    FROM (
+      SELECT "measurement_1"."person_id", COUNT(*) AS "count", 1 AS "count_2", COUNT(DISTINCT "measurement_1"."measurement_concept_id") AS "count_3"
+      FROM "measurement" AS "measurement_1"
+      GROUP BY "measurement_1"."person_id"
+      UNION ALL
+      SELECT "observation_1"."person_id", COUNT(*) AS "count", 2 AS "count_2", COUNT(DISTINCT "observation_1"."observation_concept_id") AS "count_3"
+      FROM "observation" AS "observation_1"
+      GROUP BY "observation_1"."person_id"
+    ) AS "union_1"
+    =#
+
+`Append` will not put duplicate expressions into the `SELECT` clauses of the
+nested subqueries.
+
+    q = From(person) |>
+        Join(From(measurement) |>
+             Define(:date => Get.measurement_date) |>
+             Append(From(observation) |>
+                    Define(:date => Get.observation_date)) |>
+             As(:assessment),
+             on = Get.person_id .== Get.assessment.person_id) |>
+        Where(Get.assessment.date .> Fun.current_timestamp()) |>
+        Select(Get.person_id, Get.assessment.date)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", "assessment_1"."date"
+    FROM "person" AS "person_1"
+    JOIN (
+      SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+      FROM "measurement" AS "measurement_1"
+      UNION ALL
+      SELECT "observation_1"."person_id", "observation_1"."observation_date" AS "date"
+      FROM "observation" AS "observation_1"
+    ) AS "assessment_1" ON ("person_1"."person_id" = "assessment_1"."person_id")
+    WHERE ("assessment_1"."date" > CURRENT_TIMESTAMP)
+    =#
+
+`Append` can also work with queries with an explicit `Select`.
+
+    q = From(measurement) |>
+        Select(Get.person_id, :date => Get.measurement_date) |>
+        Append(From(observation) |>
+               Select(:date => Get.observation_date, Get.person_id))
+
+    print(render(q))
+    #=>
+    SELECT "measurement_2"."person_id", "measurement_2"."date"
+    FROM (
+      SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+      FROM "measurement" AS "measurement_1"
+    ) AS "measurement_2"
+    UNION ALL
+    SELECT "observation_2"."person_id", "observation_2"."date"
+    FROM (
+      SELECT "observation_1"."observation_date" AS "date", "observation_1"."person_id"
+      FROM "observation" AS "observation_1"
+    ) AS "observation_2"
     =#
 
 An `Append` without any queries can be created explicitly.
@@ -646,6 +841,18 @@ An alias to an expression can be added with the `As` constructor.
     print(render(q))
     #=>
     SELECT NULL
+    FROM "person" AS "person_1"
+    =#
+
+`As` does not block node-bound references.
+
+    q = (qₚ = From(person)) |>
+        As(:p) |>
+        Select(qₚ.person_id)
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
     =#
 
@@ -780,6 +987,24 @@ used more than once.
     WHERE ("visit_group_1"."count" >= 2)
     =#
 
+`Group` could be used consequently.
+
+    q = From(measurement) |>
+        Group(Get.measurement_concept_id) |>
+        Group(Agg.count()) |>
+        Select(Get.count, :size => Agg.count())
+
+    print(render(q))
+    #=>
+    SELECT "measurement_2"."count", COUNT(*) AS "size"
+    FROM (
+      SELECT COUNT(*) AS "count"
+      FROM "measurement" AS "measurement_1"
+      GROUP BY "measurement_1"."measurement_concept_id"
+    ) AS "measurement_2"
+    GROUP BY "measurement_2"."count"
+    =#
+
 `Group` accepts an empty list of keys.
 
     q = From(person) |>
@@ -878,7 +1103,8 @@ It is an error for an aggregate expression to be used without `Group`.
     end
     =#
 
-It is also an error when `Group` cannot be determined unambiguously.
+It is also an error when an aggregate expression cannot determine its `Group`
+unambiguously.
 
     qₚ = From(person)
     qᵥ = From(visit_occurrence) |> Group(Get.person_id)
@@ -1007,6 +1233,38 @@ A partition may specify the window frame.
     SELECT "person_1"."year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
+    =#
+
+It is common to use several `Partition` nodes in a row like in the following
+example which calculates non-overlapping visits.
+
+    q = From(visit_occurrence) |>
+        Partition(Get.person_id,
+                  order_by = [Get.visit_start_date],
+                  frame = (mode = :rows, start = -Inf, finish = -1)) |>
+        Define(:boundary => Agg.max(Get.visit_end_date)) |>
+        Define(:gap => Get.visit_start_date .- Get.boundary) |>
+        Define(:new => Fun.case(Get.gap .<= 0, 0, 1)) |>
+        Partition(Get.person_id,
+                  order_by = [Get.visit_start_date, .- Get.new],
+                  frame = :rows) |>
+        Define(:group => Agg.sum(Get.new)) |>
+        Group(Get.person_id, Get.group) |>
+        Define(:start_date => Agg.min(Get.visit_start_date),
+               :end_date => Agg.max(Get.visit_end_date)) |>
+        Select(Get.person_id, Get.start_date, Get.end_date)
+
+    print(render(q))
+    #=>
+    SELECT "visit_occurrence_3"."person_id", MIN("visit_occurrence_3"."visit_start_date") AS "start_date", MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
+    FROM (
+      SELECT "visit_occurrence_2"."person_id", (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "group", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
+      FROM (
+        SELECT "visit_occurrence_1"."person_id", (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date"
+        FROM "visit_occurrence" AS "visit_occurrence_1"
+      ) AS "visit_occurrence_2"
+    ) AS "visit_occurrence_3"
+    GROUP BY "visit_occurrence_3"."person_id", "visit_occurrence_3"."group"
     =#
 
 
@@ -1152,6 +1410,37 @@ The `Order` constructor creates a subquery for sorting the data.
     ORDER BY "person_1"."year_of_birth"
     =#
 
+`Order` is often used together with `Limit`.
+
+    q = From(person) |>
+        Order(Get.year_of_birth) |>
+        Limit(10) |>
+        Order(Get.person_id)
+
+    print(render(q))
+    #=>
+    SELECT "person_2"."person_id", …, "person_2"."location_id"
+    FROM (
+      SELECT "person_1"."person_id", …, "person_1"."location_id"
+      FROM "person" AS "person_1"
+      ORDER BY "person_1"."year_of_birth"
+      FETCH FIRST 10 ROWS ONLY
+    ) AS "person_2"
+    ORDER BY "person_2"."person_id"
+    =#
+
+An `Order` without columns to sort by is a no-op.
+
+    q = From(person) |>
+        Order(by = [])
+    #-> (…) |> Order(by = [])
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
 It is possible to specify ascending or descending order of the sort
 column.
 
@@ -1257,6 +1546,30 @@ Both the offset and the limit can be specified.
     FETCH NEXT 10 ROWS ONLY
     =#
 
+    q = From(person) |>
+        Limit(offset = 100) |>
+        Limit(limit = 10)
+
+    print(render(q))
+    #=>
+    SELECT "person_2"."person_id", …, "person_2"."location_id"
+    FROM (
+      SELECT "person_1"."person_id", …, "person_1"."location_id"
+      FROM "person" AS "person_1"
+      OFFSET 100 ROWS
+    ) AS "person_2"
+    FETCH FIRST 10 ROWS ONLY
+    =#
+
+    q = From(person)
+        Limit()
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
 
 ## `Select`
 
@@ -1344,6 +1657,17 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     SELECT "person_1"."person_id", …, "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
+    =#
+
+    q = From(person) |>
+        Where(Get.year_of_birth .!= 2010) |>
+        Where(Fun.and(Get.year_of_birth .> 2000, Get.year_of_birth .< 2020))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE (("person_1"."year_of_birth" <> 2010) AND ("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020))
     =#
 
 `Where` that follows `Group` subquery is transformed to a `HAVING` clause.

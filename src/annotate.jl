@@ -481,7 +481,7 @@ function resolve(n::DefineNode)
             fields[f] = ScalarType()
         end
     end
-    row = RowType(fields)
+    row = RowType(fields, t.row.group)
     BoxType(t.name, row, t.handle_map)
 end
 
