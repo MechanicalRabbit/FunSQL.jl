@@ -71,6 +71,7 @@ Pages = [
     "clauses/aggregate.jl",
     "clauses/as.jl",
     "clauses/case.jl",
+    "clauses/cte.jl",
     "clauses/from.jl",
     "clauses/function.jl",
     "clauses/group.jl",
@@ -89,6 +90,7 @@ Pages = [
     "clauses/variable.jl",
     "clauses/where.jl",
     "clauses/window.jl",
+    "clauses/with.jl",
 ]
 ```
 

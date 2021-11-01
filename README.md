@@ -22,7 +22,7 @@ fragments.  This approach is particularly useful for building applications that
 programmatically construct SQL queries.
 
 If you want to learn more about FunSQL, watch this video or go straight to the
-[FunSQL Tutorial][tutorial-url].
+[Usage Guide][guide-url].
 
 [![FunSQL | JuliaCon 2021][juliacon2021-img]][juliacon2021-url]
 
@@ -43,13 +43,13 @@ Join(From(visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
      on = Get.person_id .== Get.visit_group.person_id,
      left = true) |>
 Select(Get.person_id,
-       Get.visit_group |> Agg.max(Get.visit_start_date) |> As(:last_visit_date))
+       Get.visit_group |> Agg.max(Get.visit_start_date) |> As(:latest_visit_date))
 ```
 
 This object is rendered by FunSQL into the following SQL statement:
 
 ```sql
-SELECT "person_2"."person_id", "visit_group_1"."max" AS "last_visit_date"
+SELECT "person_2"."person_id", "visit_group_1"."max" AS "latest_visit_date"
 FROM (
   SELECT "person_1"."location_id", "person_1"."person_id"
   FROM "person" AS "person_1"
@@ -80,7 +80,7 @@ refers to a column fenced by `As(:location)`.
 
 Variables `person`, `location`, and `visit_occurrence` are `SQLTable` objects
 describing the corresponding tables.  For the description of this database and
-more examples, see the [Tutorial][tutorial-url].
+more examples, see the [Usage Guide][guide-url].
 
 Notably, FunSQL notation does not rely on macros or anonymous functions as they
 hinder modular query construction.  FunSQL queries and their intermediate
@@ -104,4 +104,4 @@ passed around as values, and freely composed together.
 [license-url]: https://raw.githubusercontent.com/MechanicalRabbit/FunSQL.jl/master/LICENSE.md
 [juliacon2021-img]: https://img.youtube.com/vi/rGWwmuvRUYk/maxresdefault.jpg
 [juliacon2021-url]: https://www.youtube.com/watch?v=rGWwmuvRUYk
-[tutorial-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/tutorial/
+[guide-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/guide/

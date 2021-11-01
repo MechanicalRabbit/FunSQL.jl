@@ -10,7 +10,7 @@ const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
 
 """
-    render(node; dialect = :default) :: String
+    render(node::Union{SQLNode, SQLClause}; dialect = :default)::SQLStatement
 
 Convert the given SQL node or clause object to a SQL string.
 """

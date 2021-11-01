@@ -1,10 +1,10 @@
-# Tutorial
+# Usage Guide
 
 ```@meta
 CurrentModule = FunSQL
 ```
 
-This tutorial will teach you how to build SQL queries using FunSQL.
+This guide will teach you how to assemble SQL queries using FunSQL.
 
 
 ## Test Database
@@ -14,13 +14,13 @@ here is a tiny 10 person sample of simulated patient data extracted from a much
 larger [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
 For a database engine, we picked [SQLite](https://www.sqlite.org/).  Using
-SQLite in a tutorial is convenient because it does not require a database
-server to run and allows us to distribute the whole database as a single file.
-FunSQL supports SQLite and many other database engines.  The techniques
-discussed here are not specific to SQLite and once you learn them, you will be
-able to apply them to any SQL database.
+SQLite in a guide is convenient because it does not require a database server
+to run and allows us to distribute the whole database as a single file.  FunSQL
+supports SQLite and many other database engines.  The techniques discussed here
+are not specific to SQLite and once you learn them, you will be able to apply
+them to any SQL database.
 
-If you wish to follow along with the tutorial and run the examples, download
+If you wish to follow along with the guide and run the examples, download
 the database file:
 
 ```julia
@@ -28,11 +28,10 @@ const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/down
 const DB = download(URL)
 ```
 
-While working on this tutorial, we run all the code examples on every update
-(using the
-[NarrativeTest](https://github.com/MechanicalRabbit/NarrativeTest.jl) package).
-To avoid downloading the database file more than once, we registered the
-download URL as an [artifact](../Artifacts.toml) and use
+All examples in this guide are tested on each update using the
+[NarrativeTest](https://github.com/MechanicalRabbit/NarrativeTest.jl) package.
+To avoid downloading the database file all the time, we registered the download
+URL as an [artifact](../Artifacts.toml) and use
 [`Pkg.Artifacts`](http://pkgdocs.julialang.org/v1/artifacts/) API to fetch it:
 
     using Pkg.Artifacts, LazyArtifacts
@@ -65,7 +64,7 @@ Later we will use the `conn` object to execute database queries.
 
 The data in the test database is stored in the format of the [OMOP Common Data
 Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an open
-source database schema for observational healthcare data.  In this tutorial, we
+source database schema for observational healthcare data.  In this guide, we
 will only use a small fragment of the Common Data Model.
 
 ![Fragment of the OMOP Common Data Model](omop-common-data-model.drawio.svg)
@@ -93,7 +92,7 @@ by the key column `location_id`:
 
 The bulk of patient data consists of clinical events: visits to healthcare
 providers, recorded observations, diagnosed conditions, prescribed medications,
-etc.  In this tutorial we only use two types of events, visits and conditions:
+etc.  In this guide we only use two types of events, visits and conditions:
 
     const visit_occurrence =
         SQLTable(:visit_occurrence,
@@ -127,8 +126,7 @@ corresponding table:
 
 ## Why FunSQL?
 
-Let us start with clarifying why you may want to use FunSQL.  Consider a
-problem:
+Let us start with clarifying the purpose of FunSQL.  Consider a problem:
 
 *Find all patients born between 1930 and 1940 and living in Illinois, and for
 each patient show their current age (by the end of 2020).*
@@ -166,7 +164,7 @@ output of a query in tabular form:
 
     using DataFrames
 
-    res |> DataFrame |> display
+    DataFrame(res)
     #=>
     1×2 DataFrame
      Row │ person_id  age
@@ -178,12 +176,11 @@ output of a query in tabular form:
 FunSQL introduces an extra step to this workflow.  Instead of embedding the SQL
 query directly into Julia code, we construct a *query object*:
 
-    using FunSQL: From, Fun, Get, Join, Select, Where
+    using FunSQL: As, From, Fun, Get, Join, Select, Where
 
     q = From(person) |>
         Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-        Join(:location => From(location) |>
-                          Where(Get.state .== "IL"),
+        Join(From(location) |> Where(Get.state .== "IL") |> As(:location),
              on = Get.location_id .== Get.location.location_id) |>
         Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
@@ -233,7 +230,7 @@ the query and display the result:
        1 │     72120     83
     =#
 
-Why, instead of embedding a complete SQL query, we may prefer to generate it
+Why, instead of embedding a complete SQL query, we prefer to generate it
 through a query object?  To justify this extra step, consider that in a real
 Julia program, any query is likely going to be parameterized:
 
@@ -322,16 +319,14 @@ each patient show their current age.*
 
 ## Tabular Operations
 
-Recall the query that was demonstrated in the [previous section](@ref
-Why-FunSQL?):
+Recall the query from the [previous section](@ref Why-FunSQL?):
 
 *Find all patients born between 1930 and 1940 and living in Illinois, and for
 each patient show their current age.*
 
     From(person) |>
     Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-    Join(:location => From(location) |>
-                      Where(Get.state .== "IL"),
+    Join(From(location) |> Where(Get.state .== "IL") |> As(:location),
          on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
@@ -370,7 +365,7 @@ Next, we will take a closer look at three of them: `From`, `Select`, and
 `Join`.
 
 
-## `From`
+## `From` and `Select`
 
 The `From` node outputs the content of a database table.  The constructor
 takes one argument, a `SQLTable` object (see the section [Database
@@ -396,9 +391,6 @@ It is possible for a query not to have a `From` node:
 In this query, the `Select` node is not connected to any source of data.  In
 such a case, it is supplied with a *unit dataset* containing one row and no
 columns.  Hence this query will generate one row of output.
-
-
-## `Select`
 
 In general, the `Select` node is used to specify the output columns.  The name
 of the column is either derived from the expression or set explicitly with `As`
@@ -435,7 +427,7 @@ column `location_id` that uniquely identifies a `location` record:
          left = true) |>
     Select(Get.person_id, Get.location.state)
 
-The modifier `left = true` tells `Join` that it must output all `person`
+The modifier `left = true` tells `Join` that it must output *all* `person`
 records including those without the corresponding `location`.  Since this is a
 very common requirement, FunSQL provides an alias:
 
@@ -467,8 +459,7 @@ one of the datasets into a nested record.  This is the action of the arrow
     using FunSQL: As
 
     From(person) |>
-    LeftJoin(From(location) |>
-             As(:location),
+    LeftJoin(From(location) |> As(:location),
              on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, Get.location.state)
 
@@ -539,7 +530,7 @@ reference to the node that produces it:
         LeftJoin(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
         Select(qₚ.person_id, qₗ.state)
 
-The notation `qₚ.location_id` and `qₗ.location_id` is just syntax sugar for
+The notation `qₚ.location_id` and `qₗ.location_id` is a syntax sugar for
 
     qₚ |> Get(:location_id)
     qₗ |> Get(:location_id)
@@ -594,6 +585,162 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
     #=>
     SELECT (CASE WHEN ("person_1"."year_of_birth" <= 1960) THEN 'boomer' ELSE 'millenial' END) AS "case"
     FROM "person" AS "person_1"
+    =#
+
+
+## `Group` and Aggregate Functions
+
+`Group` and aggregate functions are used for summarizing data to report totals,
+averages and so on.  We start by applying the `Group` node to partition the
+input rows into disjoint groups.  We can then use aggregate functions to
+calculate summary values from the rows of each group.  In FunSQL, aggregate
+functions are created using the constructor `Agg`.  In the following example,
+we use the aggregate function `Agg.count`, which simply counts the number of
+rows in each group.
+
+*Show the number of patients by the year of birth.*
+
+    using FunSQL: Agg, Group
+
+    q = From(person) |>
+        Group(Get.year_of_birth) |>
+        Select(Get.year_of_birth, Agg.count())
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."year_of_birth", COUNT(*) AS "count"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."year_of_birth"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    10×2 DataFrame
+     Row │ year_of_birth  count
+         │ Int64          Int64
+    ─────┼──────────────────────
+       1 │          1911      1
+       2 │          1913      1
+       3 │          1922      1
+    ⋮
+    =#
+
+To indicate that aggregate functions must be applied to the dataset as a whole,
+we create a `Group` node without arguments.  This is the case where FunSQL
+notation deviates from SQL, where we would omit the `GROUP BY` clause to
+achieve the same effect.
+
+*Show the average year of birth.*
+
+    q = From(person) |>
+        Group() |>
+        Select(Agg.avg(Get.year_of_birth))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT AVG("person_1"."year_of_birth") AS "avg"
+    FROM "person" AS "person_1"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    1×1 DataFrame
+     Row │ avg
+         │ Float64
+    ─────┼─────────
+       1 │  1935.4
+    =#
+
+In general, the arguments of the `Group` node form the *grouping key*
+so that two rows of the input dataset belongs to the same group when
+they have the same value of the grouping key.  The output of `Group` contains
+all distinct values of the grouping key.
+
+*Show the US states that are present in the location records.*
+
+    q = From(location) |>
+        Group(Get.state)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT DISTINCT "location_1"."state"
+    FROM "location" AS "location_1"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    10×1 DataFrame
+     Row │ state
+         │ String
+    ─────┼────────
+       1 │ MI
+       2 │ WA
+       3 │ FL
+    ⋮
+    =#
+
+FunSQL has no lexical limitations on the use of aggregate functions.  While in
+SQL aggregate functions can only be used in the `SELECT` or `HAVING` clauses,
+there is no such restriction in FunSQL: they could be used in any context where
+an ordinary expression is permitted.  The only requirement is that for each
+aggregate function, FunSQL can determine the corresponding `Group` node.  It is
+convenient to imagine that the output of `Group` contains the grouped rows,
+which cannot be observed directly, but their presence in the output allows us
+to apply aggregate functions.
+
+In particular, we use a regular `Where` node where SQL would require a `HAVING`
+clause.
+
+*Show patients who saw a doctor within the last year.*
+
+    q = From(visit_occurrence) |>
+        Group(Get.person_id) |>
+        Where(Agg.max(Get.visit_end_date) .>= Fun.date("now", "-1 year"))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "visit_occurrence_1"."person_id"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    GROUP BY "visit_occurrence_1"."person_id"
+    HAVING (MAX("visit_occurrence_1"."visit_end_date") >= DATE('now', '-1 year'))
+    =#
+
+When the output of `Group` is blocked by an `As` node, we need to traverse it
+with `Get` in order to use an aggregate function.
+
+*For each patient, show the date of their latest visit to a doctor.*
+
+    q = From(person) |>
+        LeftJoin(:visit_group => From(visit_occurrence) |> Group(Get.person_id),
+                 on = Get.person_id .== Get.visit_group.person_id) |>
+        Select(Get.person_id,
+               Get.visit_group |> Agg.max(Get.visit_start_date))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id", "visit_group_1"."max"
+    FROM "person" AS "person_1"
+    LEFT JOIN (
+      SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
     =#
 
 
