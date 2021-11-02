@@ -1,6 +1,17 @@
 # Release Notes
 
 
+## v0.8.0
+
+* Refactored the SQL translator to make it faster and easier to maintain.
+* Improved error messages.
+* Include columns added by `Define` to the output.
+* Report an error when `Agg` is used without `Group`.
+* Deduplicate identical aggregates in a `Group` subquery.
+* Support for `WITH` clause.
+* Updated the Tutorial/Usage Guide.
+
+
 ## v0.7.0
 
 - Add `Order`, `Asc`, `Desc`.
