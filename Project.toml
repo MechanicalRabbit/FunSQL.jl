@@ -9,5 +9,6 @@ OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 PrettyPrinting = "54e16d92-306c-5ea0-a30b-337be88ac337"
 
 [compat]
+OrderedCollections = "1.4"
 PrettyPrinting = "0.3.2"
 julia = "1.4"
