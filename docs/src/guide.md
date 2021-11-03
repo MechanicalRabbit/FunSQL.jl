@@ -861,3 +861,34 @@ which parameters appear in the SQL query:
        3 │     72120
     =#
 
+
+## Correlated Subqueres
+
+*Find all visits where at least one condition was diagnosed.*
+
+    using FunSQL: Bind
+
+    CorrelatedCondition(person_id, start_date, end_date) =
+        From(condition_occurrence) |>
+        Where(Fun.and(Get.person_id .== Var.person_id,
+                      Fun.between(Get.condition_start_date, Var.start_date, Var.end_date))) |>
+        Bind(:person_id => person_id,
+             :start_date => start_date,
+             :end_date => end_date)
+
+    q = From(visit_occurrence) |>
+        Where(Fun.exists(CorrelatedCondition(Get.person_id, Get.visit_start_date, Get.visit_end_date)))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."person_id", "visit_occurrence_1"."visit_concept_id", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    WHERE (EXISTS (
+      SELECT NULL
+      FROM "condition_occurrence" AS "condition_occurrence_1"
+      WHERE (("condition_occurrence_1"."person_id" = "visit_occurrence_1"."person_id") AND ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date"))
+    ))
+    =#
+
