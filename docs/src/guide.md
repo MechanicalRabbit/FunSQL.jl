@@ -892,3 +892,95 @@ which parameters appear in the SQL query:
     ))
     =#
 
+
+## Example
+
+*Find all occurrences of myocardial infarction that was diagnosed during an
+inpatient visit.  Filter out repeating occurrences by requiring a 180-day gap
+between consecutive events.*
+
+    using FunSQL: Define
+    using Dates
+
+    ConceptByName(name) =
+        From(concept) |>
+        Where(Fun.like(Get.concept_name, "%$(name)%"))
+
+    MyocardialInfarctionConcept() =
+        ConceptByName("myocardial infarction")
+
+    MyocardialInfarctionOccurrence() =
+        From(condition_occurrence) |>
+        Join(:concept => MyocardialInfarctionConcept(),
+             on = Get.condition_concept_id .== Get.concept.concept_id)
+
+    InpatientVisitConcept() =
+        ConceptByName("inpatient")
+
+    InpatientVisitOccurrence() =
+        From(visit_occurrence) |>
+        Join(:concept => InpatientVisitConcept(),
+             on = Get.visit_concept_id .== Get.concept.concept_id)
+
+    CorrelatedInpatientVisit(person_id, date) =
+        InpatientVisitOccurrence() |>
+        Where(Fun.and(Get.person_id .== Var.person_id,
+                      Fun.between(Var.date, Get.visit_start_date, Get.visit_end_date))) |>
+        Bind(:person_id => person_id,
+             :date => date)
+
+    MyocardialInfarctionDuringInpatientVisit() =
+        MyocardialInfarctionOccurrence() |>
+        Where(Fun.exists(CorrelatedInpatientVisit(Get.person_id, Get.condition_start_date)))
+
+    FilterByGap(date, gap) =
+        Partition(Get.person_id, order_by = [date]) |>
+        Define(:boundary => Agg.lag(Fun.date(date, gap))) |>
+        Where(Fun.or(Fun."is null"(Get.boundary),
+                     Get.boundary .< date))
+
+    FilteredMyocardialInfarctionDuringInpatientVisit() =
+        MyocardialInfarctionDuringInpatientVisit() |>
+        FilterByGap(Get.condition_start_date, Day(180))
+
+    q = FilteredMyocardialInfarctionDuringInpatientVisit() |>
+        Select(Get.person_id, Get.condition_start_date)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "condition_occurrence_2"."person_id", "condition_occurrence_2"."condition_start_date"
+    FROM (
+      SELECT "condition_occurrence_1"."person_id", "condition_occurrence_1"."condition_start_date", (LAG(DATE("condition_occurrence_1"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_1"."person_id" ORDER BY "condition_occurrence_1"."condition_start_date")) AS "boundary"
+      FROM "condition_occurrence" AS "condition_occurrence_1"
+      JOIN (
+        SELECT "concept_1"."concept_id"
+        FROM "concept" AS "concept_1"
+        WHERE ("concept_1"."concept_name" LIKE '%myocardial infarction%')
+      ) AS "concept_2" ON ("condition_occurrence_1"."condition_concept_id" = "concept_2"."concept_id")
+      WHERE (EXISTS (
+        SELECT NULL
+        FROM "visit_occurrence" AS "visit_occurrence_1"
+        JOIN (
+          SELECT "concept_3"."concept_id"
+          FROM "concept" AS "concept_3"
+          WHERE ("concept_3"."concept_name" LIKE '%inpatient%')
+        ) AS "concept_4" ON ("visit_occurrence_1"."visit_concept_id" = "concept_4"."concept_id")
+        WHERE (("visit_occurrence_1"."person_id" = "condition_occurrence_1"."person_id") AND ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date"))
+      ))
+    ) AS "condition_occurrence_2"
+    WHERE (("condition_occurrence_2"."boundary" IS NULL) OR ("condition_occurrence_2"."boundary" < "condition_occurrence_2"."condition_start_date"))
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    1×2 DataFrame
+     Row │ person_id  condition_start_date
+         │ Int64      String
+    ─────┼─────────────────────────────────
+       1 │      1780  2008-04-10
+    =#
+
