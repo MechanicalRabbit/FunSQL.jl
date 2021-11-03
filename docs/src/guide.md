@@ -744,6 +744,54 @@ with `Get` in order to use an aggregate function.
     =#
 
 
+## `Partition` and Window Functions
+
+We can relate each row to other rows in the same dataset using the `Partition`
+node and *window functions*.  We start by applying the `Partition` node to
+partition the input rows into disjoint groups.  The rows in each group are
+reordered according to the given sort order.  Unlike `Group`, which collapses
+each row group into a single row, the `Partition` node preserves the original
+rows, but allows us to relate each row to adjacent rows in the same partition.
+In particular, we can apply regular aggregate functions, which calculate the
+summary value of a subset of rows related to the current row.
+
+*For each visit, show the time passed since the previous visit.*
+
+    using FunSQL: Partition
+
+    q = From(visit_occurrence) |>
+        Partition(Get.person_id,
+                  order_by = [Get.visit_start_date],
+                  frame = (mode = :rows, start = -Inf, finish = -1)) |>
+        Select(Get.person_id,
+               Get.visit_start_date,
+               Get.visit_end_date,
+               :gap => Fun.julianday(Get.visit_start_date) .- Fun.julianday(Agg.max(Get.visit_end_date)))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "visit_occurrence_1"."person_id", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date", (JULIANDAY("visit_occurrence_1"."visit_start_date") - JULIANDAY((MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS "gap"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    27×4 DataFrame
+     Row │ person_id  visit_start_date  visit_end_date  gap
+         │ Int64      String            String          Float64?
+    ─────┼────────────────────────────────────────────────────────
+       1 │      1780  2008-04-09        2008-04-13      missing
+       2 │      1780  2008-04-10        2008-04-10           -3.0
+       3 │      1780  2008-11-22        2008-11-22          223.0
+       4 │      1780  2009-05-22        2009-05-22          181.0
+    ⋮
+    =#
+
+
 ## Query Parameters
 
 A SQL query may include a reference to a *query parameter*.  When we execute
