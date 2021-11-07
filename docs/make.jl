@@ -19,6 +19,7 @@ makedocs(
         "Home" => "index.md",
         "guide.md",
         "reference.md",
+        "examples.md",
         "test/index.md",
     ],
     modules = [FunSQL],

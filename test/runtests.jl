@@ -3,6 +3,7 @@
 using Documenter, Logging, NarrativeTest, Test
 using FunSQL
 
+ENV["LINES"] = "24"
 ENV["COLUMNS"] = "80"
 
 if isempty(ARGS)

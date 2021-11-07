@@ -9,6 +9,7 @@ FunSQL is a Julia library for compositional construction of SQL queries.
 Pages = [
     "guide.md",
     "reference.md",
+    "examples.md",
     "test/index.md",
 ]
 ```
