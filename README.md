@@ -22,8 +22,8 @@ fragments.  This approach is particularly useful for building applications that
 programmatically construct SQL queries.
 
 If you want to learn more about FunSQL, watch the [JuliaCon 2021
-presentation][juliacon2021-url] ([slides][juliacon2021-slides]) or go
-straight to the [Usage Guide][guide-url].
+presentation][juliacon2021-url] ([slides][juliacon2021-slides]), review the
+[Usage Guide][guide-url], or go straight to the [Examples][examples-url].
 
 [![FunSQL | JuliaCon 2021][juliacon2021-img]][juliacon2021-url]
 
@@ -107,3 +107,4 @@ passed around as values, and freely composed together.
 [juliacon2021-url]: https://www.youtube.com/watch?v=rGWwmuvRUYk
 [juliacon2021-slides]: https://github.com/MechanicalRabbit/FunSQL.jl/files/7465997/FunSQL-JuliaCon2021.pdf
 [guide-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/guide/
+[examples-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/examples/
