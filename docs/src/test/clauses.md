@@ -163,9 +163,9 @@ duplicate parameter values.
 
     print(sql)
     #=>
-    SELECT "person_id"
-    FROM "person"
-    WHERE (("gender_concept_id" = ?) OR ("gender_source_concept_id" = ?))
+    SELECT `person_id`
+    FROM `person`
+    WHERE ((`gender_concept_id` = ?) OR (`gender_source_concept_id` = ?))
     =#
 
     pack(sql, (gender = 8532,))
@@ -528,8 +528,8 @@ Non-standard MySQL and SQLite syntax is supported.
 
     print(render(c |> SELECT(:person_id), dialect = :mysql))
     #=>
-    SELECT "person_id"
-    FROM "person"
+    SELECT `person_id`
+    FROM `person`
     LIMIT 10
     =#
 
@@ -559,8 +559,8 @@ be specified.
 
     print(render(c, dialect = :mysql))
     #=>
-    SELECT "person_id"
-    FROM "person"
+    SELECT `person_id`
+    FROM `person`
     LIMIT 100, 10
     =#
 
@@ -600,8 +600,8 @@ It is possible to specify the offset without the limit.
 
     print(render(c, dialect = :mysql))
     #=>
-    SELECT "person_id"
-    FROM "person"
+    SELECT `person_id`
+    FROM `person`
     LIMIT 100, 18446744073709551615
     =#
 

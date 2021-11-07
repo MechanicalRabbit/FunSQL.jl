@@ -34,6 +34,8 @@ end
 function render(ctx, name::Symbol)
     if ctx.dialect.name === :sqlserver
         print(ctx, '[', replace(string(name), ']' => "]]"), ']')
+    elseif ctx.dialect.name === :mysql
+        print(ctx, '`', replace(string(name), '`' => "``"), '`')
     else
         print(ctx, '"', replace(string(name), '"' => "\"\""), '"')
     end
