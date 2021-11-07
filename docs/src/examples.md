@@ -109,6 +109,7 @@ database itself.  For SQLite, this could be done as follows.
 
 The vector `tables` contains all the tables available in the database.
 
+    #? VERSION >= v"1.6"
     display(tables)
     #=>
     44-element Vector{SQLTable}:
@@ -165,6 +166,7 @@ It is convenient to add the `SQLTable` objects to the global scope.
 
 Alternatively, we could encapsulate all `SQLTable` objects in a `NamedTuple`.
 
+    #? VERSION >= v"1.6"
     const db = NamedTuple([t.name => t for t in tables])
 
     display(db.person)
@@ -543,6 +545,8 @@ output columns.
 
 *Filter out all "source" columns from patient records.*
 
+    #? VERSION >= v"1.5"
+
     is_not_source_column(c::Symbol) =
         !contains(String(c), "source")
 
@@ -572,6 +576,7 @@ output columns.
     end
     =#
 
+    #? VERSION >= v"1.5"
     sql = render(q, dialect = :sqlite)
 
     print(sql)
@@ -580,6 +585,7 @@ output columns.
     FROM "person" AS "person_1"
     =#
 
+    #? VERSION >= v"1.5"
     res = DBInterface.execute(conn, sql)
 
     DataFrame(res)
