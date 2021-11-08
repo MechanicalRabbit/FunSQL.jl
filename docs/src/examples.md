@@ -5,7 +5,7 @@ CurrentModule = FunSQL
 ```
 
 
-## Establishing a Database Connection
+## Establishing a database connection
 
 We use FunSQL to assemble SQL queries.  To actually run these queries, we need
 a regular database library such as
@@ -53,7 +53,7 @@ function [`render`](@ref).
         Select, Sort, Var, Where, render
 
 
-## Database Introspection (SQLite)
+## Database introspection (SQLite)
 
 For each database table referenced in a query, we need to create a
 [`SQLTable`](@ref) object encapsulating the name of the table and the list of
@@ -193,10 +193,10 @@ Alternatively, we could encapsulate all `SQLTable` objects in a `NamedTuple`.
     =#
 
 
-## Database Introspection (PostgreSQL)
+## Database introspection (PostgreSQL)
 
 The following code generates `SQLTable` objects for a PostgreSQL database.  See
-the section [Database Introspection (SQLite)](@ref) for the definition of the
+the section [Database introspection (SQLite)](@ref) for the definition of the
 `make_tables()` function and instructions on how to bring the generated
 `SQLTable` objects into the global scope.
 
@@ -255,10 +255,10 @@ const introspect_postgresql_sql =
 ```
 
 
-## Database Introspection (MySQL)
+## Database introspection (MySQL)
 
 The following code generates `SQLTable` objects for a MySQL database.  See the
-section [Database Introspection (SQLite)](@ref) for the definition of the
+section [Database introspection (SQLite)](@ref) for the definition of the
 `make_tables()` function and instructions on how to bring the generated
 `SQLTable` objects into the global scope.
 
@@ -296,10 +296,10 @@ const introspect_mysql_sql =
 ```
 
 
-## Database Introspection (Microsoft SQL Server)
+## Database introspection (Microsoft SQL Server)
 
 The following code generates `SQLTable` objects for a Microsoft SQL Server
-database.  See the section [Database Introspection (SQLite)](@ref) for the
+database.  See the section [Database introspection (SQLite)](@ref) for the
 definition of the `make_tables()` function and instructions on how to bring the
 generated `SQLTable` objects into the global scope.
 
@@ -346,9 +346,9 @@ const introspect_sqlserver_sql =
 ```
 
 
-## Database Introspection (Amazon RedShift)
+## Database introspection (Amazon RedShift)
 
-See [Database Introspection (PostgreSQL)](@ref).
+See [Database introspection (PostgreSQL)](@ref).
 
 
 ## `SELECT * FROM table`
@@ -538,7 +538,7 @@ FunSQL will render it as a `SELECT DISTINCT` clause.
     =#
 
 
-## Filtering Output Columns
+## Filtering output columns
 
 Either broadcasting or vector comprehension could be used to filter the list of
 output columns.
@@ -608,7 +608,7 @@ output columns.
     =#
 
 
-## Output Columns of a Join
+## Output columns of a `Join`
 
 [`As`](@ref) is often used to disambiguate the columns of the two input
 branches of the [`Join`](@ref) node.  By default, columns fenced by `As` are
@@ -660,7 +660,7 @@ however we must ensure that all column names are unique.
     =#
 
 
-## Assembling Queries Incrementally
+## Assembling queries incrementally
 
 It is often convenient to build a query incrementally, one component at a time.
 This allows us to validate individual components, inspect their output, and
@@ -757,7 +757,7 @@ between consecutive events.*
     =#
 
 
-## Merging Overlapping Intervals
+## Merging overlapping intervals
 
 Merging overlapping intervals into a single encompassing period could be done
 in three steps:
