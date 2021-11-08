@@ -830,3 +830,51 @@ transformations.
                               10 rows omitted
     =#
 
+*Derive a patient's observation periods by merging visits with less than
+one year gap between them.*
+
+    MergeIntervalsByGap(start_date, end_date, gap) =
+        MergeOverlappingIntervals(start_date, Fun.date(end_date, gap)) |>
+        Define(:end_date => Fun.date(Get.end_date, -gap))
+
+    q = From(visit_occurrence) |>
+        MergeIntervalsByGap(Get.visit_start_date, Get.visit_end_date, Day(365)) |>
+        Select(Get.person_id, Get.start_date, Get.end_date)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "visit_occurrence_3"."person_id", MIN("visit_occurrence_3"."visit_start_date") AS "start_date", DATE(MAX(DATE("visit_occurrence_3"."visit_end_date", '365 days')), '-365 days') AS "end_date"
+    FROM (
+      SELECT "visit_occurrence_2"."person_id", (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
+      FROM (
+        SELECT "visit_occurrence_1"."person_id", (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX(DATE("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date"
+        FROM "visit_occurrence" AS "visit_occurrence_1"
+      ) AS "visit_occurrence_2"
+    ) AS "visit_occurrence_3"
+    GROUP BY "visit_occurrence_3"."person_id", "visit_occurrence_3"."period"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    12×3 DataFrame
+     Row │ person_id  start_date  end_date
+         │ Int64      String      String
+    ─────┼───────────────────────────────────
+       1 │      1780  2008-04-09  2009-05-22
+       2 │     30091  2008-11-12  2009-08-07
+       3 │     37455  2008-03-18  2008-10-30
+       4 │     37455  2010-08-12  2010-08-12
+       5 │     42383  2009-06-29  2010-04-15
+       6 │     69985  2009-01-09  2009-01-09
+       7 │     69985  2010-04-17  2010-07-30
+       8 │     72120  2008-12-15  2008-12-15
+       9 │     82328  2008-10-20  2009-01-25
+      10 │     95538  2009-03-30  2009-09-02
+      11 │    107680  2009-06-07  2009-07-30
+      12 │    110862  2008-09-07  2010-06-07
+    =#
+
