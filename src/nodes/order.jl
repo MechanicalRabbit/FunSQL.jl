@@ -1,6 +1,6 @@
 # Sorting.
 
-mutable struct OrderNode <: SubqueryNode
+mutable struct OrderNode <: TabularNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
 

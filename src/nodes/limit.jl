@@ -1,6 +1,6 @@
 # Truncating.
 
-mutable struct LimitNode <: SubqueryNode
+mutable struct LimitNode <: TabularNode
     over::Union{SQLNode, Nothing}
     offset::Union{Int, Nothing}
     limit::Union{Int, Nothing}

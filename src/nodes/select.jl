@@ -1,6 +1,6 @@
 # Selecting.
 
-mutable struct SelectNode <: SubqueryNode
+mutable struct SelectNode <: TabularNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
     label_map::OrderedDict{Symbol, Int}

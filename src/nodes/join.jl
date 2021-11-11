@@ -1,6 +1,6 @@
 # Join node.
 
-mutable struct JoinNode <: SubqueryNode
+mutable struct JoinNode <: TabularNode
     over::Union{SQLNode, Nothing}
     joinee::SQLNode
     on::SQLNode

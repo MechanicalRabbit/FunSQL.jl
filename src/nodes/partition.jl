@@ -1,6 +1,6 @@
 # Window partition.
 
-mutable struct PartitionNode <: SubqueryNode
+mutable struct PartitionNode <: TabularNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
     order_by::Vector{SQLNode}

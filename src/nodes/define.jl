@@ -1,6 +1,6 @@
 # Defining calculated columns.
 
-mutable struct DefineNode <: SubqueryNode
+mutable struct DefineNode <: TabularNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
     label_map::OrderedDict{Symbol, Int}

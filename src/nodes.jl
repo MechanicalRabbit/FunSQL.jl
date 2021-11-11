@@ -9,7 +9,8 @@ A SQL expression.
 abstract type AbstractSQLNode
 end
 
-abstract type SubqueryNode <: AbstractSQLNode
+# A node that produces tabular output.
+abstract type TabularNode <: AbstractSQLNode
 end
 
 function dissect(scr::Symbol, NodeType::Type{<:AbstractSQLNode}, pats::Vector{Any})
@@ -162,7 +163,7 @@ function PrettyPrinting.quoteof(n::SQLNode;
         if core isa FromNode
             push!(tables_seen, core.table)
         end
-        if core isa SubqueryNode
+        if core isa TabularNode
             push!(nodes_seen, n)
             push!(nodes_toplevel, n)
         elseif n in nodes_seen

@@ -1,6 +1,6 @@
 # Grouping.
 
-mutable struct GroupNode <: SubqueryNode
+mutable struct GroupNode <: TabularNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
     label_map::OrderedDict{Symbol, Int}

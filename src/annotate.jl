@@ -78,7 +78,7 @@ rebase(n::ExtendedBindNode, n′) =
     ExtendedBindNode(over = rebase(n.over, n′),
                      list = n.list, label_map = n.label_map, owned = n.owned)
 
-mutable struct ExtendedJoinNode <: SubqueryNode
+mutable struct ExtendedJoinNode <: TabularNode
     over::Union{SQLNode, Nothing}
     joinee::SQLNode
     on::SQLNode
@@ -131,7 +131,7 @@ label(n::Union{NameBoundNode, HandleBoundNode, ExtendedBindNode, ExtendedJoinNod
     label(n.over)
 
 # A SQL subquery with an undetermined SELECT list.
-mutable struct BoxNode <: SubqueryNode
+mutable struct BoxNode <: TabularNode
     over::Union{SQLNode, Nothing}
     type::BoxType
     handle::Int
@@ -299,7 +299,7 @@ annotate_scalar(::Nothing, ctx) =
 annotate(n::AbstractSQLNode, ctx) =
     throw(IllFormedError(path = get_path(ctx)))
 
-function annotate_scalar(n::SubqueryNode, ctx)
+function annotate_scalar(n::TabularNode, ctx)
     n′ = convert(SQLNode, annotate(n, ctx))
     mark_origin!(ctx, n′)
     box = BoxNode(over = n′)

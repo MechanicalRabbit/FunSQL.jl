@@ -1,6 +1,6 @@
 # Append (UNION ALL) node.
 
-mutable struct AppendNode <: SubqueryNode
+mutable struct AppendNode <: TabularNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
 

@@ -1,6 +1,6 @@
 # From node.
 
-mutable struct FromNode <: SubqueryNode
+mutable struct FromNode <: TabularNode
     table::SQLTable
 
     FromNode(; table) =
