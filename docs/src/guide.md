@@ -361,9 +361,6 @@ The following tabular operations are available in FunSQL.
 | [`Select`](@ref)      | specify output columns                            |
 | [`Where`](@ref)       | filter the dataset by the given condition         |
 
-Next, we will take a closer look at three of them: `From`, `Select`, and
-`Join`.
-
 
 ## `From` and `Select`
 
@@ -532,8 +529,8 @@ reference to the node that produces it:
 
 The notation `qₚ.location_id` and `qₗ.location_id` is a syntax sugar for
 
-    qₚ |> Get(:location_id)
-    qₗ |> Get(:location_id)
+    Get(:location_id, over = qₚ)
+    Get(:location_id, over = qₗ)
 
 
 ## `Fun`
@@ -697,7 +694,7 @@ there is no such restriction in FunSQL: they could be used in any context where
 an ordinary expression is permitted.  The only requirement is that for each
 aggregate function, FunSQL can determine the corresponding `Group` node.  It is
 convenient to imagine that the output of `Group` contains the grouped rows,
-which cannot be observed directly, but their presence in the output allows us
+which cannot be observed directly, but whose presence in the output allows us
 to apply aggregate functions.
 
 In particular, we use a regular `Where` node where SQL would require a `HAVING`
@@ -754,6 +751,12 @@ each row group into a single row, the `Partition` node preserves the original
 rows, but allows us to relate each row to adjacent rows in the same partition.
 In particular, we can apply regular aggregate functions, which calculate the
 summary value of a subset of rows related to the current row.
+
+In the following example, the rows `visit_occurrence` are partitioned per
+patient and ordered by the starting date of the visit.  The `frame` clause
+specifies the subset of rows relative to the current row (the *window frame*)
+to be used by aggregate functions.  In this example, the frame contains all
+rows prior to the current row.
 
 *For each visit, show the time passed since the previous visit.*
 
