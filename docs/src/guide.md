@@ -464,19 +464,20 @@ Alternatively, we could use *bound column references*, which are described
 in a [later section](@ref Get).
 
 
-## Row Operations
+## Scalar Operations
 
 Many tabular operations including `Join`, `Select` and `Where` are
-parameterized with row operations.  A *row operation* acts on an individual row
-of a dataset and produces a scalar value.  Row operations are assembled from
-literal values, column references, and applications of SQL functions and
-operators.  Below is a list of row operations available in FunSQL.
+parameterized with scalar operations.  A *scalar operation* acts on an
+individual row of a dataset and produces a scalar value.  Scalar operations are
+assembled from literal values, column references, and applications of SQL
+functions and operators.  Below is a list of scalar operations available in
+FunSQL.
 
 | Constructor           | Function                                          |
 | :-------------------- | :------------------------------------------------ |
 | [`Agg`](@ref)         | apply an aggregate function                       |
 | [`As`](@ref)          | assign a column alias                             |
-| [`Bind`](@ref)        | correlate a subquery                              |
+| [`Bind`](@ref)        | correlate an inner subquery                       |
 | [`Fun`](@ref)         | apply a scalar function or a scalar operator      |
 | [`Get`](@ref)         | produce the value of a column                     |
 | [`Lit`](@ref)         | produce a constant value                          |
@@ -824,7 +825,7 @@ supported by SQL syntax.
     =#
 
 FunSQL can be used to construct a query with parameters.  Similar to `Get`,
-parameter references are created using the constructor `Var`.
+parameter references are created using the constructor [`Var`](@ref).
 
     using FunSQL: Var
 
@@ -865,7 +866,80 @@ which parameters appear in the SQL query:
     =#
 
 
-## Correlated Subqueres
+## Correlated Queres
+
+An *inner query* is a SQL query that is included into the *outer query* a part
+of a scalar expression.  An inner query must either produce a single value or
+be used as an argument of a query operator, such as `IN` or `EXISTS`, which
+transforms the query output to a scalar value.
+
+It is easy to assemble an inner query with FunSQL.
+
+*Find the oldest patients.*
+
+    qᵢ = From(person) |>
+         Group() |>
+         Select(Agg.min(Get.year_of_birth))
+
+    qₒ = From(person) |>
+         Where(Get.year_of_birth .== qᵢ)
+
+    sql = render(qₒ, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" = (
+      SELECT MIN("person_2"."year_of_birth") AS "min"
+      FROM "person" AS "person_2"
+    ))
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    1×3 DataFrame
+     Row │ person_id  year_of_birth  location_id
+         │ Int64      Int64          Int64
+    ─────┼───────────────────────────────────────
+       1 │    110862           1911          436
+    =#
+
+*Find patients with no visits to a healthcare provider.*
+
+    qᵢ = From(visit_occurrence) |>
+         Select(Get.person_id)
+
+    qₒ = From(person) |>
+         Where(Fun."not in"(Get.person_id, qᵢ))
+
+    sql = render(qₒ, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT "person_1"."person_id", "person_1"."year_of_birth", "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."person_id" NOT IN (
+      SELECT "visit_occurrence_1"."person_id"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+    ))
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    0×3 DataFrame
+    =#
+
+An inner query may depend on the data from the outer query.  Such inner queries
+are called *correlated*.  In FunSQL, correlated queries are created using the
+[`Bind`](@ref) node.  Specifically, in the body of a correlated query we use
+[query parameters](@ref Query-Parameters) to refer to the external data.  The
+`Bind` node, which wrap the correlated query, binds each parameter to an
+expression evaluated in the context of the outer query.
 
 *Find all visits where at least one condition was diagnosed.*
 
