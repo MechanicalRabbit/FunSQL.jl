@@ -1,6 +1,12 @@
 # Release Notes
 
 
+## v0.8.1
+
+* Updated documentation and examples.
+* Fixed quoting of MySQL identifiers.
+
+
 ## v0.8.0
 
 * Refactored the SQL translator to make it faster and easier to maintain.
