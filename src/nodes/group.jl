@@ -29,7 +29,10 @@ GroupNode(by...; over = nothing) =
     Group(; over; by = [])
     Group(by...; over)
 
-A subquery that groups rows `by` a list of keys.
+The `Group` node partitions the input rows into disjoint groups `by` the given
+grouping key and outputs all unique values of the key.  Aggregate functions
+applied to the output of `Group` summarize the values from the rows of each
+group.
 
 ```sql
 SELECT ...

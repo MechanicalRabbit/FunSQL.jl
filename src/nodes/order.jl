@@ -15,7 +15,7 @@ OrderNode(by...; over = nothing) =
     Order(; over = nothing, by)
     Order(by...; over = nothing)
 
-A subquery that sorts the rows `by` a list of keys.
+`Order` sorts the input rows `by` the given key.
 
 ```sql
 SELECT ...
@@ -29,11 +29,10 @@ ORDER BY \$by...
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(person) |>
-           Order(Get.year_of_birth) |>
-           Select(Get.person_id);
+           Order(Get.year_of_birth);
 
 julia> print(render(q))
-SELECT "person_1"."person_id"
+SELECT "person_1"."person_id", "person_1"."year_of_birth"
 FROM "person" AS "person_1"
 ORDER BY "person_1"."year_of_birth"
 ```

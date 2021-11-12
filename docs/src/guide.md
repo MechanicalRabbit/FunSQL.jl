@@ -364,8 +364,8 @@ The following tabular operations are available in FunSQL.
 
 ## `From` and `Select`
 
-The `From` node outputs the content of a database table.  The constructor
-takes one argument, a `SQLTable` object (see the section [Database
+The [`From`](@ref) node outputs the content of a database table.  The
+constructor takes one argument, a `SQLTable` object (see the section [Database
 Schema](@ref)).  In a query, a bare `SQLTable` object is automatically
 converted to a `From` node, so one could write more compactly:
 
@@ -389,9 +389,9 @@ In this query, the `Select` node is not connected to any source of data.  In
 such a case, it is supplied with a *unit dataset* containing one row and no
 columns.  Hence this query will generate one row of output.
 
-In general, the `Select` node is used to specify the output columns.  The name
-of the column is either derived from the expression or set explicitly with `As`
-(or its shorthand, the arrow (`=>`) operator).
+In general, the [`Select`](@ref) node is used to specify the output columns.
+The name of the column is either derived from the expression or set explicitly
+with `As` (or its shorthand, the arrow (`=>`) operator).
 
 As opposed to SQL, FunSQL does not demand that all queries have an explicit
 `Select`.  The following query will produce all columns of the table:
@@ -411,10 +411,11 @@ As opposed to SQL, FunSQL does not demand that all queries have an explicit
 
 ## `Join`
 
-The `Join` node correlates the rows of two input datasets.  Predominantly,
-`Join` is used for looking up table records by key.  In the following example,
-`Join` associates each `person` record with their `location` using the key
-column `location_id` that uniquely identifies a `location` record:
+The [`Join`](@ref) node correlates the rows of two input datasets.
+Predominantly, `Join` is used for looking up table records by key.  In the
+following example, `Join` associates each `person` record with their `location`
+using the key column `location_id` that uniquely identifies a `location`
+record:
 
 *Show all patients together with their state of residence.*
 
@@ -487,7 +488,7 @@ FunSQL.
 
 ## `Lit`
 
-The `Lit` constructor creates a literal value, although we could usually omit
+The [`Lit`](@ref) node creates a literal value, although we could usually omit
 the constructor:
 
     using FunSQL: Lit
@@ -507,8 +508,8 @@ The SQL value `NULL` is represented by the Julia constant `missing`:
 
 ## `Get`
 
-The `Get` constructor creates a column reference.  `Get` admits several
-equivalent forms:
+The [`Get`](@ref) node creates a column reference.  The `Get` constructor
+admits several equivalent forms:
 
     Get.year_of_birth
     Get(:year_of_birth)
@@ -536,7 +537,7 @@ The notation `qₚ.location_id` and `qₗ.location_id` is a syntax sugar for
 
 ## `Fun`
 
-SQL functions and operators are represented using the `Fun` constructor, which
+SQL functions and operators are represented using the [`Fun`](@ref) node, which
 also has several equivalent forms:
 
     Fun.between(Get.year_of_birth, 1930, 1940)
@@ -588,11 +589,11 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
 
 ## `Group` and Aggregate Functions
 
-`Group` and aggregate functions are used for summarizing data to report totals,
-averages and so on.  We start by applying the `Group` node to partition the
-input rows into disjoint groups.  We can then use aggregate functions to
+[`Group`](@ref) and aggregate functions are used for summarizing data to report
+totals, averages and so on.  We start by applying the `Group` node to partition
+the input rows into disjoint groups.  We can then use aggregate functions to
 calculate summary values from the rows of each group.  In FunSQL, aggregate
-functions are created using the constructor `Agg`.  In the following example,
+functions are created using the [`Agg`](@ref) node.  In the following example,
 we use the aggregate function `Agg.count`, which simply counts the number of
 rows in each group.
 
@@ -744,14 +745,15 @@ with `Get` in order to use an aggregate function.
 
 ## `Partition` and Window Functions
 
-We can relate each row to other rows in the same dataset using the `Partition`
-node and *window functions*.  We start by applying the `Partition` node to
-partition the input rows into disjoint groups.  The rows in each group are
-reordered according to the given sort order.  Unlike `Group`, which collapses
-each row group into a single row, the `Partition` node preserves the original
-rows, but allows us to relate each row to adjacent rows in the same partition.
-In particular, we can apply regular aggregate functions, which calculate the
-summary value of a subset of rows related to the current row.
+We can relate each row to other rows in the same dataset using the
+[`Partition`](@ref) node and *window functions*.  We start by applying the
+`Partition` node to partition the input rows into disjoint groups.  The rows in
+each group are reordered according to the given sort order.  Unlike `Group`,
+which collapses each row group into a single row, the `Partition` node
+preserves the original rows, but allows us to relate each row to adjacent rows
+in the same partition.  In particular, we can apply regular aggregate
+functions, which calculate the summary value of a subset of rows related to the
+current row.
 
 In the following example, the rows `visit_occurrence` are partitioned per
 patient and ordered by the starting date of the visit.  The `frame` clause
@@ -825,7 +827,7 @@ supported by SQL syntax.
     =#
 
 FunSQL can be used to construct a query with parameters.  Similar to `Get`,
-parameter references are created using the constructor [`Var`](@ref).
+parameter references are created using the [`Var`](@ref) node.
 
     using FunSQL: Var
 
@@ -866,7 +868,7 @@ which parameters appear in the SQL query:
     =#
 
 
-## Correlated Queres
+## Correlated Queries
 
 An *inner query* is a SQL query that is included into the *outer query* a part
 of a scalar expression.  An inner query must either produce a single value or

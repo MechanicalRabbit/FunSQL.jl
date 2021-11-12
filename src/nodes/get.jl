@@ -19,7 +19,7 @@ GetNode(name; over = nothing) =
     Get.name        Get."name"      Get[name]       Get["name"]
     over.name       over."name"     over[name]      over["name"]
 
-A reference to a table column, or an aliased expression or subquery.
+A reference to a table column.
 
 # Examples
 

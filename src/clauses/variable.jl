@@ -14,7 +14,7 @@ VariableClause(name) =
     VAR(; name)
     VAR(name)
 
-A placeholder parameter in a prepared statement.
+A placeholder in a parameterized query.
 
 # Examples
 

@@ -15,7 +15,7 @@ AppendNode(list...; over = nothing) =
     Append(; over = nothing, list)
     Append(list...; over = nothing)
 
-A subquery that combines subqueries using `UNION ALL`.
+`Append` concatenates input datasets.
 
 ```sql
 SELECT ...

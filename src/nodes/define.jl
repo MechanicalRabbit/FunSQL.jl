@@ -29,7 +29,7 @@ DefineNode(list...; over = nothing) =
     Define(; over; list = [])
     Define(list...; over)
 
-A subquery that defines calculated columns.
+`Define` adds a column to the output.
 
 # Examples
 
@@ -38,11 +38,10 @@ julia> person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
 
 julia> q = From(person) |>
            Define(:age => Fun.now() .- Get.birth_datetime) |>
-           Where(Get.age .> "16 years") |>
-           Select(Get.person_id, Get.age);
+           Where(Get.age .> "16 years");
 
 julia> print(render(q))
-SELECT "person_1"."person_id", (NOW() - "person_1"."birth_datetime") AS "age"
+SELECT "person_1"."person_id", "person_1"."birth_datetime", (NOW() - "person_1"."birth_datetime") AS "age"
 FROM "person" AS "person_1"
 WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
 ```

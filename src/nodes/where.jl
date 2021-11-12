@@ -15,7 +15,7 @@ WhereNode(condition; over = nothing) =
     Where(; over = nothing, condition)
     Where(condition; over = nothing)
 
-A subquery that filters by the given `condition`.
+The `Where` node filters the input rows by the given `condition`.
 
 ```sql
 SELECT ...

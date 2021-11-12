@@ -18,7 +18,9 @@ AsNode(name; over = nothing) =
     As(name; over = nothing)
     name => over
 
-An alias for a subquery or an expression.
+In a scalar context, `As` specifies the name of the output column.  When
+applied to a tabular node, `As` wraps the output of the node in a nested
+record.
 
 # Examples
 

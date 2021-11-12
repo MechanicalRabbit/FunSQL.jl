@@ -29,7 +29,7 @@ SelectNode(list...; over = nothing) =
     Select(; over; list)
     Select(list...; over)
 
-A subquery that fixes the `list` of output columns.
+The `Select` node specifies the output columns.
 
 ```sql
 SELECT \$list...

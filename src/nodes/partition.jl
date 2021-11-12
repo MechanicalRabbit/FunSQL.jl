@@ -17,7 +17,9 @@ PartitionNode(by...; over = nothing, order_by = SQLNode[], frame = nothing) =
     Partition(; over, by = [], order_by = [], frame = nothing)
     Partition(by...; over, order_by = [], frame = nothing)
 
-A subquery that partitions rows `by` a list of keys.
+The `Partition` node specifies how to relate each row to the adjacent rows
+in the same dataset.  Aggregate functions applied to the output of `Partition`
+summarize the values of the related rows.
 
 ```sql
 SELECT ...

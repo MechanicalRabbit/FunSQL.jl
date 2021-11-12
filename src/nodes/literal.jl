@@ -16,7 +16,7 @@ LiteralNode(val) =
 
 A SQL literal.
 
-In a suitable context, `missing`, numbers, strings and datetime values are
+In a scalar context, `missing`, numbers, strings and datetime values are
 automatically converted to SQL literals.
 
 # Examples

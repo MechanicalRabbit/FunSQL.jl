@@ -22,7 +22,7 @@ JoinNode(joinee, on; over = nothing, left = false, right = false) =
     Join(joinee; over = nothing, on, left = false, right = false)
     Join(joinee, on; over = nothing, left = false, right = false)
 
-A subquery that joins two subqueries together.
+`Join` correlates two input datasets.
 
 ```sql
 SELECT ...
@@ -37,7 +37,7 @@ julia> person = SQLTable(:person, columns = [:person_id, :location_id]);
 
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> q = From(person) |>
+julia> q = person |>
            Join(:location => location,
                 Get.location_id .== Get.location.location_id) |>
            Select(Get.person_id, Get.location.state);

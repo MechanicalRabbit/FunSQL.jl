@@ -14,7 +14,7 @@ FromNode(table) =
     From(; table)
     From(table)
 
-A subquery that selects columns from the given table.
+`From` outputs the content of a database table.
 
 ```sql
 SELECT ...

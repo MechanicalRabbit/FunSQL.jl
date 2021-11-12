@@ -29,11 +29,10 @@ Sort order indicator.
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(person) |>
-           Order(Get.year_of_birth |> Desc()) |>
-           Select(Get.person_id);
+           Order(Get.year_of_birth |> Desc());
 
 julia> print(render(q))
-SELECT "person_1"."person_id"
+SELECT "person_1"."person_id", "person_1"."year_of_birth"
 FROM "person" AS "person_1"
 ORDER BY "person_1"."year_of_birth" DESC
 ```

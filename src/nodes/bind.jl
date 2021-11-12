@@ -29,7 +29,8 @@ BindNode(list...; over = nothing) =
     Bind(; over = nothing; list)
     Bind(list...; over = nothing)
 
-Bind a query parameter to make a correlated subquery.
+The `Bind` node binds the query parameters in an inner query to make it
+a correlated subquery.
 
 # Examples
 

@@ -24,7 +24,8 @@ LimitNode(range::UnitRange; over = nothing) =
     Limit(offset, limit; over = nothing)
     Limit(start:stop; over = nothing)
 
-A subquery that takes a fixed-sized slice of the dataset.
+The `Limit` node skips the first `offset` rows and then emits the next `limit`
+rows.
 
 ```sql
 SELECT ...
@@ -39,8 +40,7 @@ FETCH NEXT \$limit ROWS ONLY
 julia> person = SQLTable(:person, columns = [:person_id]);
 
 julia> q = From(person) |>
-           Limit(1) |>
-           Select(Get.person_id);
+           Limit(1);
 
 julia> print(render(q))
 SELECT "person_1"."person_id"
