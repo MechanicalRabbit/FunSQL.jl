@@ -601,6 +601,19 @@ output columns.
                                                                    7 columns omitted
     =#
 
+## Chaining Multiple `Case` Statements
+
+`Fun.case` can accept any number of conditions.
+Here is an example from the tutorial:
+
+```julia
+From(person) |>
+Join(:op => observation_period, Get.person_id .== Get.op.person_id) |>
+Define(:age => Fun.date_part("year", Fun.age(Get.op.observation_period_end_date, Fun.make_date(Get.year_of_birth, 1, 1)))) |>
+Define(:age_group => Fun.case(Get.age .< 10, "0-9", Get.age .< 20, "10-19", "20+")) |>
+Group(Get.age_group) |>
+Select(Get.age_group, Agg.count())
+```
 
 ## Output columns of a `Join`
 
