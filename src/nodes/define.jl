@@ -41,7 +41,10 @@ julia> q = From(person) |>
            Where(Get.age .> "16 years");
 
 julia> print(render(q))
-SELECT "person_1"."person_id", "person_1"."birth_datetime", (NOW() - "person_1"."birth_datetime") AS "age"
+SELECT
+  "person_1"."person_id",
+  "person_1"."birth_datetime",
+  (NOW() - "person_1"."birth_datetime") AS "age"
 FROM "person" AS "person_1"
 WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
 ```

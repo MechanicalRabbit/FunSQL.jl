@@ -29,7 +29,12 @@ julia> q = Select(:null => missing,
                   :date => Date(2000));
 
 julia> print(render(q))
-SELECT NULL AS "null", TRUE AS "boolean", 42 AS "integer", 'SQL is fun!' AS "text", '2000-01-01' AS "date"
+SELECT
+  NULL AS "null",
+  TRUE AS "boolean",
+  42 AS "integer",
+  'SQL is fun!' AS "text",
+  '2000-01-01' AS "date"
 ```
 """
 Lit(args...; kws...) =

@@ -27,7 +27,9 @@ julia> c = FROM(:person) |>
            SELECT(:year_of_birth, AGG("COUNT", OP("*")));
 
 julia> print(render(c))
-SELECT "year_of_birth", COUNT(*)
+SELECT
+  "year_of_birth",
+  COUNT(*)
 FROM "person"
 GROUP BY "year_of_birth"
 ```

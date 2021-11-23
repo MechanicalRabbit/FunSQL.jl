@@ -107,7 +107,9 @@ julia> c = FROM(:person) |>
                   AGG("ROW_NUMBER", over = PARTITION(:year_of_birth)));
 
 julia> print(render(c))
-SELECT "person_id", (ROW_NUMBER() OVER (PARTITION BY "year_of_birth"))
+SELECT
+  "person_id",
+  (ROW_NUMBER() OVER (PARTITION BY "year_of_birth"))
 FROM "person"
 ```
 
@@ -118,9 +120,13 @@ julia> c = FROM(:person) |>
            SELECT(:person_id, AGG("ROW_NUMBER", over = :w2));
 
 julia> print(render(c))
-SELECT "person_id", (ROW_NUMBER() OVER ("w2"))
+SELECT
+  "person_id",
+  (ROW_NUMBER() OVER ("w2"))
 FROM "person"
-WINDOW "w1" AS (PARTITION BY "year_of_birth"), "w2" AS ("w1" ORDER BY "month_of_birth", "day_of_birth")
+WINDOW
+  "w1" AS (PARTITION BY "year_of_birth"),
+  "w2" AS ("w1" ORDER BY "month_of_birth", "day_of_birth")
 ```
 
 ```jldoctest
@@ -133,7 +139,9 @@ julia> c = FROM(:person) |>
                                        frame = (mode = :range, start = -1, finish = 1))));
 
 julia> print(render(c))
-SELECT "year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
+SELECT
+  "year_of_birth",
+  (AVG(COUNT(*)) OVER (ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
 FROM "person"
 GROUP BY "year_of_birth"
 ```

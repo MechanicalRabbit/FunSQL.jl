@@ -39,7 +39,9 @@ julia> q = From(person) |>
            Select(Get.year_of_birth, Agg.count());
 
 julia> print(render(q))
-SELECT "person_1"."year_of_birth", COUNT(*) AS "count"
+SELECT
+  "person_1"."year_of_birth",
+  COUNT(*) AS "count"
 FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
@@ -71,10 +73,14 @@ julia> q = From(person) |>
                       Get.visit_group |> Agg.max(Get.visit_start_date));
 
 julia> print(render(q))
-SELECT "person_1"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+SELECT
+  "person_1"."person_id",
+  "visit_group_1"."max" AS "max_visit_start_date"
 FROM "person" AS "person_1"
 LEFT JOIN (
-  SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
+  SELECT
+    "visit_occurrence_1"."person_id",
+    MAX("visit_occurrence_1"."visit_start_date") AS "max"
   FROM "visit_occurrence" AS "visit_occurrence_1"
   GROUP BY "visit_occurrence_1"."person_id"
 ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")

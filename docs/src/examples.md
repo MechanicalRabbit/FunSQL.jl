@@ -364,7 +364,10 @@ FunSQL query consists of a single [`From`](@ref) node.
 
     print(sql)
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."ethnicity_source_concept_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     =#
 
@@ -412,7 +415,10 @@ them in any order.
 
     print(sql)
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."ethnicity_source_concept_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."gender_concept_id" = 8507)
     ORDER BY "person_1"."year_of_birth"
@@ -444,9 +450,15 @@ them in any order.
 
     print(sql)
     #=>
-    SELECT "person_2"."person_id", …, "person_2"."ethnicity_source_concept_id"
+    SELECT
+      "person_2"."person_id",
+      ⋮
+      "person_2"."ethnicity_source_concept_id"
     FROM (
-      SELECT "person_1"."person_id", …, "person_1"."ethnicity_source_concept_id"
+      SELECT
+        "person_1"."person_id",
+        ⋮
+        "person_1"."ethnicity_source_concept_id"
       FROM "person" AS "person_1"
       ORDER BY "person_1"."year_of_birth"
       LIMIT 3
@@ -581,7 +593,18 @@ output columns.
 
     print(sql)
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."care_site_id"
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."time_of_birth",
+      "person_1"."race_concept_id",
+      "person_1"."ethnicity_concept_id",
+      "person_1"."location_id",
+      "person_1"."provider_id",
+      "person_1"."care_site_id"
     FROM "person" AS "person_1"
     =#
 
@@ -620,7 +643,10 @@ not present in the output.
 
     print(render(q, dialect = :sqlite))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."ethnicity_source_concept_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     JOIN "visit_occurrence" AS "visit_occurrence_1" ON ("person_1"."person_id" = "visit_occurrence_1"."person_id")
     =#
@@ -631,7 +657,10 @@ not present in the output.
 
     print(render(q′, dialect = :sqlite))
     #=>
-    SELECT "visit_occurrence_1"."visit_occurrence_id", …, "visit_occurrence_1"."visit_source_concept_id"
+    SELECT
+      "visit_occurrence_1"."visit_occurrence_id",
+      ⋮
+      "visit_occurrence_1"."visit_source_concept_id"
     FROM "person" AS "person_1"
     JOIN "visit_occurrence" AS "visit_occurrence_1" ON ("person_1"."person_id" = "visit_occurrence_1"."person_id")
     =#
@@ -654,7 +683,13 @@ however we must ensure that all column names are unique.
 
     print(render(q, dialect = :sqlite))
     #=>
-    SELECT "person_1"."person_id", …, "visit_occurrence_1"."visit_source_concept_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."ethnicity_source_concept_id",
+      "visit_occurrence_1"."visit_occurrence_id",
+      ⋮
+      "visit_occurrence_1"."visit_source_concept_id"
     FROM "person" AS "person_1"
     JOIN "visit_occurrence" AS "visit_occurrence_1" ON ("person_1"."person_id" = "visit_occurrence_1"."person_id")
     =#
@@ -722,9 +757,14 @@ between consecutive events.*
 
     print(sql)
     #=>
-    SELECT "condition_occurrence_2"."person_id", "condition_occurrence_2"."condition_start_date"
+    SELECT
+      "condition_occurrence_2"."person_id",
+      "condition_occurrence_2"."condition_start_date"
     FROM (
-      SELECT "condition_occurrence_1"."person_id", "condition_occurrence_1"."condition_start_date", (LAG(DATE("condition_occurrence_1"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_1"."person_id" ORDER BY "condition_occurrence_1"."condition_start_date")) AS "boundary"
+      SELECT
+        "condition_occurrence_1"."person_id",
+        "condition_occurrence_1"."condition_start_date",
+        (LAG(DATE("condition_occurrence_1"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_1"."person_id" ORDER BY "condition_occurrence_1"."condition_start_date")) AS "boundary"
       FROM "condition_occurrence" AS "condition_occurrence_1"
       JOIN (
         SELECT "concept_1"."concept_id"
@@ -739,7 +779,9 @@ between consecutive events.*
           FROM "concept" AS "concept_3"
           WHERE ("concept_3"."concept_name" LIKE '%inpatient%')
         ) AS "concept_4" ON ("visit_occurrence_1"."visit_concept_id" = "concept_4"."concept_id")
-        WHERE (("visit_occurrence_1"."person_id" = "condition_occurrence_1"."person_id") AND ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date"))
+        WHERE
+          ("visit_occurrence_1"."person_id" = "condition_occurrence_1"."person_id") AND
+          ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")
       ))
     ) AS "condition_occurrence_2"
     WHERE (("condition_occurrence_2"."boundary" IS NULL) OR ("condition_occurrence_2"."boundary" < "condition_occurrence_2"."condition_start_date"))
@@ -792,15 +834,28 @@ transformations.
 
     print(sql)
     #=>
-    SELECT "visit_occurrence_3"."person_id", MIN("visit_occurrence_3"."visit_start_date") AS "start_date", MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
+    SELECT
+      "visit_occurrence_3"."person_id",
+      MIN("visit_occurrence_3"."visit_start_date") AS "start_date",
+      MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
     FROM (
-      SELECT "visit_occurrence_2"."person_id", (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
+      SELECT
+        "visit_occurrence_2"."person_id",
+        (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period",
+        "visit_occurrence_2"."visit_start_date",
+        "visit_occurrence_2"."visit_end_date"
       FROM (
-        SELECT "visit_occurrence_1"."person_id", (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date"
+        SELECT
+          "visit_occurrence_1"."person_id",
+          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new",
+          "visit_occurrence_1"."visit_start_date",
+          "visit_occurrence_1"."visit_end_date"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
-    GROUP BY "visit_occurrence_3"."person_id", "visit_occurrence_3"."period"
+    GROUP BY
+      "visit_occurrence_3"."person_id",
+      "visit_occurrence_3"."period"
     =#
 
     res = DBInterface.execute(conn, sql)
@@ -845,15 +900,28 @@ one year gap between them.*
 
     print(sql)
     #=>
-    SELECT "visit_occurrence_3"."person_id", MIN("visit_occurrence_3"."visit_start_date") AS "start_date", DATE(MAX(DATE("visit_occurrence_3"."visit_end_date", '365 days')), '-365 days') AS "end_date"
+    SELECT
+      "visit_occurrence_3"."person_id",
+      MIN("visit_occurrence_3"."visit_start_date") AS "start_date",
+      DATE(MAX(DATE("visit_occurrence_3"."visit_end_date", '365 days')), '-365 days') AS "end_date"
     FROM (
-      SELECT "visit_occurrence_2"."person_id", (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
+      SELECT
+        "visit_occurrence_2"."person_id",
+        (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period",
+        "visit_occurrence_2"."visit_start_date",
+        "visit_occurrence_2"."visit_end_date"
       FROM (
-        SELECT "visit_occurrence_1"."person_id", (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX(DATE("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date"
+        SELECT
+          "visit_occurrence_1"."person_id",
+          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX(DATE("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new",
+          "visit_occurrence_1"."visit_start_date",
+          "visit_occurrence_1"."visit_end_date"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
-    GROUP BY "visit_occurrence_3"."person_id", "visit_occurrence_3"."period"
+    GROUP BY
+      "visit_occurrence_3"."person_id",
+      "visit_occurrence_3"."period"
     =#
 
     res = DBInterface.execute(conn, sql)

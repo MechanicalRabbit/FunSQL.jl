@@ -50,7 +50,9 @@ julia> q = From(person) |>
            Select(Get.year_of_birth, Agg.count());
 
 julia> print(render(q))
-SELECT "person_1"."year_of_birth", COUNT(*) AS "count"
+SELECT
+  "person_1"."year_of_birth",
+  COUNT(*) AS "count"
 FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```

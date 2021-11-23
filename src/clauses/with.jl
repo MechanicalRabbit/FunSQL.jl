@@ -40,7 +40,9 @@ WITH "essential_hypertension" AS (
   FROM "condition_occurrence"
   WHERE ("condition_concept_id" = 320128)
 )
-SELECT "person_id", "year_of_birth"
+SELECT
+  "person_id",
+  "year_of_birth"
 FROM "person"
 WHERE ("person_id" IN (
   SELECT "person_id"
@@ -67,11 +69,15 @@ julia> c = FROM(:essential_hypertension) |>
 
 julia> print(render(c))
 WITH RECURSIVE "essential_hypertension" ("concept_id", "concept_name") AS (
-  SELECT "concept_id", "concept_name"
+  SELECT
+    "concept_id",
+    "concept_name"
   FROM "concept"
   WHERE ("concept_id" = 320128)
   UNION ALL
-  SELECT "c"."concept_id", "c"."concept_name"
+  SELECT
+    "c"."concept_id",
+    "c"."concept_name"
   FROM "essential_hypertension" AS "eh"
   JOIN "concept_relationship" AS "cr" ON ("eh"."concept_id" = "cr"."concept_id_1")
   JOIN "concept" AS "c" ON ("cr"."concept_id_2" = "c"."concept_id")

@@ -31,7 +31,9 @@ To generate SQL, we use function `render()`.
 
     print(render(c))
     #=>
-    SELECT "person_id", "year_of_birth"
+    SELECT
+      "person_id",
+      "year_of_birth"
     FROM "person"
     =#
 
@@ -61,7 +63,14 @@ literals when they are used in the context of a SQL clause.
     =#
 
     print(render(c))
-    #-> SELECT NULL, TRUE, 42, 'SQL is fun!', '2000-01-01'
+    #=>
+    SELECT
+      NULL,
+      TRUE,
+      42,
+      'SQL is fun!',
+      '2000-01-01'
+    =#
 
 
 ## SQL Identifiers
@@ -419,7 +428,9 @@ at the end of a clause chain.
 
     print(render(c))
     #=>
-    SELECT "person_id", "year_of_birth"
+    SELECT
+      "person_id",
+      "year_of_birth"
     FROM "person"
     =#
 
@@ -482,7 +493,9 @@ Rendering a nested `SELECT` clause adds parentheses around it.
     #=>
     SELECT "zip"
     FROM (
-      SELECT "state", "zip"
+      SELECT
+        "state",
+        "zip"
       FROM "location"
     )
     =#
@@ -658,7 +671,9 @@ A `JOIN` clause is created with `JOIN()` constructor.
 
     print(render(c |> SELECT((:p, :person_id), (:l, :state))))
     #=>
-    SELECT "p"."person_id", "l"."state"
+    SELECT
+      "p"."person_id",
+      "l"."state"
     FROM "person" AS "p"
     LEFT JOIN "location" AS "l" ON ("p"."location_id" = "l"."location_id")
     =#
@@ -680,7 +695,9 @@ Different types of `JOIN` are supported.
 
     print(render(c |> SELECT((:p, :person_id), (:op, :observation_period_start_date))))
     #=>
-    SELECT "p"."person_id", "op"."observation_period_start_date"
+    SELECT
+      "p"."person_id",
+      "op"."observation_period_start_date"
     FROM "person" AS "p"
     JOIN "observation_period" AS "op" ON ("p"."person_id" = "op"."person_id")
     =#
@@ -702,7 +719,9 @@ Different types of `JOIN` are supported.
 
     print(render(c |> SELECT((:cs, :care_site_name), (:l, :state))))
     #=>
-    SELECT "cs"."care_site_name", "l"."state"
+    SELECT
+      "cs"."care_site_name",
+      "l"."state"
     FROM "location" AS "l"
     RIGHT JOIN "care_site" AS "cs" ON ("l"."location_id" = "cs"."location_id")
     =#
@@ -726,7 +745,9 @@ Different types of `JOIN` are supported.
 
     print(render(c |> SELECT((:p, :person_id), (:pr, :npi))))
     #=>
-    SELECT "p"."person_id", "pr"."npi"
+    SELECT
+      "p"."person_id",
+      "pr"."npi"
     FROM "person" AS "p"
     FULL JOIN "provider" AS "pr" ON ("p"."provider_id" = "pr"."provider_id")
     =#
@@ -739,7 +760,9 @@ To render a `CROSS JOIN`, set the join condition to `true`.
 
     print(render(c |> SELECT((:p1, :person_id), (:p2, :person_id))))
     #=>
-    SELECT "p1"."person_id", "p2"."person_id"
+    SELECT
+      "p1"."person_id",
+      "p2"."person_id"
     FROM "person" AS "p1"
     CROSS JOIN "person" AS "p2"
     =#
@@ -776,7 +799,9 @@ A `JOIN LATERAL` clause can be created.
 
     print(render(c |> SELECT((:p, :person_id), (:vo, :visit_start_date))))
     #=>
-    SELECT "p"."person_id", "vo"."visit_start_date"
+    SELECT
+      "p"."person_id",
+      "vo"."visit_start_date"
     FROM "person" AS "p"
     LEFT JOIN LATERAL (
       SELECT "vo"."visit_start_date"
@@ -800,7 +825,9 @@ A `GROUP BY` clause is created with `GROUP` constructor.
 
     print(render(c |> SELECT(:year_of_birth, AGG("COUNT", *))))
     #=>
-    SELECT "year_of_birth", COUNT(*)
+    SELECT
+      "year_of_birth",
+      COUNT(*)
     FROM "person"
     GROUP BY "year_of_birth"
     =#
@@ -893,7 +920,9 @@ It is possible to specify ascending or descending order of the sort column.
     #=>
     SELECT "person_id"
     FROM "person"
-    ORDER BY "year_of_birth" DESC NULLS FIRST, "person_id" ASC
+    ORDER BY
+      "year_of_birth" DESC NULLS FIRST,
+      "person_id" ASC
     =#
 
 Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
@@ -907,7 +936,9 @@ Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
     #=>
     SELECT "person_id"
     FROM "person"
-    ORDER BY "year_of_birth" DESC NULLS FIRST, "person_id" ASC
+    ORDER BY
+      "year_of_birth" DESC NULLS FIRST,
+      "person_id" ASC
     =#
 
 
@@ -935,10 +966,14 @@ Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
 
     print(render(c))
     #=>
-    SELECT "person_id", "measurement_date" AS "date"
+    SELECT
+      "person_id",
+      "measurement_date" AS "date"
     FROM "measurement"
     UNION ALL
-    SELECT "person_id", "observation_date" AS "date"
+    SELECT
+      "person_id",
+      "observation_date" AS "date"
     FROM "observation"
     =#
 
@@ -963,10 +998,14 @@ Rendering a nested `UNION` clause adds parentheses around it.
     #=>
     SELECT "person_id"
     FROM (
-      SELECT "person_id", "measurement_date" AS "date"
+      SELECT
+        "person_id",
+        "measurement_date" AS "date"
       FROM "measurement"
       UNION ALL
-      SELECT "person_id", "observation_date" AS "date"
+      SELECT
+        "person_id",
+        "observation_date" AS "date"
       FROM "observation"
     ) AS "union"
     WHERE ("date" > '2000-01-01')
@@ -995,9 +1034,13 @@ A `WINDOW` clause is created with `WINDOW()` constructor.
 
     print(render(c |> SELECT(:w1 |> AGG("ROW_NUMBER"), :w2 |> AGG("ROW_NUMBER"))))
     #=>
-    SELECT (ROW_NUMBER() OVER ("w1")), (ROW_NUMBER() OVER ("w2"))
+    SELECT
+      (ROW_NUMBER() OVER ("w1")),
+      (ROW_NUMBER() OVER ("w2"))
     FROM "person"
-    WINDOW "w1" AS (PARTITION BY "gender_concept_id"), "w2" AS ("w1" PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth")
+    WINDOW
+      "w1" AS (PARTITION BY "gender_concept_id"),
+      "w2" AS ("w1" PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth")
     =#
 
 The `WINDOW()` constructor accepts an empty list of partitions, in which case,
@@ -1085,15 +1128,21 @@ The `WITH` clause is created using the `WITH()` constructor.
     print(render(c))
     #=>
     WITH RECURSIVE "essential_hypertension" AS (
-      SELECT "concept_id", "concept_name"
+      SELECT
+        "concept_id",
+        "concept_name"
       FROM "concept"
       WHERE ("concept_id" = 320128)
     ),
     "essential_hypertension_with_descendants" ("concept_id", "concept_name") AS (
-      SELECT "concept_id", "concept_name"
+      SELECT
+        "concept_id",
+        "concept_name"
       FROM "essential_hypertension"
       UNION ALL
-      SELECT "c"."concept_id", "c"."concept_name"
+      SELECT
+        "c"."concept_id",
+        "c"."concept_name"
       FROM "essential_hypertension_with_descendants" AS "eh"
       JOIN "concept_relationship" AS "cr" ON ("eh"."concept_id" = "cr"."concept_id_1")
       JOIN "concept" AS "c" ON ("cr"."concept_id_2" = "c"."concept_id")

@@ -95,6 +95,33 @@ function render(ctx, cs::AbstractVector{SQLClause}, sep = nothing)
     end
 end
 
+function render_lines(ctx, cs::AbstractVector{SQLClause}, sep = nothing)
+    !isempty(cs) || return
+    if length(cs) == 1
+        print(ctx, ' ')
+        render(ctx, cs[1])
+    else
+        ctx.level += 1
+        newline(ctx)
+        first = true
+        for c in cs
+            if !first
+                if sep === nothing
+                    print(ctx, ',')
+                    newline(ctx)
+                else
+                    print(ctx, ' ', sep)
+                    newline(ctx)
+                end
+            else
+                first = false
+            end
+            render(ctx, c)
+        end
+        ctx.level -= 1
+    end
+end
+
 function render(ctx, c::AggregateClause)
     if c.filter !== nothing || c.over !== nothing
         print(ctx, '(')
@@ -194,8 +221,8 @@ function render(ctx, c::GroupClause)
     end
     !isempty(c.by) || return
     newline(ctx)
-    print(ctx, "GROUP BY ")
-    render(ctx, c.by)
+    print(ctx, "GROUP BY")
+    render_lines(ctx, c.by)
 end
 
 function render(ctx, c::HavingClause)
@@ -204,8 +231,13 @@ function render(ctx, c::HavingClause)
         render(ctx, over)
     end
     newline(ctx)
-    print(ctx, "HAVING ")
-    render(ctx, c.condition)
+    print(ctx, "HAVING")
+    if (@dissect c.condition OP(name = :AND, args = args)) && length(args) >= 2
+        render_lines(ctx, args, "AND")
+    else
+        print(ctx, ' ')
+        render(ctx, c.condition)
+    end
 end
 
 function render(ctx, c::IdentifierClause)
@@ -314,8 +346,8 @@ function render(ctx, c::OrderClause)
     end
     !isempty(c.by) || return
     newline(ctx)
-    print(ctx, "ORDER BY ")
-    render(ctx, c.by)
+    print(ctx, "ORDER BY")
+    render_lines(ctx, c.by)
 end
 
 function render(ctx, m::FrameMode)
@@ -431,10 +463,7 @@ function render(ctx, c::SelectClause)
     if c.distinct
         print(ctx, " DISTINCT")
     end
-    if !isempty(c.list)
-        print(ctx, ' ')
-        render(ctx, c.list)
-    end
+    render_lines(ctx, c.list)
     over = c.over
     if over !== nothing
         render(ctx, over)
@@ -518,8 +547,13 @@ function render(ctx, c::WhereClause)
         render(ctx, over)
     end
     newline(ctx)
-    print(ctx, "WHERE ")
-    render(ctx, c.condition)
+    print(ctx, "WHERE")
+    if (@dissect c.condition OP(name = :AND, args = args)) && length(args) >= 2
+        render_lines(ctx, args, "AND")
+    else
+        print(ctx, ' ')
+        render(ctx, c.condition)
+    end
 end
 
 function render(ctx, c::WindowClause)
@@ -529,8 +563,8 @@ function render(ctx, c::WindowClause)
     end
     !isempty(c.list) || return
     newline(ctx)
-    print(ctx, "WINDOW ")
-    render(ctx, c.list)
+    print(ctx, "WINDOW")
+    render_lines(ctx, c.list)
 end
 
 function render(ctx, c::WithClause)
