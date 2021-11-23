@@ -28,9 +28,13 @@ julia> c = FROM(:person) |>
            SELECT(:person_id, AGG("ROW_NUMBER", over = :w2));
 
 julia> print(render(c))
-SELECT "person_id", (ROW_NUMBER() OVER ("w2"))
+SELECT
+  "person_id",
+  (ROW_NUMBER() OVER ("w2"))
 FROM "person"
-WINDOW "w1" AS (PARTITION BY "year_of_birth"), "w2" AS ("w1" ORDER BY "month_of_birth", "day_of_birth")
+WINDOW
+  "w1" AS (PARTITION BY "year_of_birth"),
+  "w2" AS ("w1" ORDER BY "month_of_birth", "day_of_birth")
 ```
 """
 WINDOW(args...; kws...) =

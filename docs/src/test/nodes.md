@@ -206,7 +206,9 @@ This is particularly useful when you need to disambiguate the output of `Join`.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "location_1"."state"
+    SELECT
+      "person_1"."person_id",
+      "location_1"."state"
     FROM "person" AS "person_1"
     JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     =#
@@ -221,7 +223,9 @@ Alternatively, node-bound references could be used for this purpose.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "location_1"."state"
+    SELECT
+      "person_1"."person_id",
+      "location_1"."state"
     FROM "person" AS "person_1"
     JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     =#
@@ -359,7 +363,15 @@ constructor.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, (NOW() - "person_1"."birth_datetime") AS "age"
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."birth_datetime",
+      "person_1"."location_id",
+      (NOW() - "person_1"."birth_datetime") AS "age"
     FROM "person" AS "person_1"
     =#
 
@@ -368,7 +380,15 @@ attribute.
 
     print(render(q |> Where(Get.age .> "16 years")))
     #=>
-    SELECT "person_1"."person_id", …, (NOW() - "person_1"."birth_datetime") AS "age"
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."birth_datetime",
+      "person_1"."location_id",
+      (NOW() - "person_1"."birth_datetime") AS "age"
     FROM "person" AS "person_1"
     WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
     =#
@@ -380,7 +400,14 @@ attribute.
 
     print(render(q))
     #=>
-    SELECT "person_1"."year_of_birth" AS "person_id", …, "person_1"."person_id" AS "year_of_birth", …
+    SELECT
+      "person_1"."year_of_birth" AS "person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."person_id" AS "year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."birth_datetime",
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -392,7 +419,9 @@ attribute.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "person_1"."year_of_birth"
+    SELECT
+      "person_1"."person_id",
+      "person_1"."year_of_birth"
     FROM "person" AS "person_1"
     =#
 
@@ -404,9 +433,14 @@ attribute.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id", "person_2"."year_of_birth", (2020 - "person_2"."year_of_birth") AS "age"
+    SELECT
+      "person_2"."person_id",
+      "person_2"."year_of_birth",
+      (2020 - "person_2"."year_of_birth") AS "age"
     FROM (
-      SELECT "person_1"."person_id", "person_1"."year_of_birth"
+      SELECT
+        "person_1"."person_id",
+        "person_1"."year_of_birth"
       FROM "person" AS "person_1"
     ) AS "person_2"
     =#
@@ -453,7 +487,10 @@ Unbound query variables are serialized as query parameters.
 
     print(sql)
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > :year)
     =#
@@ -482,7 +519,11 @@ Query variables could be bound using the `Bind` constructor.
 
     print(render(q0(1)))
     #=>
-    SELECT "visit_occurrence_1"."visit_occurrence_id", …, "visit_occurrence_1"."visit_end_date"
+    SELECT
+      "visit_occurrence_1"."visit_occurrence_id",
+      "visit_occurrence_1"."person_id",
+      "visit_occurrence_1"."visit_start_date",
+      "visit_occurrence_1"."visit_end_date"
     FROM "visit_occurrence" AS "visit_occurrence_1"
     WHERE ("visit_occurrence_1"."person_id" = 1)
     =#
@@ -494,7 +535,10 @@ Query variables could be bound using the `Bind` constructor.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (EXISTS (
       SELECT NULL
@@ -569,12 +613,17 @@ A function invocation may include a nested query.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."gender_concept_id" IN (
       SELECT "concept_1"."concept_id"
       FROM "concept" AS "concept_1"
-      WHERE (("concept_1"."vocabulary_id" = 'Gender') AND ("concept_1"."concept_code" = 'F'))
+      WHERE
+        ("concept_1"."vocabulary_id" = 'Gender') AND
+        ("concept_1"."concept_code" = 'F')
     ))
     =#
 
@@ -586,9 +635,14 @@ syntax.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
-    WHERE (("person_1"."birth_datetime" IS NULL) AND ("person_1"."year_of_birth" IS NOT NULL))
+    WHERE
+      ("person_1"."birth_datetime" IS NULL) AND
+      ("person_1"."year_of_birth" IS NOT NULL)
     =#
 
 FunSQL can simplify logical expressions.
@@ -598,7 +652,10 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -617,7 +674,10 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 1950)
     =#
@@ -627,9 +687,15 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
-    WHERE (("person_1"."year_of_birth" > 1950) AND ("person_1"."year_of_birth" < 1960) AND ("person_1"."year_of_birth" <> 1955))
+    WHERE
+      ("person_1"."year_of_birth" > 1950) AND
+      ("person_1"."year_of_birth" < 1960) AND
+      ("person_1"."year_of_birth" <> 1955)
     =#
 
     q = From(person) |>
@@ -637,7 +703,10 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE FALSE
     =#
@@ -647,7 +716,10 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 1950)
     =#
@@ -657,7 +729,10 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (("person_1"."year_of_birth" > 1950) OR ("person_1"."year_of_birth" < 1960))
     =#
@@ -667,7 +742,10 @@ FunSQL can simplify logical expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -698,12 +776,18 @@ queries.
 
     print(render(q |> Select(Get.person_id, Get.date)))
     #=>
-    SELECT "union_1"."person_id", "union_1"."date"
+    SELECT
+      "union_1"."person_id",
+      "union_1"."date"
     FROM (
-      SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+      SELECT
+        "measurement_1"."person_id",
+        "measurement_1"."measurement_date" AS "date"
       FROM "measurement" AS "measurement_1"
       UNION ALL
-      SELECT "observation_1"."person_id", "observation_1"."observation_date" AS "date"
+      SELECT
+        "observation_1"."person_id",
+        "observation_1"."observation_date" AS "date"
       FROM "observation" AS "observation_1"
     ) AS "union_1"
     =#
@@ -722,13 +806,25 @@ queries.
 
     print(render(q))
     #=>
-    SELECT "union_1"."person_id", "union_1"."count", "union_1"."count_2", "union_1"."count_3" AS "count_distinct"
+    SELECT
+      "union_1"."person_id",
+      "union_1"."count",
+      "union_1"."count_2",
+      "union_1"."count_3" AS "count_distinct"
     FROM (
-      SELECT "measurement_1"."person_id", COUNT(*) AS "count", 1 AS "count_2", COUNT(DISTINCT "measurement_1"."measurement_concept_id") AS "count_3"
+      SELECT
+        "measurement_1"."person_id",
+        COUNT(*) AS "count",
+        1 AS "count_2",
+        COUNT(DISTINCT "measurement_1"."measurement_concept_id") AS "count_3"
       FROM "measurement" AS "measurement_1"
       GROUP BY "measurement_1"."person_id"
       UNION ALL
-      SELECT "observation_1"."person_id", COUNT(*) AS "count", 2 AS "count_2", COUNT(DISTINCT "observation_1"."observation_concept_id") AS "count_3"
+      SELECT
+        "observation_1"."person_id",
+        COUNT(*) AS "count",
+        2 AS "count_2",
+        COUNT(DISTINCT "observation_1"."observation_concept_id") AS "count_3"
       FROM "observation" AS "observation_1"
       GROUP BY "observation_1"."person_id"
     ) AS "union_1"
@@ -749,13 +845,19 @@ nested subqueries.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "assessment_1"."date"
+    SELECT
+      "person_1"."person_id",
+      "assessment_1"."date"
     FROM "person" AS "person_1"
     JOIN (
-      SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+      SELECT
+        "measurement_1"."person_id",
+        "measurement_1"."measurement_date" AS "date"
       FROM "measurement" AS "measurement_1"
       UNION ALL
-      SELECT "observation_1"."person_id", "observation_1"."observation_date" AS "date"
+      SELECT
+        "observation_1"."person_id",
+        "observation_1"."observation_date" AS "date"
       FROM "observation" AS "observation_1"
     ) AS "assessment_1" ON ("person_1"."person_id" = "assessment_1"."person_id")
     WHERE ("assessment_1"."date" > CURRENT_TIMESTAMP)
@@ -770,15 +872,23 @@ nested subqueries.
 
     print(render(q))
     #=>
-    SELECT "measurement_2"."person_id", "measurement_2"."date"
+    SELECT
+      "measurement_2"."person_id",
+      "measurement_2"."date"
     FROM (
-      SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+      SELECT
+        "measurement_1"."person_id",
+        "measurement_1"."measurement_date" AS "date"
       FROM "measurement" AS "measurement_1"
     ) AS "measurement_2"
     UNION ALL
-    SELECT "observation_2"."person_id", "observation_2"."date"
+    SELECT
+      "observation_2"."person_id",
+      "observation_2"."date"
     FROM (
-      SELECT "observation_1"."observation_date" AS "date", "observation_1"."person_id"
+      SELECT
+        "observation_1"."observation_date" AS "date",
+        "observation_1"."person_id"
       FROM "observation" AS "observation_1"
     ) AS "observation_2"
     =#
@@ -872,7 +982,14 @@ By default, `From` selects all columns from the table.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."birth_datetime",
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -885,7 +1002,9 @@ By default, `From` selects all columns from the table.
 
     print(render(q))
     #=>
-    SELECT "pg_database_1"."oid", "pg_database_1"."datname"
+    SELECT
+      "pg_database_1"."oid",
+      "pg_database_1"."datname"
     FROM "pg_catalog"."pg_database" AS "pg_database_1"
     =#
 
@@ -894,7 +1013,10 @@ In a suitable context, a `SQLTable` object is automatically converted to a
 
     print(render(person))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -960,7 +1082,9 @@ Partitions created by `Group` are summarized using aggregate expressions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."year_of_birth", COUNT(*) AS "count"
+    SELECT
+      "person_1"."year_of_birth",
+      COUNT(*) AS "count"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
     =#
@@ -977,10 +1101,14 @@ used more than once.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "visit_group_1"."count"
+    SELECT
+      "person_1"."person_id",
+      "visit_group_1"."count"
     FROM "person" AS "person_1"
     JOIN (
-      SELECT "visit_occurrence_1"."person_id", COUNT(*) AS "count"
+      SELECT
+        "visit_occurrence_1"."person_id",
+        COUNT(*) AS "count"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
@@ -996,7 +1124,9 @@ used more than once.
 
     print(render(q))
     #=>
-    SELECT "measurement_2"."count", COUNT(*) AS "size"
+    SELECT
+      "measurement_2"."count",
+      COUNT(*) AS "size"
     FROM (
       SELECT COUNT(*) AS "count"
       FROM "measurement" AS "measurement_1"
@@ -1013,7 +1143,10 @@ used more than once.
 
     print(render(q))
     #=>
-    SELECT COUNT(*) AS "count", MIN("person_1"."year_of_birth") AS "min", MAX("person_1"."year_of_birth") AS "max"
+    SELECT
+      COUNT(*) AS "count",
+      MIN("person_1"."year_of_birth") AS "min",
+      MAX("person_1"."year_of_birth") AS "max"
     FROM "person" AS "person_1"
     =#
 
@@ -1048,10 +1181,16 @@ used more than once.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "visit_group_1"."max" AS "max_visit_start_date", "visit_group_1"."max_2" AS "max_visit_end_date"
+    SELECT
+      "person_1"."person_id",
+      "visit_group_1"."max" AS "max_visit_start_date",
+      "visit_group_1"."max_2" AS "max_visit_end_date"
     FROM "person" AS "person_1"
     JOIN (
-      SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max", MAX("visit_occurrence_1"."visit_end_date") AS "max_2"
+      SELECT
+        "visit_occurrence_1"."person_id",
+        MAX("visit_occurrence_1"."visit_start_date") AS "max",
+        MAX("visit_occurrence_1"."visit_end_date") AS "max_2"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
@@ -1148,10 +1287,14 @@ corresponding `Group` could be determined unambiguously.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", COALESCE("visit_occurrence_2"."count", 0) AS "count"
+    SELECT
+      "person_1"."person_id",
+      COALESCE("visit_occurrence_2"."count", 0) AS "count"
     FROM "person" AS "person_1"
     LEFT JOIN (
-      SELECT "visit_occurrence_1"."person_id", COUNT(*) AS "count"
+      SELECT
+        "visit_occurrence_1"."person_id",
+        COUNT(*) AS "count"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_occurrence_2" ON ("person_1"."person_id" = "visit_occurrence_2"."person_id")
@@ -1180,7 +1323,10 @@ given keys.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -1203,7 +1349,9 @@ functions.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", (ROW_NUMBER() OVER (PARTITION BY "person_1"."gender_concept_id")) AS "row_number"
+    SELECT
+      "person_1"."person_id",
+      (ROW_NUMBER() OVER (PARTITION BY "person_1"."gender_concept_id")) AS "row_number"
     FROM "person" AS "person_1"
     =#
 
@@ -1230,7 +1378,9 @@ A partition may specify the window frame.
 
     print(render(q))
     #=>
-    SELECT "person_1"."year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
+    SELECT
+      "person_1"."year_of_birth",
+      (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
     =#
@@ -1256,15 +1406,28 @@ example which calculates non-overlapping visits.
 
     print(render(q))
     #=>
-    SELECT "visit_occurrence_3"."person_id", MIN("visit_occurrence_3"."visit_start_date") AS "start_date", MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
+    SELECT
+      "visit_occurrence_3"."person_id",
+      MIN("visit_occurrence_3"."visit_start_date") AS "start_date",
+      MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
     FROM (
-      SELECT "visit_occurrence_2"."person_id", (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "group", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
+      SELECT
+        "visit_occurrence_2"."person_id",
+        (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "group",
+        "visit_occurrence_2"."visit_start_date",
+        "visit_occurrence_2"."visit_end_date"
       FROM (
-        SELECT "visit_occurrence_1"."person_id", (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date"
+        SELECT
+          "visit_occurrence_1"."person_id",
+          (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new",
+          "visit_occurrence_1"."visit_start_date",
+          "visit_occurrence_1"."visit_end_date"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
-    GROUP BY "visit_occurrence_3"."person_id", "visit_occurrence_3"."group"
+    GROUP BY
+      "visit_occurrence_3"."person_id",
+      "visit_occurrence_3"."group"
     =#
 
 
@@ -1295,7 +1458,10 @@ nested subqueries.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
     =#
@@ -1331,14 +1497,20 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id", "location_2"."city"
+    SELECT
+      "person_2"."person_id",
+      "location_2"."city"
     FROM (
-      SELECT "person_1"."location_id", "person_1"."person_id"
+      SELECT
+        "person_1"."location_id",
+        "person_1"."person_id"
       FROM "person" AS "person_1"
       WHERE ("person_1"."year_of_birth" > 1970)
     ) AS "person_2"
     JOIN (
-      SELECT "location_1"."location_id", "location_1"."city"
+      SELECT
+        "location_1"."location_id",
+        "location_1"."city"
       FROM "location" AS "location_1"
       WHERE ("location_1"."state" = 'IL')
     ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
@@ -1355,9 +1527,18 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q0(1)))
     #=>
-    SELECT "visit_occurrence_2"."visit_occurrence_id", "visit_occurrence_2"."person_id", "visit_occurrence_2"."visit_start_date", "visit_occurrence_2"."visit_end_date"
+    SELECT
+      "visit_occurrence_2"."visit_occurrence_id",
+      "visit_occurrence_2"."person_id",
+      "visit_occurrence_2"."visit_start_date",
+      "visit_occurrence_2"."visit_end_date"
     FROM (
-      SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."person_id", "visit_occurrence_1"."visit_start_date", "visit_occurrence_1"."visit_end_date", (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
+      SELECT
+        "visit_occurrence_1"."visit_occurrence_id",
+        "visit_occurrence_1"."person_id",
+        "visit_occurrence_1"."visit_start_date",
+        "visit_occurrence_1"."visit_end_date",
+        (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = 1)
     ) AS "visit_occurrence_2"
@@ -1372,12 +1553,20 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", "visit_1"."visit_occurrence_id", "visit_1"."visit_start_date"
+    SELECT
+      "person_1"."person_id",
+      "visit_1"."visit_occurrence_id",
+      "visit_1"."visit_start_date"
     FROM "person" AS "person_1"
     CROSS JOIN LATERAL (
-      SELECT "visit_occurrence_2"."visit_occurrence_id", "visit_occurrence_2"."visit_start_date"
+      SELECT
+        "visit_occurrence_2"."visit_occurrence_id",
+        "visit_occurrence_2"."visit_start_date"
       FROM (
-        SELECT "visit_occurrence_1"."visit_occurrence_id", "visit_occurrence_1"."visit_start_date", (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
+        SELECT
+          "visit_occurrence_1"."visit_occurrence_id",
+          "visit_occurrence_1"."visit_start_date",
+          (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
         FROM "visit_occurrence" AS "visit_occurrence_1"
         WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
       ) AS "visit_occurrence_2"
@@ -1405,7 +1594,10 @@ The `Order` constructor creates a subquery for sorting the data.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."year_of_birth"
     =#
@@ -1419,9 +1611,15 @@ The `Order` constructor creates a subquery for sorting the data.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id", …, "person_2"."location_id"
+    SELECT
+      "person_2"."person_id",
+      ⋮
+      "person_2"."location_id"
     FROM (
-      SELECT "person_1"."person_id", …, "person_1"."location_id"
+      SELECT
+        "person_1"."person_id",
+        ⋮
+        "person_1"."location_id"
       FROM "person" AS "person_1"
       ORDER BY "person_1"."year_of_birth"
       FETCH FIRST 10 ROWS ONLY
@@ -1437,7 +1635,10 @@ An `Order` without columns to sort by is a no-op.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -1461,9 +1662,14 @@ column.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
-    ORDER BY "person_1"."year_of_birth" DESC NULLS FIRST, "person_1"."person_id" ASC
+    ORDER BY
+      "person_1"."year_of_birth" DESC NULLS FIRST,
+      "person_1"."person_id" ASC
     =#
 
 A generic `Sort` constructor could also be used for this purpose.
@@ -1474,9 +1680,14 @@ A generic `Sort` constructor could also be used for this purpose.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
-    ORDER BY "person_1"."year_of_birth" DESC NULLS FIRST, "person_1"."person_id" ASC
+    ORDER BY
+      "person_1"."year_of_birth" DESC NULLS FIRST,
+      "person_1"."person_id" ASC
     =#
 
 
@@ -1502,7 +1713,10 @@ dataset.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."person_id"
     FETCH FIRST 10 ROWS ONLY
@@ -1526,7 +1740,10 @@ Both the offset and the limit can be specified.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."person_id"
     OFFSET 100 ROWS
@@ -1539,7 +1756,10 @@ Both the offset and the limit can be specified.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."person_id"
     OFFSET 100 ROWS
@@ -1552,9 +1772,15 @@ Both the offset and the limit can be specified.
 
     print(render(q))
     #=>
-    SELECT "person_2"."person_id", …, "person_2"."location_id"
+    SELECT
+      "person_2"."person_id",
+      ⋮
+      "person_2"."location_id"
     FROM (
-      SELECT "person_1"."person_id", …, "person_1"."location_id"
+      SELECT
+        "person_1"."person_id",
+        ⋮
+        "person_1"."location_id"
       FROM "person" AS "person_1"
       OFFSET 100 ROWS
     ) AS "person_2"
@@ -1566,7 +1792,10 @@ Both the offset and the limit can be specified.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
 
@@ -1640,7 +1869,10 @@ The `Where` constructor creates a subquery that filters by the given condition.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
@@ -1654,9 +1886,15 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
-    WHERE (("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020) AND ("person_1"."year_of_birth" <> 2010))
+    WHERE
+      ("person_1"."year_of_birth" > 2000) AND
+      ("person_1"."year_of_birth" < 2020) AND
+      ("person_1"."year_of_birth" <> 2010)
     =#
 
     q = From(person) |>
@@ -1665,9 +1903,15 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
 
     print(render(q))
     #=>
-    SELECT "person_1"."person_id", …, "person_1"."location_id"
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
     FROM "person" AS "person_1"
-    WHERE (("person_1"."year_of_birth" <> 2010) AND ("person_1"."year_of_birth" > 2000) AND ("person_1"."year_of_birth" < 2020))
+    WHERE
+      ("person_1"."year_of_birth" <> 2010) AND
+      ("person_1"."year_of_birth" > 2000) AND
+      ("person_1"."year_of_birth" < 2020)
     =#
 
 `Where` that follows `Group` subquery is transformed to a `HAVING` clause.
@@ -1695,7 +1939,11 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     SELECT "person_1"."year_of_birth"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
-    HAVING ((COUNT(*) > 10) AND (COUNT(*) < 100) AND (COUNT(*) <> 33) AND (COUNT(*) <> 66))
+    HAVING
+      (COUNT(*) > 10) AND
+      (COUNT(*) < 100) AND
+      (COUNT(*) <> 33) AND
+      (COUNT(*) <> 66)
     =#
 
 
@@ -1907,9 +2155,13 @@ Finally, the SQL tree is serialized into SQL.
     end;
     #=>
     ┌ Debug: FunSQL.render
-    │ SELECT "person_2"."person_id", "visit_group_1"."max" AS "max_visit_start_date"
+    │ SELECT
+    │   "person_2"."person_id",
+    │   "visit_group_1"."max" AS "max_visit_start_date"
     │ FROM (
-    │   SELECT "person_1"."location_id", "person_1"."person_id"
+    │   SELECT
+    │     "person_1"."location_id",
+    │     "person_1"."person_id"
     │   FROM "person" AS "person_1"
     │   WHERE ("person_1"."year_of_birth" <= 2000)
     │ ) AS "person_2"
@@ -1919,7 +2171,9 @@ Finally, the SQL tree is serialized into SQL.
     │   WHERE ("location_1"."state" = 'IL')
     │ ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
     │ LEFT JOIN (
-    │   SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
+    │   SELECT
+    │     "visit_occurrence_1"."person_id",
+    │     MAX("visit_occurrence_1"."visit_start_date") AS "max"
     │   FROM "visit_occurrence" AS "visit_occurrence_1"
     │   GROUP BY "visit_occurrence_1"."person_id"
     │ ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")

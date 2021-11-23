@@ -31,10 +31,14 @@ julia> c = FROM(:measurement) |>
                  SELECT(:person_id, :date => :observation_date));
 
 julia> print(render(c))
-SELECT "person_id", "measurement_date" AS "date"
+SELECT
+  "person_id",
+  "measurement_date" AS "date"
 FROM "measurement"
 UNION ALL
-SELECT "person_id", "observation_date" AS "date"
+SELECT
+  "person_id",
+  "observation_date" AS "date"
 FROM "observation"
 ```
 """

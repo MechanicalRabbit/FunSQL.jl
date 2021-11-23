@@ -41,7 +41,9 @@ julia> c = FROM(:p => :person) |>
            SELECT((:p, :person_id), (:l, :state));
 
 julia> print(render(c))
-SELECT "p"."person_id", "l"."state"
+SELECT
+  "p"."person_id",
+  "l"."state"
 FROM "person" AS "p"
 LEFT JOIN "location" AS "l" ON ("p"."location_id" = "l"."location_id")
 ```

@@ -37,7 +37,9 @@ julia> q = From(person) |>
            Select(Get.year_of_birth, Agg.row_number());
 
 julia> print(render(q))
-SELECT "person_1"."year_of_birth", (ROW_NUMBER() OVER (PARTITION BY "person_1"."year_of_birth")) AS "row_number"
+SELECT
+  "person_1"."year_of_birth",
+  (ROW_NUMBER() OVER (PARTITION BY "person_1"."year_of_birth")) AS "row_number"
 FROM "person" AS "person_1"
 ```
 
@@ -51,7 +53,9 @@ julia> q = From(person) |>
            Select(Get.year_of_birth, Agg.avg(Agg.count()));
 
 julia> print(render(q))
-SELECT "person_1"."year_of_birth", (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
+SELECT
+  "person_1"."year_of_birth",
+  (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
 FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```

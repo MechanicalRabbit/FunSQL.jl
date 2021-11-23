@@ -55,7 +55,9 @@ Set `distinct` to `true` to add a `DISTINCT` modifier.
 julia> c = SELECT(true, false);
 
 julia> print(render(c))
-SELECT TRUE, FALSE
+SELECT
+  TRUE,
+  FALSE
 ```
 
 ```jldoctest

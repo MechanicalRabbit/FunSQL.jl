@@ -50,9 +50,13 @@ Select(Get.person_id,
 This object is rendered by FunSQL into the following SQL statement:
 
 ```sql
-SELECT "person_2"."person_id", "visit_group_1"."max" AS "latest_visit_date"
+SELECT
+  "person_2"."person_id",
+  "visit_group_1"."max" AS "latest_visit_date"
 FROM (
-  SELECT "person_1"."location_id", "person_1"."person_id"
+  SELECT
+    "person_1"."location_id",
+    "person_1"."person_id"
   FROM "person" AS "person_1"
   WHERE ("person_1"."year_of_birth" BETWEEN 1930 AND 1940)
 ) AS "person_2"
@@ -62,7 +66,9 @@ JOIN (
   WHERE ("location_1"."state" = 'IL')
 ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
 LEFT JOIN (
-  SELECT "visit_occurrence_1"."person_id", MAX("visit_occurrence_1"."visit_start_date") AS "max"
+  SELECT
+    "visit_occurrence_1"."person_id",
+    MAX("visit_occurrence_1"."visit_start_date") AS "max"
   FROM "visit_occurrence" AS "visit_occurrence_1"
   GROUP BY "visit_occurrence_1"."person_id"
 ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")

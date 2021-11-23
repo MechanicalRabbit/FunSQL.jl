@@ -41,12 +41,18 @@ julia> q = From(measurement) |>
            Select(Get.person_id, Get.date);
 
 julia> print(render(q))
-SELECT "union_1"."person_id", "union_1"."date"
+SELECT
+  "union_1"."person_id",
+  "union_1"."date"
 FROM (
-  SELECT "measurement_1"."person_id", "measurement_1"."measurement_date" AS "date"
+  SELECT
+    "measurement_1"."person_id",
+    "measurement_1"."measurement_date" AS "date"
   FROM "measurement" AS "measurement_1"
   UNION ALL
-  SELECT "observation_1"."person_id", "observation_1"."observation_date" AS "date"
+  SELECT
+    "observation_1"."person_id",
+    "observation_1"."observation_date" AS "date"
   FROM "observation" AS "observation_1"
 ) AS "union_1"
 ```

@@ -32,7 +32,9 @@ julia> q = From(person) |>
            Order(Get.year_of_birth);
 
 julia> print(render(q))
-SELECT "person_1"."person_id", "person_1"."year_of_birth"
+SELECT
+  "person_1"."person_id",
+  "person_1"."year_of_birth"
 FROM "person" AS "person_1"
 ORDER BY "person_1"."year_of_birth"
 ```
