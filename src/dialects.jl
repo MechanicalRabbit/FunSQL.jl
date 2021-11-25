@@ -25,7 +25,8 @@ import .VARIABLE_STYLE.VariableStyle
 """
     SQLDialect(; name = :default,
                  variable_style = :named,
-                 variable_prefix = ':')
+                 variable_prefix = ':',
+                 identifier_quotes = ('"', '"'))
     SQLDialect(template::SQLDialect; kws...)
     SQLDialect(name::Symbol, kws...)
 
@@ -38,12 +39,17 @@ struct SQLDialect
     name::Symbol
     variable_style::VariableStyle
     variable_prefix::Char
+    identifier_quotes::Tuple{Char, Char}
 
     SQLDialect(;
                name = :default,
                variable_style = VARIABLE_STYLE.NAMED,
-               variable_prefix = ':') =
-        new(name, variable_style, variable_prefix)
+               variable_prefix = ':',
+               identifier_quotes = ('"', '"')) =
+        new(name,
+            variable_style,
+            variable_prefix,
+            identifier_quotes)
 end
 
 const default_dialect =
@@ -51,7 +57,8 @@ const default_dialect =
 const mysql_dialect =
     SQLDialect(name = :mysql,
                variable_style = VARIABLE_STYLE.POSITIONAL,
-               variable_prefix = '?')
+               variable_prefix = '?',
+               identifier_quotes = ('`', '`'))
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
                variable_style = VARIABLE_STYLE.NUMBERED,
@@ -67,7 +74,8 @@ const sqlite_dialect =
 const sqlserver_dialect =
     SQLDialect(name = :sqlserver,
                variable_style = VARIABLE_STYLE.POSITIONAL,
-               variable_prefix = '?')
+               variable_prefix = '?',
+               identifier_quotes = ('[', ']'))
 const standard_dialects = [
     mysql_dialect,
     postgresql_dialect,

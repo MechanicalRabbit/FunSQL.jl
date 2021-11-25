@@ -32,13 +32,12 @@ function render(c::AbstractSQLClause; dialect = :default)
 end
 
 function render(ctx, name::Symbol)
-    if ctx.dialect.name === :sqlserver
-        print(ctx, '[', replace(string(name), ']' => "]]"), ']')
-    elseif ctx.dialect.name === :mysql
-        print(ctx, '`', replace(string(name), '`' => "``"), '`')
-    else
-        print(ctx, '"', replace(string(name), '"' => "\"\""), '"')
+    s = string(name)
+    lq, rq = ctx.dialect.identifier_quotes
+    if rq in s
+        s = replace(s, rq => rq * rq)
     end
+    print(ctx, lq, s, rq)
 end
 
 function render(ctx, names::Vector{Symbol})
@@ -66,8 +65,12 @@ render(ctx, val::Bool) =
 render(ctx, val::Number) =
     print(ctx, val)
 
-render(ctx, val::AbstractString) =
-    print(ctx, '\'', replace(val, '\'' => "''"), '\'')
+function render(ctx, val::AbstractString)
+    if '\'' in val
+        val = replace(val, '\'' => "''")
+    end
+    print(ctx, '\'', val, '\'')
+end
 
 render(ctx, val::Dates.AbstractTime) =
     print(ctx, '\'', val, '\'')
