@@ -26,7 +26,8 @@ import .VARIABLE_STYLE.VariableStyle
     SQLDialect(; name = :default,
                  variable_style = :named,
                  variable_prefix = ':',
-                 identifier_quotes = ('"', '"'))
+                 identifier_quotes = ('"', '"'),
+                 has_boolean_literals = true)
     SQLDialect(template::SQLDialect; kws...)
     SQLDialect(name::Symbol, kws...)
 
@@ -40,16 +41,19 @@ struct SQLDialect
     variable_style::VariableStyle
     variable_prefix::Char
     identifier_quotes::Tuple{Char, Char}
+    has_boolean_literals::Bool
 
     SQLDialect(;
                name = :default,
                variable_style = VARIABLE_STYLE.NAMED,
                variable_prefix = ':',
-               identifier_quotes = ('"', '"')) =
+               identifier_quotes = ('"', '"'),
+               has_boolean_literals = true) =
         new(name,
             variable_style,
             variable_prefix,
-            identifier_quotes)
+            identifier_quotes,
+            has_boolean_literals)
 end
 
 const default_dialect =
@@ -75,7 +79,8 @@ const sqlserver_dialect =
     SQLDialect(name = :sqlserver,
                variable_style = VARIABLE_STYLE.POSITIONAL,
                variable_prefix = '?',
-               identifier_quotes = ('[', ']'))
+               identifier_quotes = ('[', ']'),
+               has_boolean_literals = false)
 const standard_dialects = [
     mysql_dialect,
     postgresql_dialect,
