@@ -22,12 +22,35 @@ end
 
 import .VARIABLE_STYLE.VariableStyle
 
+module LIMIT_STYLE
+
+@enum LimitStyle::UInt8 begin
+    ANSI
+    MYSQL
+    SQLITE
+end
+
+Base.convert(::Type{LimitStyle}, s::Symbol) =
+    s in (:ansi, :ANSI) ?
+        ANSI :
+    s in (:mysql, :MYSQL) ?
+        MYSQL :
+    s in (:sqlite, :SQLITE) ?
+        SQLITE :
+    throw(DomainError(QuoteNode(s),
+                      "expected :ansi, :mysql, or :sqlite"))
+
+end
+
+import .LIMIT_STYLE.LimitStyle
+
 """
     SQLDialect(; name = :default,
                  variable_style = :named,
                  variable_prefix = ':',
                  identifier_quotes = ('"', '"'),
-                 has_boolean_literals = true)
+                 has_boolean_literals = true,
+                 limit_style = :ansi)
     SQLDialect(template::SQLDialect; kws...)
     SQLDialect(name::Symbol, kws...)
 
@@ -42,18 +65,21 @@ struct SQLDialect
     variable_prefix::Char
     identifier_quotes::Tuple{Char, Char}
     has_boolean_literals::Bool
+    limit_style::LimitStyle
 
     SQLDialect(;
                name = :default,
                variable_style = VARIABLE_STYLE.NAMED,
                variable_prefix = ':',
                identifier_quotes = ('"', '"'),
-               has_boolean_literals = true) =
+               has_boolean_literals = true,
+               limit_style = LIMIT_STYLE.ANSI) =
         new(name,
             variable_style,
             variable_prefix,
             identifier_quotes,
-            has_boolean_literals)
+            has_boolean_literals,
+            limit_style)
 end
 
 const default_dialect =
@@ -62,7 +88,8 @@ const mysql_dialect =
     SQLDialect(name = :mysql,
                variable_style = VARIABLE_STYLE.POSITIONAL,
                variable_prefix = '?',
-               identifier_quotes = ('`', '`'))
+               identifier_quotes = ('`', '`'),
+               limit_style = LIMIT_STYLE.MYSQL)
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
                variable_style = VARIABLE_STYLE.NUMBERED,
@@ -74,7 +101,8 @@ const redshift_dialect =
 const sqlite_dialect =
     SQLDialect(name = :sqlite,
                variable_style = VARIABLE_STYLE.NUMBERED,
-               variable_prefix = '?')
+               variable_prefix = '?',
+               limit_style = LIMIT_STYLE.SQLITE)
 const sqlserver_dialect =
     SQLDialect(name = :sqlserver,
                variable_style = VARIABLE_STYLE.POSITIONAL,

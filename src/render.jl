@@ -265,14 +265,14 @@ function render(ctx, c::LimitClause)
     start = c.offset
     count = c.limit
     start !== nothing || count !== nothing || return
-    if ctx.dialect.name === :mysql
+    if ctx.dialect.limit_style === LIMIT_STYLE.MYSQL
         newline(ctx)
         print(ctx, "LIMIT ")
         if start !== nothing
             print(ctx, start, ", ")
         end
         print(ctx, count !== nothing ? count : "18446744073709551615")
-    elseif ctx.dialect.name === :sqlite
+    elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLITE
         newline(ctx)
         print(ctx, "LIMIT ", count !== nothing ? count : -1)
         if start !== nothing
