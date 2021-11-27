@@ -25,6 +25,14 @@ Pages = ["entities.jl"]
 ```
 
 
+## Reflection
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["reflect.jl"]
+```
+
+
 ## SQL Statements
 
 ```@autodocs

@@ -20,6 +20,14 @@ function render
 end
 
 """
+    reflect(conn; schema = nothing, dialect = :default)::Vector{SQLTable}
+
+Retrieve a list of available database tables.
+"""
+function reflect
+end
+
+"""
 Base error class for all errors raised by FunSQL.
 """
 abstract type FunSQLError <: Exception

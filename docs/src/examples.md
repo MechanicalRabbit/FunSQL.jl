@@ -45,15 +45,15 @@ const DB = download(URL)
 
 FunSQL does not export any symbols by default.  The following statement imports
 all available query constructors, a [`SQLTable`](@ref) constructor, and the
-function [`render`](@ref).
+function [`reflect`](@ref) and [`render`](@ref).
 
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
         Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLTable,
-        Select, Sort, Var, Where, render
+        Select, Sort, Var, Where, reflect, render
 
 
-## Database introspection (SQLite)
+## Database reflection
 
 For each database table referenced in a query, we need to create a
 [`SQLTable`](@ref) object encapsulating the name of the table and the list of
@@ -61,53 +61,10 @@ the table columns.
 
     SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
 
-Instead of creating `SQLTable` objects manually, we could create them
-automatically by extracting the information about the available tables from the
-database itself.  For SQLite, this could be done as follows.
+Instead of creating `SQLTable` objects manually, we could call the function
+[`reflect`](@ref) to fetch a list of available tables from the database itself.
 
-    using Tables
-
-    const introspect_sqlite_sql = """
-        SELECT NULL AS schema, sm.name, pti.name AS column
-        FROM sqlite_master sm, pragma_table_info(sm.name) pti
-        WHERE sm.type IN ('table', 'view') AND sm.name NOT LIKE 'sqlite_%'
-        ORDER BY sm.name
-        """
-
-    introspect_sqlite(conn) =
-        DBInterface.execute(conn, introspect_sqlite_sql) |>
-        make_tables
-
-    function make_tables(res)
-        tables = SQLTable[]
-        schema = name = nothing
-        columns = Symbol[]
-        for (s, n, c) in Tables.rows(res)
-            s = s !== missing ? Symbol(s) : nothing
-            n = Symbol(n)
-            c = Symbol(c)
-            if s === schema && n === name
-                push!(columns, c)
-            else
-                if !isempty(columns)
-                    t = SQLTable(schema = schema, name = name, columns = columns)
-                    push!(tables, t)
-                end
-                schema = s
-                name = n
-                columns = [c]
-            end
-        end
-        if !isempty(columns)
-            t = SQLTable(schema = schema, name = name, columns = columns)
-            push!(tables, t)
-        end
-        return tables
-    end
-
-    const tables = introspect_sqlite(conn)
-
-The vector `tables` contains all the tables available in the database.
+    const tables = reflect(conn, dialect = :sqlite)
 
     display(tables)
     #=>
@@ -115,26 +72,13 @@ The vector `tables` contains all the tables available in the database.
      SQLTable(:attribute_definition, …)
      SQLTable(:care_site, …)
      SQLTable(:cdm_source, …)
-     SQLTable(:cohort, …)
-     SQLTable(:cohort_ace, …)
-     SQLTable(:cohort_all, …)
-     SQLTable(:cohort_ami, …)
-     SQLTable(:cohort_ang, …)
-     SQLTable(:cohort_attribute, …)
-     SQLTable(:cohort_definition, …)
      ⋮
-     SQLTable(:procedure_cost, …)
-     SQLTable(:procedure_occurrence, …)
-     SQLTable(:provider, …)
-     SQLTable(:relationship, …)
-     SQLTable(:source_to_concept_map, …)
-     SQLTable(:specimen, …)
      SQLTable(:visit_cost, …)
      SQLTable(:visit_occurrence, …)
      SQLTable(:vocabulary, …)
     =#
 
-It is convenient to add the `SQLTable` objects to the global scope.
+It is convenient to expose each `SQLTable` object as a constant.
 
     for t in tables
         @eval const $(t.name) = $t
@@ -191,162 +135,25 @@ Alternatively, we could encapsulate all `SQLTable` objects in a `NamedTuple`.
     =#
 
 
-## Database introspection (PostgreSQL)
+## Database reflection with LibPQ.jl
 
-The following code generates `SQLTable` objects for a PostgreSQL database.  See
-the section [Database introspection (SQLite)](@ref) for the definition of the
-`make_tables()` function and instructions on how to bring the generated
-`SQLTable` objects into the global scope.
-
-```julia
-const introspect_postgresql_sql = """
-    SELECT n.nspname AS schema, c.relname AS name, a.attname AS column
-    FROM pg_catalog.pg_namespace AS n
-    JOIN pg_catalog.pg_class AS c ON (n.oid = c.relnamespace)
-    JOIN pg_catalog.pg_attribute AS a ON (c.oid = a.attrelid)
-    WHERE n.nspname = \$1 AND
-          c.relkind IN ('r', 'v') AND
-          HAS_TABLE_PRIVILEGE(c.oid, 'SELECT') AND
-          a.attnum > 0 AND
-          NOT a.attisdropped
-    ORDER BY n.nspname, c.relname, a.attnum
-    """
-
-introspect_postgresql(conn, schema = :public) =
-    execute(conn, introspect_postgresql_sql, (String(schema),)) |>
-    make_tables
-```
-
-Alternatively, we could generate the introspection query using FunSQL.
+The function `reflect()` relies on the
+[DBInterface.jl](https://github.com/JuliaDatabases/DBInterface.jl) package to
+execute the SQL query that retrieves a list of available database tables.
+Unfortunately [LibPQ.jl](https://github.com/invenia/LibPQ.jl), the PostgreSQL
+client library, does not support DBInterface.  To make `reflect()` work, we
+need to manually bridge LibPQ and DBInterface.
 
 ```julia
-const pg_namespace =
-    SQLTable(schema = :pg_catalog,
-             name = :pg_namespace,
-             columns = [:oid, :nspname])
-const pg_class =
-    SQLTable(schema = :pg_catalog,
-             name = :pg_class,
-             columns = [:oid, :relname, :relnamespace, :relkind])
-const pg_attribute =
-    SQLTable(schema = :pg_catalog,
-             name = :pg_attribute,
-             columns = [:attrelid, :attname, :attnum, :attisdropped])
+using LibPQ
+using DBInterface
 
-const IntrospectPostgreSQL =
-    From(pg_class) |>
-    Where(Fun.in(Get.relkind, "r", "v")) |>
-    Where(Fun.has_table_privilege(Get.oid, "SELECT")) |>
-    Join(From(pg_namespace) |>
-         Where(Get.nspname .== Var.schema) |>
-         As(:nsp),
-         on = Get.relnamespace .== Get.nsp.oid) |>
-    Join(From(pg_attribute) |>
-         Where(Fun.and(Get.attnum .> 0, Fun.not(Get.attisdropped))) |>
-         As(:att),
-         on = Get.oid .== Get.att.attrelid) |>
-    Order(Get.nsp.nspname, Get.relname, Get.att.attnum) |>
-    Select(Get.nsp.nspname, Get.relname, Get.att.attname)
+DBInterface.prepare(conn::LibPQ.Connection, args...; kws...) =
+    LibPQ.prepare(conn, args...; kws...)
 
-const introspect_postgresql_sql =
-    render(IntrospectPostgreSQL, dialect = :postgresql)
+DBInterface.execute(conn::Union{LibPQ.Connection, LibPQ.Statement}, args...; kws...) =
+    LibPQ.execute(conn, args...; kws...)
 ```
-
-
-## Database introspection (MySQL)
-
-The following code generates `SQLTable` objects for a MySQL database.  See the
-section [Database introspection (SQLite)](@ref) for the definition of the
-`make_tables()` function and instructions on how to bring the generated
-`SQLTable` objects into the global scope.
-
-```julia
-const introspect_mysql_sql = """
-    SELECT table_schema AS `schema`, table_name AS `name`, column_name AS `column`
-    FROM information_schema.columns
-    WHERE table_schema = COALESCE(?, DATABASE())
-    ORDER BY table_schema, table_name, ordinal_position
-    """
-
-introspect_mysql(conn, schema = nothing) =
-    DBInterface.execute(
-        DBInterface.prepare(conn, introspect_mysql_sql),
-        (schema !== nothing ? String(schema) : missing,)) |>
-    make_tables
-```
-
-Alternatively, we could generate the introspection query using FunSQL.
-
-```julia
-const information_schema_columns =
-    SQLTable(schema = :information_schema,
-             name = :columns,
-             columns = [:table_schema, :table_name, :column_name, :ordinal_position])
-
-const IntrospectMySQL =
-    From(information_schema_columns) |>
-    Where(Get.table_schema .== Fun.coalesce(Var.schema, Fun.database())) |>
-    Order(Get.table_schema, Get.table_name, Get.ordinal_position) |>
-    Select(Get.table_schema, Get.table_name, Get.column_name)
-
-const introspect_mysql_sql =
-    render(IntrospectMySQL, dialect = :mysql) |> String
-```
-
-
-## Database introspection (Microsoft SQL Server)
-
-The following code generates `SQLTable` objects for a Microsoft SQL Server
-database.  See the section [Database introspection (SQLite)](@ref) for the
-definition of the `make_tables()` function and instructions on how to bring the
-generated `SQLTable` objects into the global scope.
-
-```julia
-const introspect_sqlserver_sql = """
-    SELECT s.name AS [schema], o.name AS [name], c.name AS [column]
-    FROM sys.schemas AS s
-    JOIN sys.objects AS o ON (s.schema_id = o.schema_id)
-    JOIN sys.columns AS c ON (o.object_id = c.object_id)
-    WHERE s.name = ? AND o.type IN ('U', 'V')
-    ORDER BY s.name, o.name, c.column_id
-    """
-
-introspect_sqlserver(conn, schema = :dbo) =
-    DBInterface.execute(conn, introspect_sqlserver_sql, (String(schema),)) |>
-    make_tables
-```
-
-Alternatively, we could generate the introspection query using FunSQL.
-
-```julia
-const sys_schemas =
-    SQLTable(schema = :sys, name = :schemas, columns = [:schema_id, :name])
-const sys_tables =
-    SQLTable(schema = :sys, name = :tables, columns = [:schema_id, :object_id, :name, :type])
-const sys_columns =
-    SQLTable(schema = :sys, name = :columns, columns = [:object_id, :column_id, :name])
-
-const IntrospectSQLServer =
-    From(sys_tables) |>
-    Where(Fun.in(Get.type, "U", "V")) |>
-    Join(From(sys_schemas) |>
-         Where(Get.name .== Var.schema) |>
-         As(:schema),
-         on = Get.schema_id .== Get.schema.schema_id) |>
-    Join(From(sys_columns) |>
-         As(:column),
-         on = Get.object_id .== Get.column.object_id) |>
-    Order(Get.schema.name, Get.name, Get.column.column_id) |>
-    Select(:schema => Get.schema.name, Get.name, :column => Get.column.name)
-
-const introspect_sqlserver_sql =
-    render(IntrospectSQLServer, dialect = :sqlserver)
-```
-
-
-## Database introspection (Amazon RedShift)
-
-See [Database introspection (PostgreSQL)](@ref).
 
 
 ## `SELECT * FROM table`
