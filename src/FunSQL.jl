@@ -5,6 +5,8 @@ module FunSQL
 using Dates
 using PrettyPrinting: PrettyPrinting, pprint, quoteof, tile_expr, literal
 using OrderedCollections: OrderedDict, OrderedSet
+using Tables
+using DBInterface
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
@@ -34,6 +36,7 @@ include("nodes.jl")
 include("annotate.jl")
 include("translate.jl")
 include("render.jl")
+include("reflect.jl")
 
 const Not = Fun.not
 const And = Fun.and
