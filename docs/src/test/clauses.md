@@ -50,7 +50,6 @@ literals when they are used in the context of a SQL clause.
 
     c = SELECT(missing, true, 42, "SQL is fun!", Date(2000))
 
-    #? VERSION >= v"1.5.0"
     display(c)
     #=>
     SELECT(LIT(missing),
