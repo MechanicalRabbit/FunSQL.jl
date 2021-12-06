@@ -624,20 +624,6 @@ output columns.
                                                                    7 columns omitted
     =#
 
-## Chaining Multiple `Case` Statements
-
-`Fun.case` can accept any number of conditions.
-Here is an example from the tutorial:
-
-```julia
-From(person) |>
-Join(:op => observation_period, Get.person_id .== Get.op.person_id) |>
-Define(:age => Fun.date_part("year", Fun.age(Get.op.observation_period_end_date, Fun.make_date(Get.year_of_birth, 1, 1)))) |>
-Define(:age_group => Fun.case(Get.age .< 10, "0-9", Get.age .< 20, "10-19", "20+")) |>
-Group(Get.age_group) |>
-Select(Get.age_group, Agg.count())
-```
-
 ## Output columns of a `Join`
 
 [`As`](@ref) is often used to disambiguate the columns of the two input
@@ -699,6 +685,69 @@ however we must ensure that all column names are unique.
       "visit_occurrence_1"."visit_source_concept_id"
     FROM "person" AS "person_1"
     JOIN "visit_occurrence" AS "visit_occurrence_1" ON ("person_1"."person_id" = "visit_occurrence_1"."person_id")
+    =#
+
+
+## Encapsulating complex SQL expressions
+
+*Show the number of patients diagnosed with myocardial infarction
+stratified by the age group at the time of diagnosis.*
+
+    PersonAgeAt(date) =
+        Fun.strftime("%Y", date) .- Get.year_of_birth
+
+    AgeGroup(age) =
+        Fun.case(Iterators.flatten([(age .< y, "$(y-5) - $(y-1)")
+                                    for y = 5:5:100])...,
+                 "100 +")
+
+    ConceptByName(name) =
+        From(concept) |>
+        Where(Fun.like(Get.concept_name, "%$(name)%"))
+
+    MyocardialInfarctionConcept() =
+        ConceptByName("myocardial infarction")
+
+    MyocardialInfarctionOccurrence() =
+        From(condition_occurrence) |>
+        Join(:concept => MyocardialInfarctionConcept(),
+             on = Get.condition_concept_id .== Get.concept.concept_id)
+
+    q = From(person) |>
+        Join(:condition => MyocardialInfarctionOccurrence(),
+             on = Get.person_id .== Get.condition.person_id) |>
+        Group(:age_group => AgeGroup(PersonAgeAt(Get.condition.condition_start_date))) |>
+        Select(Get.age_group, Agg.count())
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT …
+    FROM "person" AS "person_1"
+    JOIN (
+      SELECT "condition_occurrence_1"."person_id", "condition_occurrence_1"."condition_start_date"
+      FROM "condition_occurrence" AS "condition_occurrence_1"
+      JOIN (
+        SELECT "concept_1"."concept_id"
+        FROM "concept" AS "concept_1"
+        WHERE ("concept_1"."concept_name" LIKE '%myocardial infarction%')
+      ) AS "concept_2" ON ("condition_occurrence_1"."condition_concept_id" = "concept_2"."concept_id")
+    ) AS "condition_1" ON ("person_1"."person_id" = "condition_1"."person_id")
+    GROUP BY (CASE WHEN ((STRFTIME('%Y', "condition_1"."condition_start_date") - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '100 +' END)
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    3×2 DataFrame
+     Row │ age_group  count
+         │ String     Int64
+    ─────┼──────────────────
+       1 │ 50 - 54        1
+       2 │ 65 - 69        1
+       3 │ 95 - 99        4
     =#
 
 
