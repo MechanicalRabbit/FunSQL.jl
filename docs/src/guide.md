@@ -404,6 +404,16 @@ In this query, the `Select` node is not connected to any source of data.  In
 such a case, it is supplied with a *unit dataset* containing one row and no
 columns.  Hence this query will generate one row of output.
 
+The same effect could be achieved with the `From(nothing)` node.
+
+    q = From(nothing) |>
+        Select(Fun.current_timestamp())
+
+    sql = render(q)
+
+    print(sql)
+    #-> SELECT CURRENT_TIMESTAMP AS "current_timestamp"
+
 In general, the [`Select`](@ref) node is used to specify the output columns.
 The name of the column is either derived from the expression or set explicitly
 with `As` (or its shorthand, the arrow (`=>`) operator).
