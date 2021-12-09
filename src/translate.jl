@@ -488,22 +488,25 @@ function assemble(n::ExtendedJoinNode, refs, ctx)
     Assemblage(c, cols = cols, repl = repl)
 end
 
-function assemble(n::FromNode, refs, ctx)
+assemble(n::FromNode, refs, ctx) =
+    assemble(n.source, refs, ctx)
+
+function assemble(source::SQLTable, refs, ctx)
     output_columns = Set{Symbol}()
     for ref in refs
         match = @dissect ref (nothing |> Get(name = name))
-        @assert match && name in n.table.column_set
+        @assert match && name in source.column_set
         if !(name in output_columns)
             push!(output_columns, name)
         end
     end
-    as = allocate_alias(ctx, n.table.name)
+    as = allocate_alias(ctx, source.name)
     cols = OrderedDict{Symbol, SQLClause}()
-    for col in n.table.columns
+    for col in source.columns
         col in output_columns || continue
         cols[col] = ID(over = as, name = col)
     end
-    tbl = ID(over = n.table.schema, name = n.table.name)
+    tbl = ID(over = source.schema, name = source.name)
     c = FROM(AS(over = tbl, name = as))
     repl = Dict{SQLNode, Symbol}()
     for ref in refs
@@ -512,6 +515,10 @@ function assemble(n::FromNode, refs, ctx)
         end
     end
     Assemblage(c, cols = cols, repl = repl)
+end
+
+function assemble(source::Symbol, refs, ctx)
+    error()
 end
 
 function assemble(n::GroupNode, refs, ctx)

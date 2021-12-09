@@ -497,12 +497,19 @@ function resolve(n::ExtendedJoinNode)
 end
 
 function resolve(n::FromNode)
-    fields = FieldTypeMap()
-    for f in n.table.columns
-        fields[f] = ScalarType()
+    source = n.source
+    if source isa SQLTable
+        fields = FieldTypeMap()
+        for f in source.columns
+            fields[f] = ScalarType()
+        end
+        row = RowType(fields)
+        BoxType(source.name, row)
+    elseif source isa Symbol
+        error()
+    else
+        EMPTY_BOX
     end
-    row = RowType(fields)
-    BoxType(n.table.name, row)
 end
 
 function resolve(n::GroupNode)

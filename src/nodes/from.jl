@@ -1,24 +1,24 @@
 # From node.
 
 mutable struct FromNode <: TabularNode
-    table::SQLTable
+    source::Union{SQLTable, Symbol, Nothing}
 
-    FromNode(; table) =
-        new(table)
+    FromNode(; source) =
+        new(source isa AbstractString ? Symbol(source) : source)
 end
 
-FromNode(table) =
-    FromNode(table = table)
+FromNode(source) =
+    FromNode(source = source)
 
 """
-    From(; table)
-    From(table)
+    From(; source)
+    From(source)
 
 `From` outputs the content of a database table.
 
 ```sql
 SELECT ...
-FROM \$table
+FROM \$source
 ```
 
 # Examples
@@ -34,6 +34,12 @@ SELECT
   "person_1"."year_of_birth"
 FROM "person" AS "person_1"
 ```
+
+```jldoctest
+julia> q = From(nothing);
+
+julia> print(render(q))
+SELECT NULL
 """
 From(args...; kws...) =
     FromNode(args...; kws...) |> SQLNode
@@ -41,17 +47,32 @@ From(args...; kws...) =
 dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
     dissect(scr, FromNode, pats)
 
-Base.convert(::Type{AbstractSQLNode}, table::SQLTable) =
-    FromNode(table)
+Base.convert(::Type{AbstractSQLNode}, source::SQLTable) =
+    FromNode(source)
 
 function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
-    tex = get(ctx.vars, n.table, nothing)
-    if tex === nothing
-        tex = quoteof(n.table, limit = true)
+    source = n.source
+    if source isa SQLTable
+        tex = get(ctx.vars, source, nothing)
+        if tex === nothing
+            tex = quoteof(source, limit = true)
+        end
+        Expr(:call, nameof(From), tex)
+    elseif source isa Symbol
+        Expr(:call, nameof(From), QuoteNode(source))
+    else
+        Expr(:call, nameof(From), source)
     end
-    Expr(:call, nameof(From), tex)
 end
 
-label(n::FromNode) =
-    n.table.name
+function label(n::FromNode)
+    source = n.source
+    if source isa SQLTable
+        source.name
+    elseif source isa Symbol
+        source
+    else
+        :_
+    end
+end
 
