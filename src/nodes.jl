@@ -270,6 +270,8 @@ module REFERENCE_ERROR_TYPE
     UNEXPECTED_SCALAR_TYPE
     UNEXPECTED_AGGREGATE
     AMBIGUOUS_AGGREGATE
+    UNDEFINED_TABLE_REFERENCE
+    INVALID_TABLE_REFERENCE
 end
 
 end
@@ -303,6 +305,10 @@ function Base.showerror(io::IO, err::ReferenceError)
         print(io, "aggregate expression requires Group or Partition")
     elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_AGGREGATE
         print(io, "aggregate expression is ambiguous")
+    elseif err.type == REFERENCE_ERROR_TYPE.UNDEFINED_TABLE_REFERENCE
+        print(io, "cannot find $(err.name)")
+    elseif err.type == REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE
+        print(io, "table reference $(err.name) requires As")
     end
     showpath(io, err.path)
 end
@@ -346,4 +352,5 @@ include("nodes/select.jl")
 include("nodes/sort.jl")
 include("nodes/variable.jl")
 include("nodes/where.jl")
+include("nodes/with.jl")
 
