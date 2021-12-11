@@ -69,16 +69,20 @@ end
 
 mutable struct FromReferenceNode <: TabularNode
     over::SQLNode
+    name::Symbol
 
-    FromReferenceNode(; over) =
-        new(over)
+    FromReferenceNode(; over, name) =
+        new(over, name)
 end
 
 FromReference(args...; kws...) =
-    FromReferenceNode(args...; kws...) |> SQLTable
+    FromReferenceNode(args...; kws...) |> SQLNode
 
 PrettyPrinting.quoteof(n::FromReferenceNode, ctx::QuoteContext) =
-    Expr(:call, nameof(FromReference), Expr(:kw, :over, quoteof(n.over, ctx)))
+    Expr(:call,
+         nameof(FromReference),
+         Expr(:kw, :over, quoteof(n.over, ctx)),
+         Expr(:kw, :name, QuoteNode(n.name)))
 
 # Need to detect Bind nodes without an outer query.
 mutable struct ExtendedBindNode <: AbstractSQLNode
@@ -256,6 +260,10 @@ struct AnnotateContext
             Dict{SQLNode, Int}(),
             BoxNode[],
             Dict{Symbol, SQLNode}())
+
+    AnnotateContext(ctx::AnnotateContext; with_nodes = nothing) =
+        new(ctx.path_map, ctx.current_path, ctx.handles, ctx.boxes, something(with_nodes, ctx.with_nodes))
+
 end
 
 function grow_path!(ctx::AnnotateContext, n::SQLNode)
@@ -408,7 +416,13 @@ function annotate(n::FromNode, ctx)
     if source isa SQLTable
         FromTable(table = source)
     elseif source isa Symbol
-        FromReference()
+        over = get(ctx.with_nodes, source, nothing)
+        if over === nothing
+            throw(ReferenceError(REFERENCE_ERROR_TYPE.UNDEFINED_TABLE_REFERENCE,
+                                 name = source,
+                                 path = get_path(ctx)))
+        end
+        FromReference(over = over, name = source)
     else
         FromNothing()
     end
@@ -487,6 +501,17 @@ function annotate(n::WhereNode, ctx)
     Where(over = over′, condition = condition′)
 end
 
+function annotate(n::WithNode, ctx)
+    list′ = annotate(n.list, ctx)
+    with_nodes′ = copy(ctx.with_nodes)
+    for (name, i) in n.label_map
+        with_nodes′[name] = list′[i]
+    end
+    ctx′ = AnnotateContext(ctx, with_nodes = with_nodes′)
+    over′ = annotate(n.over, ctx′)
+    With(over = over′, list = list′, label_map = n.label_map)
+end
+
 
 # Type resolution.
 
@@ -495,7 +520,7 @@ function resolve!(ctx::AnnotateContext)
         over = box.over
         if over !== nothing
             h = get_handle(ctx, over)
-            t = resolve(over[])
+            t = resolve(over[], ctx)
             t = add_handle(t, h)
             box.handle = h
             box.type = t
@@ -503,7 +528,7 @@ function resolve!(ctx::AnnotateContext)
     end
 end
 
-function resolve(n::AppendNode)
+function resolve(n::AppendNode, ctx)
     t = box_type(n.over)
     for m in n.list
         t = intersect(t, box_type(m))
@@ -511,14 +536,14 @@ function resolve(n::AppendNode)
     t
 end
 
-function resolve(n::AsNode)
+function resolve(n::AsNode, ctx)
     t = box_type(n.over)
     fields = FieldTypeMap(n.name => t.row)
     row = RowType(fields)
     BoxType(n.name, row, t.handle_map)
 end
 
-function resolve(n::DefineNode)
+function resolve(n::DefineNode, ctx)
     t = box_type(n.over)
     fields = FieldTypeMap()
     for (f, ft) in t.row.fields
@@ -536,10 +561,10 @@ function resolve(n::DefineNode)
     BoxType(t.name, row, t.handle_map)
 end
 
-resolve(n::Union{ExtendedBindNode, HighlightNode, LimitNode, OrderNode, WhereNode}) =
+resolve(n::Union{ExtendedBindNode, HighlightNode, LimitNode, OrderNode, WhereNode, WithNode}, ctx) =
     box_type(n.over)
 
-function resolve(n::ExtendedJoinNode)
+function resolve(n::ExtendedJoinNode, ctx)
     lt = box_type(n.over)
     rt = box_type(n.joinee)
     t = union(lt, rt)
@@ -547,10 +572,21 @@ function resolve(n::ExtendedJoinNode)
     t
 end
 
-resolve(n::FromNothingNode) =
+resolve(n::FromNothingNode, ctx) =
     EMPTY_BOX
 
-function resolve(n::FromTableNode)
+function resolve(n::FromReferenceNode, ctx)
+    t = box_type(n.over)
+    ft = get(t.row.fields, n.name, nothing)
+    if !(ft isa RowType)
+        throw(ReferenceError(REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE,
+                             name = n.name,
+                             path = get_path(ctx, n.over)))
+    end
+    BoxType(n.name, ft)
+end
+
+function resolve(n::FromTableNode, ctx)
     fields = FieldTypeMap()
     for f in n.table.columns
         fields[f] = ScalarType()
@@ -559,7 +595,7 @@ function resolve(n::FromTableNode)
     BoxType(n.table.name, row)
 end
 
-function resolve(n::GroupNode)
+function resolve(n::GroupNode, ctx)
     t = box_type(n.over)
     fields = FieldTypeMap()
     for name in keys(n.label_map)
@@ -569,13 +605,13 @@ function resolve(n::GroupNode)
     BoxType(t.name, row)
 end
 
-function resolve(n::PartitionNode)
+function resolve(n::PartitionNode, ctx)
     t = box_type(n.over)
     row = RowType(t.row.fields, t.row)
     BoxType(t.name, row, t.handle_map)
 end
 
-function resolve(n::SelectNode)
+function resolve(n::SelectNode, ctx)
     t = box_type(n.over)
     fields = FieldTypeMap()
     for name in keys(n.label_map)
@@ -813,6 +849,13 @@ end
 link!(::Union{FromNothingNode, FromTableNode}, ::Vector{SQLNode}, ctx) =
     nothing
 
+function link!(n::FromReferenceNode, refs::Vector{SQLNode}, ctx)
+    box = n.over[]::BoxNode
+    for ref in refs
+        push!(box.refs, NameBound(over = ref, name = n.name))
+    end
+end
+
 function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     gather_and_validate!(box.refs, n.by, box.type, ctx)
@@ -826,7 +869,7 @@ function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     end
 end
 
-function link!(n::Union{HighlightNode, LimitNode}, refs::Vector{SQLNode}, ctx)
+function link!(n::Union{HighlightNode, LimitNode, WithNode}, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     append!(box.refs, refs)
 end
