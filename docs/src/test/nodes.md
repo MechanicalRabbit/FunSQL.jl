@@ -2016,7 +2016,7 @@ tabular node and hierarchical `Get` nodes are reversed.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = From(person),
+    │     q1 = FromTable(table = person),
     │     q2 = q1 |> Box(),
     ⋮
     │     q19 = q18 |>
@@ -2042,7 +2042,7 @@ it to the corresponding `Box` node.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = From(person),
+    │     q1 = FromTable(table = person),
     │     q2 = q1 |>
     │          Box(type = BoxType(:person,
     │                             :person_id => ScalarType(),
@@ -2079,7 +2079,7 @@ and determine the columns to be provided by each tabular query.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = From(person),
+    │     q1 = FromTable(table = person),
     │     q2 = Get.location_id,
     │     q3 = Get.person_id,
     │     q4 = Get.person_id,
