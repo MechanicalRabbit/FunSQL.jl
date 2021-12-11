@@ -166,6 +166,9 @@ function PrettyPrinting.quoteof(n::SQLNode;
                 push!(tables_seen, source)
             end
         end
+        if core isa FromTableNode
+            push!(tables_seen, core.table)
+        end
         if core isa TabularNode
             push!(nodes_seen, n)
             push!(nodes_toplevel, n)

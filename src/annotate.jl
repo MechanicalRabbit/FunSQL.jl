@@ -39,6 +39,48 @@ dissect(scr::Symbol, ::typeof(HandleBound), pats::Vector{Any}) =
 PrettyPrinting.quoteof(n::HandleBoundNode, ctx::QuoteContext) =
     Expr(:call, nameof(NameBound), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :handle, n.handle))
 
+# A generic From node is specialized to FromNothing, FromTable, or FromReference.
+mutable struct FromNothingNode <: TabularNode
+end
+
+FromNothing(args...; kws...) =
+    FromNothingNode(args...; kws...) |> SQLNode
+
+PrettyPrinting.quoteof(::FromNothingNode, ::QuoteContext) =
+    Expr(:call, nameof(FromNothing))
+
+mutable struct FromTableNode <: TabularNode
+    table::SQLTable
+
+    FromTableNode(; table) =
+        new(table)
+end
+
+FromTable(args...; kws...) =
+    FromTableNode(args...; kws...) |> SQLNode
+
+function PrettyPrinting.quoteof(n::FromTableNode, ctx::QuoteContext)
+    tex = get(ctx.vars, n.table, nothing)
+    if tex === nothing
+        tex = quoteof(n.table, limit = true)
+    end
+    Expr(:call, nameof(FromTable), Expr(:kw, :table, tex))
+end
+
+mutable struct FromReferenceNode <: TabularNode
+    over::SQLNode
+
+    FromReferenceNode(; over) =
+        new(over)
+end
+
+FromReference(args...; kws...) =
+    FromReferenceNode(args...; kws...) |> SQLTable
+
+PrettyPrinting.quoteof(n::FromReferenceNode, ctx::QuoteContext) =
+    Expr(:call, nameof(FromReference), Expr(:kw, :over, quoteof(n.over, ctx)))
+
+# Need to detect Bind nodes without an outer query.
 mutable struct ExtendedBindNode <: AbstractSQLNode
     over::Union{SQLNode, Nothing}
     list::Vector{SQLNode}
@@ -62,11 +104,7 @@ ExtendedBind(args...; kws...) =
 
 function PrettyPrinting.quoteof(n::ExtendedBindNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(ExtendedBind))
-    if isempty(n.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
-    else
-        append!(ex.args, quoteof(n.list, ctx))
-    end
+    push!(ex.args, Expr(:kw, :list, Expr(:vect, quoteof(n.list, ctx))))
     push!(ex.args, Expr(:kw, :owned, n.owned))
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
@@ -210,9 +248,14 @@ struct AnnotateContext
     current_path::Vector{Int}
     handles::Dict{SQLNode, Int}
     boxes::Vector{BoxNode}
+    with_nodes::Dict{Symbol, SQLNode}
 
     AnnotateContext() =
-        new(PathMap(), Int[0], Dict{SQLNode, Int}(), BoxNode[])
+        new(PathMap(),
+            Int[0],
+            Dict{SQLNode, Int}(),
+            BoxNode[],
+            Dict{Symbol, SQLNode}())
 end
 
 function grow_path!(ctx::AnnotateContext, n::SQLNode)
@@ -360,8 +403,16 @@ function annotate(n::DefineNode, ctx)
     Define(over = over′, list = list′, label_map = n.label_map)
 end
 
-annotate(n::FromNode, ctx) =
-    n
+function annotate(n::FromNode, ctx)
+    source = n.source
+    if source isa SQLTable
+        FromTable(table = source)
+    elseif source isa Symbol
+        FromReference()
+    else
+        FromNothing()
+    end
+end
 
 function annotate_scalar(n::FunctionNode, ctx)
     args′ = annotate_scalar(n.args, ctx)
@@ -496,20 +547,16 @@ function resolve(n::ExtendedJoinNode)
     t
 end
 
-function resolve(n::FromNode)
-    source = n.source
-    if source isa SQLTable
-        fields = FieldTypeMap()
-        for f in source.columns
-            fields[f] = ScalarType()
-        end
-        row = RowType(fields)
-        BoxType(source.name, row)
-    elseif source isa Symbol
-        error()
-    else
-        EMPTY_BOX
+resolve(n::FromNothingNode) =
+    EMPTY_BOX
+
+function resolve(n::FromTableNode)
+    fields = FieldTypeMap()
+    for f in n.table.columns
+        fields[f] = ScalarType()
     end
+    row = RowType(fields)
+    BoxType(n.table.name, row)
 end
 
 function resolve(n::GroupNode)
@@ -763,7 +810,7 @@ function link!(n::ExtendedJoinNode, refs::Vector{SQLNode}, ctx)
     end
 end
 
-link!(::FromNode, ::Vector{SQLNode}, ctx) =
+link!(::Union{FromNothingNode, FromTableNode}, ::Vector{SQLNode}, ctx) =
     nothing
 
 function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
