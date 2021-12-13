@@ -58,6 +58,7 @@ Pages = [
     "nodes/sort.jl",
     "nodes/variable.jl",
     "nodes/where.jl",
+    "nodes/with.jl",
 ]
 ```
 

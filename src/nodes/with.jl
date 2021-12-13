@@ -28,6 +28,45 @@ WithNode(list...; over = nothing) =
 """
     With(; over = nothing, list)
     With(list...; over = nothing)
+
+`With` assigns a name to a temporary dataset.  This dataset could be
+referred to by name in the `over` query.
+
+```
+WITH \$list...
+SELECT ...
+FROM \$over
+```
+
+# Examples
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> condition_occurrence =
+           SQLTable(:condition_occurrence, columns = [:condition_occurrence_id,
+                                                      :person_id,
+                                                      :condition_concept_id]);
+
+julia> q = From(person) |>
+           Where(Fun.in(Get.person_id, From(:essential_hypertension) |>
+                                       Select(Get.person_id))) |>
+           With(:essential_hypertension =>
+                    From(condition_occurrence) |>
+                    Where(Get.condition_concept_id .== 320128));
+
+julia> print(render(q))
+WITH "essential_hypertension_1" AS (
+  SELECT "condition_occurrence_1"."person_id"
+  FROM "condition_occurrence" AS "condition_occurrence_1"
+  WHERE ("condition_occurrence_1"."condition_concept_id" = 320128)
+)
+SELECT "person_1"."person_id", "person_1"."year_of_birth"
+FROM "person" AS "person_1"
+WHERE ("person_1"."person_id" IN (
+  SELECT "essential_hypertension_1"."person_id"
+  FROM "essential_hypertension_1"
+))
 ```
 """
 With(args...; kws...) =
