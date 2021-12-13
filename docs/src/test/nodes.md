@@ -3,7 +3,7 @@
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
         Group, Highlight, Join, LeftJoin, Limit, Lit, Order, Partition,
-        SQLNode, SQLTable, Select, Sort, Var, Where, render
+        SQLNode, SQLTable, Select, Sort, Var, Where, With, render
 
 We start with specifying the database model.
 
@@ -1044,6 +1044,121 @@ has no columns.
     SELECT NULL
     FROM "empty" AS "empty_1"
     WHERE FALSE
+    =#
+
+`From(nothing)` will generate a *unit* dataset with one row.
+
+    q = From(nothing)
+
+    display(q)
+    #-> From(nothing)
+
+    print(render(q))
+    #=>
+    SELECT NULL
+    =#
+
+
+## `With`
+
+We can create a temporary dataset using `With` and refer to it with `From`.
+
+    q = From(:male) |>
+        With(From(person) |>
+             Where(Get.gender_concept_id .== 8507) |>
+             As(:male))
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(:male),
+        q2 = From(person),
+        q3 = q2 |> Where(Fun."=="(Get.gender_concept_id, Lit(8507))),
+        q4 = q1 |> With(q3 |> As(:male))
+        q4
+    end
+    =#
+
+    print(render(q))
+    #=>
+    WITH "male_1" AS (
+      SELECT "person_1"."person_id", …, "person_1"."location_id"
+      FROM "person" AS "person_1"
+      WHERE ("person_1"."gender_concept_id" = 8507)
+    )
+    SELECT "male_1"."person_id", …, "male_1"."location_id"
+    FROM "male_1"
+    =#
+
+`With` can take more than one definition.
+
+    q = Select(:male_count => From(:male) |> Group() |> Select(Agg.count()),
+               :female_count => From(:female) |> Group() |> Select(Agg.count())) |>
+        With(:male => From(person) |> Where(Get.gender_concept_id .== 8507),
+             :female => From(person) |> Where(Get.gender_concept_id .== 8532))
+
+    print(render(q))
+    #=>
+    WITH "male_1" AS (
+      SELECT NULL
+      FROM "person" AS "person_1"
+      WHERE ("person_1"."gender_concept_id" = 8507)
+    ),
+    "female_1" AS (
+      SELECT NULL
+      FROM "person" AS "person_2"
+      WHERE ("person_2"."gender_concept_id" = 8532)
+    )
+    SELECT (
+      SELECT COUNT(*) AS "count"
+      FROM "male_1"
+    ) AS "male_count", (
+      SELECT COUNT(*) AS "count"
+      FROM "female_1"
+    ) AS "female_count"
+    =#
+
+A datasets defined by `With` must have an explicit label assigned to it.
+
+    q = From(:person) |>
+        With(From(person))
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: table reference person requires As in:
+    let person = SQLTable(:person, …),
+        q1 = From(:person),
+        q2 = From(person),
+        q3 = q1 |> With(q2)
+        q3
+    end
+    =#
+
+Datasets defined by `With` must have a unique label.
+
+    From(:p) |>
+    With(:p => From(person),
+         :p => From(person))
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: p is used more than once in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = From(person),
+        q3 = With(q1 |> As(:p), q2 |> As(:p))
+        q3
+    end
+    =#
+
+It is an error for `From` to refer to an undefined dataset.
+
+    q = From(:p)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: cannot find p in:
+    let q1 = From(:p)
+        q1
+    end
     =#
 
 
