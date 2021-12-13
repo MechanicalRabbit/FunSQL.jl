@@ -375,6 +375,7 @@ The following tabular operations are available in FunSQL.
 | [`Partition`](@ref)   | add a window to the dataset                       |
 | [`Select`](@ref)      | specify output columns                            |
 | [`Where`](@ref)       | filter the dataset by the given condition         |
+| [`With`](@ref)        | assign a name to a temporary dataset              |
 
 
 ## `From` and `Select`
