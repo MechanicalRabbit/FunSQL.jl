@@ -3,6 +3,9 @@
 abstract type AbstractSQLType
 end
 
+Base.show(io::IO, ::MIME"text/plain", t::AbstractSQLType) =
+    pprint(io, t)
+
 struct EmptyType <: AbstractSQLType
 end
 
@@ -50,7 +53,7 @@ function PrettyPrinting.quoteof(t::RowType)
     ex
 end
 
-struct BoxType
+struct BoxType <: AbstractSQLType
     name::Symbol
     row::RowType
     handle_map::HandleTypeMap
@@ -143,6 +146,37 @@ function Base.intersect(t1::BoxType, t2::BoxType)
     BoxType(name, intersect(t1.row, t2.row), handle_map)
 end
 
+Base.issubset(::AbstractSQLType, ::AbstractSQLType) =
+    false
+
+Base.issubset(::T, ::T) where {T <: AbstractSQLType} =
+    true
+
+function Base.issubset(t1::RowType, t2::RowType)
+    if t1 === t2
+        return true
+    end
+    for f in keys(t1.fields)
+        if !(f in keys(t2.fields) && issubset(t1.fields[f], t2.fields[f]))
+            return false
+        end
+    end
+    return true
+end
+
+function Base.issubset(t1::BoxType, t2::BoxType)
+    if t1 === t2
+        return true
+    end
+    t1.name == t2.name || return false
+    issubset(t1.row, t2.row) || return false
+    for h in keys(t1.handle_map)
+        if !(h in keys(t2.handle_map) && issubset(t1.handle_map[h], t2.handle_map[h]))
+            return false
+        end
+    end
+    return true
+end
 
 # Type of `Join`.
 

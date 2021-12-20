@@ -3,6 +3,57 @@
 
 # Auxiliary nodes.
 
+# A SQL subquery with an undetermined SELECT list.
+mutable struct BoxNode <: TabularNode
+    over::Union{SQLNode, Nothing}
+    type::BoxType
+    handle::Int
+    refs::Vector{SQLNode}
+
+    BoxNode(; over = nothing, type = EMPTY_BOX, handle = 0, refs = SQLNode[]) =
+        new(over, type, handle, refs)
+end
+
+Box(args...; kws...) =
+    BoxNode(args...; kws...) |> SQLNode
+
+dissect(scr::Symbol, ::typeof(Box), pats::Vector{Any}) =
+    dissect(scr, BoxNode, pats)
+
+function PrettyPrinting.quoteof(n::BoxNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Box))
+    if !ctx.limit
+        if n.type !== EMPTY_BOX
+            push!(ex.args, Expr(:kw, :type, quoteof(n.type)))
+        end
+        if n.handle != 0
+            push!(ex.args, Expr(:kw, :handle, n.handle))
+        end
+        if !isempty(n.refs)
+            push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, ctx)...)))
+        end
+    else
+        push!(ex.args, :…)
+    end
+    if n.over !== nothing
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
+    end
+    ex
+end
+
+label(n::BoxNode) =
+    n.type.name
+
+rebase(n::BoxNode, n′) =
+    BoxNode(over = rebase(n.over, n′),
+            type = n.type, handle = n.handle, refs = n.refs)
+
+box_type(n::BoxNode) =
+    n.type
+
+box_type(n::SQLNode) =
+    box_type(n[]::BoxNode)
+
 # Get(over = Get(:a), name = :b) => NameBound(over = Get(:b), name = :a)
 mutable struct NameBoundNode <: AbstractSQLNode
     over::SQLNode
@@ -120,6 +171,83 @@ rebase(n::ExtendedBindNode, n′) =
     ExtendedBindNode(over = rebase(n.over, n′),
                      list = n.list, label_map = n.label_map, owned = n.owned)
 
+mutable struct KnotNode <: TabularNode
+    over::Union{SQLNode, Nothing}
+    name::Symbol
+    box::BoxNode
+    iterator::SQLNode
+    iterator_boxes::Vector{BoxNode}
+
+    KnotNode(; over = nothing, iterator, name = label(iterator), iterator_boxes = SQLNode[], box) =
+        new(over, name, box, iterator, iterator_boxes)
+end
+
+KnotNode(iterator; over = nothing, box) =
+    KnotNode(over = over, iterator = iterator, box = box)
+
+Knot(args...; kws...) =
+    KnotNode(args...; kws...) |> SQLNode
+
+function PrettyPrinting.quoteof(n::KnotNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Knot))
+    if !ctx.limit
+        push!(ex.args, quoteof(n.iterator, ctx))
+    else
+        push!(ex.args, :…)
+    end
+    push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
+    if !ctx.limit
+        box_ex = Expr(:ref, quoteof(SQLNode(n.box), ctx))
+        push!(ex.args, Expr(:kw, :box, box_ex))
+        push!(ex.args, Expr(:kw, :iterator, quoteof(n.iterator, ctx)))
+        iterator_boxes_ex =
+            Expr(:vect, Any[Expr(:ref, quoteof(SQLNode(iterator_box), ctx))
+                            for iterator_box in n.iterator_boxes]...)
+        push!(ex.args, Expr(:kw, :iterator_boxes, iterator_boxes_ex))
+    else
+        push!(ex.args, :…)
+    end
+    if n.over !== nothing
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
+    end
+    ex
+end
+
+label(n::KnotNode) =
+    n.name
+
+rebase(n::KnotNode, n′) =
+    KnotNode(over = rebase(n.over, n′),
+             name = n.name, box = n.box, iterator = n.iterator, iterator_boxes = n.iterator_boxes)
+
+mutable struct ExtendedIterateNode <: TabularNode
+    over::Union{SQLNode, Nothing}
+    name::Symbol            # Original label.
+    iterator_name::Symbol   # Label of the iterator.
+
+    ExtendedIterateNode(; over = nothing, name, iterator_name) =
+        new(over, name, iterator_name)
+end
+
+ExtendedIterate(args...; kws...) =
+    ExtendedIterateNode(args...; kws...) |> SQLNode
+
+function PrettyPrinting.quoteof(n::ExtendedIterateNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(ExtendedIterate))
+    push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
+    push!(ex.args, Expr(:kw, :iterator_name, QuoteNode(n.iterator_name)))
+    if n.over !== nothing
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
+    end
+    ex
+end
+
+label(n::ExtendedIterateNode) =
+    n.name
+
+rebase(n::ExtendedIterateNode, n′) =
+    ExtendedIterateNode(over = rebase(n.over, n′), name = n.name, iterator_name = n.iterator_name)
+
 mutable struct ExtendedJoinNode <: TabularNode
     over::Union{SQLNode, Nothing}
     joinee::SQLNode
@@ -171,57 +299,6 @@ rebase(n::ExtendedJoinNode, n′) =
 
 label(n::Union{NameBoundNode, HandleBoundNode, ExtendedBindNode, ExtendedJoinNode}) =
     label(n.over)
-
-# A SQL subquery with an undetermined SELECT list.
-mutable struct BoxNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    type::BoxType
-    handle::Int
-    refs::Vector{SQLNode}
-
-    BoxNode(; over = nothing, type = EMPTY_BOX, handle = 0, refs = SQLNode[]) =
-        new(over, type, handle, refs)
-end
-
-Box(args...; kws...) =
-    BoxNode(args...; kws...) |> SQLNode
-
-dissect(scr::Symbol, ::typeof(Box), pats::Vector{Any}) =
-    dissect(scr, BoxNode, pats)
-
-function PrettyPrinting.quoteof(n::BoxNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Box))
-    if !ctx.limit
-        if n.type !== EMPTY_BOX
-            push!(ex.args, Expr(:kw, :type, quoteof(n.type)))
-        end
-        if n.handle != 0
-            push!(ex.args, Expr(:kw, :handle, n.handle))
-        end
-        if !isempty(n.refs)
-            push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, ctx)...)))
-        end
-    else
-        push!(ex.args, :…)
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
-    end
-    ex
-end
-
-label(n::BoxNode) =
-    n.type.name
-
-rebase(n::BoxNode, n′) =
-    BoxNode(over = rebase(n.over, n′),
-            type = n.type, handle = n.handle, refs = n.refs)
-
-box_type(n::BoxNode) =
-    n.type
-
-box_type(n::SQLNode) =
-    box_type(n[]::BoxNode)
 
 
 # Annotation context.
@@ -453,6 +530,26 @@ function annotate_scalar(n::HighlightNode, ctx)
     Highlight(over = over′, color = n.color)
 end
 
+function annotate(n::IterateNode, ctx)
+    over′ = annotate(n.over, ctx)
+    knot_box = BoxNode()
+    knot = KnotNode(over = over′, iterator = n.iterator, box = knot_box)
+    mark_origin!(ctx, knot)
+    knot_box.over = knot
+    push!(ctx.boxes, knot_box)
+    over′ = convert(SQLNode, knot_box)
+    mark_origin!(ctx, over′)
+    with_nodes′ = copy(ctx.with_nodes)
+    with_nodes′[knot.name] = over′
+    ctx′ = AnnotateContext(ctx, with_nodes = with_nodes′)
+    range_start = length(ctx.boxes) + 1
+    iterator′ = annotate(n.iterator, ctx′)
+    range_stop = length(ctx.boxes)
+    knot.iterator = iterator′
+    knot.iterator_boxes = ctx.boxes[range_start:range_stop]
+    ExtendedIterateNode(over = over′, name = label(n.over), iterator_name = knot.name)
+end
+
 function annotate(n::JoinNode, ctx)
     over′ = annotate(n.over, ctx)
     joinee′ = annotate(n.joinee, ctx)
@@ -515,8 +612,11 @@ end
 
 # Type resolution.
 
-function resolve!(ctx::AnnotateContext)
-    for box in ctx.boxes
+resolve!(ctx::AnnotateContext) =
+    resolve!(ctx.boxes, ctx)
+
+function resolve!(boxes::AbstractVector{BoxNode}, ctx)
+    for box in boxes
         over = box.over
         if over !== nothing
             h = get_handle(ctx, over)
@@ -536,7 +636,7 @@ function resolve(n::AppendNode, ctx)
     t
 end
 
-function resolve(n::AsNode, ctx)
+function resolve(n::Union{AsNode, KnotNode}, ctx)
     t = box_type(n.over)
     fields = FieldTypeMap(n.name => t.row)
     row = RowType(fields)
@@ -563,6 +663,28 @@ end
 
 resolve(n::Union{ExtendedBindNode, HighlightNode, LimitNode, OrderNode, WhereNode, WithNode}, ctx) =
     box_type(n.over)
+
+resolve_knot!(n::SQLNode, ctx) =
+    resolve_knot!(n[], ctx)
+
+function resolve_knot!(n::BoxNode, ctx)
+    knot = n.over[]::KnotNode
+    iterator_t = box_type(knot.iterator)
+    while !issubset(n.type.row, iterator_t.row)
+        n.type = intersect(n.type, iterator_t)
+        resolve!(knot.iterator_boxes, ctx)
+        iterator_t = box_type(knot.iterator)
+    end
+    over = n.over
+    n.type = add_handle(n.type, n.handle)
+end
+
+function resolve(n::ExtendedIterateNode, ctx)
+    resolve_knot!(n.over, ctx)
+    t = box_type(n.over)
+    row = t.row.fields[n.iterator_name]::RowType
+    BoxType(n.name, row)
+end
 
 function resolve(n::ExtendedJoinNode, ctx)
     lt = box_type(n.over)
@@ -768,7 +890,11 @@ function link!(ctx::AnnotateContext)
             push!(root_box.refs, Get(f))
         end
     end
-    for box in reverse(ctx.boxes)
+    link!(reverse(ctx.boxes), ctx)
+end
+
+function link!(boxes::AbstractVector{BoxNode}, ctx)
+    for box in boxes
         box.over !== nothing || continue
         refs′ = SQLNode[]
         for ref in box.refs
@@ -828,6 +954,13 @@ function link!(n::ExtendedBindNode, refs::Vector{SQLNode}, ctx)
     append!(box.refs, refs)
 end
 
+function link!(n::ExtendedIterateNode, refs::Vector{SQLNode}, ctx)
+    box = n.over[]::BoxNode
+    for ref in refs
+        push!(box.refs, NameBound(over = ref, name = n.iterator_name))
+    end
+end
+
 function link!(n::ExtendedJoinNode, refs::Vector{SQLNode}, ctx)
     lbox = n.over[]::BoxNode
     rbox = n.joinee[]::BoxNode
@@ -872,6 +1005,39 @@ end
 function link!(n::Union{HighlightNode, LimitNode, WithNode}, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     append!(box.refs, refs)
+end
+
+function link!(n::KnotNode, ::Vector{SQLNode}, ctx)
+    box = n.over[]::BoxNode
+    iterator_box = n.iterator[]::BoxNode
+    watermark = 1
+    seen = Set{SQLNode}()
+    while true
+        repeat = false
+        while watermark <= length(n.box.refs)
+            ref = n.box.refs[watermark]
+            watermark += 1
+            if @dissect ref over |> NameBound(name = name)
+                @assert name == n.name ref
+                !(over in seen) || continue
+                push!(seen, over)
+                push!(iterator_box.refs, ref)
+                repeat = true
+            else
+                error()
+            end
+        end
+        repeat || break
+        link!(reverse(n.iterator_boxes), ctx)
+    end
+    for ref in n.box.refs
+        if @dissect ref over |> NameBound(name = name)
+            @assert name == n.name
+            push!(box.refs, over)
+        else
+            error()
+        end
+    end
 end
 
 function link!(n::OrderNode, refs::Vector{SQLNode}, ctx)
