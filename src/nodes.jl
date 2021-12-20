@@ -62,28 +62,31 @@ rebase(n::SQLNode, n′) =
 
 # Generic traversal and substitution.
 
-function visit(f, n::SQLNode)
-    visit(f, n[])
+function visit(f, n::SQLNode, visiting = Set{SQLNode}())
+    !(n in visiting) || return
+    push!(visiting, n)
+    visit(f, n[], visiting)
     f(n)
+    pop!(visiting, n)
     nothing
 end
 
-function visit(f, ns::Vector{SQLNode})
+function visit(f, ns::Vector{SQLNode}, visiting)
     for n in ns
-        visit(f, n)
+        visit(f, n, visiting)
     end
 end
 
-visit(f, ::Nothing) =
+visit(f, ::Nothing, visiting) =
     nothing
 
-@generated function visit(f, n::AbstractSQLNode)
+@generated function visit(f, n::AbstractSQLNode, visiting)
     exs = Expr[]
     for f in fieldnames(n)
         t = fieldtype(n, f)
         if t === SQLNode || t === Union{SQLNode, Nothing} || t === Vector{SQLNode}
             ex = quote
-                visit(f, n.$(f))
+                visit(f, n.$(f), visiting)
             end
             push!(exs, ex)
         end
@@ -190,11 +193,16 @@ function PrettyPrinting.quoteof(n::SQLNode;
         qidx = 0
         for n in nodes_seen
             n in nodes_toplevel || continue
-            def = quoteof(n, ctx)
+            qidx += 1
+            ctx.vars[n] = Symbol('q', qidx)
+        end
+        qidx = 0
+        for n in nodes_seen
+            n in nodes_toplevel || continue
             qidx += 1
             name = Symbol('q', qidx)
+            def = quoteof(n, ctx, true)
             push!(defs, Expr(:(=), name, def))
-            ctx.vars[n] = name
         end
     end
     ex = quoteof(n, ctx)
@@ -210,8 +218,9 @@ end
 PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
     quoteof(convert(SQLNode, n), limit = limit, unwrap = true)
 
-PrettyPrinting.quoteof(n::SQLNode, ctx::QuoteContext) =
+PrettyPrinting.quoteof(n::SQLNode, ctx::QuoteContext, full::Bool = false) =
     if !ctx.limit
+        !full || return quoteof(n[], ctx)
         var = get(ctx.vars, n, nothing)
         if var !== nothing
             var
@@ -343,6 +352,7 @@ include("nodes/function.jl")
 include("nodes/get.jl")
 include("nodes/group.jl")
 include("nodes/highlight.jl")
+include("nodes/iterate.jl")
 include("nodes/join.jl")
 include("nodes/limit.jl")
 include("nodes/literal.jl")
