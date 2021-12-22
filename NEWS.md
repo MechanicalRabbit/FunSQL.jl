@@ -1,6 +1,15 @@
 # Release Notes
 
 
+## v0.8.2
+
+* Require Julia ≥ 1.6.
+* Render each argument on a separate line for `SELECT`, `GROUP BY`, `ORDER BY`,
+  as well as for a top-level `AND` in `WHERE` and `HAVING`.
+* Improved `SQLDialect` interface.
+* Added Jacob's `CASE` example.
+
+
 ## v0.8.1
 
 * Updated documentation and examples.
