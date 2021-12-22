@@ -134,7 +134,9 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;location_1&quot;.&quot;state&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;location_1&quot;.&quot;state&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
 =#</code></pre><p>Alternatively, node-bound references could be used for this purpose.</p><pre><code class="language-julia hljs">qₚ = From(person)
@@ -145,7 +147,9 @@ q = qₚ |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;location_1&quot;.&quot;state&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;location_1&quot;.&quot;state&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
 =#</code></pre><p>When <code>Get</code> refers to an unknown attribute, an error is reported.</p><pre><code class="language-julia hljs">q = Select(Get.person_id)
@@ -255,11 +259,27 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, (NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  (NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>This expression could be referred to by name as if it were a regular table attribute.</p><pre><code class="language-julia hljs">print(render(q |&gt; Where(Get.age .&gt; &quot;16 years&quot;)))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, (NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  (NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE ((NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) &gt; &#39;16 years&#39;)
 =#</code></pre><p><code>Define</code> can be used to override an existing field.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -267,7 +287,14 @@ WHERE ((NOW() - &quot;person_1&quot;.&quot;birth_datetime&quot;) &gt; &#39;16 ye
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;year_of_birth&quot; AS &quot;person_id&quot;, …, &quot;person_1&quot;.&quot;person_id&quot; AS &quot;year_of_birth&quot;, …
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot; AS &quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;person_id&quot; AS &quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>Define</code> has no effect if none of the defined fields are used in the query.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Define(:age =&gt; 2020 .- Get.year_of_birth) |&gt;
@@ -275,7 +302,9 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>Define</code> can be used after <code>Select</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Select(Get.person_id, Get.year_of_birth) |&gt;
@@ -283,9 +312,14 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_2&quot;.&quot;person_id&quot;, &quot;person_2&quot;.&quot;year_of_birth&quot;, (2020 - &quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  &quot;person_2&quot;.&quot;year_of_birth&quot;,
+  (2020 - &quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
 FROM (
-  SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+  SELECT
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    &quot;person_1&quot;.&quot;year_of_birth&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
 ) AS &quot;person_2&quot;
 =#</code></pre><p><code>Define</code> requires that all definitions have a unique alias.</p><pre><code class="language-julia hljs">From(person) |&gt;
@@ -313,7 +347,10 @@ sql = render(q)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; :year)
 =#
@@ -338,7 +375,11 @@ end
 
 print(render(q0(1)))
 #=&gt;
-SELECT &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, …, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
 FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = 1)
 =#</code></pre><p><code>Bind</code> lets us create correlated subqueries.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -346,7 +387,10 @@ WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = 1)
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (EXISTS (
   SELECT NULL
@@ -394,27 +438,40 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; IN (
   SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
   FROM &quot;concept&quot; AS &quot;concept_1&quot;
-  WHERE ((&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;Gender&#39;) AND (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;F&#39;))
+  WHERE
+    (&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;Gender&#39;) AND
+    (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;F&#39;)
 ))
 =#</code></pre><p>FunSQL can properly represents many SQL functions and operators with irregular syntax.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Fun.and(Fun.&quot;is null&quot;(Get.birth_datetime), Fun.&quot;is not null&quot;(Get.year_of_birth)))
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-WHERE ((&quot;person_1&quot;.&quot;birth_datetime&quot; IS NULL) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; IS NOT NULL))
+WHERE
+  (&quot;person_1&quot;.&quot;birth_datetime&quot; IS NULL) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; IS NOT NULL)
 =#</code></pre><p>FunSQL can simplify logical expressions.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Fun.and())
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#
 
@@ -433,7 +490,10 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950)
 =#
@@ -443,9 +503,15 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 1960) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 1955))
+WHERE
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 1960) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 1955)
 =#
 
 q = From(person) |&gt;
@@ -453,7 +519,10 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE FALSE
 =#
@@ -463,7 +532,10 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950)
 =#
@@ -473,7 +545,10 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950) OR (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 1960))
 =#
@@ -483,7 +558,10 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><h2 id="Append"><a class="docs-heading-anchor" href="#Append"><code>Append</code></a><a id="Append-1"></a><a class="docs-heading-anchor-permalink" href="#Append" title="Permalink"></a></h2><p>The <code>Append</code> constructor creates a subquery that merges the output of multiple queries.</p><pre><code class="language-julia hljs">q = From(measurement) |&gt;
     Define(:date =&gt; Get.measurement_date) |&gt;
@@ -506,12 +584,18 @@ end
 
 print(render(q |&gt; Select(Get.person_id, Get.date)))
 #=&gt;
-SELECT &quot;union_1&quot;.&quot;person_id&quot;, &quot;union_1&quot;.&quot;date&quot;
+SELECT
+  &quot;union_1&quot;.&quot;person_id&quot;,
+  &quot;union_1&quot;.&quot;date&quot;
 FROM (
-  SELECT &quot;measurement_1&quot;.&quot;person_id&quot;, &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;measurement_1&quot;.&quot;person_id&quot;,
+    &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
   FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
   UNION ALL
-  SELECT &quot;observation_1&quot;.&quot;person_id&quot;, &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;observation_1&quot;.&quot;person_id&quot;,
+    &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
 ) AS &quot;union_1&quot;
 =#</code></pre><p><code>Append</code> will automatically assign unique aliases to the exported columns.</p><pre><code class="language-julia hljs">q = From(measurement) |&gt;
@@ -526,13 +610,25 @@ FROM (
 
 print(render(q))
 #=&gt;
-SELECT &quot;union_1&quot;.&quot;person_id&quot;, &quot;union_1&quot;.&quot;count&quot;, &quot;union_1&quot;.&quot;count_2&quot;, &quot;union_1&quot;.&quot;count_3&quot; AS &quot;count_distinct&quot;
+SELECT
+  &quot;union_1&quot;.&quot;person_id&quot;,
+  &quot;union_1&quot;.&quot;count&quot;,
+  &quot;union_1&quot;.&quot;count_2&quot;,
+  &quot;union_1&quot;.&quot;count_3&quot; AS &quot;count_distinct&quot;
 FROM (
-  SELECT &quot;measurement_1&quot;.&quot;person_id&quot;, COUNT(*) AS &quot;count&quot;, 1 AS &quot;count_2&quot;, COUNT(DISTINCT &quot;measurement_1&quot;.&quot;measurement_concept_id&quot;) AS &quot;count_3&quot;
+  SELECT
+    &quot;measurement_1&quot;.&quot;person_id&quot;,
+    COUNT(*) AS &quot;count&quot;,
+    1 AS &quot;count_2&quot;,
+    COUNT(DISTINCT &quot;measurement_1&quot;.&quot;measurement_concept_id&quot;) AS &quot;count_3&quot;
   FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
   GROUP BY &quot;measurement_1&quot;.&quot;person_id&quot;
   UNION ALL
-  SELECT &quot;observation_1&quot;.&quot;person_id&quot;, COUNT(*) AS &quot;count&quot;, 2 AS &quot;count_2&quot;, COUNT(DISTINCT &quot;observation_1&quot;.&quot;observation_concept_id&quot;) AS &quot;count_3&quot;
+  SELECT
+    &quot;observation_1&quot;.&quot;person_id&quot;,
+    COUNT(*) AS &quot;count&quot;,
+    2 AS &quot;count_2&quot;,
+    COUNT(DISTINCT &quot;observation_1&quot;.&quot;observation_concept_id&quot;) AS &quot;count_3&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
   GROUP BY &quot;observation_1&quot;.&quot;person_id&quot;
 ) AS &quot;union_1&quot;
@@ -548,13 +644,19 @@ FROM (
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;assessment_1&quot;.&quot;date&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;assessment_1&quot;.&quot;date&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN (
-  SELECT &quot;measurement_1&quot;.&quot;person_id&quot;, &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;measurement_1&quot;.&quot;person_id&quot;,
+    &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
   FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
   UNION ALL
-  SELECT &quot;observation_1&quot;.&quot;person_id&quot;, &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;observation_1&quot;.&quot;person_id&quot;,
+    &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
 ) AS &quot;assessment_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;assessment_1&quot;.&quot;person_id&quot;)
 WHERE (&quot;assessment_1&quot;.&quot;date&quot; &gt; CURRENT_TIMESTAMP)
@@ -565,15 +667,23 @@ WHERE (&quot;assessment_1&quot;.&quot;date&quot; &gt; CURRENT_TIMESTAMP)
 
 print(render(q))
 #=&gt;
-SELECT &quot;measurement_2&quot;.&quot;person_id&quot;, &quot;measurement_2&quot;.&quot;date&quot;
+SELECT
+  &quot;measurement_2&quot;.&quot;person_id&quot;,
+  &quot;measurement_2&quot;.&quot;date&quot;
 FROM (
-  SELECT &quot;measurement_1&quot;.&quot;person_id&quot;, &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;measurement_1&quot;.&quot;person_id&quot;,
+    &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
   FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
 ) AS &quot;measurement_2&quot;
 UNION ALL
-SELECT &quot;observation_2&quot;.&quot;person_id&quot;, &quot;observation_2&quot;.&quot;date&quot;
+SELECT
+  &quot;observation_2&quot;.&quot;person_id&quot;,
+  &quot;observation_2&quot;.&quot;date&quot;
 FROM (
-  SELECT &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;, &quot;observation_1&quot;.&quot;person_id&quot;
+  SELECT
+    &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;,
+    &quot;observation_1&quot;.&quot;person_id&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
 ) AS &quot;observation_2&quot;
 =#</code></pre><p>An <code>Append</code> without any queries can be created explicitly.</p><pre><code class="language-julia hljs">q = Append(list = [])
@@ -627,7 +737,14 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 display(q)
 #-&gt; From(SQLTable(:person, …))</code></pre><p>By default, <code>From</code> selects all columns from the table.</p><pre><code class="language-julia hljs">print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>From</code> adds the schema qualifier when the table has the schema.</p><pre><code class="language-julia hljs">const pg_database =
     SQLTable(schema = :pg_catalog, :pg_database, columns = [:oid, :datname])
@@ -636,11 +753,16 @@ q = From(pg_database)
 
 print(render(q))
 #=&gt;
-SELECT &quot;pg_database_1&quot;.&quot;oid&quot;, &quot;pg_database_1&quot;.&quot;datname&quot;
+SELECT
+  &quot;pg_database_1&quot;.&quot;oid&quot;,
+  &quot;pg_database_1&quot;.&quot;datname&quot;
 FROM &quot;pg_catalog&quot;.&quot;pg_database&quot; AS &quot;pg_database_1&quot;
 =#</code></pre><p>In a suitable context, a <code>SQLTable</code> object is automatically converted to a <code>From</code> subquery.</p><pre><code class="language-julia hljs">print(render(person))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>From</code> and other subqueries generate a correct <code>SELECT</code> clause when the table has no columns.</p><pre><code class="language-julia hljs">empty = SQLTable(:empty, columns = Symbol[])
 
@@ -689,7 +811,9 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;, COUNT(*) AS &quot;count&quot;
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  COUNT(*) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#</code></pre><p><code>Group</code> will create a single instance of an aggregate function even if it is used more than once.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -701,10 +825,14 @@ GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;count&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_group_1&quot;.&quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN (
-  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, COUNT(*) AS &quot;count&quot;
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    COUNT(*) AS &quot;count&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
@@ -716,7 +844,9 @@ WHERE (&quot;visit_group_1&quot;.&quot;count&quot; &gt;= 2)
 
 print(render(q))
 #=&gt;
-SELECT &quot;measurement_2&quot;.&quot;count&quot;, COUNT(*) AS &quot;size&quot;
+SELECT
+  &quot;measurement_2&quot;.&quot;count&quot;,
+  COUNT(*) AS &quot;size&quot;
 FROM (
   SELECT COUNT(*) AS &quot;count&quot;
   FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
@@ -729,7 +859,10 @@ GROUP BY &quot;measurement_2&quot;.&quot;count&quot;
 
 print(render(q))
 #=&gt;
-SELECT COUNT(*) AS &quot;count&quot;, MIN(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;min&quot;, MAX(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;max&quot;
+SELECT
+  COUNT(*) AS &quot;count&quot;,
+  MIN(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;min&quot;,
+  MAX(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;max&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>Group</code> with no keys and no aggregates creates a trivial subquery.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group()
@@ -752,10 +885,16 @@ Group(Get.person_id, Get.person_id)
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;, &quot;visit_group_1&quot;.&quot;max_2&quot; AS &quot;max_visit_end_date&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;,
+  &quot;visit_group_1&quot;.&quot;max_2&quot; AS &quot;max_visit_end_date&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN (
-  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) AS &quot;max_2&quot;
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;,
+    MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) AS &quot;max_2&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
@@ -830,10 +969,14 @@ q = qₚ |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, COALESCE(&quot;visit_occurrence_2&quot;.&quot;count&quot;, 0) AS &quot;count&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  COALESCE(&quot;visit_occurrence_2&quot;.&quot;count&quot;, 0) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 LEFT JOIN (
-  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, COUNT(*) AS &quot;count&quot;
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    COUNT(*) AS &quot;count&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_occurrence_2&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_2&quot;.&quot;person_id&quot;)
@@ -854,7 +997,10 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>Calculations across the rows of the partitions are performed by window functions.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Partition(Get.gender_concept_id) |&gt;
@@ -872,7 +1018,9 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, (ROW_NUMBER() OVER (PARTITION BY &quot;person_1&quot;.&quot;gender_concept_id&quot;)) AS &quot;row_number&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  (ROW_NUMBER() OVER (PARTITION BY &quot;person_1&quot;.&quot;gender_concept_id&quot;)) AS &quot;row_number&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>A partition may specify the window frame.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.year_of_birth) |&gt;
@@ -895,7 +1043,9 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;, (AVG(COUNT(*)) OVER (ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS &quot;avg&quot;
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  (AVG(COUNT(*)) OVER (ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS &quot;avg&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#</code></pre><p>It is common to use several <code>Partition</code> nodes in a row like in the following example which calculates non-overlapping visits.</p><pre><code class="language-julia hljs">q = From(visit_occurrence) |&gt;
@@ -916,15 +1066,28 @@ GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;visit_occurrence_3&quot;.&quot;person_id&quot;, MIN(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;, MAX(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;) AS &quot;end_date&quot;
+SELECT
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  MIN(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  MAX(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;) AS &quot;end_date&quot;
 FROM (
-  SELECT &quot;visit_occurrence_2&quot;.&quot;person_id&quot;, (SUM(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;group&quot;, &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
+  SELECT
+    &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
+    (SUM(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;group&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
   FROM (
-    SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, (CASE WHEN ((&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; - (MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) &lt;= 0) THEN 0 ELSE 1 END) AS &quot;new&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+    SELECT
+      &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+      (CASE WHEN ((&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; - (MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) &lt;= 0) THEN 0 ELSE 1 END) AS &quot;new&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
     FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   ) AS &quot;visit_occurrence_2&quot;
 ) AS &quot;visit_occurrence_3&quot;
-GROUP BY &quot;visit_occurrence_3&quot;.&quot;person_id&quot;, &quot;visit_occurrence_3&quot;.&quot;group&quot;
+GROUP BY
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_3&quot;.&quot;group&quot;
 =#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <code>Join</code> constructor creates a subquery that combines the rows of two nested subqueries.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Join(:location =&gt; From(location),
          on = Get.location_id .== Get.location.location_id,
@@ -947,7 +1110,10 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 LEFT JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
 =#</code></pre><p><code>LEFT JOIN</code> is commonly used and has its own constructor.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -975,14 +1141,20 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_2&quot;.&quot;person_id&quot;, &quot;location_2&quot;.&quot;city&quot;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  &quot;location_2&quot;.&quot;city&quot;
 FROM (
-  SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
+  SELECT
+    &quot;person_1&quot;.&quot;location_id&quot;,
+    &quot;person_1&quot;.&quot;person_id&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
   WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1970)
 ) AS &quot;person_2&quot;
 JOIN (
-  SELECT &quot;location_1&quot;.&quot;location_id&quot;, &quot;location_1&quot;.&quot;city&quot;
+  SELECT
+    &quot;location_1&quot;.&quot;location_id&quot;,
+    &quot;location_1&quot;.&quot;city&quot;
   FROM &quot;location&quot; AS &quot;location_1&quot;
   WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
 ) AS &quot;location_2&quot; ON (&quot;person_2&quot;.&quot;location_id&quot; = &quot;location_2&quot;.&quot;location_id&quot;)
@@ -995,9 +1167,18 @@ JOIN (
 
 print(render(q0(1)))
 #=&gt;
-SELECT &quot;visit_occurrence_2&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_2&quot;.&quot;person_id&quot;, &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
+SELECT
+  &quot;visit_occurrence_2&quot;.&quot;visit_occurrence_id&quot;,
+  &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
+  &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
 FROM (
-  SELECT &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;, (ROW_NUMBER() OVER (ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
+    (ROW_NUMBER() OVER (ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = 1)
 ) AS &quot;visit_occurrence_2&quot;
@@ -1012,12 +1193,20 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;visit_1&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_1&quot;.&quot;visit_start_date&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_1&quot;.&quot;visit_occurrence_id&quot;,
+  &quot;visit_1&quot;.&quot;visit_start_date&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 CROSS JOIN LATERAL (
-  SELECT &quot;visit_occurrence_2&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;
+  SELECT
+    &quot;visit_occurrence_2&quot;.&quot;visit_occurrence_id&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;
   FROM (
-    SELECT &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;, (ROW_NUMBER() OVER (ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;
+    SELECT
+      &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+      (ROW_NUMBER() OVER (ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;
     FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
     WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
   ) AS &quot;visit_occurrence_2&quot;
@@ -1038,7 +1227,10 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#</code></pre><p><code>Order</code> is often used together with <code>Limit</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -1048,9 +1240,15 @@ ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_2&quot;.&quot;person_id&quot;, …, &quot;person_2&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_2&quot;.&quot;location_id&quot;
 FROM (
-  SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+  SELECT
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    ⋮
+    &quot;person_1&quot;.&quot;location_id&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
   ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
   FETCH FIRST 10 ROWS ONLY
@@ -1062,7 +1260,10 @@ ORDER BY &quot;person_2&quot;.&quot;person_id&quot;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>It is possible to specify ascending or descending order of the sort column.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Order(Get.year_of_birth |&gt; Desc(nulls = :first),
@@ -1081,18 +1282,28 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST, &quot;person_1&quot;.&quot;person_id&quot; ASC
+ORDER BY
+  &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST,
+  &quot;person_1&quot;.&quot;person_id&quot; ASC
 =#</code></pre><p>A generic <code>Sort</code> constructor could also be used for this purpose.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Order(Get.year_of_birth |&gt; Sort(:desc, nulls = :first),
           Get.person_id |&gt; Sort(:asc))
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST, &quot;person_1&quot;.&quot;person_id&quot; ASC
+ORDER BY
+  &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST,
+  &quot;person_1&quot;.&quot;person_id&quot; ASC
 =#</code></pre><h2 id="Limit"><a class="docs-heading-anchor" href="#Limit"><code>Limit</code></a><a id="Limit-1"></a><a class="docs-heading-anchor-permalink" href="#Limit" title="Permalink"></a></h2><p>The <code>Limit</code> constructor creates a subquery that takes a fixed-size slice of the dataset.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Order(Get.person_id) |&gt;
     Limit(10)
@@ -1110,7 +1321,10 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 ORDER BY &quot;person_1&quot;.&quot;person_id&quot;
 FETCH FIRST 10 ROWS ONLY
@@ -1130,7 +1344,10 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 ORDER BY &quot;person_1&quot;.&quot;person_id&quot;
 OFFSET 100 ROWS
@@ -1143,7 +1360,10 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 ORDER BY &quot;person_1&quot;.&quot;person_id&quot;
 OFFSET 100 ROWS
@@ -1156,9 +1376,15 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_2&quot;.&quot;person_id&quot;, …, &quot;person_2&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_2&quot;.&quot;location_id&quot;
 FROM (
-  SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+  SELECT
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    ⋮
+    &quot;person_1&quot;.&quot;location_id&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
   OFFSET 100 ROWS
 ) AS &quot;person_2&quot;
@@ -1170,7 +1396,10 @@ q = From(person)
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><h2 id="Select"><a class="docs-heading-anchor" href="#Select"><code>Select</code></a><a id="Select-1"></a><a class="docs-heading-anchor-permalink" href="#Select" title="Permalink"></a></h2><p>The <code>Select</code> constructor creates a subquery that fixes the output columns.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Select(Get.person_id)
@@ -1221,7 +1450,10 @@ end
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 =#</code></pre><p>Several <code>Where</code> operations in a row are collapsed in a single <code>WHERE</code> clause.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -1231,9 +1463,15 @@ WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010))
+WHERE
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010)
 =#
 
 q = From(person) |&gt;
@@ -1242,9 +1480,15 @@ q = From(person) |&gt;
 
 print(render(q))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, …, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020))
+WHERE
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 2010) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000) AND
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 2020)
 =#</code></pre><p><code>Where</code> that follows <code>Group</code> subquery is transformed to a <code>HAVING</code> clause.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.year_of_birth) |&gt;
     Where(Agg.count() .&gt; 10)
@@ -1268,7 +1512,11 @@ print(render(q))
 SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
-HAVING ((COUNT(*) &gt; 10) AND (COUNT(*) &lt; 100) AND (COUNT(*) &lt;&gt; 33) AND (COUNT(*) &lt;&gt; 66))
+HAVING
+  (COUNT(*) &gt; 10) AND
+  (COUNT(*) &lt; 100) AND
+  (COUNT(*) &lt;&gt; 33) AND
+  (COUNT(*) &lt;&gt; 66)
 =#</code></pre><h2 id="Highlighting"><a class="docs-heading-anchor" href="#Highlighting">Highlighting</a><a id="Highlighting-1"></a><a class="docs-heading-anchor-permalink" href="#Highlighting" title="Permalink"></a></h2><p>To highlight a node on the output, wrap it with <code>Highlight</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Highlight(:underline) |&gt;
     Where(Fun.&quot;&gt;&quot;(Get.year_of_birth |&gt; Highlight(:bold), 2000) |&gt;
@@ -1429,9 +1677,13 @@ withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.render&quot;) do
 end;
 #=&gt;
 ┌ Debug: FunSQL.render
-│ SELECT &quot;person_2&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
+│ SELECT
+│   &quot;person_2&quot;.&quot;person_id&quot;,
+│   &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
 │ FROM (
-│   SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;
+│   SELECT
+│     &quot;person_1&quot;.&quot;location_id&quot;,
+│     &quot;person_1&quot;.&quot;person_id&quot;
 │   FROM &quot;person&quot; AS &quot;person_1&quot;
 │   WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 2000)
 │ ) AS &quot;person_2&quot;
@@ -1441,9 +1693,11 @@ end;
 │   WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
 │ ) AS &quot;location_2&quot; ON (&quot;person_2&quot;.&quot;location_id&quot; = &quot;location_2&quot;.&quot;location_id&quot;)
 │ LEFT JOIN (
-│   SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
+│   SELECT
+│     &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+│     MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
 │   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Monday 13 December 2021 19:46">Monday 13 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 22 December 2021 19:02">Wednesday 22 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

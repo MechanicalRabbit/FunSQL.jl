@@ -11,7 +11,9 @@
 display(c[])
 #-&gt; (ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth)))[]</code></pre><p>To generate SQL, we use function <code>render()</code>.</p><pre><code class="language-julia hljs">print(render(c))
 #=&gt;
-SELECT &quot;person_id&quot;, &quot;year_of_birth&quot;
+SELECT
+  &quot;person_id&quot;,
+  &quot;year_of_birth&quot;
 FROM &quot;person&quot;
 =#</code></pre><h2 id="SQL-Literals"><a class="docs-heading-anchor" href="#SQL-Literals">SQL Literals</a><a id="SQL-Literals-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Literals" title="Permalink"></a></h2><p>A SQL literal is created using a <code>LIT()</code> constructor.</p><pre><code class="language-julia hljs">c = LIT(&quot;SQL is fun!&quot;)
 #-&gt; LIT(&quot;SQL is fun!&quot;)</code></pre><p>Values of certain Julia data types are automatically converted to SQL literals when they are used in the context of a SQL clause.</p><pre><code class="language-julia hljs">using Dates
@@ -28,7 +30,14 @@ SELECT(LIT(missing),
 =#
 
 print(render(c))
-#-&gt; SELECT NULL, TRUE, 42, &#39;SQL is fun!&#39;, &#39;2000-01-01&#39;</code></pre><h2 id="SQL-Identifiers"><a class="docs-heading-anchor" href="#SQL-Identifiers">SQL Identifiers</a><a id="SQL-Identifiers-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Identifiers" title="Permalink"></a></h2><p>A SQL identifier is created with <code>ID()</code> constructor.</p><pre><code class="language-julia hljs">c = ID(:person)
+#=&gt;
+SELECT
+  NULL,
+  TRUE,
+  42,
+  &#39;SQL is fun!&#39;,
+  &#39;2000-01-01&#39;
+=#</code></pre><h2 id="SQL-Identifiers"><a class="docs-heading-anchor" href="#SQL-Identifiers">SQL Identifiers</a><a id="SQL-Identifiers-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Identifiers" title="Permalink"></a></h2><p>A SQL identifier is created with <code>ID()</code> constructor.</p><pre><code class="language-julia hljs">c = ID(:person)
 #-&gt; ID(:person)
 
 display(c)
@@ -248,7 +257,9 @@ display(c)
 
 print(render(c))
 #=&gt;
-SELECT &quot;person_id&quot;, &quot;year_of_birth&quot;
+SELECT
+  &quot;person_id&quot;,
+  &quot;year_of_birth&quot;
 FROM &quot;person&quot;
 =#</code></pre><p>The <code>DISTINCT</code> modifier can be added from the constructor.</p><pre><code class="language-julia hljs">c = FROM(:location) |&gt; SELECT(distinct = true, :zip)
 #-&gt; (…) |&gt; SELECT(…)
@@ -295,7 +306,9 @@ print(render(c))
 #=&gt;
 SELECT &quot;zip&quot;
 FROM (
-  SELECT &quot;state&quot;, &quot;zip&quot;
+  SELECT
+    &quot;state&quot;,
+    &quot;zip&quot;
   FROM &quot;location&quot;
 )
 =#</code></pre><h2 id="WHERE-Clause"><a class="docs-heading-anchor" href="#WHERE-Clause"><code>WHERE</code> Clause</a><a id="WHERE-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE-Clause" title="Permalink"></a></h2><p>A <code>WHERE</code> clause is created with <code>WHERE()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; WHERE(OP(&quot;&gt;&quot;, :year_of_birth, 2000))
@@ -427,7 +440,9 @@ JOIN(ID(:location) |&gt; AS(:l),
 
 print(render(c |&gt; SELECT((:p, :person_id), (:l, :state))))
 #=&gt;
-SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;l&quot;.&quot;state&quot;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;l&quot;.&quot;state&quot;
 FROM &quot;person&quot; AS &quot;p&quot;
 LEFT JOIN &quot;location&quot; AS &quot;l&quot; ON (&quot;p&quot;.&quot;location_id&quot; = &quot;l&quot;.&quot;location_id&quot;)
 =#</code></pre><p>Different types of <code>JOIN</code> are supported.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt;
@@ -445,7 +460,9 @@ JOIN(ID(:observation_period) |&gt; AS(:op),
 
 print(render(c |&gt; SELECT((:p, :person_id), (:op, :observation_period_start_date))))
 #=&gt;
-SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;op&quot;.&quot;observation_period_start_date&quot;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;op&quot;.&quot;observation_period_start_date&quot;
 FROM &quot;person&quot; AS &quot;p&quot;
 JOIN &quot;observation_period&quot; AS &quot;op&quot; ON (&quot;p&quot;.&quot;person_id&quot; = &quot;op&quot;.&quot;person_id&quot;)
 =#
@@ -467,7 +484,9 @@ JOIN(ID(:care_site) |&gt; AS(:cs),
 
 print(render(c |&gt; SELECT((:cs, :care_site_name), (:l, :state))))
 #=&gt;
-SELECT &quot;cs&quot;.&quot;care_site_name&quot;, &quot;l&quot;.&quot;state&quot;
+SELECT
+  &quot;cs&quot;.&quot;care_site_name&quot;,
+  &quot;l&quot;.&quot;state&quot;
 FROM &quot;location&quot; AS &quot;l&quot;
 RIGHT JOIN &quot;care_site&quot; AS &quot;cs&quot; ON (&quot;l&quot;.&quot;location_id&quot; = &quot;cs&quot;.&quot;location_id&quot;)
 =#
@@ -491,7 +510,9 @@ JOIN(ID(:provider) |&gt; AS(:pr),
 
 print(render(c |&gt; SELECT((:p, :person_id), (:pr, :npi))))
 #=&gt;
-SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;pr&quot;.&quot;npi&quot;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;pr&quot;.&quot;npi&quot;
 FROM &quot;person&quot; AS &quot;p&quot;
 FULL JOIN &quot;provider&quot; AS &quot;pr&quot; ON (&quot;p&quot;.&quot;provider_id&quot; = &quot;pr&quot;.&quot;provider_id&quot;)
 =#</code></pre><p>To render a <code>CROSS JOIN</code>, set the join condition to <code>true</code>.</p><pre><code class="language-julia hljs">c = FROM(:p1 =&gt; :person) |&gt;
@@ -500,7 +521,9 @@ FULL JOIN &quot;provider&quot; AS &quot;pr&quot; ON (&quot;p&quot;.&quot;provide
 
 print(render(c |&gt; SELECT((:p1, :person_id), (:p2, :person_id))))
 #=&gt;
-SELECT &quot;p1&quot;.&quot;person_id&quot;, &quot;p2&quot;.&quot;person_id&quot;
+SELECT
+  &quot;p1&quot;.&quot;person_id&quot;,
+  &quot;p2&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;p1&quot;
 CROSS JOIN &quot;person&quot; AS &quot;p2&quot;
 =#</code></pre><p>A <code>JOIN LATERAL</code> clause can be created.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt;
@@ -533,7 +556,9 @@ JOIN(ID(:visit_occurrence) |&gt;
 
 print(render(c |&gt; SELECT((:p, :person_id), (:vo, :visit_start_date))))
 #=&gt;
-SELECT &quot;p&quot;.&quot;person_id&quot;, &quot;vo&quot;.&quot;visit_start_date&quot;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;vo&quot;.&quot;visit_start_date&quot;
 FROM &quot;person&quot; AS &quot;p&quot;
 LEFT JOIN LATERAL (
   SELECT &quot;vo&quot;.&quot;visit_start_date&quot;
@@ -550,7 +575,9 @@ display(c)
 
 print(render(c |&gt; SELECT(:year_of_birth, AGG(&quot;COUNT&quot;, *))))
 #=&gt;
-SELECT &quot;year_of_birth&quot;, COUNT(*)
+SELECT
+  &quot;year_of_birth&quot;,
+  COUNT(*)
 FROM &quot;person&quot;
 GROUP BY &quot;year_of_birth&quot;
 =#</code></pre><p>A <code>GROUP</code> constructor accepts an empty partition list, in which case, it is not rendered.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; GROUP()
@@ -615,7 +642,9 @@ print(render(c))
 #=&gt;
 SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
-ORDER BY &quot;year_of_birth&quot; DESC NULLS FIRST, &quot;person_id&quot; ASC
+ORDER BY
+  &quot;year_of_birth&quot; DESC NULLS FIRST,
+  &quot;person_id&quot; ASC
 =#</code></pre><p>Instead of <code>ASC</code> and <code>DESC</code>, a generic <code>SORT</code> constructor can be used.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
     ORDER(:year_of_birth |&gt; SORT(:desc, nulls = :first),
           :person_id |&gt; SORT(:asc)) |&gt;
@@ -625,7 +654,9 @@ print(render(c))
 #=&gt;
 SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
-ORDER BY &quot;year_of_birth&quot; DESC NULLS FIRST, &quot;person_id&quot; ASC
+ORDER BY
+  &quot;year_of_birth&quot; DESC NULLS FIRST,
+  &quot;person_id&quot; ASC
 =#</code></pre><h2 id="UNION-Clause."><a class="docs-heading-anchor" href="#UNION-Clause."><code>UNION</code> Clause.</a><a id="UNION-Clause.-1"></a><a class="docs-heading-anchor-permalink" href="#UNION-Clause." title="Permalink"></a></h2><p><code>UNION</code> and <code>UNION ALL</code> clauses are created with <code>UNION()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:measurement) |&gt;
     SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
     UNION(all = true,
@@ -646,10 +677,14 @@ UNION(all = true,
 
 print(render(c))
 #=&gt;
-SELECT &quot;person_id&quot;, &quot;measurement_date&quot; AS &quot;date&quot;
+SELECT
+  &quot;person_id&quot;,
+  &quot;measurement_date&quot; AS &quot;date&quot;
 FROM &quot;measurement&quot;
 UNION ALL
-SELECT &quot;person_id&quot;, &quot;observation_date&quot; AS &quot;date&quot;
+SELECT
+  &quot;person_id&quot;,
+  &quot;observation_date&quot; AS &quot;date&quot;
 FROM &quot;observation&quot;
 =#</code></pre><p>A <code>UNION</code> clause with no subqueries can be created explicitly.</p><pre><code class="language-julia hljs">UNION(list = [])
 #-&gt; UNION(list = [])</code></pre><p>Rendering a nested <code>UNION</code> clause adds parentheses around it.</p><pre><code class="language-julia hljs">c = FROM(:measurement) |&gt;
@@ -666,10 +701,14 @@ print(render(c))
 #=&gt;
 SELECT &quot;person_id&quot;
 FROM (
-  SELECT &quot;person_id&quot;, &quot;measurement_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;person_id&quot;,
+    &quot;measurement_date&quot; AS &quot;date&quot;
   FROM &quot;measurement&quot;
   UNION ALL
-  SELECT &quot;person_id&quot;, &quot;observation_date&quot; AS &quot;date&quot;
+  SELECT
+    &quot;person_id&quot;,
+    &quot;observation_date&quot; AS &quot;date&quot;
   FROM &quot;observation&quot;
 ) AS &quot;union&quot;
 WHERE (&quot;date&quot; &gt; &#39;2000-01-01&#39;)
@@ -691,9 +730,13 @@ WINDOW(PARTITION(ID(:gender_concept_id)) |&gt; AS(:w1),
 
 print(render(c |&gt; SELECT(:w1 |&gt; AGG(&quot;ROW_NUMBER&quot;), :w2 |&gt; AGG(&quot;ROW_NUMBER&quot;))))
 #=&gt;
-SELECT (ROW_NUMBER() OVER (&quot;w1&quot;)), (ROW_NUMBER() OVER (&quot;w2&quot;))
+SELECT
+  (ROW_NUMBER() OVER (&quot;w1&quot;)),
+  (ROW_NUMBER() OVER (&quot;w2&quot;))
 FROM &quot;person&quot;
-WINDOW &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;), &quot;w2&quot; AS (&quot;w1&quot; PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)
+WINDOW
+  &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;),
+  &quot;w2&quot; AS (&quot;w1&quot; PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)
 =#</code></pre><p>The <code>WINDOW()</code> constructor accepts an empty list of partitions, in which case, it is not rendered.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
     WINDOW(list = [])
 
@@ -764,15 +807,21 @@ WITH(recursive = true,
 print(render(c))
 #=&gt;
 WITH RECURSIVE &quot;essential_hypertension&quot; AS (
-  SELECT &quot;concept_id&quot;, &quot;concept_name&quot;
+  SELECT
+    &quot;concept_id&quot;,
+    &quot;concept_name&quot;
   FROM &quot;concept&quot;
   WHERE (&quot;concept_id&quot; = 320128)
 ),
 &quot;essential_hypertension_with_descendants&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;) AS (
-  SELECT &quot;concept_id&quot;, &quot;concept_name&quot;
+  SELECT
+    &quot;concept_id&quot;,
+    &quot;concept_name&quot;
   FROM &quot;essential_hypertension&quot;
   UNION ALL
-  SELECT &quot;c&quot;.&quot;concept_id&quot;, &quot;c&quot;.&quot;concept_name&quot;
+  SELECT
+    &quot;c&quot;.&quot;concept_id&quot;,
+    &quot;c&quot;.&quot;concept_name&quot;
   FROM &quot;essential_hypertension_with_descendants&quot; AS &quot;eh&quot;
   JOIN &quot;concept_relationship&quot; AS &quot;cr&quot; ON (&quot;eh&quot;.&quot;concept_id&quot; = &quot;cr&quot;.&quot;concept_id_1&quot;)
   JOIN &quot;concept&quot; AS &quot;c&quot; ON (&quot;cr&quot;.&quot;concept_id_2&quot; = &quot;c&quot;.&quot;concept_id&quot;)
@@ -823,4 +872,4 @@ print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Monday 13 December 2021 19:46">Monday 13 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 22 December 2021 19:02">Wednesday 22 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -55,9 +55,14 @@ sql = render(q, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_2&quot;.&quot;person_id&quot;, (2020 - &quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  (2020 - &quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
 FROM (
-  SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+  SELECT
+    &quot;person_1&quot;.&quot;location_id&quot;,
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    &quot;person_1&quot;.&quot;year_of_birth&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
   WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; BETWEEN 1930 AND 1940)
 ) AS &quot;person_2&quot;
@@ -102,7 +107,10 @@ end</code></pre><p>The function <code>FindPatients</code> effectively becomes a 
 
 print(render(q, dialect = :sqlite))
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><em>Show all patients born in or after 1930.</em></p><pre><code class="language-julia hljs">q = FindPatients(start_year = 1930) |&gt;
     Select(Get.person_id)
@@ -117,11 +125,18 @@ WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930)
 
 print(render(q, dialect = :sqlite))
 #=&gt;
-SELECT &quot;person_2&quot;.&quot;person_id&quot;, (2020 - &quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  (2020 - &quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
 FROM (
-  SELECT &quot;person_1&quot;.&quot;location_id&quot;, &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;
+  SELECT
+    &quot;person_1&quot;.&quot;location_id&quot;,
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    &quot;person_1&quot;.&quot;year_of_birth&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
-  WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930) AND (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1940))
+  WHERE
+    (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930) AND
+    (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1940)
 ) AS &quot;person_2&quot;
 JOIN (
   SELECT &quot;location_1&quot;.&quot;location_id&quot;
@@ -144,7 +159,10 @@ sql = render(q)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a> node correlates the rows of two input datasets. Predominantly, <code>Join</code> is used for looking up table records by key.  In the following example, <code>Join</code> associates each <code>person</code> record with their <code>location</code> using the key column <code>location_id</code> that uniquely identifies a <code>location</code> record:</p><p><em>Show all patients together with their state of residence.</em></p><pre><code class="language-julia hljs">person |&gt;
 Join(:location =&gt; location,
@@ -215,7 +233,9 @@ sql = render(q, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;, COUNT(*) AS &quot;count&quot;
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  COUNT(*) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#
@@ -298,10 +318,14 @@ sql = render(q, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;visit_group_1&quot;.&quot;max&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_group_1&quot;.&quot;max&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 LEFT JOIN (
-  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
@@ -320,7 +344,11 @@ sql = render(q, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;, (JULIANDAY(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) - JULIANDAY((MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS &quot;gap&quot;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
+  (JULIANDAY(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) - JULIANDAY((MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS &quot;gap&quot;
 FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 =#
 
@@ -394,7 +422,10 @@ sql = render(qₒ, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = (
   SELECT MIN(&quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;min&quot;
@@ -421,7 +452,10 @@ sql = render(qₒ, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;person_1&quot;.&quot;person_id&quot;, &quot;person_1&quot;.&quot;year_of_birth&quot;, &quot;person_1&quot;.&quot;location_id&quot;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;person_id&quot; NOT IN (
   SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
@@ -451,11 +485,18 @@ sql = render(q, dialect = :sqlite)
 
 print(sql)
 #=&gt;
-SELECT &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;, &quot;visit_occurrence_1&quot;.&quot;person_id&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;, &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
 FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 WHERE (EXISTS (
   SELECT NULL
   FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
-  WHERE ((&quot;condition_occurrence_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;) AND (&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;))
+  WHERE
+    (&quot;condition_occurrence_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;) AND
+    (&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
 ))
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Monday 13 December 2021 19:46">Monday 13 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 22 December 2021 19:02">Wednesday 22 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
