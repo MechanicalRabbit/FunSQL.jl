@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · FunSQL.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../guide/">Usage Guide</a></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Establishing-a-database-connection"><span>Establishing a database connection</span></a></li><li><a class="tocitem" href="#Importing-FunSQL"><span>Importing FunSQL</span></a></li><li><a class="tocitem" href="#Database-introspection-(SQLite)"><span>Database introspection (SQLite)</span></a></li><li><a class="tocitem" href="#Database-introspection-(PostgreSQL)"><span>Database introspection (PostgreSQL)</span></a></li><li><a class="tocitem" href="#Database-introspection-(MySQL)"><span>Database introspection (MySQL)</span></a></li><li><a class="tocitem" href="#Database-introspection-(Microsoft-SQL-Server)"><span>Database introspection (Microsoft SQL Server)</span></a></li><li><a class="tocitem" href="#Database-introspection-(Amazon-RedShift)"><span>Database introspection (Amazon RedShift)</span></a></li><li><a class="tocitem" href="#SELECT-*-FROM-table"><span><code>SELECT * FROM table</code></span></a></li><li><a class="tocitem" href="#WHERE,-ORDER,-LIMIT"><span><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></span></a></li><li><a class="tocitem" href="#SELECT-COUNT(*)-FROM-table"><span><code>SELECT COUNT(*) FROM table</code></span></a></li><li><a class="tocitem" href="#SELECT-DISTINCT"><span><code>SELECT DISTINCT</code></span></a></li><li><a class="tocitem" href="#Filtering-output-columns"><span>Filtering output columns</span></a></li><li><a class="tocitem" href="#Output-columns-of-a-Join"><span>Output columns of a <code>Join</code></span></a></li><li><a class="tocitem" href="#Encapsulating-complex-SQL-expressions"><span>Encapsulating complex SQL expressions</span></a></li><li><a class="tocitem" href="#Assembling-queries-incrementally"><span>Assembling queries incrementally</span></a></li><li><a class="tocitem" href="#Merging-overlapping-intervals"><span>Merging overlapping intervals</span></a></li></ul></li><li><a class="tocitem" href="../test/">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><h2 id="Establishing-a-database-connection"><a class="docs-heading-anchor" href="#Establishing-a-database-connection">Establishing a database connection</a><a id="Establishing-a-database-connection-1"></a><a class="docs-heading-anchor-permalink" href="#Establishing-a-database-connection" title="Permalink"></a></h2><p>We use FunSQL to assemble SQL queries.  To actually run these queries, we need a regular database library such as <a href="https://github.com/JuliaDatabases/SQLite.jl">SQLite.jl</a>, <a href="https://github.com/invenia/LibPQ.jl">LibPQ.jl</a>, <a href="https://github.com/JuliaDatabases/MySQL.jl">MySQL.jl</a>, or <a href="https://github.com/JuliaDatabases/ODBC.jl">ODBC.jl</a>.</p><p>In the following examples, we use a SQLite database containing a tiny sample of the <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>. See the <a href="../guide/#Database-Schema">Usage Guide</a> for the description of the database schema.</p><p><em>Download the database file.</em></p><pre><code class="language-julia hljs">const URL = &quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;
+const DB = download(URL)</code></pre><p><em>Download the database file as an <a href="../Artifacts.toml">artifact</a>.</em></p><pre><code class="language-julia hljs">using Pkg.Artifacts, LazyArtifacts
+
+const DB = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)
+#-&gt; ⋮</code></pre><p><em>Create a SQLite connection object.</em></p><pre><code class="language-julia hljs">using SQLite
+
+const conn = SQLite.DB(DB)</code></pre><h2 id="Importing-FunSQL"><a class="docs-heading-anchor" href="#Importing-FunSQL">Importing FunSQL</a><a id="Importing-FunSQL-1"></a><a class="docs-heading-anchor-permalink" href="#Importing-FunSQL" title="Permalink"></a></h2><p>FunSQL does not export any symbols by default.  The following statement imports all available query constructors, a <a href="../reference/#FunSQL.SQLTable"><code>SQLTable</code></a> constructor, and the function <a href="../reference/#FunSQL.render"><code>render</code></a>.</p><pre><code class="language-julia hljs">using FunSQL:
+    Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
+    Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLTable,
+    Select, Sort, Var, Where, render</code></pre><h2 id="Database-introspection-(SQLite)"><a class="docs-heading-anchor" href="#Database-introspection-(SQLite)">Database introspection (SQLite)</a><a id="Database-introspection-(SQLite)-1"></a><a class="docs-heading-anchor-permalink" href="#Database-introspection-(SQLite)" title="Permalink"></a></h2><p>For each database table referenced in a query, we need to create a <a href="../reference/#FunSQL.SQLTable"><code>SQLTable</code></a> object encapsulating the name of the table and the list of the table columns.</p><pre><code class="language-julia hljs">SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])</code></pre><p>Instead of creating <code>SQLTable</code> objects manually, we could create them automatically by extracting the information about the available tables from the database itself.  For SQLite, this could be done as follows.</p><pre><code class="language-julia hljs">using Tables
+
+const introspect_sqlite_sql = &quot;&quot;&quot;
+    SELECT NULL AS schema, sm.name, pti.name AS column
+    FROM sqlite_master sm, pragma_table_info(sm.name) pti
+    WHERE sm.type IN (&#39;table&#39;, &#39;view&#39;) AND sm.name NOT LIKE &#39;sqlite_%&#39;
+    ORDER BY sm.name
+    &quot;&quot;&quot;
+
+introspect_sqlite(conn) =
+    DBInterface.execute(conn, introspect_sqlite_sql) |&gt;
+    make_tables
+
+function make_tables(res)
+    tables = SQLTable[]
+    schema = name = nothing
+    columns = Symbol[]
+    for (s, n, c) in Tables.rows(res)
+        s = s !== missing ? Symbol(s) : nothing
+        n = Symbol(n)
+        c = Symbol(c)
+        if s === schema &amp;&amp; n === name
+            push!(columns, c)
+        else
+            if !isempty(columns)
+                t = SQLTable(schema = schema, name = name, columns = columns)
+                push!(tables, t)
+            end
+            schema = s
+            name = n
+            columns = [c]
+        end
+    end
+    if !isempty(columns)
+        t = SQLTable(schema = schema, name = name, columns = columns)
+        push!(tables, t)
+    end
+    return tables
+end
+
+const tables = introspect_sqlite(conn)</code></pre><p>The vector <code>tables</code> contains all the tables available in the database.</p><pre><code class="language-julia hljs">display(tables)
+#=&gt;
+44-element Vector{SQLTable}:
+ SQLTable(:attribute_definition, …)
+ SQLTable(:care_site, …)
+ SQLTable(:cdm_source, …)
+ SQLTable(:cohort, …)
+ SQLTable(:cohort_ace, …)
+ SQLTable(:cohort_all, …)
+ SQLTable(:cohort_ami, …)
+ SQLTable(:cohort_ang, …)
+ SQLTable(:cohort_attribute, …)
+ SQLTable(:cohort_definition, …)
+ ⋮
+ SQLTable(:procedure_cost, …)
+ SQLTable(:procedure_occurrence, …)
+ SQLTable(:provider, …)
+ SQLTable(:relationship, …)
+ SQLTable(:source_to_concept_map, …)
+ SQLTable(:specimen, …)
+ SQLTable(:visit_cost, …)
+ SQLTable(:visit_occurrence, …)
+ SQLTable(:vocabulary, …)
+=#</code></pre><p>It is convenient to add the <code>SQLTable</code> objects to the global scope.</p><pre><code class="language-julia hljs">for t in tables
+    @eval const $(t.name) = $t
+end
+
+display(person)
+#=&gt;
+SQLTable(:person,
+         columns = [:person_id,
+                    :gender_concept_id,
+                    :year_of_birth,
+                    :month_of_birth,
+                    :day_of_birth,
+                    :time_of_birth,
+                    :race_concept_id,
+                    :ethnicity_concept_id,
+                    :location_id,
+                    :provider_id,
+                    :care_site_id,
+                    :person_source_value,
+                    :gender_source_value,
+                    :gender_source_concept_id,
+                    :race_source_value,
+                    :race_source_concept_id,
+                    :ethnicity_source_value,
+                    :ethnicity_source_concept_id])
+=#</code></pre><p>Alternatively, we could encapsulate all <code>SQLTable</code> objects in a <code>NamedTuple</code>.</p><pre><code class="language-julia hljs">const db = NamedTuple([t.name =&gt; t for t in tables])
+
+display(db.person)
+#=&gt;
+SQLTable(:person,
+         columns = [:person_id,
+                    :gender_concept_id,
+                    :year_of_birth,
+                    :month_of_birth,
+                    :day_of_birth,
+                    :time_of_birth,
+                    :race_concept_id,
+                    :ethnicity_concept_id,
+                    :location_id,
+                    :provider_id,
+                    :care_site_id,
+                    :person_source_value,
+                    :gender_source_value,
+                    :gender_source_concept_id,
+                    :race_source_value,
+                    :race_source_concept_id,
+                    :ethnicity_source_value,
+                    :ethnicity_source_concept_id])
+=#</code></pre><h2 id="Database-introspection-(PostgreSQL)"><a class="docs-heading-anchor" href="#Database-introspection-(PostgreSQL)">Database introspection (PostgreSQL)</a><a id="Database-introspection-(PostgreSQL)-1"></a><a class="docs-heading-anchor-permalink" href="#Database-introspection-(PostgreSQL)" title="Permalink"></a></h2><p>The following code generates <code>SQLTable</code> objects for a PostgreSQL database.  See the section <a href="#Database-introspection-(SQLite)">Database introspection (SQLite)</a> for the definition of the <code>make_tables()</code> function and instructions on how to bring the generated <code>SQLTable</code> objects into the global scope.</p><pre><code class="language-julia hljs">const introspect_postgresql_sql = &quot;&quot;&quot;
+    SELECT n.nspname AS schema, c.relname AS name, a.attname AS column
+    FROM pg_catalog.pg_namespace AS n
+    JOIN pg_catalog.pg_class AS c ON (n.oid = c.relnamespace)
+    JOIN pg_catalog.pg_attribute AS a ON (c.oid = a.attrelid)
+    WHERE n.nspname = \$1 AND
+          c.relkind IN (&#39;r&#39;, &#39;v&#39;) AND
+          HAS_TABLE_PRIVILEGE(c.oid, &#39;SELECT&#39;) AND
+          a.attnum &gt; 0 AND
+          NOT a.attisdropped
+    ORDER BY n.nspname, c.relname, a.attnum
+    &quot;&quot;&quot;
+
+introspect_postgresql(conn, schema = :public) =
+    execute(conn, introspect_postgresql_sql, (String(schema),)) |&gt;
+    make_tables</code></pre><p>Alternatively, we could generate the introspection query using FunSQL.</p><pre><code class="language-julia hljs">const pg_namespace =
+    SQLTable(schema = :pg_catalog,
+             name = :pg_namespace,
+             columns = [:oid, :nspname])
+const pg_class =
+    SQLTable(schema = :pg_catalog,
+             name = :pg_class,
+             columns = [:oid, :relname, :relnamespace, :relkind])
+const pg_attribute =
+    SQLTable(schema = :pg_catalog,
+             name = :pg_attribute,
+             columns = [:attrelid, :attname, :attnum, :attisdropped])
+
+const IntrospectPostgreSQL =
+    From(pg_class) |&gt;
+    Where(Fun.in(Get.relkind, &quot;r&quot;, &quot;v&quot;)) |&gt;
+    Where(Fun.has_table_privilege(Get.oid, &quot;SELECT&quot;)) |&gt;
+    Join(From(pg_namespace) |&gt;
+         Where(Get.nspname .== Var.schema) |&gt;
+         As(:nsp),
+         on = Get.relnamespace .== Get.nsp.oid) |&gt;
+    Join(From(pg_attribute) |&gt;
+         Where(Fun.and(Get.attnum .&gt; 0, Fun.not(Get.attisdropped))) |&gt;
+         As(:att),
+         on = Get.oid .== Get.att.attrelid) |&gt;
+    Order(Get.nsp.nspname, Get.relname, Get.att.attnum) |&gt;
+    Select(Get.nsp.nspname, Get.relname, Get.att.attname)
+
+const introspect_postgresql_sql =
+    render(IntrospectPostgreSQL, dialect = :postgresql)</code></pre><h2 id="Database-introspection-(MySQL)"><a class="docs-heading-anchor" href="#Database-introspection-(MySQL)">Database introspection (MySQL)</a><a id="Database-introspection-(MySQL)-1"></a><a class="docs-heading-anchor-permalink" href="#Database-introspection-(MySQL)" title="Permalink"></a></h2><p>The following code generates <code>SQLTable</code> objects for a MySQL database.  See the section <a href="#Database-introspection-(SQLite)">Database introspection (SQLite)</a> for the definition of the <code>make_tables()</code> function and instructions on how to bring the generated <code>SQLTable</code> objects into the global scope.</p><pre><code class="language-julia hljs">const introspect_mysql_sql = &quot;&quot;&quot;
+    SELECT table_schema AS `schema`, table_name AS `name`, column_name AS `column`
+    FROM information_schema.columns
+    WHERE table_schema = COALESCE(?, DATABASE())
+    ORDER BY table_schema, table_name, ordinal_position
+    &quot;&quot;&quot;
+
+introspect_mysql(conn, schema = nothing) =
+    DBInterface.execute(
+        DBInterface.prepare(conn, introspect_mysql_sql),
+        (schema !== nothing ? String(schema) : missing,)) |&gt;
+    make_tables</code></pre><p>Alternatively, we could generate the introspection query using FunSQL.</p><pre><code class="language-julia hljs">const information_schema_columns =
+    SQLTable(schema = :information_schema,
+             name = :columns,
+             columns = [:table_schema, :table_name, :column_name, :ordinal_position])
+
+const IntrospectMySQL =
+    From(information_schema_columns) |&gt;
+    Where(Get.table_schema .== Fun.coalesce(Var.schema, Fun.database())) |&gt;
+    Order(Get.table_schema, Get.table_name, Get.ordinal_position) |&gt;
+    Select(Get.table_schema, Get.table_name, Get.column_name)
+
+const introspect_mysql_sql =
+    render(IntrospectMySQL, dialect = :mysql) |&gt; String</code></pre><h2 id="Database-introspection-(Microsoft-SQL-Server)"><a class="docs-heading-anchor" href="#Database-introspection-(Microsoft-SQL-Server)">Database introspection (Microsoft SQL Server)</a><a id="Database-introspection-(Microsoft-SQL-Server)-1"></a><a class="docs-heading-anchor-permalink" href="#Database-introspection-(Microsoft-SQL-Server)" title="Permalink"></a></h2><p>The following code generates <code>SQLTable</code> objects for a Microsoft SQL Server database.  See the section <a href="#Database-introspection-(SQLite)">Database introspection (SQLite)</a> for the definition of the <code>make_tables()</code> function and instructions on how to bring the generated <code>SQLTable</code> objects into the global scope.</p><pre><code class="language-julia hljs">const introspect_sqlserver_sql = &quot;&quot;&quot;
+    SELECT s.name AS [schema], o.name AS [name], c.name AS [column]
+    FROM sys.schemas AS s
+    JOIN sys.objects AS o ON (s.schema_id = o.schema_id)
+    JOIN sys.columns AS c ON (o.object_id = c.object_id)
+    WHERE s.name = ? AND o.type IN (&#39;U&#39;, &#39;V&#39;)
+    ORDER BY s.name, o.name, c.column_id
+    &quot;&quot;&quot;
+
+introspect_sqlserver(conn, schema = :dbo) =
+    DBInterface.execute(conn, introspect_sqlserver_sql, (String(schema),)) |&gt;
+    make_tables</code></pre><p>Alternatively, we could generate the introspection query using FunSQL.</p><pre><code class="language-julia hljs">const sys_schemas =
+    SQLTable(schema = :sys, name = :schemas, columns = [:schema_id, :name])
+const sys_tables =
+    SQLTable(schema = :sys, name = :tables, columns = [:schema_id, :object_id, :name, :type])
+const sys_columns =
+    SQLTable(schema = :sys, name = :columns, columns = [:object_id, :column_id, :name])
+
+const IntrospectSQLServer =
+    From(sys_tables) |&gt;
+    Where(Fun.in(Get.type, &quot;U&quot;, &quot;V&quot;)) |&gt;
+    Join(From(sys_schemas) |&gt;
+         Where(Get.name .== Var.schema) |&gt;
+         As(:schema),
+         on = Get.schema_id .== Get.schema.schema_id) |&gt;
+    Join(From(sys_columns) |&gt;
+         As(:column),
+         on = Get.object_id .== Get.column.object_id) |&gt;
+    Order(Get.schema.name, Get.name, Get.column.column_id) |&gt;
+    Select(:schema =&gt; Get.schema.name, Get.name, :column =&gt; Get.column.name)
+
+const introspect_sqlserver_sql =
+    render(IntrospectSQLServer, dialect = :sqlserver)</code></pre><h2 id="Database-introspection-(Amazon-RedShift)"><a class="docs-heading-anchor" href="#Database-introspection-(Amazon-RedShift)">Database introspection (Amazon RedShift)</a><a id="Database-introspection-(Amazon-RedShift)-1"></a><a class="docs-heading-anchor-permalink" href="#Database-introspection-(Amazon-RedShift)" title="Permalink"></a></h2><p>See <a href="#Database-introspection-(PostgreSQL)">Database introspection (PostgreSQL)</a>.</p><h2 id="SELECT-*-FROM-table"><a class="docs-heading-anchor" href="#SELECT-*-FROM-table"><code>SELECT * FROM table</code></a><a id="SELECT-*-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-*-FROM-table" title="Permalink"></a></h2><p>FunSQL does not require that a query object contains <code>Select</code>, so a minimal FunSQL query consists of a single <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node.</p><p><em>Show all patient records.</em></p><pre><code class="language-julia hljs">q = From(person)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+res = DBInterface.execute(conn, sql)</code></pre><p>To display the output of a query, it is convenient to use the <a href="https://github.com/JuliaData/DataFrames.jl">DataFrame</a> interface.</p><pre><code class="language-julia hljs">using DataFrames
+
+DataFrame(res)
+#=&gt;
+10×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │      1780               8532           1940               2             ⋯
+   2 │     30091               8532           1932               8
+   3 │     37455               8532           1913               7
+   4 │     42383               8507           1922               2
+   5 │     69985               8532           1956               7             ⋯
+   6 │     72120               8507           1937              10
+   7 │     82328               8532           1957               9
+   8 │     95538               8507           1923              11
+   9 │    107680               8532           1963              12             ⋯
+  10 │    110862               8507           1911               4
+                                                              14 columns omitted
+=#</code></pre><h2 id="WHERE,-ORDER,-LIMIT"><a class="docs-heading-anchor" href="#WHERE,-ORDER,-LIMIT"><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></a><a id="WHERE,-ORDER,-LIMIT-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE,-ORDER,-LIMIT" title="Permalink"></a></h2><p>Tabular operations such as <a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a>, <a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a>, and <a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a> are available in FunSQL.  Unlike SQL, FunSQL lets you apply them in any order.</p><p><em>Show the top 3 oldest male patients.</em></p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Where(Get.gender_concept_id .== 8507) |&gt;
+    Order(Get.year_of_birth) |&gt;
+    Limit(3)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; = 8507)
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+LIMIT 3
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+3×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    110862               8507           1911               4             ⋯
+   2 │     42383               8507           1922               2
+   3 │     95538               8507           1923              11
+                                                              14 columns omitted
+=#</code></pre><p><em>Show all males among the top 3 oldest patients.</em></p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Order(Get.year_of_birth) |&gt;
+    Limit(3) |&gt;
+    Where(Get.gender_concept_id .== 8507)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_2&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM (
+  SELECT
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    ⋮
+    &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+  LIMIT 3
+) AS &quot;person_2&quot;
+WHERE (&quot;person_2&quot;.&quot;gender_concept_id&quot; = 8507)
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+2×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    110862               8507           1911               4             ⋯
+   2 │     42383               8507           1922               2
+                                                              14 columns omitted
+=#</code></pre><h2 id="SELECT-COUNT(*)-FROM-table"><a class="docs-heading-anchor" href="#SELECT-COUNT(*)-FROM-table"><code>SELECT COUNT(*) FROM table</code></a><a id="SELECT-COUNT(*)-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-COUNT(*)-FROM-table" title="Permalink"></a></h2><p>To apply an aggregate function to the dataset as a whole, we use a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node without arguments.</p><p><em>Show the number of patient records.</em></p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Group() |&gt;
+    Select(Agg.count())
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT COUNT(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+1×1 DataFrame
+ Row │ count
+     │ Int64
+─────┼───────
+   1 │    10
+=#</code></pre><h2 id="SELECT-DISTINCT"><a class="docs-heading-anchor" href="#SELECT-DISTINCT"><code>SELECT DISTINCT</code></a><a id="SELECT-DISTINCT-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-DISTINCT" title="Permalink"></a></h2><p>If we use a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node, but do not apply any aggregate functions, FunSQL will render it as a <code>SELECT DISTINCT</code> clause.</p><p><em>Show all US states present in the location records.</em></p><pre><code class="language-julia hljs">q = From(location) |&gt;
+    Group(Get.state)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT DISTINCT &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+10×1 DataFrame
+ Row │ state
+     │ String
+─────┼────────
+   1 │ MI
+   2 │ WA
+   3 │ FL
+   4 │ MD
+   5 │ NY
+   6 │ MS
+   7 │ CO
+   8 │ GA
+   9 │ MA
+  10 │ IL
+=#</code></pre><h2 id="Filtering-output-columns"><a class="docs-heading-anchor" href="#Filtering-output-columns">Filtering output columns</a><a id="Filtering-output-columns-1"></a><a class="docs-heading-anchor-permalink" href="#Filtering-output-columns" title="Permalink"></a></h2><p>Either broadcasting or vector comprehension could be used to filter the list of output columns.</p><p><em>Filter out all &quot;source&quot; columns from patient records.</em></p><pre><code class="language-julia hljs">is_not_source_column(c::Symbol) =
+    !contains(String(c), &quot;source&quot;)
+
+q = From(person) |&gt;
+    Select(Get.(filter(is_not_source_column, person.columns))...)
+
+# q = From(person) |&gt;
+#     Select(list = [Get(c) for c in person.columns if is_not_source_column(c)])
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Select(Get.person_id,
+                Get.gender_concept_id,
+                Get.year_of_birth,
+                Get.month_of_birth,
+                Get.day_of_birth,
+                Get.time_of_birth,
+                Get.race_concept_id,
+                Get.ethnicity_concept_id,
+                Get.location_id,
+                Get.provider_id,
+                Get.care_site_id)
+    q2
+end
+=#
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;time_of_birth&quot;,
+  &quot;person_1&quot;.&quot;race_concept_id&quot;,
+  &quot;person_1&quot;.&quot;ethnicity_concept_id&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  &quot;person_1&quot;.&quot;provider_id&quot;,
+  &quot;person_1&quot;.&quot;care_site_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+10×11 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │      1780               8532           1940               2             ⋯
+   2 │     30091               8532           1932               8
+   3 │     37455               8532           1913               7
+   4 │     42383               8507           1922               2
+   5 │     69985               8532           1956               7             ⋯
+   6 │     72120               8507           1937              10
+   7 │     82328               8532           1957               9
+   8 │     95538               8507           1923              11
+   9 │    107680               8532           1963              12             ⋯
+  10 │    110862               8507           1911               4
+                                                               7 columns omitted
+=#</code></pre><h2 id="Output-columns-of-a-Join"><a class="docs-heading-anchor" href="#Output-columns-of-a-Join">Output columns of a <code>Join</code></a><a id="Output-columns-of-a-Join-1"></a><a class="docs-heading-anchor-permalink" href="#Output-columns-of-a-Join" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a> is often used to disambiguate the columns of the two input branches of the <a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a> node.  By default, columns fenced by <code>As</code> are not present in the output.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Join(From(visit_occurrence) |&gt; As(:visit),
+         on = Get.person_id .== Get.visit.person_id)
+
+print(render(q, dialect = :sqlite))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
+=#
+
+q′ = From(person) |&gt; As(:person) |&gt;
+     Join(From(visit_occurrence),
+          on = Get.person.person_id .== Get.person_id)
+
+print(render(q′, dialect = :sqlite))
+#=&gt;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  ⋮
+  &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
+=#</code></pre><p>We could use a <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node to output the columns of both branches, however we must ensure that all column names are unique.</p><pre><code class="language-julia hljs">q = q |&gt;
+    Select(Get.(person.columns)...,
+           Get.(visit_occurrence.columns, over = Get.visit)...)
+#=&gt;
+ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+⋮
+=#
+
+q = q |&gt;
+    Select(Get.(person.columns)...,
+           Get.(filter(!in(person.columns), visit_occurrence.columns),
+                over = Get.visit)...)
+
+print(render(q, dialect = :sqlite))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  ⋮
+  &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
+=#</code></pre><h2 id="Encapsulating-complex-SQL-expressions"><a class="docs-heading-anchor" href="#Encapsulating-complex-SQL-expressions">Encapsulating complex SQL expressions</a><a id="Encapsulating-complex-SQL-expressions-1"></a><a class="docs-heading-anchor-permalink" href="#Encapsulating-complex-SQL-expressions" title="Permalink"></a></h2><p><em>Show the number of patients diagnosed with myocardial infarction stratified by the age group at the time of diagnosis.</em></p><pre><code class="language-julia hljs">PersonAgeAt(date) =
+    Fun.strftime(&quot;%Y&quot;, date) .- Get.year_of_birth
+
+AgeGroup(age) =
+    Fun.case(Iterators.flatten([(age .&lt; y, &quot;$(y-5) - $(y-1)&quot;)
+                                for y = 5:5:100])...,
+             &quot;100 +&quot;)
+
+ConceptByName(name) =
+    From(concept) |&gt;
+    Where(Fun.like(Get.concept_name, &quot;%$(name)%&quot;))
+
+MyocardialInfarctionConcept() =
+    ConceptByName(&quot;myocardial infarction&quot;)
+
+MyocardialInfarctionOccurrence() =
+    From(condition_occurrence) |&gt;
+    Join(:concept =&gt; MyocardialInfarctionConcept(),
+         on = Get.condition_concept_id .== Get.concept.concept_id)
+
+q = From(person) |&gt;
+    Join(:condition =&gt; MyocardialInfarctionOccurrence(),
+         on = Get.person_id .== Get.condition.person_id) |&gt;
+    Group(:age_group =&gt; AgeGroup(PersonAgeAt(Get.condition.condition_start_date))) |&gt;
+    Select(Get.age_group, Agg.count())
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  (CASE WHEN ((STRFTIME(&#39;%Y&#39;, &quot;condition_1&quot;.&quot;condition_start_date&quot;) - &quot;person_1&quot;.&quot;year_of_birth&quot;) &lt; 5) THEN &#39;0 - 4&#39; …  ELSE &#39;100 +&#39; END) AS &quot;age_group&quot;,
+  COUNT(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN (
+  SELECT
+    &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+    &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+  JOIN (
+    SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
+    FROM &quot;concept&quot; AS &quot;concept_1&quot;
+    WHERE (&quot;concept_1&quot;.&quot;concept_name&quot; LIKE &#39;%myocardial infarction%&#39;)
+  ) AS &quot;concept_2&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
+) AS &quot;condition_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;condition_1&quot;.&quot;person_id&quot;)
+GROUP BY (CASE WHEN ((STRFTIME(&#39;%Y&#39;, &quot;condition_1&quot;.&quot;condition_start_date&quot;) - &quot;person_1&quot;.&quot;year_of_birth&quot;) &lt; 5) THEN &#39;0 - 4&#39; … ELSE &#39;100 +&#39; END)
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+3×2 DataFrame
+ Row │ age_group  count
+     │ String     Int64
+─────┼──────────────────
+   1 │ 50 - 54        1
+   2 │ 65 - 69        1
+   3 │ 95 - 99        4
+=#</code></pre><h2 id="Assembling-queries-incrementally"><a class="docs-heading-anchor" href="#Assembling-queries-incrementally">Assembling queries incrementally</a><a id="Assembling-queries-incrementally-1"></a><a class="docs-heading-anchor-permalink" href="#Assembling-queries-incrementally" title="Permalink"></a></h2><p>It is often convenient to build a query incrementally, one component at a time. This allows us to validate individual components, inspect their output, and possibly reuse them in other queries.  Note that FunSQL allows to encapsulate not just intermediate datasets, but also dataset operations such as <code>FilterByGap()</code>.</p><p><em>Find all occurrences of myocardial infarction that was diagnosed during an inpatient visit.  Filter out repeating occurrences by requiring a 180-day gap between consecutive events.</em></p><pre><code class="language-julia hljs">using Dates
+
+ConceptByName(name) =
+    From(concept) |&gt;
+    Where(Fun.like(Get.concept_name, &quot;%$(name)%&quot;))
+
+MyocardialInfarctionConcept() =
+    ConceptByName(&quot;myocardial infarction&quot;)
+
+MyocardialInfarctionOccurrence() =
+    From(condition_occurrence) |&gt;
+    Join(:concept =&gt; MyocardialInfarctionConcept(),
+         on = Get.condition_concept_id .== Get.concept.concept_id)
+
+InpatientVisitConcept() =
+    ConceptByName(&quot;inpatient&quot;)
+
+InpatientVisitOccurrence() =
+    From(visit_occurrence) |&gt;
+    Join(:concept =&gt; InpatientVisitConcept(),
+         on = Get.visit_concept_id .== Get.concept.concept_id)
+
+CorrelatedInpatientVisit(person_id, date) =
+    InpatientVisitOccurrence() |&gt;
+    Where(Fun.and(Get.person_id .== Var.person_id,
+                  Fun.between(Var.date, Get.visit_start_date, Get.visit_end_date))) |&gt;
+    Bind(:person_id =&gt; person_id,
+         :date =&gt; date)
+
+MyocardialInfarctionDuringInpatientVisit() =
+    MyocardialInfarctionOccurrence() |&gt;
+    Where(Fun.exists(CorrelatedInpatientVisit(Get.person_id, Get.condition_start_date)))
+
+FilterByGap(date, gap) =
+    Partition(Get.person_id, order_by = [date]) |&gt;
+    Define(:boundary =&gt; Agg.lag(Fun.date(date, gap))) |&gt;
+    Where(Fun.or(Fun.&quot;is null&quot;(Get.boundary),
+                 Get.boundary .&lt; date))
+
+FilteredMyocardialInfarctionDuringInpatientVisit() =
+    MyocardialInfarctionDuringInpatientVisit() |&gt;
+    FilterByGap(Get.condition_start_date, Day(180))
+
+q = FilteredMyocardialInfarctionDuringInpatientVisit() |&gt;
+    Select(Get.person_id, Get.condition_start_date)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;condition_occurrence_2&quot;.&quot;person_id&quot;,
+  &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;
+FROM (
+  SELECT
+    &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+    &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;,
+    (LAG(DATE(&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;, &#39;180 days&#39;)) OVER (PARTITION BY &quot;condition_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;)) AS &quot;boundary&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+  JOIN (
+    SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
+    FROM &quot;concept&quot; AS &quot;concept_1&quot;
+    WHERE (&quot;concept_1&quot;.&quot;concept_name&quot; LIKE &#39;%myocardial infarction%&#39;)
+  ) AS &quot;concept_2&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
+  WHERE (EXISTS (
+    SELECT NULL
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+    JOIN (
+      SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
+      FROM &quot;concept&quot; AS &quot;concept_3&quot;
+      WHERE (&quot;concept_3&quot;.&quot;concept_name&quot; LIKE &#39;%inpatient%&#39;)
+    ) AS &quot;concept_4&quot; ON (&quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
+    WHERE
+      (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;condition_occurrence_1&quot;.&quot;person_id&quot;) AND
+      (&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
+  ))
+) AS &quot;condition_occurrence_2&quot;
+WHERE ((&quot;condition_occurrence_2&quot;.&quot;boundary&quot; IS NULL) OR (&quot;condition_occurrence_2&quot;.&quot;boundary&quot; &lt; &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;))
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+1×2 DataFrame
+ Row │ person_id  condition_start_date
+     │ Int64      String
+─────┼─────────────────────────────────
+   1 │      1780  2008-04-10
+=#</code></pre><h2 id="Merging-overlapping-intervals"><a class="docs-heading-anchor" href="#Merging-overlapping-intervals">Merging overlapping intervals</a><a id="Merging-overlapping-intervals-1"></a><a class="docs-heading-anchor-permalink" href="#Merging-overlapping-intervals" title="Permalink"></a></h2><p>Merging overlapping intervals into a single encompassing period could be done in three steps:</p><ol><li>Tag the intervals that start a new period.</li><li>Enumerate the periods.</li><li>Group the intervals by the period number.</li></ol><p>FunSQL lets us encapsulate and reuse this rather complex sequence of transformations.</p><p><em>Merge overlapping visits.</em></p><pre><code class="language-julia hljs">MergeOverlappingIntervals(start_date, end_date) =
+    Partition(Get.person_id,
+              order_by = [start_date],
+              frame = (mode = :rows, start = -Inf, finish = -1)) |&gt;
+    Define(:new =&gt; Fun.case(start_date .&lt;= Agg.max(end_date), 0, 1)) |&gt;
+    Partition(Get.person_id,
+              order_by = [start_date, .- Get.new],
+              frame = :rows) |&gt;
+    Define(:period =&gt; Agg.sum(Get.new)) |&gt;
+    Group(Get.person_id, Get.period) |&gt;
+    Define(:start_date =&gt; Agg.min(start_date),
+           :end_date =&gt; Agg.max(end_date))
+
+q = From(visit_occurrence) |&gt;
+    MergeOverlappingIntervals(Get.visit_start_date, Get.visit_end_date) |&gt;
+    Select(Get.person_id, Get.start_date, Get.end_date)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  MIN(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  MAX(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;) AS &quot;end_date&quot;
+FROM (
+  SELECT
+    &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
+    (SUM(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
+  FROM (
+    SELECT
+      &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  ) AS &quot;visit_occurrence_2&quot;
+) AS &quot;visit_occurrence_3&quot;
+GROUP BY
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_3&quot;.&quot;period&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+25×3 DataFrame
+ Row │ person_id  start_date  end_date
+     │ Int64      String      String
+─────┼───────────────────────────────────
+   1 │      1780  2008-04-09  2008-04-13
+   2 │      1780  2008-11-22  2008-11-22
+   3 │      1780  2009-05-22  2009-05-22
+   4 │     30091  2008-11-12  2008-11-12
+   5 │     30091  2009-07-30  2009-08-07
+   6 │     37455  2008-03-18  2008-03-18
+   7 │     37455  2008-10-30  2008-10-30
+   8 │     37455  2010-08-12  2010-08-12
+  ⋮  │     ⋮          ⋮           ⋮
+  19 │     95538  2009-09-02  2009-09-02
+  20 │    107680  2009-06-07  2009-06-07
+  21 │    107680  2009-07-20  2009-07-30
+  22 │    110862  2008-09-07  2008-09-16
+  23 │    110862  2009-06-30  2009-06-30
+  24 │    110862  2009-09-30  2009-10-01
+  25 │    110862  2010-06-07  2010-06-07
+                          10 rows omitted
+=#</code></pre><p><em>Derive a patient&#39;s observation periods by merging visits with less than one year gap between them.</em></p><pre><code class="language-julia hljs">MergeIntervalsByGap(start_date, end_date, gap) =
+    MergeOverlappingIntervals(start_date, Fun.date(end_date, gap)) |&gt;
+    Define(:end_date =&gt; Fun.date(Get.end_date, -gap))
+
+q = From(visit_occurrence) |&gt;
+    MergeIntervalsByGap(Get.visit_start_date, Get.visit_end_date, Day(365)) |&gt;
+    Select(Get.person_id, Get.start_date, Get.end_date)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  MIN(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  DATE(MAX(DATE(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)), &#39;-365 days&#39;) AS &quot;end_date&quot;
+FROM (
+  SELECT
+    &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
+    (SUM(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
+  FROM (
+    SELECT
+      &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (MAX(DATE(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  ) AS &quot;visit_occurrence_2&quot;
+) AS &quot;visit_occurrence_3&quot;
+GROUP BY
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_3&quot;.&quot;period&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+12×3 DataFrame
+ Row │ person_id  start_date  end_date
+     │ Int64      String      String
+─────┼───────────────────────────────────
+   1 │      1780  2008-04-09  2009-05-22
+   2 │     30091  2008-11-12  2009-08-07
+   3 │     37455  2008-03-18  2008-10-30
+   4 │     37455  2010-08-12  2010-08-12
+   5 │     42383  2009-06-29  2010-04-15
+   6 │     69985  2009-01-09  2009-01-09
+   7 │     69985  2010-04-17  2010-07-30
+   8 │     72120  2008-12-15  2008-12-15
+   9 │     82328  2008-10-20  2009-01-25
+  10 │     95538  2009-03-30  2009-09-02
+  11 │    107680  2009-06-07  2009-07-30
+  12 │    110862  2008-09-07  2010-06-07
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 22 December 2021 20:59">Wednesday 22 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
