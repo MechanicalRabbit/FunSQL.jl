@@ -723,10 +723,14 @@ stratified by the age group at the time of diagnosis.*
 
     print(sql)
     #=>
-    SELECT …
+    SELECT
+      (CASE WHEN ((STRFTIME('%Y', "condition_1"."condition_start_date") - "person_1"."year_of_birth") < 5) THEN '0 - 4' …  ELSE '100 +' END) AS "age_group",
+      COUNT(*) AS "count"
     FROM "person" AS "person_1"
     JOIN (
-      SELECT "condition_occurrence_1"."person_id", "condition_occurrence_1"."condition_start_date"
+      SELECT
+        "condition_occurrence_1"."person_id",
+        "condition_occurrence_1"."condition_start_date"
       FROM "condition_occurrence" AS "condition_occurrence_1"
       JOIN (
         SELECT "concept_1"."concept_id"
