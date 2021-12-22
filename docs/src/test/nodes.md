@@ -1082,11 +1082,17 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     print(render(q))
     #=>
     WITH "male_1" AS (
-      SELECT "person_1"."person_id", …, "person_1"."location_id"
+      SELECT
+        "person_1"."person_id",
+        ⋮
+        "person_1"."location_id"
       FROM "person" AS "person_1"
       WHERE ("person_1"."gender_concept_id" = 8507)
     )
-    SELECT "male_1"."person_id", …, "male_1"."location_id"
+    SELECT
+      "male_1"."person_id",
+      ⋮
+      "male_1"."location_id"
     FROM "male_1"
     =#
 
@@ -1109,13 +1115,15 @@ We can create a temporary dataset using `With` and refer to it with `From`.
       FROM "person" AS "person_2"
       WHERE ("person_2"."gender_concept_id" = 8532)
     )
-    SELECT (
-      SELECT COUNT(*) AS "count"
-      FROM "male_1"
-    ) AS "male_count", (
-      SELECT COUNT(*) AS "count"
-      FROM "female_1"
-    ) AS "female_count"
+    SELECT
+      (
+        SELECT COUNT(*) AS "count"
+        FROM "male_1"
+      ) AS "male_count",
+      (
+        SELECT COUNT(*) AS "count"
+        FROM "female_1"
+      ) AS "female_count"
     =#
 
 A datasets defined by `With` must have an explicit label assigned to it.
