@@ -3,21 +3,21 @@
 mutable struct UnionClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     all::Bool
-    list::Vector{SQLClause}
+    args::Vector{SQLClause}
 
     UnionClause(;
                over = nothing,
                all = false,
-               list) =
-        new(over, all, list)
+               args) =
+        new(over, all, args)
 end
 
-UnionClause(list...; over = nothing, all = false) =
-    UnionClause(over = over, all = all, list = SQLClause[list...])
+UnionClause(args...; over = nothing, all = false) =
+    UnionClause(over = over, all = all, args = SQLClause[args...])
 
 """
-    UNION(; over = nothing, all = false, list)
-    UNION(list...; over = nothing, all = false)
+    UNION(; over = nothing, all = false, args)
+    UNION(args...; over = nothing, all = false)
 
 A `UNION` clause.
 
@@ -53,10 +53,10 @@ function PrettyPrinting.quoteof(c::UnionClause, ctx::QuoteContext)
     if c.all !== false
         push!(ex.args, Expr(:kw, :all, c.all))
     end
-    if isempty(c.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
+    if isempty(c.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, ctx))
+        append!(ex.args, quoteof(c.args, ctx))
     end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
@@ -65,5 +65,5 @@ function PrettyPrinting.quoteof(c::UnionClause, ctx::QuoteContext)
 end
 
 rebase(c::UnionClause, c′) =
-    UnionClause(over = rebase(c.over, c′), list = c.list, all = c.all)
+    UnionClause(over = rebase(c.over, c′), args = c.args, all = c.all)
 

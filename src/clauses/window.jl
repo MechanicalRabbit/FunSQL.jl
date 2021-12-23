@@ -2,20 +2,20 @@
 
 mutable struct WindowClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
-    list::Vector{SQLClause}
+    args::Vector{SQLClause}
 
     WindowClause(;
                  over = nothing,
-                 list) =
-        new(over, list)
+                 args) =
+        new(over, args)
 end
 
-WindowClause(list...; over = nothing) =
-    WindowClause(over = over, list = SQLClause[list...])
+WindowClause(args...; over = nothing) =
+    WindowClause(over = over, args = SQLClause[args...])
 
 """
-    WINDOW(; over = nothing, list)
-    WINDOW(list...; over = nothing)
+    WINDOW(; over = nothing, args)
+    WINDOW(args...; over = nothing)
 
 A `WINDOW` clause.
 
@@ -45,10 +45,10 @@ dissect(scr::Symbol, ::typeof(WINDOW), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(c::WindowClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(WINDOW))
-    if isempty(c.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
+    if isempty(c.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, ctx))
+        append!(ex.args, quoteof(c.args, ctx))
     end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
@@ -57,5 +57,5 @@ function PrettyPrinting.quoteof(c::WindowClause, ctx::QuoteContext)
 end
 
 rebase(c::WindowClause, c′) =
-    WindowClause(over = rebase(c.over, c′), list = c.list)
+    WindowClause(over = rebase(c.over, c′), args = c.args)
 

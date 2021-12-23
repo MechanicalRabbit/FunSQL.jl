@@ -479,9 +479,9 @@ A `TOP` modifier could be specified.
     ORDER BY "year_of_birth"
     =#
 
-A `SELECT` clause with an empty list can be created explicitly.
+A `SELECT` clause with an empty list of arguments can be created explicitly.
 
-    c = SELECT(list = [])
+    c = SELECT(args = [])
     #-> SELECT(…)
 
 Rendering a nested `SELECT` clause adds parentheses around it.
@@ -978,8 +978,8 @@ Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
 
 A `UNION` clause with no subqueries can be created explicitly.
 
-    UNION(list = [])
-    #-> UNION(list = [])
+    UNION(args = [])
+    #-> UNION(args = [])
 
 Rendering a nested `UNION` clause adds parentheses around it.
 
@@ -1046,10 +1046,10 @@ The `WINDOW()` constructor accepts an empty list of partitions, in which case,
 it is not rendered.
 
     c = FROM(:person) |>
-        WINDOW(list = [])
+        WINDOW(args = [])
 
     display(c)
-    #-> ID(:person) |> FROM() |> WINDOW(list = [])
+    #-> ID(:person) |> FROM() |> WINDOW(args = [])
 
     print(render(c |> SELECT(AGG("ROW_NUMBER", over = PARTITION()))))
     #=>
@@ -1193,8 +1193,8 @@ A `WITH` clause without any common table expressions will be omitted.
 
     c = FROM(:condition_occurrence) |>
         SELECT(*) |>
-        WITH(list = [])
-    #-> (…) |> WITH(list = [])
+        WITH(args = [])
+    #-> (…) |> WITH(args = [])
 
     print(render(c))
     #=>

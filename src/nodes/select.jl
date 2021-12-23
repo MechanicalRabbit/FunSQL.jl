@@ -2,18 +2,18 @@
 
 mutable struct SelectNode <: TabularNode
     over::Union{SQLNode, Nothing}
-    list::Vector{SQLNode}
+    args::Vector{SQLNode}
     label_map::OrderedDict{Symbol, Int}
 
-    function SelectNode(; over = nothing, list, label_map = nothing)
+    function SelectNode(; over = nothing, args, label_map = nothing)
         if label_map !== nothing
-            return new(over, list, label_map)
+            return new(over, args, label_map)
         end
-        n = new(over, list, OrderedDict{Symbol, Int}())
-        for (i, l) in enumerate(n.list)
-            name = label(l)
+        n = new(over, args, OrderedDict{Symbol, Int}())
+        for (i, arg) in enumerate(n.args)
+            name = label(arg)
             if name in keys(n.label_map)
-                err = DuplicateLabelError(name, path = [l, n])
+                err = DuplicateLabelError(name, path = [arg, n])
                 throw(err)
             end
             n.label_map[name] = i
@@ -22,17 +22,17 @@ mutable struct SelectNode <: TabularNode
     end
 end
 
-SelectNode(list...; over = nothing) =
-    SelectNode(over = over, list = SQLNode[list...])
+SelectNode(args...; over = nothing) =
+    SelectNode(over = over, args = SQLNode[args...])
 
 """
-    Select(; over; list)
-    Select(list...; over)
+    Select(; over; args)
+    Select(args...; over)
 
 The `Select` node specifies the output columns.
 
 ```sql
-SELECT \$list...
+SELECT \$args...
 FROM \$over
 ```
 
@@ -57,10 +57,10 @@ dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(n::SelectNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Select))
-    if isempty(n.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
+    if isempty(n.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, ctx))
+        append!(ex.args, quoteof(n.args, ctx))
     end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
@@ -72,5 +72,5 @@ label(n::SelectNode) =
     label(n.over)
 
 rebase(n::SelectNode, n′) =
-    SelectNode(over = rebase(n.over, n′), list = n.list, label_map = n.label_map)
+    SelectNode(over = rebase(n.over, n′), args = n.args, label_map = n.label_map)
 

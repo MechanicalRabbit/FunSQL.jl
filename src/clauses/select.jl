@@ -27,22 +27,22 @@ mutable struct SelectClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     top::Union{SelectTop, Nothing}
     distinct::Bool
-    list::Vector{SQLClause}
+    args::Vector{SQLClause}
 
     SelectClause(;
                  over = nothing,
                  top = nothing,
                  distinct = false,
-                 list) =
-        new(over, top, distinct, list)
+                 args) =
+        new(over, top, distinct, args)
 end
 
-SelectClause(list...; over = nothing, top = nothing, distinct = false) =
-    SelectClause(over = over, top = top, distinct = distinct, list = SQLClause[list...])
+SelectClause(args...; over = nothing, top = nothing, distinct = false) =
+    SelectClause(over = over, top = top, distinct = distinct, args = SQLClause[args...])
 
 """
-    SELECT(; over = nothing, top = nothing, distinct = false, list)
-    SELECT(list...; over = nothing, top = nothing, distinct = false)
+    SELECT(; over = nothing, top = nothing, distinct = false, args)
+    SELECT(args...; over = nothing, top = nothing, distinct = false)
 
 A `SELECT` clause.  Unlike raw SQL, `SELECT()` should be placed at the end of a
 clause chain.
@@ -83,10 +83,10 @@ function PrettyPrinting.quoteof(c::SelectClause, ctx::QuoteContext)
     if c.distinct !== false
         push!(ex.args, Expr(:kw, :distinct, c.distinct))
     end
-    if isempty(c.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
+    if isempty(c.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, ctx))
+        append!(ex.args, quoteof(c.args, ctx))
     end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
@@ -95,5 +95,5 @@ function PrettyPrinting.quoteof(c::SelectClause, ctx::QuoteContext)
 end
 
 rebase(c::SelectClause, c′) =
-    SelectClause(over = rebase(c.over, c′), top = c.top, distinct = c.distinct, list = c.list)
+    SelectClause(over = rebase(c.over, c′), top = c.top, distinct = c.distinct, args = c.args)
 

@@ -2,18 +2,18 @@
 
 mutable struct DefineNode <: TabularNode
     over::Union{SQLNode, Nothing}
-    list::Vector{SQLNode}
+    args::Vector{SQLNode}
     label_map::OrderedDict{Symbol, Int}
 
-    function DefineNode(; over = nothing, list = [], label_map = nothing)
+    function DefineNode(; over = nothing, args = [], label_map = nothing)
         if label_map !== nothing
-            return new(over, list, label_map)
+            return new(over, args, label_map)
         end
-        n = new(over, list, OrderedDict{Symbol, Int}())
-        for (i, l) in enumerate(n.list)
-            name = label(l)
+        n = new(over, args, OrderedDict{Symbol, Int}())
+        for (i, arg) in enumerate(n.args)
+            name = label(arg)
             if name in keys(n.label_map)
-                err = DuplicateLabelError(name, path = [l, n])
+                err = DuplicateLabelError(name, path = [arg, n])
                 throw(err)
             end
             n.label_map[name] = i
@@ -22,12 +22,12 @@ mutable struct DefineNode <: TabularNode
     end
 end
 
-DefineNode(list...; over = nothing) =
-    DefineNode(over = over, list = SQLNode[list...])
+DefineNode(args...; over = nothing) =
+    DefineNode(over = over, args = SQLNode[args...])
 
 """
-    Define(; over; list = [])
-    Define(list...; over)
+    Define(; over; args = [])
+    Define(args...; over)
 
 `Define` adds a column to the output.
 
@@ -56,7 +56,7 @@ dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
     dissect(scr, DefineNode, pats)
 
 function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Define), quoteof(n.list, ctx)...)
+    ex = Expr(:call, nameof(Define), quoteof(n.args, ctx)...)
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
@@ -67,5 +67,5 @@ label(n::DefineNode) =
     label(n.over)
 
 rebase(n::DefineNode, n′) =
-    DefineNode(over = rebase(n.over, n′), list = n.list, label_map = n.label_map)
+    DefineNode(over = rebase(n.over, n′), args = n.args, label_map = n.label_map)
 

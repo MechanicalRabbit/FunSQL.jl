@@ -3,21 +3,21 @@
 mutable struct WithClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     recursive::Bool
-    list::Vector{SQLClause}
+    args::Vector{SQLClause}
 
     WithClause(;
                over = nothing,
                recursive = false,
-               list) =
-        new(over, recursive, list)
+               args) =
+        new(over, recursive, args)
 end
 
-WithClause(list...; over = nothing, recursive = false) =
-    WithClause(over = over, recursive = recursive, list = SQLClause[list...])
+WithClause(args...; over = nothing, recursive = false) =
+    WithClause(over = over, recursive = recursive, args = SQLClause[args...])
 
 """
-    WITH(; over = nothing, recursive = false, list)
-    WITH(list...; over = nothing, recursive = false)
+    WITH(; over = nothing, recursive = false, args)
+    WITH(args...; over = nothing, recursive = false)
 
 A `WITH` clause.
 
@@ -98,10 +98,10 @@ function PrettyPrinting.quoteof(c::WithClause, ctx::QuoteContext)
     if c.recursive !== false
         push!(ex.args, Expr(:kw, :recursive, c.recursive))
     end
-    if isempty(c.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
+    if isempty(c.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        append!(ex.args, quoteof(c.list, ctx))
+        append!(ex.args, quoteof(c.args, ctx))
     end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
@@ -110,5 +110,5 @@ function PrettyPrinting.quoteof(c::WithClause, ctx::QuoteContext)
 end
 
 rebase(c::WithClause, c′) =
-    WithClause(over = rebase(c.over, c′), list = c.list, recursive = c.recursive)
+    WithClause(over = rebase(c.over, c′), args = c.args, recursive = c.recursive)
 

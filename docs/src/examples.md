@@ -562,7 +562,7 @@ output columns.
         Select(Get.(filter(is_not_source_column, person.columns))...)
 
     # q = From(person) |>
-    #     Select(list = [Get(c) for c in person.columns if is_not_source_column(c)])
+    #     Select(args = [Get(c) for c in person.columns if is_not_source_column(c)])
 
     display(q)
     #=>
