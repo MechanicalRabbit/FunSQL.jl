@@ -2,18 +2,18 @@
 
 mutable struct AppendNode <: TabularNode
     over::Union{SQLNode, Nothing}
-    list::Vector{SQLNode}
+    args::Vector{SQLNode}
 
-    AppendNode(; over = nothing, list) =
-        new(over, list)
+    AppendNode(; over = nothing, args) =
+        new(over, args)
 end
 
-AppendNode(list...; over = nothing) =
-    AppendNode(over = over, list = SQLNode[list...])
+AppendNode(args...; over = nothing) =
+    AppendNode(over = over, args = SQLNode[args...])
 
 """
-    Append(; over = nothing, list)
-    Append(list...; over = nothing)
+    Append(; over = nothing, args)
+    Append(args...; over = nothing)
 
 `Append` concatenates input datasets.
 
@@ -22,7 +22,7 @@ SELECT ...
 FROM \$over
 UNION ALL
 SELECT ...
-FROM \$(list[1])
+FROM \$(args[1])
 UNION ALL
 ...
 ```
@@ -65,10 +65,10 @@ dissect(scr::Symbol, ::typeof(Append), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(n::AppendNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Append))
-    if isempty(n.list)
-        push!(ex.args, Expr(:kw, :list, Expr(:vect)))
+    if isempty(n.args)
+        push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
-        append!(ex.args, quoteof(n.list, ctx))
+        append!(ex.args, quoteof(n.args, ctx))
     end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
@@ -78,12 +78,12 @@ end
 
 function label(n::AppendNode)
     lbl = label(n.over)
-    for l in n.list
+    for l in n.args
         label(l) === lbl || return :union
     end
     lbl
 end
 
 rebase(n::AppendNode, n′) =
-    AppendNode(over = rebase(n.over, n′), list = n.list)
+    AppendNode(over = rebase(n.over, n′), args = n.args)
 

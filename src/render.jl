@@ -466,7 +466,7 @@ function render(ctx, c::SelectClause)
     if c.distinct
         print(ctx, " DISTINCT")
     end
-    render_lines(ctx, c.list)
+    render_lines(ctx, c.args)
     over = c.over
     if over !== nothing
         render(ctx, over)
@@ -508,14 +508,14 @@ function render(ctx, c::UnionClause)
     if over !== nothing
         render(ctx, over)
     end
-    for l in c.list
+    for arg in c.args
         newline(ctx)
         print(ctx, "UNION")
         if c.all
             print(ctx, " ALL")
         end
         newline(ctx)
-        render(ctx, l)
+        render(ctx, arg)
     end
     ctx.nested = nested
     if nested
@@ -564,27 +564,27 @@ function render(ctx, c::WindowClause)
     if over !== nothing
         render(ctx, over)
     end
-    !isempty(c.list) || return
+    !isempty(c.args) || return
     newline(ctx)
     print(ctx, "WINDOW")
-    render_lines(ctx, c.list)
+    render_lines(ctx, c.args)
 end
 
 function render(ctx, c::WithClause)
-    if !isempty(c.list)
+    if !isempty(c.args)
         print(ctx, "WITH ")
         if c.recursive
             print(ctx, "RECURSIVE ")
         end
         first = true
-        for l in c.list
+        for arg in c.args
             if !first
                 print(ctx, ",")
                 newline(ctx)
             else
                 first = false
             end
-            render(ctx, l)
+            render(ctx, arg)
         end
         newline(ctx)
     end

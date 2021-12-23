@@ -549,8 +549,8 @@ Query variables could be bound using the `Bind` constructor.
 
 An empty `Bind` can be created.
 
-    Bind(list = [])
-    #-> Bind(list = [])
+    Bind(args = [])
+    #-> Bind(args = [])
 
 `Bind` requires that all variables have a unique name.
 
@@ -895,8 +895,8 @@ nested subqueries.
 
 An `Append` without any queries can be created explicitly.
 
-    q = Append(list = [])
-    #-> Append(list = [])
+    q = Append(args = [])
+    #-> Append(args = [])
 
     print(render(q))
     #-> SELECT NULL
@@ -1027,14 +1027,14 @@ has no columns.
 
     q = From(empty) |>
         Where(false) |>
-        Select(list = [])
+        Select(args = [])
 
     display(q)
     #=>
     let empty = SQLTable(:empty, …),
         q1 = From(empty),
         q2 = q1 |> Where(Lit(false)),
-        q3 = q2 |> Select(list = [])
+        q3 = q2 |> Select(args = [])
         q3
     end
     =#

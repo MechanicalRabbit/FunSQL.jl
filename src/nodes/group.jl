@@ -10,10 +10,10 @@ mutable struct GroupNode <: TabularNode
             return new(over, by, label_map)
         end
         n = new(over, by, OrderedDict{Symbol, Int}())
-        for (i, l) in enumerate(n.by)
-            name = label(l)
+        for (i, arg) in enumerate(n.by)
+            name = label(arg)
             if name in keys(n.label_map)
-                err = DuplicateLabelError(name, path = [l, n])
+                err = DuplicateLabelError(name, path = [arg, n])
                 throw(err)
             end
             n.label_map[name] = i
