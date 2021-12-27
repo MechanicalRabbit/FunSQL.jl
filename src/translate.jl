@@ -49,8 +49,6 @@ function complete(a::Assemblage)
     if !@dissect(clause, SELECT() || UNION())
         args = complete(a.cols)
         clause = SELECT(over = clause, args = args)
-    else
-        @assert isempty(a.cols)
     end
     @assert clause !== nothing
     clause
@@ -77,9 +75,10 @@ function make_subs(a::Assemblage, alias::Symbol)
     subs
 end
 
-# Build a node->alias map for a UNION query.
-function make_repl_only(refs::Vector{SQLNode})::Dict{SQLNode, Symbol}
+# Build a node->alias map and implicit SELECT columns for a UNION query.
+function make_repl_cols(refs::Vector{SQLNode})::Tuple{Dict{SQLNode, Symbol}, OrderedDict{Symbol, SQLClause}}
     repl = Dict{SQLNode, Symbol}()
+    cols = OrderedDict{Symbol, SQLClause}()
     dups = Dict{Symbol, Int}()
     for ref in refs
         name′ = name = label(ref)
@@ -93,9 +92,10 @@ function make_repl_only(refs::Vector{SQLNode})::Dict{SQLNode, Symbol}
             dups[name] = k
         end
         repl[ref] = name′
+        cols[name′] = ID(name′)
         dups[name′] = 1
     end
-    repl
+    repl, cols
 end
 
 # Build a node->alias map and SELECT columns.
@@ -174,7 +174,12 @@ function translate_toplevel(n::SQLNode, ctx)
     if !isempty(ctx.with_map)
         args = SQLClause[]
         for (alias, a) in values(ctx.with_map)
-            push!(args, CTE(over = complete(a), name = alias))
+            cols = Symbol[name for name in keys(a.cols)]
+            if isempty(cols)
+                push!(cols, :_)
+            end
+            arg = CTE(over = complete(a), name = alias, columns = cols)
+            push!(args, arg)
         end
         c = WITH(over = c, args = args, recursive = ctx.recursive[])
     end
@@ -405,7 +410,7 @@ function assemble(n::AppendNode, refs, ctx)
         end
     end
     urefs = SQLNode[ref for ref in refs if !(ref in keys(dups))]
-    repl = make_repl_only(urefs)
+    repl, dummy_cols = make_repl_cols(urefs)
     for (ref, uref) in dups
         repl[ref] = repl[uref]
     end
@@ -420,8 +425,7 @@ function assemble(n::AppendNode, refs, ctx)
         end
         subs = make_subs(a, alias)
         cols = OrderedDict{Symbol, SQLClause}()
-        for ref in refs
-            !(ref in keys(dups)) || continue
+        for ref in urefs
             name = repl[ref]
             cols[name] = subs[ref]
         end
@@ -429,7 +433,7 @@ function assemble(n::AppendNode, refs, ctx)
         push!(cs, c)
     end
     c = UNION(over = cs[1], all = true, args = cs[2:end])
-    Assemblage(c, repl = repl)
+    Assemblage(c, repl = repl, cols = dummy_cols)
 end
 
 function assemble(n::AsNode, refs, ctx)
@@ -553,12 +557,12 @@ function assemble(n::GroupNode, refs, ctx)
     @assert !isempty(cols)
     if has_aggregates
         c = GROUP(over = tail, by = by)
-        return Assemblage(c, cols = cols, repl = repl)
     else
         args = complete(cols)
         c = SELECT(over = tail, distinct = true, args = args)
-        return Assemblage(c, repl = repl)
+        cols = OrderedDict{Symbol, SQLClause}([name => ID(name) for name in keys(cols)])
     end
+    return Assemblage(c, cols = cols, repl = repl)
 end
 
 assemble(n::HighlightNode, refs, ctx) =
@@ -662,7 +666,7 @@ function assemble(n::KnotNode, refs, ctx)
         for ref in refs
             @dissect(ref, over |> NameBound())
             if over in keys(dups)
-                @assert a.repl[over] === a.repl[dups[over]] "FIXME!"
+                @assert a.repl[over] === a.repl[dups[over]]
                 continue
             end
             name = left.repl[over]
@@ -672,7 +676,14 @@ function assemble(n::KnotNode, refs, ctx)
         push!(cs, c)
     end
     union_clause = UNION(over = cs[1], all = true, args = cs[2:end])
-    union = Assemblage(union_clause, repl = repl)
+    cols = OrderedDict{Symbol, SQLClause}()
+    for ref in refs
+        @dissect(ref, over |> NameBound())
+        !(over in keys(dups)) || continue
+        name = left.repl[over]
+        cols[name] = ID(name)
+    end
+    union = Assemblage(union_clause, cols = cols, repl = repl)
     ctx.with_map[SQLNode(n.box)] = union_alias => union
     ctx.recursive[] = true
     c = FROM(over = ID(union_alias))
@@ -773,12 +784,13 @@ function assemble(n::SelectNode, refs, ctx)
         cols[name] = translate(col, ctx, subs)
     end
     c = SELECT(over = tail, args = complete(cols))
+    cols = OrderedDict{Symbol, SQLClause}([name => ID(name) for name in keys(cols)])
     repl = Dict{SQLNode, Symbol}()
     for ref in refs
         @dissect(ref, nothing |> Get(name = name)) || error()
         repl[ref] = name
     end
-    Assemblage(c, repl = repl)
+    Assemblage(c, cols = cols, repl = repl)
 end
 
 function merge_conditions(c1, c2)

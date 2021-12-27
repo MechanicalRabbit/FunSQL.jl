@@ -573,7 +573,7 @@ end
 function render(ctx, c::WithClause)
     if !isempty(c.args)
         print(ctx, "WITH ")
-        if c.recursive
+        if c.recursive && ctx.dialect.has_with_recursive
             print(ctx, "RECURSIVE ")
         end
         first = true
