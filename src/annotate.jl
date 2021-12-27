@@ -1012,33 +1012,31 @@ end
 function link!(n::KnotNode, ::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     iterator_box = n.iterator[]::BoxNode
-    watermark = 1
+    refs = SQLNode[]
     seen = Set{SQLNode}()
     while true
         repeat = false
-        while watermark <= length(n.box.refs)
-            ref = n.box.refs[watermark]
-            watermark += 1
-            if @dissect ref over |> NameBound(name = name)
-                @assert name == n.name ref
-                !(over in seen) || continue
+        for ref in n.box.refs
+            @dissect(ref, over |> NameBound(name = name)) || error()
+            @assert name == n.name ref
+            if !(over in seen)
+                push!(refs, ref)
                 push!(seen, over)
-                push!(iterator_box.refs, ref)
                 repeat = true
-            else
-                error()
             end
         end
+        empty!(n.box.refs)
+        append!(n.box.refs, refs)
         repeat || break
+        for ibox in n.iterator_boxes
+            empty!(ibox.refs)
+        end
+        append!(iterator_box.refs, refs)
         link!(reverse(n.iterator_boxes), ctx)
     end
-    for ref in n.box.refs
-        if @dissect ref over |> NameBound(name = name)
-            @assert name == n.name
-            push!(box.refs, over)
-        else
-            error()
-        end
+    for ref in refs
+        @dissect(ref, over |> NameBound(name = name)) || error()
+        push!(box.refs, over)
     end
 end
 
@@ -1051,7 +1049,7 @@ end
 function link!(n::PartitionNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     for ref in refs
-        if @dissect ref nothing |> Agg(args = args, filter = filter)
+        if @dissect(ref, nothing |> Agg(args = args, filter = filter))
             gather_and_validate!(box.refs, args, box.type, ctx)
             if filter !== nothing
                 gather_and_validate!(box.refs, filter, box.type, ctx)

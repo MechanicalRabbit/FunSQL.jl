@@ -18,8 +18,8 @@ if isempty(ARGS)
             using FunSQL:
                 SQLTable,
                 Agg, Append, As, Asc, Bind, Define, Desc, From, Fun, Get,
-                Group, Highlight, Join, LeftJoin, Limit, Order, Partition,
-                Select, Sort, Var, Where, With,
+                Group, Highlight, Iterate, Join, LeftJoin, Limit, Order,
+                Partition, Select, Sort, Var, Where, With,
                 AGG, AS, ASC, CASE, CTE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN,
                 KW, LIMIT, LIT, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR,
                 WHERE, WINDOW, WITH,

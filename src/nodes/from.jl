@@ -53,7 +53,7 @@ julia> q = From(person) |>
                     Where(Get.condition_concept_id .== 320128));
 
 julia> print(render(q))
-WITH "essential_hypertension_1" AS (
+WITH "essential_hypertension_1" ("person_id") AS (
   SELECT "condition_occurrence_1"."person_id"
   FROM "condition_occurrence" AS "condition_occurrence_1"
   WHERE ("condition_occurrence_1"."condition_concept_id" = 320128)

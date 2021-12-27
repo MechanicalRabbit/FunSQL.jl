@@ -1081,7 +1081,7 @@ We can create a temporary dataset using `With` and refer to it with `From`.
 
     print(render(q))
     #=>
-    WITH "male_1" AS (
+    WITH "male_1" ("person_id", …, "location_id") AS (
       SELECT
         "person_1"."person_id",
         ⋮
@@ -1105,12 +1105,12 @@ We can create a temporary dataset using `With` and refer to it with `From`.
 
     print(render(q))
     #=>
-    WITH "male_1" AS (
+    WITH "male_1" ("_") AS (
       SELECT NULL
       FROM "person" AS "person_1"
       WHERE ("person_1"."gender_concept_id" = 8507)
     ),
-    "female_1" AS (
+    "female_1" ("_") AS (
       SELECT NULL
       FROM "person" AS "person_2"
       WHERE ("person_2"."gender_concept_id" = 8532)
