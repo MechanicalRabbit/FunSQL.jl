@@ -439,7 +439,7 @@ function annotate_scalar(n::TabularNode, ctx)
 end
 
 function rebind(node, base, ctx)
-    while @dissect node over |> Get(name = name)
+    while @dissect(node, over |> Get(name = name))
         mark_origin!(ctx, base)
         base = NameBound(over = base, name = name)
         node = over
@@ -780,7 +780,7 @@ end
 # Validating references.
 
 function validate(t::BoxType, ref::SQLNode, ctx)
-    if @dissect ref over |> HandleBound(handle = handle)
+    if @dissect(ref, over |> HandleBound(handle = handle))
         if handle in keys(t.handle_map)
             ht = t.handle_map[handle]
             if ht isa AmbiguousType
@@ -798,7 +798,7 @@ function validate(t::BoxType, ref::SQLNode, ctx)
 end
 
 function validate(t::RowType, ref::SQLNode, ctx)
-    while @dissect ref over |> NameBound(name = name)
+    while @dissect(ref, over |> NameBound(name = name))
         ft = get(t.fields, name, EmptyType())
         if !(ft isa RowType)
             type =
@@ -810,7 +810,7 @@ function validate(t::RowType, ref::SQLNode, ctx)
         t = ft
         ref = over
     end
-    if @dissect ref nothing |> Get(name = name)
+    if @dissect(ref, nothing |> Get(name = name))
         ft = get(t.fields, name, EmptyType())
         if !(ft isa ScalarType)
             type =
@@ -819,7 +819,7 @@ function validate(t::RowType, ref::SQLNode, ctx)
                 ft isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME : error()
             throw(ReferenceError(type, name = name, path = get_path(ctx, ref)))
         end
-    elseif @dissect ref nothing |> Agg(name = name)
+    elseif @dissect(ref, nothing |> Agg(name = name))
         if !(t.group isa RowType)
             type =
                 t.group isa EmptyType ? REFERENCE_ERROR_TYPE.UNEXPECTED_AGGREGATE :
@@ -840,7 +840,7 @@ function gather_and_validate!(refs::Vector{SQLNode}, n, t::BoxType, ctx)
 end
 
 function route(lt::BoxType, rt::BoxType, ref::SQLNode)
-    if @dissect ref over |> HandleBound(handle = handle)
+    if @dissect(ref, over |> HandleBound(handle = handle))
         if get(lt.handle_map, handle, EmptyType()) isa EmptyType
             return 1
         else
@@ -851,7 +851,7 @@ function route(lt::BoxType, rt::BoxType, ref::SQLNode)
 end
 
 function route(lt::RowType, rt::RowType, ref::SQLNode)
-    while @dissect ref over |> NameBound(name = name)
+    while @dissect(ref, over |> NameBound(name = name))
         lt′ = get(lt.fields, name, EmptyType())
         if lt′ isa EmptyType
             return 1
@@ -865,13 +865,13 @@ function route(lt::RowType, rt::RowType, ref::SQLNode)
         rt = rt′
         ref = over
     end
-    if @dissect ref Get(name = name)
+    if @dissect(ref, Get(name = name))
         if name in keys(lt.fields)
             return -1
         else
             return 1
         end
-    elseif @dissect ref over |> Agg(name = name)
+    elseif @dissect(ref, over |> Agg(name = name))
         if lt.group isa RowType
             return -1
         else
@@ -900,7 +900,7 @@ function link!(boxes::AbstractVector{BoxNode}, ctx)
         box.over !== nothing || continue
         refs′ = SQLNode[]
         for ref in box.refs
-            if (@dissect ref over |> HandleBound(handle = handle)) && handle == box.handle
+            if @dissect(ref, over |> HandleBound(handle = handle)) && handle == box.handle
                 push!(refs′, over)
             else
                 push!(refs′, ref)
@@ -922,10 +922,10 @@ end
 function link!(n::AsNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     for ref in refs
-        if @dissect ref over |> NameBound(name = name)
+        if @dissect(ref, over |> NameBound(name = name))
             @assert name == n.name
             push!(box.refs, over)
-        elseif @dissect ref HandleBound()
+        elseif @dissect(ref, HandleBound())
             push!(box.refs, ref)
         else
             error()
@@ -937,7 +937,7 @@ function link!(n::DefineNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     seen = Set{Symbol}()
     for ref in refs
-        if (@dissect ref nothing |> Get(name = name)) && name in keys(n.label_map)
+        if @dissect(ref, nothing |> Get(name = name)) && name in keys(n.label_map)
             !(name in seen) || continue
             push!(seen, name)
             col = n.args[n.label_map[name]]
@@ -962,7 +962,7 @@ function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     gather_and_validate!(box.refs, n.by, box.type, ctx)
     for ref in refs
-        if @dissect ref nothing |> Agg(args = args, filter = filter)
+        if @dissect(ref, nothing |> Agg(args = args, filter = filter))
             gather_and_validate!(box.refs, args, box.type, ctx)
             if filter !== nothing
                 gather_and_validate!(box.refs, filter, box.type, ctx)

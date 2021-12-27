@@ -84,7 +84,7 @@ function render(ctx, cs::AbstractVector{SQLClause}, sep = nothing)
     first = true
     for c in cs
         if !first
-            if @dissect c KW()
+            if @dissect(c, KW())
                 print(ctx, ' ')
             elseif sep === nothing
                 print(ctx, ", ")
@@ -152,7 +152,7 @@ end
 
 function render(ctx, c::AsClause)
     over = c.over
-    if @dissect over PARTITION()
+    if @dissect(over, PARTITION())
         render(ctx, c.name)
         print(ctx, " AS (")
         render(ctx, over)
@@ -235,7 +235,7 @@ function render(ctx, c::HavingClause)
     end
     newline(ctx)
     print(ctx, "HAVING")
-    if (@dissect c.condition OP(name = :AND, args = args)) && length(args) >= 2
+    if @dissect(c.condition, OP(name = :AND, args = args)) && length(args) >= 2
         render_lines(ctx, args, "AND")
     else
         print(ctx, ' ')
@@ -258,7 +258,7 @@ function render(ctx, c::JoinClause)
         render(ctx, over)
     end
     newline(ctx)
-    cross = !c.left && !c.right && @dissect c.on LIT(val = true)
+    cross = !c.left && !c.right && @dissect(c.on, LIT(val = true))
     if cross
         print(ctx, "CROSS JOIN ")
     elseif c.left && c.right
@@ -551,7 +551,7 @@ function render(ctx, c::WhereClause)
     end
     newline(ctx)
     print(ctx, "WHERE")
-    if (@dissect c.condition OP(name = :AND, args = args)) && length(args) >= 2
+    if @dissect(c.condition, OP(name = :AND, args = args)) && length(args) >= 2
         render_lines(ctx, args, "AND")
     else
         print(ctx, ' ')
