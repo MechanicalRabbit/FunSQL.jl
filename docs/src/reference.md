@@ -49,6 +49,7 @@ Pages = [
     "nodes/get.jl",
     "nodes/group.jl",
     "nodes/highlight.jl",
+    "nodes/iterate.jl",
     "nodes/join.jl",
     "nodes/limit.jl",
     "nodes/literal.jl",
