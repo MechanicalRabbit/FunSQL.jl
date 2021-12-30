@@ -369,6 +369,7 @@ The following tabular operations are available in FunSQL.
 | [`Define`](@ref)      | add an output column                              |
 | [`From`](@ref)        | produce the content of a database table           |
 | [`Group`](@ref)       | partition the dataset into disjoint groups        |
+| [`Iterate`](@ref)     | iterate a query                                   |
 | [`Join`](@ref)        | correlate two datasets                            |
 | [`Limit`](@ref)       | truncate the dataset                              |
 | [`Order`](@ref)       | sort the dataset                                  |
@@ -378,7 +379,7 @@ The following tabular operations are available in FunSQL.
 | [`With`](@ref)        | assign a name to a temporary dataset              |
 
 
-## `From` and `Select`
+## `From`, `Select`, and `Define`
 
 The [`From`](@ref) node outputs the content of a database table.  The
 constructor takes one argument, a `SQLTable` object (see the section [Database
@@ -433,6 +434,48 @@ As opposed to SQL, FunSQL does not demand that all queries have an explicit
     SELECT
       "person_1"."person_id",
       "person_1"."year_of_birth",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+To add a new column while preserving existing output columns, we use the
+[`Define`](@ref) node.
+
+*Show the patient data together with their current age.*
+
+    using FunSQL: Define
+
+    q = From(person) |>
+        Define(:age => 2020 .- Get.year_of_birth)
+
+    sql = render(q)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."year_of_birth",
+      "person_1"."location_id",
+      (2020 - "person_1"."year_of_birth") AS "age"
+    FROM "person" AS "person_1"
+    =#
+
+`Define` could also be used to replace an existing column.
+
+*Hide the year of birth of patients born before 1930.*
+
+    q = From(person) |>
+        Define(:year_of_birth => Fun.case(Get.year_of_birth .>= 1930,
+                                          Get.year_of_birth,
+                                          missing))
+
+    sql = render(q)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      (CASE WHEN ("person_1"."year_of_birth" >= 1930) THEN "person_1"."year_of_birth" ELSE NULL END) AS "year_of_birth",
       "person_1"."location_id"
     FROM "person" AS "person_1"
     =#
@@ -1021,5 +1064,252 @@ expression evaluated in the context of the outer query.
         ("condition_occurrence_1"."person_id" = "visit_occurrence_1"."person_id") AND
         ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")
     ))
+    =#
+
+
+## `Order` and `Limit`
+
+The database server emits the output rows in an arbitrary order.  In fact,
+different runs of the same query may produce rows in a different order.  To
+specify a particular order of output rows, we use the [`Order`](@ref) node.
+
+*Show patients ordered by the year of birth.*
+
+    using FunSQL: Order
+
+    q = From(person) |>
+        Order(Get.year_of_birth)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."year_of_birth",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."year_of_birth"
+    =#
+
+The [`Asc`](@ref) and the [`Desc`](@ref) modifiers specify whether to sort
+the rows in an ascending or in a descending order.
+
+*Show patients ordered by the year of birth in the descending order.*
+
+    using FunSQL: Desc
+
+    q = From(person) |>
+        Order(Get.year_of_birth |> Desc())
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."year_of_birth",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."year_of_birth" DESC
+    =#
+
+The [`Limit`](@ref) node lets us take a slice of the input dataset.  To make
+the output deterministic, `Limit` must be applied right after `Order`.
+
+*Show the top three oldest patients.*
+
+    using FunSQL: Limit
+
+    q = From(person) |>
+        Order(Get.year_of_birth) |>
+        Limit(1:3)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."year_of_birth",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    ORDER BY "person_1"."year_of_birth"
+    LIMIT 3
+    OFFSET 0
+    =#
+
+
+## `Append` and `Iterate`
+
+The `Append` node concatenates two or more input datasets.  Only the columns
+that are present in every input dataset will be included to the output.
+
+*Show all clinical events (visits and conditions) associated with each patient.*
+
+    using FunSQL: Append
+
+    q = From(visit_occurrence) |>
+        Define(:type => "visit", :date => Get.visit_start_date) |>
+        Append(From(condition_occurrence) |>
+               Define(:type => "condition", :date => Get.condition_start_date)) |>
+        Order(Get.person_id, Get.date)
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    SELECT
+      "union_1"."person_id",
+      "union_1"."type",
+      "union_1"."date"
+    FROM (
+      SELECT
+        "visit_occurrence_1"."person_id",
+        'visit' AS "type",
+        "visit_occurrence_1"."visit_start_date" AS "date"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      UNION ALL
+      SELECT
+        "condition_occurrence_1"."person_id",
+        'condition' AS "type",
+        "condition_occurrence_1"."condition_start_date" AS "date"
+      FROM "condition_occurrence" AS "condition_occurrence_1"
+    ) AS "union_1"
+    ORDER BY
+      "union_1"."person_id",
+      "union_1"."date"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    53×3 DataFrame
+     Row │ person_id  type       date
+         │ Int64      String     String
+    ─────┼──────────────────────────────────
+       1 │      1780  visit      2008-04-09
+       2 │      1780  visit      2008-04-10
+       3 │      1780  condition  2008-04-10
+       4 │      1780  visit      2008-11-22
+       5 │      1780  condition  2008-11-22
+       6 │      1780  visit      2009-05-22
+       7 │      1780  condition  2009-05-22
+       8 │     30091  visit      2008-11-12
+      ⋮  │     ⋮          ⋮          ⋮
+      47 │    110862  condition  2008-09-07
+      48 │    110862  visit      2009-06-30
+      49 │    110862  condition  2009-06-30
+      50 │    110862  visit      2009-09-30
+      51 │    110862  condition  2009-09-30
+      52 │    110862  visit      2010-06-07
+      53 │    110862  condition  2010-06-07
+                             38 rows omitted
+    =#
+
+For a second example, consider the table `concept`, which contains the
+vocabulary of medical concepts (such as *Myocardial Infarction*).  These
+concepts may be related to each other (*Myocardial Infarction* has a subtype
+*Acute Myocardial Infarction*), and their relationships are stored in the table
+`concept_relationship`.  We can encapsulate construction of a query that finds
+immediate subtypes as the function:
+
+    SubtypesOf(base) =
+        From(concept) |>
+        Join(From(concept_relationship) |>
+             Where(Get.relationship_id .== "Is a"),
+             on = Get.concept_id .== Get.concept_id_1) |>
+        Join(:base => base,
+             on = Get.concept_id_2 .== Get.base.concept_id)
+
+*Show the concept "Myocardial Infarction" and its immediate subtypes.*
+
+    base = From(concept) |>
+           Where(Get.concept_name .== "Myocardial infarction")
+
+    q = base |> Append(SubtypesOf(base))
+
+    sql = render(q, dialect = :sqlite)
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    2×2 DataFrame
+     Row │ concept_id  concept_name
+         │ Int64       String
+    ─────┼─────────────────────────────────────────
+       1 │    4329847  Myocardial infarction
+       2 │     312327  Acute myocardial infarction
+    =#
+
+But how can we fetch not just immediate, but all of the subtypes of a concept?
+
+*Show the concept "Myocardial Infarction" and all of its subtypes.*
+
+A good start is to repeatedly apply `SubtypesOf` and concatenate all the
+outputs:
+
+    base |>
+    Append(SubtypesOf(base),
+           SubtypesOf(SubtypesOf(base)),
+           SubtypesOf(SubtypesOf(SubtypesOf(base))),
+           SubtypesOf(SubtypesOf(SubtypesOf(SubtypesOf(base)))))
+
+However we do not know if 4 iterations of `SubtypesOf` is enough to
+fully traverse the concept hierarchy.  Ideally, we should continue
+applying `SubtypesOf` until the last iteration produces an empty output.
+This is exactly the action of the [`Iterate`](@ref) node.
+
+    using FunSQL: Iterate
+
+    q = base |>
+        Iterate(:subtype => SubtypesOf(From(:subtype)))
+
+    sql = render(q, dialect = :sqlite)
+
+    print(sql)
+    #=>
+    WITH RECURSIVE "subtype_1" ("concept_id", "concept_name") AS (
+      SELECT
+        "concept_1"."concept_id",
+        "concept_1"."concept_name"
+      FROM "concept" AS "concept_1"
+      WHERE ("concept_1"."concept_name" = 'Myocardial infarction')
+      UNION ALL
+      SELECT
+        "concept_2"."concept_id",
+        "concept_2"."concept_name"
+      FROM "concept" AS "concept_2"
+      JOIN (
+        SELECT
+          "concept_relationship_1"."concept_id_1",
+          "concept_relationship_1"."concept_id_2"
+        FROM "concept_relationship" AS "concept_relationship_1"
+        WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
+      ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_1")
+      JOIN "subtype_1" ON ("concept_relationship_2"."concept_id_2" = "subtype_1"."concept_id")
+    )
+    SELECT
+      "subtype_1"."concept_id",
+      "subtype_1"."concept_name"
+    FROM "subtype_1"
+    =#
+
+    res = DBInterface.execute(conn, sql)
+
+    DataFrame(res)
+    #=>
+    6×2 DataFrame
+     Row │ concept_id  concept_name
+         │ Int64       String
+    ─────┼───────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction
+       2 │     312327  Acute myocardial infarction
+       3 │     434376  Acute myocardial infarction of a…
+       4 │     438170  Acute myocardial infarction of i…
+       5 │     438438  Acute myocardial infarction of a…
+       6 │     444406  Acute subendocardial infarction
     =#
 
