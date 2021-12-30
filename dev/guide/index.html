@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Usage Guide · FunSQL.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Usage Guide</a><ul class="internal"><li><a class="tocitem" href="#Test-Database"><span>Test Database</span></a></li><li><a class="tocitem" href="#Database-Connection"><span>Database Connection</span></a></li><li><a class="tocitem" href="#Database-Schema"><span>Database Schema</span></a></li><li><a class="tocitem" href="#Why-FunSQL?"><span>Why FunSQL?</span></a></li><li><a class="tocitem" href="#Tabular-Operations"><span>Tabular Operations</span></a></li><li><a class="tocitem" href="#From-and-Select"><span><code>From</code> and <code>Select</code></span></a></li><li><a class="tocitem" href="#Join"><span><code>Join</code></span></a></li><li><a class="tocitem" href="#Scalar-Operations"><span>Scalar Operations</span></a></li><li><a class="tocitem" href="#Lit"><span><code>Lit</code></span></a></li><li><a class="tocitem" href="#Get"><span><code>Get</code></span></a></li><li><a class="tocitem" href="#Fun"><span><code>Fun</code></span></a></li><li><a class="tocitem" href="#Group-and-Aggregate-Functions"><span><code>Group</code> and Aggregate Functions</span></a></li><li><a class="tocitem" href="#Partition-and-Window-Functions"><span><code>Partition</code> and Window Functions</span></a></li><li><a class="tocitem" href="#Query-Parameters"><span>Query Parameters</span></a></li><li><a class="tocitem" href="#Correlated-Queries"><span>Correlated Queries</span></a></li></ul></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li><a class="tocitem" href="../test/">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Usage Guide</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Usage Guide</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/guide.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Usage-Guide"><a class="docs-heading-anchor" href="#Usage-Guide">Usage Guide</a><a id="Usage-Guide-1"></a><a class="docs-heading-anchor-permalink" href="#Usage-Guide" title="Permalink"></a></h1><p>This guide will teach you how to assemble SQL queries using FunSQL.</p><h2 id="Test-Database"><a class="docs-heading-anchor" href="#Test-Database">Test Database</a><a id="Test-Database-1"></a><a class="docs-heading-anchor-permalink" href="#Test-Database" title="Permalink"></a></h2><p>To demonstrate database queries, we need a test database.  The database we use here is a tiny 10 person sample of simulated patient data extracted from a much larger <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>. For a database engine, we picked <a href="https://www.sqlite.org/">SQLite</a>.  Using SQLite in a guide is convenient because it does not require a database server to run and allows us to distribute the whole database as a single file.  FunSQL supports SQLite and many other database engines.  The techniques discussed here are not specific to SQLite and once you learn them, you will be able to apply them to any SQL database.</p><p>If you wish to follow along with the guide and run the examples, download the database file:</p><pre><code class="language-julia hljs">const URL = &quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Usage Guide · FunSQL.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Usage Guide</a><ul class="internal"><li><a class="tocitem" href="#Test-Database"><span>Test Database</span></a></li><li><a class="tocitem" href="#Database-Connection"><span>Database Connection</span></a></li><li><a class="tocitem" href="#Database-Schema"><span>Database Schema</span></a></li><li><a class="tocitem" href="#Why-FunSQL?"><span>Why FunSQL?</span></a></li><li><a class="tocitem" href="#Tabular-Operations"><span>Tabular Operations</span></a></li><li><a class="tocitem" href="#From,-Select,-and-Define"><span><code>From</code>, <code>Select</code>, and <code>Define</code></span></a></li><li><a class="tocitem" href="#Join"><span><code>Join</code></span></a></li><li><a class="tocitem" href="#Scalar-Operations"><span>Scalar Operations</span></a></li><li><a class="tocitem" href="#Lit"><span><code>Lit</code></span></a></li><li><a class="tocitem" href="#Get"><span><code>Get</code></span></a></li><li><a class="tocitem" href="#Fun"><span><code>Fun</code></span></a></li><li><a class="tocitem" href="#Group-and-Aggregate-Functions"><span><code>Group</code> and Aggregate Functions</span></a></li><li><a class="tocitem" href="#Partition-and-Window-Functions"><span><code>Partition</code> and Window Functions</span></a></li><li><a class="tocitem" href="#Query-Parameters"><span>Query Parameters</span></a></li><li><a class="tocitem" href="#Correlated-Queries"><span>Correlated Queries</span></a></li><li><a class="tocitem" href="#Order-and-Limit"><span><code>Order</code> and <code>Limit</code></span></a></li><li><a class="tocitem" href="#Append-and-Iterate"><span><code>Append</code> and <code>Iterate</code></span></a></li></ul></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li><a class="tocitem" href="../test/">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Usage Guide</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Usage Guide</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/guide.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Usage-Guide"><a class="docs-heading-anchor" href="#Usage-Guide">Usage Guide</a><a id="Usage-Guide-1"></a><a class="docs-heading-anchor-permalink" href="#Usage-Guide" title="Permalink"></a></h1><p>This guide will teach you how to assemble SQL queries using FunSQL.</p><h2 id="Test-Database"><a class="docs-heading-anchor" href="#Test-Database">Test Database</a><a id="Test-Database-1"></a><a class="docs-heading-anchor-permalink" href="#Test-Database" title="Permalink"></a></h2><p>To demonstrate database queries, we need a test database.  The database we use here is a tiny 10 person sample of simulated patient data extracted from a much larger <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>. For a database engine, we picked <a href="https://www.sqlite.org/">SQLite</a>.  Using SQLite in a guide is convenient because it does not require a database server to run and allows us to distribute the whole database as a single file.  FunSQL supports SQLite and many other database engines.  The techniques discussed here are not specific to SQLite and once you learn them, you will be able to apply them to any SQL database.</p><p>If you wish to follow along with the guide and run the examples, download the database file:</p><pre><code class="language-julia hljs">const URL = &quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;
 const DB = download(URL)</code></pre><p>All examples in this guide are tested on each update using the <a href="https://github.com/MechanicalRabbit/NarrativeTest.jl">NarrativeTest</a> package. To avoid downloading the database file all the time, we registered the download URL as an <a href="../Artifacts.toml">artifact</a> and use <a href="http://pkgdocs.julialang.org/v1/artifacts/"><code>Pkg.Artifacts</code></a> API to fetch it:</p><pre><code class="language-julia hljs">using Pkg.Artifacts, LazyArtifacts
 
 const DB = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)
@@ -147,13 +147,19 @@ JOIN (
 Where(Fun.between(Get.year_of_birth, 1930, 1940)) |&gt;
 Join(From(location) |&gt; Where(Get.state .== &quot;IL&quot;) |&gt; As(:location),
      on = Get.location_id .== Get.location.location_id) |&gt;
-Select(Get.person_id, :age =&gt; 2020 .- Get.year_of_birth)</code></pre><p>At the outer level, this query is constructed from tabular operations <code>From</code>, <code>Where</code>, <code>Join</code>, and <code>Select</code> arranged in a pipeline by the pipe (<code>|&gt;</code>) operator.  In SQL, a <em>tabular operation</em> takes a certain number of input datasets and produces an output dataset.  It is helpful to visualize a tabular operation as a node with a certain number of input arrows and one output arrow.</p><p><img src="../from-where-select-join-nodes.drawio.svg" alt="From, Where, Select, and Join nodes"/></p><p>Then the whole query can be visualized as a pipeline diagram.  Each arrow in this diagram represents a dataset, and each node represents an elementary data processing operation.</p><p><img src="../person-by-birth-year-range-and-state.drawio.svg" alt="Query pipeline"/></p><p>The following tabular operations are available in FunSQL.</p><table><tr><th style="text-align: left">Constructor</th><th style="text-align: left">Function</th></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Append-Tuple"><code>Append</code></a></td><td style="text-align: left">concatenate datasets</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a></td><td style="text-align: left">wrap all columns in a nested record</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Bind-Tuple"><code>Bind</code></a></td><td style="text-align: left">correlate a subquery in a <em>join</em> expression</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Define-Tuple"><code>Define</code></a></td><td style="text-align: left">add an output column</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.From-Tuple"><code>From</code></a></td><td style="text-align: left">produce the content of a database table</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a></td><td style="text-align: left">partition the dataset into disjoint groups</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a></td><td style="text-align: left">correlate two datasets</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a></td><td style="text-align: left">truncate the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a></td><td style="text-align: left">sort the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Partition-Tuple"><code>Partition</code></a></td><td style="text-align: left">add a window to the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a></td><td style="text-align: left">specify output columns</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a></td><td style="text-align: left">filter the dataset by the given condition</td></tr></table><h2 id="From-and-Select"><a class="docs-heading-anchor" href="#From-and-Select"><code>From</code> and <code>Select</code></a><a id="From-and-Select-1"></a><a class="docs-heading-anchor-permalink" href="#From-and-Select" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node outputs the content of a database table.  The constructor takes one argument, a <code>SQLTable</code> object (see the section <a href="#Database-Schema">Database Schema</a>).  In a query, a bare <code>SQLTable</code> object is automatically converted to a <code>From</code> node, so one could write more compactly:</p><p><em>For each patient, show their current age.</em></p><pre><code class="language-julia hljs">person |&gt;
+Select(Get.person_id, :age =&gt; 2020 .- Get.year_of_birth)</code></pre><p>At the outer level, this query is constructed from tabular operations <code>From</code>, <code>Where</code>, <code>Join</code>, and <code>Select</code> arranged in a pipeline by the pipe (<code>|&gt;</code>) operator.  In SQL, a <em>tabular operation</em> takes a certain number of input datasets and produces an output dataset.  It is helpful to visualize a tabular operation as a node with a certain number of input arrows and one output arrow.</p><p><img src="../from-where-select-join-nodes.drawio.svg" alt="From, Where, Select, and Join nodes"/></p><p>Then the whole query can be visualized as a pipeline diagram.  Each arrow in this diagram represents a dataset, and each node represents an elementary data processing operation.</p><p><img src="../person-by-birth-year-range-and-state.drawio.svg" alt="Query pipeline"/></p><p>The following tabular operations are available in FunSQL.</p><table><tr><th style="text-align: left">Constructor</th><th style="text-align: left">Function</th></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Append-Tuple"><code>Append</code></a></td><td style="text-align: left">concatenate datasets</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a></td><td style="text-align: left">wrap all columns in a nested record</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Bind-Tuple"><code>Bind</code></a></td><td style="text-align: left">correlate a subquery in a <em>join</em> expression</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Define-Tuple"><code>Define</code></a></td><td style="text-align: left">add an output column</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.From-Tuple"><code>From</code></a></td><td style="text-align: left">produce the content of a database table</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a></td><td style="text-align: left">partition the dataset into disjoint groups</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a></td><td style="text-align: left">iterate a query</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a></td><td style="text-align: left">correlate two datasets</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a></td><td style="text-align: left">truncate the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a></td><td style="text-align: left">sort the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Partition-Tuple"><code>Partition</code></a></td><td style="text-align: left">add a window to the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a></td><td style="text-align: left">specify output columns</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a></td><td style="text-align: left">filter the dataset by the given condition</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.With-Tuple"><code>With</code></a></td><td style="text-align: left">assign a name to a temporary dataset</td></tr></table><h2 id="From,-Select,-and-Define"><a class="docs-heading-anchor" href="#From,-Select,-and-Define"><code>From</code>, <code>Select</code>, and <code>Define</code></a><a id="From,-Select,-and-Define-1"></a><a class="docs-heading-anchor-permalink" href="#From,-Select,-and-Define" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node outputs the content of a database table.  The constructor takes one argument, a <code>SQLTable</code> object (see the section <a href="#Database-Schema">Database Schema</a>).  In a query, a bare <code>SQLTable</code> object is automatically converted to a <code>From</code> node, so one could write more compactly:</p><p><em>For each patient, show their current age.</em></p><pre><code class="language-julia hljs">person |&gt;
 Select(Get.person_id, :age =&gt; 2020 .- Get.year_of_birth)</code></pre><p>It is possible for a query not to have a <code>From</code> node:</p><p><em>Show the current date and time.</em></p><pre><code class="language-julia hljs">q = Select(Fun.current_timestamp())
 
 sql = render(q)
 
 print(sql)
-#-&gt; SELECT CURRENT_TIMESTAMP AS &quot;current_timestamp&quot;</code></pre><p>In this query, the <code>Select</code> node is not connected to any source of data.  In such a case, it is supplied with a <em>unit dataset</em> containing one row and no columns.  Hence this query will generate one row of output.</p><p>In general, the <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node is used to specify the output columns. The name of the column is either derived from the expression or set explicitly with <code>As</code> (or its shorthand, the arrow (<code>=&gt;</code>) operator).</p><p>As opposed to SQL, FunSQL does not demand that all queries have an explicit <code>Select</code>.  The following query will produce all columns of the table:</p><p><em>Show all patients.</em></p><pre><code class="language-julia hljs">q = From(person)
+#-&gt; SELECT CURRENT_TIMESTAMP AS &quot;current_timestamp&quot;</code></pre><p>In this query, the <code>Select</code> node is not connected to any source of data.  In such a case, it is supplied with a <em>unit dataset</em> containing one row and no columns.  Hence this query will generate one row of output.</p><p>The same effect could be achieved with the <code>From(nothing)</code> node.</p><pre><code class="language-julia hljs">q = From(nothing) |&gt;
+    Select(Fun.current_timestamp())
+
+sql = render(q)
+
+print(sql)
+#-&gt; SELECT CURRENT_TIMESTAMP AS &quot;current_timestamp&quot;</code></pre><p>In general, the <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node is used to specify the output columns. The name of the column is either derived from the expression or set explicitly with <code>As</code> (or its shorthand, the arrow (<code>=&gt;</code>) operator).</p><p>As opposed to SQL, FunSQL does not demand that all queries have an explicit <code>Select</code>.  The following query will produce all columns of the table:</p><p><em>Show all patients.</em></p><pre><code class="language-julia hljs">q = From(person)
 
 sql = render(q)
 
@@ -162,6 +168,35 @@ print(sql)
 SELECT
   &quot;person_1&quot;.&quot;person_id&quot;,
   &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>To add a new column while preserving existing output columns, we use the <a href="../reference/#FunSQL.Define-Tuple"><code>Define</code></a> node.</p><p><em>Show the patient data together with their current age.</em></p><pre><code class="language-julia hljs">using FunSQL: Define
+
+q = From(person) |&gt;
+    Define(:age =&gt; 2020 .- Get.year_of_birth)
+
+sql = render(q)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  (2020 - &quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>Define</code> could also be used to replace an existing column.</p><p><em>Hide the year of birth of patients born before 1930.</em></p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Define(:year_of_birth =&gt; Fun.case(Get.year_of_birth .&gt;= 1930,
+                                      Get.year_of_birth,
+                                      missing))
+
+sql = render(q)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  (CASE WHEN (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930) THEN &quot;person_1&quot;.&quot;year_of_birth&quot; ELSE NULL END) AS &quot;year_of_birth&quot;,
   &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a> node correlates the rows of two input datasets. Predominantly, <code>Join</code> is used for looking up table records by key.  In the following example, <code>Join</code> associates each <code>person</code> record with their <code>location</code> using the key column <code>location_id</code> that uniquely identifies a <code>location</code> record:</p><p><em>Show all patients together with their state of residence.</em></p><pre><code class="language-julia hljs">person |&gt;
@@ -499,4 +534,187 @@ WHERE (EXISTS (
     (&quot;condition_occurrence_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;) AND
     (&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
 ))
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 22 December 2021 20:50">Wednesday 22 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre><h2 id="Order-and-Limit"><a class="docs-heading-anchor" href="#Order-and-Limit"><code>Order</code> and <code>Limit</code></a><a id="Order-and-Limit-1"></a><a class="docs-heading-anchor-permalink" href="#Order-and-Limit" title="Permalink"></a></h2><p>The database server emits the output rows in an arbitrary order.  In fact, different runs of the same query may produce rows in a different order.  To specify a particular order of output rows, we use the <a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a> node.</p><p><em>Show patients ordered by the year of birth.</em></p><pre><code class="language-julia hljs">using FunSQL: Order
+
+q = From(person) |&gt;
+    Order(Get.year_of_birth)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+=#</code></pre><p>The <a href="../reference/#FunSQL.Asc-Tuple{}"><code>Asc</code></a> and the <a href="../reference/#FunSQL.Desc-Tuple{}"><code>Desc</code></a> modifiers specify whether to sort the rows in an ascending or in a descending order.</p><p><em>Show patients ordered by the year of birth in the descending order.</em></p><pre><code class="language-julia hljs">using FunSQL: Desc
+
+q = From(person) |&gt;
+    Order(Get.year_of_birth |&gt; Desc())
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC
+=#</code></pre><p>The <a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a> node lets us take a slice of the input dataset.  To make the output deterministic, <code>Limit</code> must be applied right after <code>Order</code>.</p><p><em>Show the top three oldest patients.</em></p><pre><code class="language-julia hljs">using FunSQL: Limit
+
+q = From(person) |&gt;
+    Order(Get.year_of_birth) |&gt;
+    Limit(1:3)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+LIMIT 3
+OFFSET 0
+=#</code></pre><h2 id="Append-and-Iterate"><a class="docs-heading-anchor" href="#Append-and-Iterate"><code>Append</code> and <code>Iterate</code></a><a id="Append-and-Iterate-1"></a><a class="docs-heading-anchor-permalink" href="#Append-and-Iterate" title="Permalink"></a></h2><p>The <code>Append</code> node concatenates two or more input datasets.  Only the columns that are present in every input dataset will be included to the output.</p><p><em>Show all clinical events (visits and conditions) associated with each patient.</em></p><pre><code class="language-julia hljs">using FunSQL: Append
+
+q = From(visit_occurrence) |&gt;
+    Define(:type =&gt; &quot;visit&quot;, :date =&gt; Get.visit_start_date) |&gt;
+    Append(From(condition_occurrence) |&gt;
+           Define(:type =&gt; &quot;condition&quot;, :date =&gt; Get.condition_start_date)) |&gt;
+    Order(Get.person_id, Get.date)
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;union_1&quot;.&quot;person_id&quot;,
+  &quot;union_1&quot;.&quot;type&quot;,
+  &quot;union_1&quot;.&quot;date&quot;
+FROM (
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    &#39;visit&#39; AS &quot;type&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AS &quot;date&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  UNION ALL
+  SELECT
+    &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+    &#39;condition&#39; AS &quot;type&quot;,
+    &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; AS &quot;date&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+) AS &quot;union_1&quot;
+ORDER BY
+  &quot;union_1&quot;.&quot;person_id&quot;,
+  &quot;union_1&quot;.&quot;date&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+53×3 DataFrame
+ Row │ person_id  type       date
+     │ Int64      String     String
+─────┼──────────────────────────────────
+   1 │      1780  visit      2008-04-09
+   2 │      1780  visit      2008-04-10
+   3 │      1780  condition  2008-04-10
+   4 │      1780  visit      2008-11-22
+   5 │      1780  condition  2008-11-22
+   6 │      1780  visit      2009-05-22
+   7 │      1780  condition  2009-05-22
+   8 │     30091  visit      2008-11-12
+  ⋮  │     ⋮          ⋮          ⋮
+  47 │    110862  condition  2008-09-07
+  48 │    110862  visit      2009-06-30
+  49 │    110862  condition  2009-06-30
+  50 │    110862  visit      2009-09-30
+  51 │    110862  condition  2009-09-30
+  52 │    110862  visit      2010-06-07
+  53 │    110862  condition  2010-06-07
+                         38 rows omitted
+=#</code></pre><p>For a second example, consider the table <code>concept</code>, which contains the vocabulary of medical concepts (such as <em>Myocardial Infarction</em>).  These concepts may be related to each other (<em>Myocardial Infarction</em> has a subtype <em>Acute Myocardial Infarction</em>), and their relationships are stored in the table <code>concept_relationship</code>.  We can encapsulate construction of a query that finds immediate subtypes as the function:</p><pre><code class="language-julia hljs">SubtypesOf(base) =
+    From(concept) |&gt;
+    Join(From(concept_relationship) |&gt;
+         Where(Get.relationship_id .== &quot;Is a&quot;),
+         on = Get.concept_id .== Get.concept_id_1) |&gt;
+    Join(:base =&gt; base,
+         on = Get.concept_id_2 .== Get.base.concept_id)</code></pre><p><em>Show the concept &quot;Myocardial Infarction&quot; and its immediate subtypes.</em></p><pre><code class="language-julia hljs">base = From(concept) |&gt;
+       Where(Get.concept_name .== &quot;Myocardial infarction&quot;)
+
+q = base |&gt; Append(SubtypesOf(base))
+
+sql = render(q, dialect = :sqlite)
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+2×2 DataFrame
+ Row │ concept_id  concept_name
+     │ Int64       String
+─────┼─────────────────────────────────────────
+   1 │    4329847  Myocardial infarction
+   2 │     312327  Acute myocardial infarction
+=#</code></pre><p>But how can we fetch not just immediate, but all of the subtypes of a concept?</p><p><em>Show the concept &quot;Myocardial Infarction&quot; and all of its subtypes.</em></p><p>A good start is to repeatedly apply <code>SubtypesOf</code> and concatenate all the outputs:</p><pre><code class="language-julia hljs">base |&gt;
+Append(SubtypesOf(base),
+       SubtypesOf(SubtypesOf(base)),
+       SubtypesOf(SubtypesOf(SubtypesOf(base))),
+       SubtypesOf(SubtypesOf(SubtypesOf(SubtypesOf(base)))))</code></pre><p>However we do not know if 4 iterations of <code>SubtypesOf</code> is enough to fully traverse the concept hierarchy.  Ideally, we should continue applying <code>SubtypesOf</code> until the last iteration produces an empty output. This is exactly the action of the <a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a> node.</p><pre><code class="language-julia hljs">using FunSQL: Iterate
+
+q = base |&gt;
+    Iterate(:subtype =&gt; SubtypesOf(From(:subtype)))
+
+sql = render(q, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+WITH RECURSIVE &quot;subtype_1&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;) AS (
+  SELECT
+    &quot;concept_1&quot;.&quot;concept_id&quot;,
+    &quot;concept_1&quot;.&quot;concept_name&quot;
+  FROM &quot;concept&quot; AS &quot;concept_1&quot;
+  WHERE (&quot;concept_1&quot;.&quot;concept_name&quot; = &#39;Myocardial infarction&#39;)
+  UNION ALL
+  SELECT
+    &quot;concept_2&quot;.&quot;concept_id&quot;,
+    &quot;concept_2&quot;.&quot;concept_name&quot;
+  FROM &quot;concept&quot; AS &quot;concept_2&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;,
+      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
+    WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_1&quot;)
+  JOIN &quot;subtype_1&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_2&quot; = &quot;subtype_1&quot;.&quot;concept_id&quot;)
+)
+SELECT
+  &quot;subtype_1&quot;.&quot;concept_id&quot;,
+  &quot;subtype_1&quot;.&quot;concept_name&quot;
+FROM &quot;subtype_1&quot;
+=#
+
+res = DBInterface.execute(conn, sql)
+
+DataFrame(res)
+#=&gt;
+6×2 DataFrame
+ Row │ concept_id  concept_name
+     │ Int64       String
+─────┼───────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction
+   2 │     312327  Acute myocardial infarction
+   3 │     434376  Acute myocardial infarction of a…
+   4 │     438170  Acute myocardial infarction of i…
+   5 │     438438  Acute myocardial infarction of a…
+   6 │     444406  Acute subendocardial infarction
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Thursday 30 December 2021 21:19">Thursday 30 December 2021</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -299,7 +299,7 @@ print(render(c))
 SELECT TOP 1 WITH TIES &quot;person_id&quot;
 FROM &quot;person&quot;
 ORDER BY &quot;year_of_birth&quot;
-=#</code></pre><p>A <code>SELECT</code> clause with an empty list can be created explicitly.</p><pre><code class="language-julia hljs">c = SELECT(list = [])
+=#</code></pre><p>A <code>SELECT</code> clause with an empty list of arguments can be created explicitly.</p><pre><code class="language-julia hljs">c = SELECT(args = [])
 #-&gt; SELECT(…)</code></pre><p>Rendering a nested <code>SELECT</code> clause adds parentheses around it.</p><pre><code class="language-julia hljs">c = :location |&gt; FROM() |&gt; SELECT(:state, :zip) |&gt; FROM() |&gt; SELECT(:zip)
 
 print(render(c))
@@ -686,8 +686,8 @@ SELECT
   &quot;person_id&quot;,
   &quot;observation_date&quot; AS &quot;date&quot;
 FROM &quot;observation&quot;
-=#</code></pre><p>A <code>UNION</code> clause with no subqueries can be created explicitly.</p><pre><code class="language-julia hljs">UNION(list = [])
-#-&gt; UNION(list = [])</code></pre><p>Rendering a nested <code>UNION</code> clause adds parentheses around it.</p><pre><code class="language-julia hljs">c = FROM(:measurement) |&gt;
+=#</code></pre><p>A <code>UNION</code> clause with no subqueries can be created explicitly.</p><pre><code class="language-julia hljs">UNION(args = [])
+#-&gt; UNION(args = [])</code></pre><p>Rendering a nested <code>UNION</code> clause adds parentheses around it.</p><pre><code class="language-julia hljs">c = FROM(:measurement) |&gt;
     SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
     UNION(all = true,
           FROM(:observation) |&gt;
@@ -738,10 +738,10 @@ WINDOW
   &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;),
   &quot;w2&quot; AS (&quot;w1&quot; PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)
 =#</code></pre><p>The <code>WINDOW()</code> constructor accepts an empty list of partitions, in which case, it is not rendered.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
-    WINDOW(list = [])
+    WINDOW(args = [])
 
 display(c)
-#-&gt; ID(:person) |&gt; FROM() |&gt; WINDOW(list = [])
+#-&gt; ID(:person) |&gt; FROM() |&gt; WINDOW(args = [])
 
 print(render(c |&gt; SELECT(AGG(&quot;ROW_NUMBER&quot;, over = PARTITION()))))
 #=&gt;
@@ -865,11 +865,11 @@ SELECT *
 FROM &quot;essential_hypertension_occurrence&quot;
 =#</code></pre><p>A <code>WITH</code> clause without any common table expressions will be omitted.</p><pre><code class="language-julia hljs">c = FROM(:condition_occurrence) |&gt;
     SELECT(*) |&gt;
-    WITH(list = [])
-#-&gt; (…) |&gt; WITH(list = [])
+    WITH(args = [])
+#-&gt; (…) |&gt; WITH(args = [])
 
 print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Wednesday 22 December 2021 20:50">Wednesday 22 December 2021</span>. Using Julia version 1.7.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Thursday 30 December 2021 21:19">Thursday 30 December 2021</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
