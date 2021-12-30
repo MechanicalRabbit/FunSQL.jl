@@ -2,8 +2,8 @@
 
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
-        Group, Highlight, Join, LeftJoin, Limit, Lit, Order, Partition,
-        SQLNode, SQLTable, Select, Sort, Var, Where, With, render
+        Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
+        Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With, render
 
 We start with specifying the database model.
 
@@ -752,8 +752,8 @@ FunSQL can simplify logical expressions.
 
 ## `Append`
 
-The `Append` constructor creates a subquery that merges the output of multiple
-queries.
+The `Append` constructor creates a subquery that concatenates the output of
+multiple queries.
 
     q = From(measurement) |>
         Define(:date => Get.measurement_date) |>
@@ -863,7 +863,7 @@ nested subqueries.
     WHERE ("assessment_1"."date" > CURRENT_TIMESTAMP)
     =#
 
-`Append` can also work with queries with an explicit `Select`.
+`Append` will aligns the columns of its subqueries.
 
     q = From(measurement) |>
         Select(Get.person_id, :date => Get.measurement_date) |>
@@ -873,14 +873,9 @@ nested subqueries.
     print(render(q))
     #=>
     SELECT
-      "measurement_2"."person_id",
-      "measurement_2"."date"
-    FROM (
-      SELECT
-        "measurement_1"."person_id",
-        "measurement_1"."measurement_date" AS "date"
-      FROM "measurement" AS "measurement_1"
-    ) AS "measurement_2"
+      "measurement_1"."person_id",
+      "measurement_1"."measurement_date" AS "date"
+    FROM "measurement" AS "measurement_1"
     UNION ALL
     SELECT
       "observation_2"."person_id",
@@ -914,6 +909,106 @@ columns of the nested queries.
     UNION ALL
     SELECT "observation_1"."person_id"
     FROM "observation" AS "observation_1"
+    =#
+
+
+## Iterate
+
+The `Iterate` constructor creates an iteration query.  We could use it
+to create a factorial table.
+
+    q = Define(:n => 1, :f => 1) |>
+        Iterate(From(:factorial) |>
+                Define(:n => Get.n .+ 1) |>
+                Define(:f => Get.n .* Get.f) |>
+                Where(Get.n .<= 10) |>
+                As(:factorial))
+    #-> (…) |> Iterate(…)
+
+    display(q)
+    #=>
+    let q1 = Define(Lit(1) |> As(:n), Lit(1) |> As(:f)),
+        q2 = From(:factorial),
+        q3 = q2 |> Define(Fun."+"(Get.n, Lit(1)) |> As(:n)),
+        q4 = q3 |> Define(Fun."*"(Get.n, Get.f) |> As(:f)),
+        q5 = q4 |> Where(Fun."<="(Get.n, Lit(10))),
+        q6 = q1 |> Iterate(q5 |> As(:factorial))
+        q6
+    end
+    =#
+
+    print(render(q))
+    #=>
+    WITH RECURSIVE "factorial_1" ("n", "f") AS (
+      SELECT
+        1 AS "n",
+        1 AS "f"
+      UNION ALL
+      SELECT
+        ("factorial_1"."n" + 1) AS "n",
+        (("factorial_1"."n" + 1) * "factorial_1"."f") AS "f"
+      FROM "factorial_1"
+      WHERE (("factorial_1"."n" + 1) <= 10)
+    )
+    SELECT
+      "factorial_1"."n",
+      "factorial_1"."f"
+    FROM "factorial_1"
+    =#
+
+The set of columns produced by `Iterate` is the intersection of the columns
+produced by the base query and the iterator query.
+
+    q = Define(:k => 0, :m => 0) |>
+        Iterate(From(:self) |>
+                As(:previous) |>
+                Where(Get.previous.m .< 10) |>
+                Define(:m => Get.previous.m .+ 1, :n => 0) |>
+                As(:self))
+
+    print(render(q))
+    #=>
+    WITH RECURSIVE "self_1" ("m") AS (
+      SELECT 0 AS "m"
+      UNION ALL
+      SELECT ("self_1"."m" + 1) AS "m"
+      FROM "self_1"
+      WHERE ("self_1"."m" < 10)
+    )
+    SELECT "self_1"."m"
+    FROM "self_1"
+    =#
+
+`Iterate` aligns the columns of its subqueries.
+
+    q = Select(:n => 1, :f => 1) |>
+        Iterate(From(:factorial) |>
+                Where(Get.n .< 10) |>
+                Select(:f => (Get.n .+ 1) .* Get.f, :n => Get.n .+ 1) |>
+                As(:factorial))
+
+    print(render(q))
+    #=>
+    WITH RECURSIVE "factorial_1" ("n", "f") AS (
+      SELECT
+        1 AS "n",
+        1 AS "f"
+      UNION ALL
+      SELECT
+        "factorial_2"."n",
+        "factorial_2"."f"
+      FROM (
+        SELECT
+          (("factorial_1"."n" + 1) * "factorial_1"."f") AS "f",
+          ("factorial_1"."n" + 1) AS "n"
+        FROM "factorial_1"
+        WHERE ("factorial_1"."n" < 10)
+      ) AS "factorial_2"
+    )
+    SELECT
+      "factorial_1"."n",
+      "factorial_1"."f"
+    FROM "factorial_1"
     =#
 
 

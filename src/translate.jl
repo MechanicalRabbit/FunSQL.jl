@@ -390,6 +390,16 @@ function assemble(::Nothing, refs, ctx)
     Assemblage(nothing)
 end
 
+function aligned_columns(refs, repl, args)
+    length(refs) == length(args) || return false
+    for (ref, arg) in zip(refs, args)
+        if !(@dissect(arg, ID(name = name) || AS(name = name)) && name === repl[ref])
+            return false
+        end
+    end
+    return true
+end
+
 function assemble(n::AppendNode, refs, ctx)
     base = assemble(n.over, ctx)
     branches = [n.over => base]
@@ -416,7 +426,10 @@ function assemble(n::AppendNode, refs, ctx)
     end
     cs = SQLClause[]
     for (arg, a) in branches
-        if !@dissect(a.clause, SELECT() || UNION())
+        if @dissect(a.clause, SELECT(args = args)) && aligned_columns(urefs, repl, args)
+            push!(cs, a.clause)
+            continue
+        elseif !@dissect(a.clause, SELECT() || UNION())
             alias = nothing
             tail = a.clause
         else
@@ -652,9 +665,18 @@ function assemble(n::KnotNode, refs, ctx)
     union_alias = allocate_alias(ctx, n.name)
     ctx.with_map[SQLNode(n.box)] = union_alias => temp_union
     right = unwrap_repl(assemble(n.iterator, ctx))
+    urefs = SQLNode[]
+    for ref in refs
+        @dissect(ref, over |> NameBound()) || error()
+        !(over in keys(dups)) || continue
+        push!(urefs, over)
+    end
     cs = SQLClause[]
     for (arg, a) in (n.over => left, n.iterator => right)
-        if !@dissect(a.clause, SELECT() || UNION())
+        if @dissect(a.clause, SELECT(args = args)) && aligned_columns(urefs, left.repl, args)
+            push!(cs, a.clause)
+            continue
+        elseif !@dissect(a.clause, SELECT() || UNION())
             alias = nothing
             tail = a.clause
         else
@@ -663,24 +685,17 @@ function assemble(n::KnotNode, refs, ctx)
         end
         subs = make_subs(a, alias)
         cols = OrderedDict{Symbol, SQLClause}()
-        for ref in refs
-            @dissect(ref, over |> NameBound())
-            if over in keys(dups)
-                @assert a.repl[over] === a.repl[dups[over]]
-                continue
-            end
-            name = left.repl[over]
-            cols[name] = subs[over]
+        for ref in urefs
+            name = left.repl[ref]
+            cols[name] = subs[ref]
         end
         c = SELECT(over = tail, args = complete(cols))
         push!(cs, c)
     end
     union_clause = UNION(over = cs[1], all = true, args = cs[2:end])
     cols = OrderedDict{Symbol, SQLClause}()
-    for ref in refs
-        @dissect(ref, over |> NameBound())
-        !(over in keys(dups)) || continue
-        name = left.repl[over]
+    for ref in urefs
+        name = left.repl[ref]
         cols[name] = ID(name)
     end
     union = Assemblage(union_clause, cols = cols, repl = repl)
