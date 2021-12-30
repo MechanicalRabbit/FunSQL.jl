@@ -15,11 +15,19 @@ IterateNode(iterator; over = nothing) =
     Iterate(; over = nothing, iterator)
     Iterate(iterator; over = nothing)
 
-`Iterate` outputs `over` concatenated with `iterator` recursively applied
-to `over`.
+`Iterate` generates the concatenated output of an iterated query.
+
+The `over` query is evaluated first.  Then the `iterator` query is repeatedly
+applied: to the output of `over`, then to the output of its previous run, and
+so on, until the iterator produces no data.  All these outputs are concatenated
+to generate the output of `Iterate`.
+
+The `iterator` query should have an alias specified with [`As`](@ref); it can
+refer to the output of the previous iteration using [`From`](@ref) with the same
+alias.
 
 ```sql
-WITH RECURSIVE iterate AS (
+WITH RECURSIVE iterator AS (
   SELECT ...
   FROM \$over
   UNION ALL
@@ -27,86 +35,36 @@ WITH RECURSIVE iterate AS (
   FROM \$iterator
 )
 SELECT ...
-FROM iterate
+FROM iterator
 ```
 
 # Examples
 
 ```jldoctest
-julia> q = Define(:n => 1, :p => 1, :q => 0) |>
+julia> q = Define(:n => 1, :f => 1) |>
            Iterate(
-               From(:fib) |>
-               Define(:n => Get.n .+ 1, :p => Get.p .+ Get.q, :q => Get.p) |>
+               From(:factorial) |>
+               Define(:n => Get.n .+ 1) |>
+               Define(:f => Get.f .* Get.n) |>
                Where(Get.n .<= 10) |>
-               As(:fib)) |>
-           Select(Get.n, Get.p);
+               As(:factorial));
 
 julia> print(render(q))
-WITH RECURSIVE "fib_1" ("n", "p", "q") AS (
+WITH RECURSIVE "factorial_1" ("n", "f") AS (
   SELECT
     1 AS "n",
-    1 AS "p",
-    0 AS "q"
+    1 AS "f"
   UNION ALL
   SELECT
-    ("fib_1"."n" + 1) AS "n",
-    ("fib_1"."p" + "fib_1"."q") AS "p",
-    "fib_1"."p" AS "q"
-  FROM "fib_1"
-  WHERE (("fib_1"."n" + 1) <= 10)
+    ("factorial_1"."n" + 1) AS "n",
+    ("factorial_1"."f" * ("factorial_1"."n" + 1)) AS "f"
+  FROM "factorial_1"
+  WHERE (("factorial_1"."n" + 1) <= 10)
 )
 SELECT
-  "fib_1"."n",
-  "fib_1"."p"
-FROM "fib_1"
-```
-
-```jldoctest
-julia> concept =
-           SQLTable(:concept,
-                    columns = [:concept_id, :concept_name]);
-
-julia> concept_relationship =
-           SQLTable(:concept_relationship,
-                    columns = [:concept_id_1, :concept_id_2, :relationship_id]);
-
-julia> SubtypesOf(base) =
-           From(concept) |>
-           Join(From(concept_relationship) |>
-                Where(Get.relationship_id .== "Is a"),
-                on = Get.concept_id .== Get.concept_id_1) |>
-           Join(:base => base,
-                on = Get.concept_id_2 .== Get.base.concept_id);
-
-julia> q = From(concept) |>
-           Where(Get.concept_id .== 4329847) |>
-           Iterate(:subtype => SubtypesOf(From(:subtype)));
-
-julia> print(render(q))
-WITH RECURSIVE "subtype_1" ("concept_id", "concept_name") AS (
-  SELECT
-    "concept_1"."concept_id",
-    "concept_1"."concept_name"
-  FROM "concept" AS "concept_1"
-  WHERE ("concept_1"."concept_id" = 4329847)
-  UNION ALL
-  SELECT
-    "concept_2"."concept_id",
-    "concept_2"."concept_name"
-  FROM "concept" AS "concept_2"
-  JOIN (
-    SELECT
-      "concept_relationship_1"."concept_id_1",
-      "concept_relationship_1"."concept_id_2"
-    FROM "concept_relationship" AS "concept_relationship_1"
-    WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
-  ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_1")
-  JOIN "subtype_1" ON ("concept_relationship_2"."concept_id_2" = "subtype_1"."concept_id")
-)
-SELECT
-  "subtype_1"."concept_id",
-  "subtype_1"."concept_name"
-FROM "subtype_1"
+  "factorial_1"."n",
+  "factorial_1"."f"
+FROM "factorial_1"
 ```
 """
 Iterate(args...; kws...) =
