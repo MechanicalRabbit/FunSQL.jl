@@ -1,6 +1,16 @@
 # Release Notes
 
 
+## v0.9.0
+
+* Add `Iterate` node for making recursive queries.
+* Add `With` and `From(::Symbol)` nodes for assigning a name to an intermediate
+  dataset.
+* `From(nothing)` for making a unit dataset.
+* Rename `Select.list`, `Append.list`, etc to `args`.
+* More documentation updates.
+
+
 ## v0.8.2
 
 * Require Julia ≥ 1.6.
