@@ -10,10 +10,11 @@ mutable struct WithExternalNode <: TabularNode
     function WithExternalNode(; over = nothing, args, schema = nothing, handler = nothing, label_map = nothing)
         if label_map !== nothing
             new(over, args, schema, handler, label_map)
+        else
+            n = new(over, args, schema, handler, OrderedDict{Symbol, Int}())
+            populate_label_map!(n)
+            n
         end
-        n = new(over, args, schema, handler, OrderedDict{Symbol, Int}())
-        populate_label_map!(n)
-        n
     end
 end
 
@@ -85,7 +86,7 @@ function PrettyPrinting.quoteof(n::WithExternalNode, ctx::QuoteContext)
         push!(ex.args, Expr(:kw, :schema, QuoteNode(n.schema)))
     end
     if n.handler !== nothing
-        push!(ex.args, Expr(:kw, :handler, QuoteNode(nameof(n.handler))))
+        push!(ex.args, Expr(:kw, :handler, nameof(n.handler)))
     end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
