@@ -7,18 +7,12 @@ mutable struct GroupNode <: TabularNode
 
     function GroupNode(; over = nothing, by = SQLNode[], label_map = nothing)
         if label_map !== nothing
-            return new(over, by, label_map)
+            new(over, by, label_map)
+        else
+            n = new(over, by, OrderedDict{Symbol, Int}())
+            populate_label_map!(n, n.by, n.label_map)
+            n
         end
-        n = new(over, by, OrderedDict{Symbol, Int}())
-        for (i, arg) in enumerate(n.by)
-            name = label(arg)
-            if name in keys(n.label_map)
-                err = DuplicateLabelError(name, path = [arg, n])
-                throw(err)
-            end
-            n.label_map[name] = i
-        end
-        n
     end
 end
 

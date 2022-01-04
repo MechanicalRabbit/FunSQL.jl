@@ -144,13 +144,12 @@ mutable struct IntBindNode <: AbstractSQLNode
 
     function IntBindNode(; over = nothing, args, label_map = nothing, owned = false)
         if label_map !== nothing
-            return new(over, args, label_map, owned)
+            new(over, args, label_map, owned)
+        else
+            n = new(over, args, OrderedDict{Symbol, Int}(), owned)
+            populate_label_map!(n)
+            n
         end
-        n = new(over, args, OrderedDict{Symbol, Int}(), owned)
-        for (i, arg) in enumerate(n.args)
-            n.label_map[label(arg)] = i
-        end
-        n
     end
 end
 
