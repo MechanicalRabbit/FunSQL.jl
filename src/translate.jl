@@ -622,6 +622,9 @@ end
 
 function assemble(n::IntJoinNode, refs, ctx)
     left = assemble(n.over, ctx)
+    if n.skip
+        return left
+    end
     if @dissect(left.clause, tail := FROM() || JOIN())
         left_alias = nothing
     else

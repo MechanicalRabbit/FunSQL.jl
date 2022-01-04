@@ -6,23 +6,27 @@ mutable struct JoinNode <: TabularNode
     on::SQLNode
     left::Bool
     right::Bool
+    optional::Bool
 
-    JoinNode(; over = nothing, joinee, on, left = false, right = false) =
-        new(over, joinee, on, left, right)
+    JoinNode(; over = nothing, joinee, on, left = false, right = false, optional = false) =
+        new(over, joinee, on, left, right, optional)
 end
 
-JoinNode(joinee; over = nothing, on, left = false, right = false) =
-    JoinNode(over = over, joinee = joinee, on = on, left = left, right = right)
+JoinNode(joinee; over = nothing, on, left = false, right = false, optional = false) =
+    JoinNode(over = over, joinee = joinee, on = on, left = left, right = right, optional = optional)
 
-JoinNode(joinee, on; over = nothing, left = false, right = false) =
-    JoinNode(over = over, joinee = joinee, on = on, left = left, right = right)
+JoinNode(joinee, on; over = nothing, left = false, right = false, optional = false) =
+    JoinNode(over = over, joinee = joinee, on = on, left = left, right = right, optional = optional)
 
 """
-    Join(; over = nothing, joinee, on, left = false, right = false)
-    Join(joinee; over = nothing, on, left = false, right = false)
-    Join(joinee, on; over = nothing, left = false, right = false)
+    Join(; over = nothing, joinee, on, left = false, right = false, optional = optional)
+    Join(joinee; over = nothing, on, left = false, right = false, optional = optional)
+    Join(joinee, on; over = nothing, left = false, right = false, optional = optional)
 
 `Join` correlates two input datasets.
+
+When `optional` is set, the `JOIN` clause is omitted if the output contains
+no data from the `joinee` branch.
 
 ```sql
 SELECT ...
@@ -73,6 +77,9 @@ function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
         if n.right
             push!(ex.args, Expr(:kw, :right, n.right))
         end
+        if n.optional
+            push!(ex.args, Expr(:kw, :optional, n.optional))
+        end
     else
         push!(ex.args, :…)
     end
@@ -87,5 +94,5 @@ label(n::JoinNode) =
 
 rebase(n::JoinNode, n′) =
     JoinNode(over = rebase(n.over, n′),
-             joinee = n.joinee, on = n.on, left = n.left, right = n.right)
+             joinee = n.joinee, on = n.on, left = n.left, right = n.right, optional = n.optional)
 

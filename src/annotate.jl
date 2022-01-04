@@ -256,15 +256,16 @@ mutable struct IntJoinNode <: TabularNode
     on::SQLNode
     left::Bool
     right::Bool
+    skip::Bool
     type::BoxType               # Type of the product of `over` and `joinee`.
     lateral::Vector{SQLNode}    # References from `joinee` to `over` for JOIN LATERAL.
 
-    IntJoinNode(; over, joinee, on, left, right, type = EMPTY_BOX, lateral = SQLNode[]) =
-        new(over, joinee, on, left, right, type, lateral)
+    IntJoinNode(; over, joinee, on, left, right, skip, type = EMPTY_BOX, lateral = SQLNode[]) =
+        new(over, joinee, on, left, right, skip, type, lateral)
 end
 
-IntJoinNode(joinee, on; over = nothing, left = false, right = false, type = EMPTY_BOX, lateral = SQLNode[]) =
-    IntJoinNode(over = over, joinee = joinee, on = on, left = left, right = right, type = type, lateral = lateral)
+IntJoinNode(joinee, on; over = nothing, left = false, right = false, skip = skip, type = EMPTY_BOX, lateral = SQLNode[]) =
+    IntJoinNode(over = over, joinee = joinee, on = on, left = left, right = right, skip = skip, type = type, lateral = lateral)
 
 IntJoin(args...; kws...) =
     IntJoinNode(args...; kws...) |> SQLNode
@@ -279,6 +280,9 @@ function PrettyPrinting.quoteof(n::IntJoinNode, ctx::QuoteContext)
         end
         if n.right
             push!(ex.args, Expr(:kw, :right, n.right))
+        end
+        if n.skip
+            push!(ex.args, Expr(:kw, :skip, n.skip))
         end
         if n.type !== EMPTY_BOX
             push!(ex.args, Expr(:kw, :type, n.type))
@@ -297,7 +301,7 @@ end
 
 rebase(n::IntJoinNode, n′) =
     IntJoinNode(over = rebase(n.over, n′),
-                     joinee = n.joinee, on = n.on, left = n.left, right = n.right, type = n.type, lateral = n.lateral)
+                     joinee = n.joinee, on = n.on, left = n.left, right = n.right, skip = n.skip, type = n.type, lateral = n.lateral)
 
 label(n::Union{NameBoundNode, HandleBoundNode, IntBindNode, IntJoinNode}) =
     label(n.over)
@@ -555,7 +559,7 @@ function annotate(n::JoinNode, ctx)
     over′ = annotate(n.over, ctx)
     joinee′ = annotate(n.joinee, ctx)
     on′ = annotate_scalar(n.on, ctx)
-    IntJoin(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right)
+    IntJoin(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right, skip = n.optional)
 end
 
 function annotate(n::LimitNode, ctx)
@@ -1004,11 +1008,27 @@ end
 function link!(n::IntJoinNode, refs::Vector{SQLNode}, ctx)
     lbox = n.over[]::BoxNode
     rbox = n.joinee[]::BoxNode
+    lrefs = SQLNode[]
+    rrefs = SQLNode[]
+    for ref in refs
+        turn = route(lbox.type, rbox.type, ref)
+        if turn < 0
+            push!(lrefs, ref)
+        else
+            push!(rrefs, ref)
+        end
+    end
+    if !isempty(rrefs)
+        n.skip = false
+    end
+    if n.skip
+        append!(lbox.refs, lrefs)
+        return
+    end
     gather_and_validate!(n.lateral, n.joinee, lbox.type, ctx)
     append!(lbox.refs, n.lateral)
     refs′ = SQLNode[]
     gather_and_validate!(refs′, n.on, n.type, ctx)
-    append!(refs′, refs)
     for ref in refs′
         turn = route(lbox.type, rbox.type, ref)
         if turn < 0
@@ -1017,6 +1037,8 @@ function link!(n::IntJoinNode, refs::Vector{SQLNode}, ctx)
             push!(rbox.refs, ref)
         end
     end
+    append!(lbox.refs, lrefs)
+    append!(rbox.refs, rrefs)
 end
 
 function link!(n::KnotNode, ::Vector{SQLNode}, ctx)
