@@ -377,4 +377,5 @@ include("nodes/sort.jl")
 include("nodes/variable.jl")
 include("nodes/where.jl")
 include("nodes/with.jl")
+include("nodes/with_external.jl")
 
