@@ -3,13 +3,14 @@
 mutable struct WithNode <: TabularNode
     over::Union{SQLNode, Nothing}
     args::Vector{SQLNode}
+    materialized::Union{Bool, Nothing}
     label_map::OrderedDict{Symbol, Int}
 
-    function WithNode(; over = nothing, args, label_map = nothing)
+    function WithNode(; over = nothing, args, materialized = nothing, label_map = nothing)
         if label_map !== nothing
-            return new(over, args, label_map)
+            return new(over, args, materialized, label_map)
         end
-        n = new(over, args, OrderedDict{Symbol, Int}())
+        n = new(over, args, materialized, OrderedDict{Symbol, Int}())
         for (i, arg) in enumerate(n.args)
             name = label(arg)
             if name in keys(n.label_map)
@@ -22,12 +23,12 @@ mutable struct WithNode <: TabularNode
     end
 end
 
-WithNode(args...; over = nothing) =
-    WithNode(over = over, args = SQLNode[args...])
+WithNode(args...; over = nothing, materialized = nothing) =
+    WithNode(over = over, args = SQLNode[args...], materialized = materialized)
 
 """
-    With(; over = nothing, args)
-    With(args...; over = nothing)
+    With(; over = nothing, args, materialized = nothing)
+    With(args...; over = nothing, materialized = nothing)
 
 `With` assigns a name to a temporary dataset.  This dataset could be
 referred to by name in the `over` query.
@@ -84,6 +85,9 @@ function PrettyPrinting.quoteof(n::WithNode, ctx::QuoteContext)
     else
         append!(ex.args, quoteof(n.args, ctx))
     end
+    if n.materialized !== nothing
+        push!(ex.args, Expr(:kw, :materialized, n.materialized))
+    end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
@@ -94,5 +98,5 @@ label(n::WithNode) =
     label(n.over)
 
 rebase(n::WithNode, n′) =
-    WithNode(over = rebase(n.over, n′), args = n.args)
+    WithNode(over = rebase(n.over, n′), args = n.args, materialized = n.materialized)
 

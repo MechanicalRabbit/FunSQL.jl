@@ -1191,6 +1191,41 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     FROM "male_1"
     =#
 
+`With` definitions can be annotated as *materialized* or *not materialized*:
+
+    q = From(:male) |>
+        With(From(person) |>
+             Where(Get.gender_concept_id .== 8507) |>
+             As(:male),
+             materialized = true)
+    #-> (…) |> With(…, materialized = true)
+
+    print(render(q))
+    #=>
+    WITH "male_1" ( … ) AS MATERIALIZED (
+      ⋮
+    )
+    SELECT
+      ⋮
+    FROM "male_1"
+    =#
+
+    q = From(:male) |>
+        With(From(person) |>
+             Where(Get.gender_concept_id .== 8507) |>
+             As(:male),
+             materialized = false)
+
+    print(render(q))
+    #=>
+    WITH "male_1" ( … ) AS NOT MATERIALIZED (
+      ⋮
+    )
+    SELECT
+      ⋮
+    FROM "male_1"
+    =#
+
 `With` can take more than one definition.
 
     q = Select(:male_count => From(:male) |> Group() |> Select(Agg.count()),
