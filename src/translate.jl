@@ -131,7 +131,12 @@ end
 struct CTEAssemblage
     a::Assemblage
     name::Symbol
+    schema::Union{Symbol, Nothing}
     materialized::Union{Bool, Nothing}
+    external::Bool
+
+    CTEAssemblage(a; name, schema = nothing, materialized = nothing, external = false) =
+        new(a, name, schema, materialized, external)
 end
 
 
@@ -177,20 +182,21 @@ end
 
 function translate_toplevel(n::SQLNode, ctx)
     c = translate(n, ctx)
-    if !isempty(ctx.cte_map)
-        args = SQLClause[]
-        for cte_a in values(ctx.cte_map)
-            cols = Symbol[name for name in keys(cte_a.a.cols)]
-            if isempty(cols)
-                push!(cols, :_)
-            end
-            arg = CTE(over = complete(cte_a.a),
-                      name = cte_a.name,
-                      columns = cols,
-                      materialized = cte_a.materialized)
-            push!(args, arg)
+    with_args = SQLClause[]
+    for cte_a in values(ctx.cte_map)
+        !cte_a.external || continue
+        cols = Symbol[name for name in keys(cte_a.a.cols)]
+        if isempty(cols)
+            push!(cols, :_)
         end
-        c = WITH(over = c, args = args, recursive = ctx.recursive[])
+        arg = CTE(over = complete(cte_a.a),
+                  name = cte_a.name,
+                  columns = cols,
+                  materialized = cte_a.materialized)
+        push!(with_args, arg)
+    end
+    if !isempty(with_args)
+        c = WITH(over = c, args = with_args, recursive = ctx.recursive[])
     end
     c
 end
@@ -517,7 +523,7 @@ end
 function assemble(n::FromReferenceNode, refs, ctx)
     cte_a = ctx.cte_map[n.over]
     a = unwrap_repl(cte_a.a)
-    c = FROM(over = ID(cte_a.name))
+    c = FROM(over = ID(over = cte_a.schema, name = cte_a.name))
     subs = make_subs(a, cte_a.name)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
@@ -672,7 +678,7 @@ function assemble(n::KnotNode, refs, ctx)
     end
     temp_union = Assemblage(left.clause, cols = left.cols, repl = repl)
     union_alias = allocate_alias(ctx, n.name)
-    ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(temp_union, union_alias, nothing)
+    ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(temp_union, name = union_alias)
     right = unwrap_repl(assemble(n.iterator, ctx))
     urefs = SQLNode[]
     for ref in refs
@@ -708,7 +714,7 @@ function assemble(n::KnotNode, refs, ctx)
         cols[name] = ID(name)
     end
     union = Assemblage(union_clause, cols = cols, repl = repl)
-    ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(union, union_alias, nothing)
+    ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(union, name = union_alias)
     ctx.recursive[] = true
     c = FROM(over = ID(union_alias))
     subs = make_subs(union, union_alias)
@@ -874,7 +880,25 @@ function assemble(n::WithNode, refs, ctx)
     for arg in n.args
         a = assemble(arg, ctx)
         alias = allocate_alias(ctx, arg)
-        ctx.cte_map[arg] = CTEAssemblage(a, alias, n.materialized)
+        ctx.cte_map[arg] = CTEAssemblage(a, name = alias, materialized = n.materialized)
+    end
+    assemble(n.over, ctx)
+end
+
+function assemble(n::WithExternalNode, refs, ctx)
+    ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
+    for arg in n.args
+        a = assemble(arg, ctx)
+        table_name = (arg[]::BoxNode).type.name
+        table_columns = Symbol[column_name for column_name in keys(a.cols)]
+        if isempty(table_columns)
+            push!(table_columns, :_)
+        end
+        table = SQLTable(name = table_name, schema = n.schema, columns = table_columns)
+        if n.handler !== nothing
+            n.handler(table => complete(a))
+        end
+        ctx.cte_map[arg] = CTEAssemblage(a, name = table.name, schema = table.schema, external = true)
     end
     assemble(n.over, ctx)
 end

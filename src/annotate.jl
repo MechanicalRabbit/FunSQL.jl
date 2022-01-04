@@ -610,6 +610,17 @@ function annotate(n::WithNode, ctx)
     With(over = over′, args = args′, materialized = n.materialized, label_map = n.label_map)
 end
 
+function annotate(n::WithExternalNode, ctx)
+    args′ = annotate(n.args, ctx)
+    with_nodes′ = copy(ctx.with_nodes)
+    for (name, i) in n.label_map
+        with_nodes′[name] = args′[i]
+    end
+    ctx′ = AnnotateContext(ctx, with_nodes = with_nodes′)
+    over′ = annotate(n.over, ctx′)
+    WithExternal(over = over′, args = args′, schema = n.schema, handler = n.handler, label_map = n.label_map)
+end
+
 
 # Type resolution.
 
@@ -695,7 +706,7 @@ function resolve(n::GroupNode, ctx)
     BoxType(t.name, row)
 end
 
-resolve(n::Union{HighlightNode, IntBindNode, LimitNode, OrderNode, WhereNode, WithNode}, ctx) =
+resolve(n::Union{HighlightNode, IntBindNode, LimitNode, OrderNode, WhereNode, WithNode, WithExternalNode}, ctx) =
     box_type(n.over)
 
 resolve_knot!(n::SQLNode, ctx) =
@@ -970,7 +981,7 @@ function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     end
 end
 
-function link!(n::Union{HighlightNode, LimitNode, WithNode}, refs::Vector{SQLNode}, ctx)
+function link!(n::Union{HighlightNode, LimitNode, WithNode, WithExternalNode}, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     append!(box.refs, refs)
 end

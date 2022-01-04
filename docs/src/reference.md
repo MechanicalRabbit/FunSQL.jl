@@ -60,6 +60,7 @@ Pages = [
     "nodes/variable.jl",
     "nodes/where.jl",
     "nodes/with.jl",
+    "nodes/with_external.jl",
 ]
 ```
 
