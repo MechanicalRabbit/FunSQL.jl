@@ -3,7 +3,8 @@
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
         Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
-        Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With, render
+        Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
+        WithExternal, ID, render
 
 We start with specifying the database model.
 
@@ -1154,7 +1155,7 @@ has no columns.
     =#
 
 
-## `With`
+## `With` and `WithExternal`
 
 We can create a temporary dataset using `With` and refer to it with `From`.
 
@@ -1256,7 +1257,7 @@ We can create a temporary dataset using `With` and refer to it with `From`.
       ) AS "female_count"
     =#
 
-A datasets defined by `With` must have an explicit label assigned to it.
+A dataset defined by `With` must have an explicit label assigned to it.
 
     q = From(:person) |>
         With(From(person))
@@ -1296,6 +1297,55 @@ It is an error for `From` to refer to an undefined dataset.
     ERROR: FunSQL.ReferenceError: cannot find p in:
     let q1 = From(:p)
         q1
+    end
+    =#
+
+A variant of `With` called `WithExternal` can be used to prepare a definition
+for a `CREATE TABLE AS` or `SELECT INFO` statement.
+
+    with_external_handler((tbl, def)) =
+        println("CREATE TEMP TABLE ",
+                render(ID(over = tbl.schema, name = tbl.name)),
+                " (", join([render(ID(c)) for c in tbl.columns], ", "), ") AS\n",
+                render(def), ";\n")
+
+    q = From(:male) |>
+        WithExternal(From(person) |>
+                     Where(Get.gender_concept_id .== 8507) |>
+                     As(:male),
+                     schema = :tmp,
+                     handler = with_external_handler)
+    #-> (…) |> WithExternal(…, schema = :tmp, handler = with_external_handler)
+
+    print(render(q))
+    #=>
+    CREATE TEMP TABLE "tmp"."male" ("person_id", …, "location_id") AS
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."gender_concept_id" = 8507);
+
+    SELECT
+      "male"."person_id",
+      ⋮
+      "male"."location_id"
+    FROM "tmp"."male"
+    =#
+
+Datasets defined by `WithExternal` must have a unique label.
+
+    From(:p) |>
+    WithExternal(:p => From(person),
+                 :p => From(person))
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: p is used more than once in:
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = From(person),
+        q3 = WithExternal(q1 |> As(:p), q2 |> As(:p))
+        q3
     end
     =#
 
