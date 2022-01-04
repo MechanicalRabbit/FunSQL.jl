@@ -339,6 +339,20 @@ function highlight(path::Vector{SQLNode}, color = Base.error_color())
     n
 end
 
+# Validate uniqueness of labels and cache arg->label map for Select.args and others.
+
+function populate_label_map!(n, args = n.args, label_map = n.label_map)
+    for (i, arg) in enumerate(args)
+        name = label(arg)
+        if name in keys(label_map)
+            err = DuplicateLabelError(name, path = [arg, n])
+            throw(err)
+        end
+        label_map[name] = i
+    end
+    n
+end
+
 
 # Concrete node types.
 

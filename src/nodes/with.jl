@@ -8,18 +8,12 @@ mutable struct WithNode <: TabularNode
 
     function WithNode(; over = nothing, args, materialized = nothing, label_map = nothing)
         if label_map !== nothing
-            return new(over, args, materialized, label_map)
+            new(over, args, materialized, label_map)
+        else
+            n = new(over, args, materialized, OrderedDict{Symbol, Int}())
+            populate_label_map!(n)
+            n
         end
-        n = new(over, args, materialized, OrderedDict{Symbol, Int}())
-        for (i, arg) in enumerate(n.args)
-            name = label(arg)
-            if name in keys(n.label_map)
-                err = DuplicateLabelError(name, path = [arg, n])
-                throw(err)
-            end
-            n.label_map[name] = i
-        end
-        n
     end
 end
 

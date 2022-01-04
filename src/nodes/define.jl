@@ -7,18 +7,12 @@ mutable struct DefineNode <: TabularNode
 
     function DefineNode(; over = nothing, args = [], label_map = nothing)
         if label_map !== nothing
-            return new(over, args, label_map)
+            new(over, args, label_map)
+        else
+            n = new(over, args, OrderedDict{Symbol, Int}())
+            populate_label_map!(n)
+            n
         end
-        n = new(over, args, OrderedDict{Symbol, Int}())
-        for (i, arg) in enumerate(n.args)
-            name = label(arg)
-            if name in keys(n.label_map)
-                err = DuplicateLabelError(name, path = [arg, n])
-                throw(err)
-            end
-            n.label_map[name] = i
-        end
-        n
     end
 end
 
