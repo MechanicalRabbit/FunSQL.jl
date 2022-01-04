@@ -128,6 +128,12 @@ function make_repl_cols(trns::Vector{Pair{SQLNode, SQLClause}})::Tuple{Dict{SQLN
     (repl, cols)
 end
 
+struct CTEAssemblage
+    a::Assemblage
+    name::Symbol
+    materialized::Union{Bool, Nothing}
+end
+
 
 # Translating context.
 
@@ -135,7 +141,7 @@ struct TranslateContext
     dialect::SQLDialect
     path_map::PathMap
     aliases::Dict{Symbol, Int}
-    with_map::OrderedDict{SQLNode, Pair{Symbol, Assemblage}}
+    cte_map::OrderedDict{SQLNode, CTEAssemblage}
     recursive::Ref{Bool}
     vars::Dict{Symbol, SQLClause}
     subs::Dict{SQLNode, SQLClause}
@@ -144,7 +150,7 @@ struct TranslateContext
         new(dialect,
             path_map,
             Dict{Symbol, Int}(),
-            OrderedDict{SQLNode, Pair{Symbol, Assemblage}}(),
+            OrderedDict{SQLNode, CTEAssemblage}(),
             Ref(false),
             Dict{Symbol, SQLClause}(),
             Dict{SQLNode, SQLClause}())
@@ -153,7 +159,7 @@ struct TranslateContext
         new(ctx.dialect,
             ctx.path_map,
             ctx.aliases,
-            ctx.with_map,
+            ctx.cte_map,
             ctx.recursive,
             something(vars, ctx.vars),
             something(subs, ctx.subs))
@@ -171,14 +177,17 @@ end
 
 function translate_toplevel(n::SQLNode, ctx)
     c = translate(n, ctx)
-    if !isempty(ctx.with_map)
+    if !isempty(ctx.cte_map)
         args = SQLClause[]
-        for (alias, a) in values(ctx.with_map)
-            cols = Symbol[name for name in keys(a.cols)]
+        for cte_a in values(ctx.cte_map)
+            cols = Symbol[name for name in keys(cte_a.a.cols)]
             if isempty(cols)
                 push!(cols, :_)
             end
-            arg = CTE(over = complete(a), name = alias, columns = cols)
+            arg = CTE(over = complete(cte_a.a),
+                      name = cte_a.name,
+                      columns = cols,
+                      materialized = cte_a.materialized)
             push!(args, arg)
         end
         c = WITH(over = c, args = args, recursive = ctx.recursive[])
@@ -506,10 +515,10 @@ function unwrap_repl(a::Assemblage)
 end
 
 function assemble(n::FromReferenceNode, refs, ctx)
-    (alias, a) = ctx.with_map[n.over]
-    a = unwrap_repl(a)
-    c = FROM(over = ID(alias))
-    subs = make_subs(a, alias)
+    cte_a = ctx.cte_map[n.over]
+    a = unwrap_repl(cte_a.a)
+    c = FROM(over = ID(cte_a.name))
+    subs = make_subs(a, cte_a.name)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
         push!(trns, ref => subs[ref])
@@ -663,7 +672,7 @@ function assemble(n::KnotNode, refs, ctx)
     end
     temp_union = Assemblage(left.clause, cols = left.cols, repl = repl)
     union_alias = allocate_alias(ctx, n.name)
-    ctx.with_map[SQLNode(n.box)] = union_alias => temp_union
+    ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(temp_union, union_alias, nothing)
     right = unwrap_repl(assemble(n.iterator, ctx))
     urefs = SQLNode[]
     for ref in refs
@@ -699,7 +708,7 @@ function assemble(n::KnotNode, refs, ctx)
         cols[name] = ID(name)
     end
     union = Assemblage(union_clause, cols = cols, repl = repl)
-    ctx.with_map[SQLNode(n.box)] = union_alias => union
+    ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(union, union_alias, nothing)
     ctx.recursive[] = true
     c = FROM(over = ID(union_alias))
     subs = make_subs(union, union_alias)
@@ -865,7 +874,7 @@ function assemble(n::WithNode, refs, ctx)
     for arg in n.args
         a = assemble(arg, ctx)
         alias = allocate_alias(ctx, arg)
-        ctx.with_map[arg] = alias => a
+        ctx.cte_map[arg] = CTEAssemblage(a, alias, n.materialized)
     end
     assemble(n.over, ctx)
 end

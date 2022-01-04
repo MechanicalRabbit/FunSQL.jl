@@ -608,7 +608,7 @@ function annotate(n::WithNode, ctx)
     end
     ctx′ = AnnotateContext(ctx, with_nodes = with_nodes′)
     over′ = annotate(n.over, ctx′)
-    With(over = over′, args = args′, label_map = n.label_map)
+    With(over = over′, args = args′, materialized = n.materialized, label_map = n.label_map)
 end
 
 
