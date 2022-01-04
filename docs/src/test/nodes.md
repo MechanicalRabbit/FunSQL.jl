@@ -1792,6 +1792,44 @@ Nested subqueries that are combined with `Join` may fail to collapse.
     ) AS "visit_1"
     =#
 
+An optional `Join` is omitted when the output contains no data from
+its right branch.
+
+    q = From(person) |>
+        LeftJoin(:location => From(location),
+                 on = Get.location_id .== Get.location.location_id,
+                 optional = true)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        location = SQLTable(:location, …),
+        q1 = From(person),
+        q2 = From(location),
+        q3 = q1 |>
+             Join(q2 |> As(:location),
+                  Fun."=="(Get.location_id, Get.location.location_id),
+                  left = true,
+                  optional = true)
+        q3
+    end
+    =#
+
+    print(render(q |> Select(Get.year_of_birth)))
+    #=>
+    SELECT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    =#
+
+    print(render(q |> Select(Get.year_of_birth, Get.location.state)))
+    #=>
+    SELECT
+      "person_1"."year_of_birth",
+      "location_1"."state"
+    FROM "person" AS "person_1"
+    LEFT JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
+    =#
+
 
 ## `Order`
 
