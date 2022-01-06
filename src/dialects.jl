@@ -66,7 +66,7 @@ struct SQLDialect
     identifier_quotes::Tuple{Char, Char}
     has_boolean_literals::Bool
     limit_style::LimitStyle
-    has_with_recursive::Bool
+    has_recursive_annotation::Bool
 
     SQLDialect(;
                name = :default,
@@ -75,14 +75,14 @@ struct SQLDialect
                identifier_quotes = ('"', '"'),
                has_boolean_literals = true,
                limit_style = LIMIT_STYLE.ANSI,
-               has_with_recursive = true) =
+               has_recursive_annotation = true) =
         new(name,
             variable_style,
             variable_prefix,
             identifier_quotes,
             has_boolean_literals,
             limit_style,
-            has_with_recursive)
+            has_recursive_annotation)
 end
 
 const default_dialect =
@@ -112,7 +112,7 @@ const sqlserver_dialect =
                variable_prefix = '?',
                identifier_quotes = ('[', ']'),
                has_boolean_literals = false,
-               has_with_recursive = false)
+               has_recursive_annotation = false)
 const standard_dialects = [
     mysql_dialect,
     postgresql_dialect,

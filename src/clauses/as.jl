@@ -3,19 +3,24 @@
 mutable struct AsClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     name::Symbol
+    columns::Union{Vector{Symbol}, Nothing}
 
     AsClause(;
              over = nothing,
-             name::Union{Symbol, AbstractString}) =
-        new(over, Symbol(name))
+             name::Union{Symbol, AbstractString},
+             columns::Union{AbstractVector{<:Union{Symbol, AbstractString}}, Nothing} = nothing) =
+        new(over,
+            Symbol(name),
+            !(columns === nothing || columns isa Vector{Symbol}) ?
+                Symbol[Symbol(col) for col in columns] : columns)
 end
 
-AsClause(name; over = nothing) =
-    AsClause(over = over, name = name)
+AsClause(name; over = nothing, columns = nothing) =
+    AsClause(over = over, name = name, columns = columns)
 
 """
-    AS(; over = nothing, name)
-    AS(name; over = nothing)
+    AS(; over = nothing, name, columns = nothing)
+    AS(name; over = nothing, columns = nothing)
 
 An `AS` clause.
 
@@ -26,6 +31,13 @@ julia> c = ID(:person) |> AS(:p);
 
 julia> print(render(c))
 "person" AS "p"
+```
+
+```jldoctest
+julia> c = ID(:person) |> AS(:p, columns = [:person_id, :year_of_birth]);
+
+julia> print(render(c))
+"person" AS "p" ("person_id", "year_of_birth")
 ```
 """
 AS(args...; kws...) =
@@ -39,6 +51,9 @@ Base.convert(::Type{AbstractSQLClause}, p::Pair{<:Union{Symbol, AbstractString}}
 
 function PrettyPrinting.quoteof(c::AsClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(AS), quoteof(c.name))
+    if c.columns !== nothing
+        push!(ex.args, Expr(:kw, :columns, Expr(:vect, quoteof(c.columns, ctx)...)))
+    end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
     end
@@ -46,5 +61,5 @@ function PrettyPrinting.quoteof(c::AsClause, ctx::QuoteContext)
 end
 
 rebase(c::AsClause, c′) =
-    AsClause(over = rebase(c.over, c′), name = c.name)
+    AsClause(over = rebase(c.over, c′), name = c.name, columns = c.columns)
 

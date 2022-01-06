@@ -1,9 +1,9 @@
 # SQL Clauses
 
     using FunSQL:
-        AGG, AS, ASC, CASE, CTE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
-        LIMIT, LIT, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR, WHERE,
-        WINDOW, WITH, pack, render
+        AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
+        LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR,
+        WHERE, WINDOW, WITH, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -1061,14 +1061,14 @@ it is not rendered.
 ## `WITH` Clause and Common Table Expressions
 
 The `AS` clause that defines a common table expression is created using the
-`CTE` constructor.
+`AS` constructor.
 
     cte1 =
         FROM(:concept) |>
         WHERE(OP("=", :concept_id, 320128)) |>
         SELECT(:concept_id, :concept_name) |>
-        CTE(:essential_hypertension)
-    #-> (…) |> CTE(:essential_hypertension)
+        AS(:essential_hypertension)
+    #-> (…) |> AS(:essential_hypertension)
 
     cte2 =
         FROM(:essential_hypertension) |>
@@ -1081,9 +1081,9 @@ The `AS` clause that defines a common table expression is created using the
                    OP("=", (:cr, :concept_id_2), (:c, :concept_id))) |>
               WHERE(OP("=", (:cr, :relationship_id), "Subsumes")) |>
               SELECT((:c, :concept_id), (:c, :concept_name))) |>
-        CTE(:essential_hypertension_with_descendants,
+        AS(:essential_hypertension_with_descendants,
             columns = [:concept_id, :concept_name])
-    #-> (…) |> CTE(:essential_hypertension_with_descendants, columns = […])
+    #-> (…) |> AS(:essential_hypertension_with_descendants, columns = […])
 
 The `WITH` clause is created using the `WITH()` constructor.
 
@@ -1102,7 +1102,7 @@ The `WITH` clause is created using the `WITH()` constructor.
          FROM() |>
          WHERE(OP("=", ID(:concept_id), LIT(320128))) |>
          SELECT(ID(:concept_id), ID(:concept_name)) |>
-         CTE(:essential_hypertension),
+         AS(:essential_hypertension),
          ID(:essential_hypertension) |>
          FROM() |>
          SELECT(ID(:concept_id), ID(:concept_name)) |>
@@ -1120,8 +1120,8 @@ The `WITH` clause is created using the `WITH()` constructor.
                        ID(:c) |> ID(:concept_id))) |>
                WHERE(OP("=", ID(:cr) |> ID(:relationship_id), LIT("Subsumes"))) |>
                SELECT(ID(:c) |> ID(:concept_id), ID(:c) |> ID(:concept_name))) |>
-         CTE(:essential_hypertension_with_descendants,
-             columns = [:concept_id, :concept_name]))
+         AS(:essential_hypertension_with_descendants,
+            columns = [:concept_id, :concept_name]))
     =#
 
     print(render(c))
@@ -1151,36 +1151,29 @@ The `WITH` clause is created using the `WITH()` constructor.
     FROM "essential_hypertension_with_descendants"
     =#
 
-The `MATERIALIZED` clause is supported.
+The `MATERIALIZED` annotation can be added using `NOTE`.
 
     cte =
         FROM(:condition_occurrence) |>
         WHERE(OP("=", :condition_concept_id, 320128)) |>
         SELECT(:person_id) |>
-        CTE(:essential_hypertension_occurrence, materialized = true)
-    #-> (…) |> CTE(:essential_hypertension_occurrence, materialized = true)
+        NOTE("MATERIALIZED") |>
+        AS(:essential_hypertension_occurrence)
+    #-> (…) |> AS(:essential_hypertension_occurrence)
+
+    display(cte)
+    #=>
+    ID(:condition_occurrence) |>
+    FROM() |>
+    WHERE(OP("=", ID(:condition_concept_id), LIT(320128))) |>
+    SELECT(ID(:person_id)) |>
+    NOTE("MATERIALIZED") |>
+    AS(:essential_hypertension_occurrence)
+    =#
 
     print(render(FROM(:essential_hypertension_occurrence) |> SELECT(*) |> WITH(cte)))
     #=>
     WITH "essential_hypertension_occurrence" AS MATERIALIZED (
-      SELECT "person_id"
-      FROM "condition_occurrence"
-      WHERE ("condition_concept_id" = 320128)
-    )
-    SELECT *
-    FROM "essential_hypertension_occurrence"
-    =#
-
-    cte =
-        FROM(:condition_occurrence) |>
-        WHERE(OP("=", :condition_concept_id, 320128)) |>
-        SELECT(:person_id) |>
-        CTE(:essential_hypertension_occurrence, materialized = false)
-    #-> (…) |> CTE(:essential_hypertension_occurrence, materialized = false)
-
-    print(render(FROM(:essential_hypertension_occurrence) |> SELECT(*) |> WITH(cte)))
-    #=>
-    WITH "essential_hypertension_occurrence" AS NOT MATERIALIZED (
       SELECT "person_id"
       FROM "condition_occurrence"
       WHERE ("condition_concept_id" = 320128)
