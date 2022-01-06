@@ -189,10 +189,12 @@ function translate_toplevel(n::SQLNode, ctx)
         if isempty(cols)
             push!(cols, :_)
         end
-        arg = CTE(over = complete(cte_a.a),
-                  name = cte_a.name,
-                  columns = cols,
-                  materialized = cte_a.materialized)
+        over = complete(cte_a.a)
+        materialized = cte_a.materialized
+        if materialized !== nothing
+            over = NOTE(materialized ? "MATERIALIZED" : "NOT MATERIALIZED", over = over)
+        end
+        arg = AS(name = cte_a.name, columns = cols, over = over)
         push!(with_args, arg)
     end
     if !isempty(with_args)
@@ -633,7 +635,7 @@ function assemble(n::IntJoinNode, refs, ctx)
     else
         right = assemble(n.joinee, ctx)
     end
-    if @dissect(right.clause, (joinee := nothing |> ID() |> AS(name = right_alias)) |> FROM()) ||
+    if @dissect(right.clause, (joinee := nothing |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
        @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM())
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]

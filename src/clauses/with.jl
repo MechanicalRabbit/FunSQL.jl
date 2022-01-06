@@ -32,7 +32,7 @@ julia> c = FROM(:person) |>
            WITH(FROM(:condition_occurrence) |>
                 WHERE(OP("=", :condition_concept_id, 320128)) |>
                 SELECT(:person_id) |>
-                CTE(:essential_hypertension));
+                AS(:essential_hypertension));
 
 julia> print(render(c))
 WITH "essential_hypertension" AS (
@@ -65,7 +65,7 @@ julia> c = FROM(:essential_hypertension) |>
                            OP("=", (:cr, :concept_id_2), (:c, :concept_id))) |>
                       WHERE(OP("=", (:cr, :relationship_id), "Subsumes")) |>
                       SELECT((:c, :concept_id), (:c, :concept_name))) |>
-                CTE(:essential_hypertension, columns = [:concept_id, :concept_name]));
+                AS(:essential_hypertension, columns = [:concept_id, :concept_name]));
 
 julia> print(render(c))
 WITH RECURSIVE "essential_hypertension" ("concept_id", "concept_name") AS (

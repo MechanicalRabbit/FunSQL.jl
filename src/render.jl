@@ -152,7 +152,9 @@ end
 
 function render(ctx, c::AsClause)
     over = c.over
+    columns = c.columns
     if @dissect(over, PARTITION())
+        @assert columns === nothing
         render(ctx, c.name)
         print(ctx, " AS (")
         render(ctx, over)
@@ -161,6 +163,11 @@ function render(ctx, c::AsClause)
         render(ctx, over)
         print(ctx, " AS ")
         render(ctx, c.name)
+        if columns !== nothing
+            print(ctx, " (")
+            render(ctx, columns)
+            print(ctx, ')')
+        end
     end
 end
 
@@ -176,29 +183,6 @@ function render(ctx, c::CaseClause)
         render(ctx, arg)
     end
     print(ctx, " END)")
-end
-
-function render(ctx, c::CTEClause)
-    over = c.over
-    columns = c.columns
-    render(ctx, c.name)
-    if columns !== nothing
-        print(ctx, " (")
-        render(ctx, columns)
-        print(ctx, ')')
-    end
-    if over !== nothing
-        print(ctx, " AS ")
-        if c.materialized === true
-            print(ctx, "MATERIALIZED ")
-        elseif c.materialized === false
-            print(ctx, "NOT MATERIALIZED ")
-        end
-        nested = ctx.nested
-        ctx.nested = true
-        render(ctx, over)
-        ctx.nested = nested
-    end
 end
 
 function render(ctx, c::FromClause)
@@ -327,6 +311,19 @@ end
 
 render(ctx, c::LiteralClause) =
     render(ctx, c.val)
+
+function render(ctx, c::NoteClause)
+    over = c.over
+    if over === nothing
+        print(ctx, c.text)
+    elseif c.postfix
+        render(ctx, over)
+        print(ctx, ' ', c.text)
+    else
+        print(ctx, c.text, ' ')
+        render(ctx, over)
+    end
+end
 
 function render(ctx, c::OperatorClause)
     if isempty(c.args)
@@ -573,7 +570,7 @@ end
 function render(ctx, c::WithClause)
     if !isempty(c.args)
         print(ctx, "WITH ")
-        if c.recursive && ctx.dialect.has_with_recursive
+        if c.recursive && ctx.dialect.has_recursive_annotation
             print(ctx, "RECURSIVE ")
         end
         first = true
@@ -584,7 +581,19 @@ function render(ctx, c::WithClause)
             else
                 first = false
             end
+            if @dissect(arg, AS(name = name, columns = columns, over = arg))
+                render(ctx, name)
+                if columns !== nothing
+                    print(ctx, " (")
+                    render(ctx, columns)
+                    print(ctx, ')')
+                end
+                print(ctx, " AS ")
+            end
+            nested = ctx.nested
+            ctx.nested = true
             render(ctx, arg)
+            ctx.nested = nested
         end
         newline(ctx)
     end
