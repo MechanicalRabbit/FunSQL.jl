@@ -1458,6 +1458,39 @@ CROSS JOIN LATERAL (
   ) AS &quot;visit_occurrence_2&quot;
   WHERE (&quot;visit_occurrence_2&quot;.&quot;row_number&quot; = 1)
 ) AS &quot;visit_1&quot;
+=#</code></pre><p>An optional <code>Join</code> is omitted when the output contains no data from its right branch.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    LeftJoin(:location =&gt; From(location),
+             on = Get.location_id .== Get.location.location_id,
+             optional = true)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    location = SQLTable(:location, …),
+    q1 = From(person),
+    q2 = From(location),
+    q3 = q1 |&gt;
+         Join(q2 |&gt; As(:location),
+              Fun.&quot;==&quot;(Get.location_id, Get.location.location_id),
+              left = true,
+              optional = true)
+    q3
+end
+=#
+
+print(render(q |&gt; Select(Get.year_of_birth)))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+print(render(q |&gt; Select(Get.year_of_birth, Get.location.state)))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+LEFT JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)
 =#</code></pre><h2 id="Order"><a class="docs-heading-anchor" href="#Order"><code>Order</code></a><a id="Order-1"></a><a class="docs-heading-anchor-permalink" href="#Order" title="Permalink"></a></h2><p>The <code>Order</code> constructor creates a subquery for sorting the data.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Order(Get.year_of_birth)
 #-&gt; (…) |&gt; Order(…)
@@ -1946,4 +1979,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Saturday 8 January 2022 12:59">Saturday 8 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Saturday 8 January 2022 13:00">Saturday 8 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
