@@ -1,6 +1,18 @@
 # Release Notes
 
 
+## v0.9.1
+
+* `Join`: add `optional` flag to omit the `JOIN` clause in the case when
+  the data from the right branch is not used by the query.
+* `With`: add `materialized` flag to make CTEs with `MATERIALIZED` and
+  `NOT MATERIALIZED` annotations.
+* Add `WithExternal` node that can be used to prepare the definition for
+  a `CREATE TABLE AS` or a `SELECT INTO` statement.
+* Rearranging clause types: drop `CTE` clause; add `columns` to `AS` clause;
+  add `NOTE` clause.
+
+
 ## v0.9.0
 
 * Add `Iterate` node for making recursive queries.
