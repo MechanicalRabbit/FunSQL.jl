@@ -125,8 +125,8 @@ SQLCatalog(tables...; dialect = :default, cache_maxsize = default_cache_maxsize)
 
 function PrettyPrinting.quoteof(c::SQLCatalog)
     ex = Expr(:call, nameof(SQLCatalog))
-    for (name, table) in sort(c.table_map)
-        push!(ex.args, Expr(:call, :(=>), QuoteNode(name), quoteof(table)))
+    for name in sort!(collect(keys(c.table_map)))
+        push!(ex.args, Expr(:call, :(=>), QuoteNode(name), quoteof(c.table_map[name])))
     end
     push!(ex.args, Expr(:kw, :dialect, quoteof(c.dialect)))
     cache = c.cache
