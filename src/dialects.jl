@@ -138,6 +138,22 @@ end
                           for f in fieldnames(SQLDialect)]...))
 end
 
+const known_connection_types = [
+    [:MySQL, :Connection] => :mysql,
+    [:LibPQ, :Connection] => :postgresql,
+    [:SQLite, :DB] => :sqlite,
+]
+
+function SQLDialect(@nospecialize ConnType::Type)
+    typename = Symbol[Base.fullname(Base.parentmodule(ConnType))..., nameof(ConnType)]
+    for (t, n) in known_connection_types
+        if t == typename
+            return SQLDialect(n)
+        end
+    end
+    throw(DomainError(ConnType, "cannot infer SQLDialect from the connection type"))
+end
+
 Base.convert(::Type{SQLDialect}, name::Symbol) =
     SQLDialect(name)
 

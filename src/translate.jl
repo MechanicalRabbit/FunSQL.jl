@@ -1,22 +1,5 @@
 # Translating a SQL node graph to a SQL statement.
 
-function render(n; dialect = :default)
-    actx = AnnotateContext()
-    n′ = annotate(convert(SQLNode, n), actx)
-    @debug "FunSQL.annotate\n" * sprint(pprint, n′) _group = Symbol("FunSQL.annotate")
-    resolve!(actx)
-    @debug "FunSQL.resolve!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.resolve!")
-    link!(actx)
-    @debug "FunSQL.link!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.link!")
-    tctx = TranslateContext(dialect, actx.path_map)
-    c = translate_toplevel(n′, tctx)
-    @debug "FunSQL.translate\n" * sprint(pprint, c) _group = Symbol("FunSQL.translate")
-    sql = render(c, dialect = dialect)
-    @debug "FunSQL.render\n" * sql _group = Symbol("FunSQL.render")
-    sql
-end
-
-
 # Partially constructed query.
 
 struct Assemblage
@@ -151,9 +134,9 @@ struct TranslateContext
     vars::Dict{Symbol, SQLClause}
     subs::Dict{SQLNode, SQLClause}
 
-    TranslateContext(dialect, path_map::PathMap) =
-        new(dialect,
-            path_map,
+    TranslateContext(ctx::AnnotateContext) =
+        new(ctx.catalog.dialect,
+            ctx.path_map,
             Dict{Symbol, Int}(),
             OrderedDict{SQLNode, CTEAssemblage}(),
             Ref(false),

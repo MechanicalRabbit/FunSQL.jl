@@ -68,20 +68,27 @@ Instead of creating `SQLTable` objects manually, we could call the function
 
     display(tables)
     #=>
-    44-element Vector{SQLTable}:
-     SQLTable(:attribute_definition, …)
-     SQLTable(:care_site, …)
-     SQLTable(:cdm_source, …)
-     ⋮
-     SQLTable(:visit_cost, …)
-     SQLTable(:visit_occurrence, …)
-     SQLTable(:vocabulary, …)
+    SQLCatalog(
+        :attribute_definition => SQLTable(:attribute_definition,
+                                          columns = [:attribute_definition_id,
+                                                     :attribute_name,
+                                                     :attribute_description,
+                                                     :attribute_type_concept_id,
+                                                     :attribute_syntax]),
+        ⋮
+        :vocabulary => SQLTable(:vocabulary,
+                                columns = [:vocabulary_id,
+                                           :vocabulary_name,
+                                           :vocabulary_reference,
+                                           :vocabulary_version,
+                                           :vocabulary_concept_id]),
+        dialect = SQLDialect(:sqlite))
     =#
 
 It is convenient to expose each `SQLTable` object as a constant.
 
-    for t in tables
-        @eval const $(t.name) = $t
+    for (n, t) in tables
+        @eval const $n = $t
     end
 
     display(person)
@@ -109,7 +116,7 @@ It is convenient to expose each `SQLTable` object as a constant.
 
 Alternatively, we could encapsulate all `SQLTable` objects in a `NamedTuple`.
 
-    const db = NamedTuple([t.name => t for t in tables])
+    const db = NamedTuple(tables)
 
     display(db.person)
     #=>
