@@ -7,14 +7,15 @@ using PrettyPrinting: PrettyPrinting, pprint, quoteof, tile_expr, literal
 using OrderedCollections: OrderedDict, OrderedSet
 using Tables
 using DBInterface
+using LRUCache
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
 
 """
-    render(node::Union{SQLNode, SQLClause}; dialect = :default)::SQLStatement
+    render(node::Union{SQLNode, SQLClause}; dialect = :default)::SQLString
 
-Convert the given SQL node or clause object to a SQL string.
+Serialize the given SQL node or SQL clause object.
 """
 function render
 end
@@ -34,28 +35,17 @@ abstract type FunSQLError <: Exception
 end
 
 include("dissect.jl")
-include("dialects.jl")
-include("types.jl")
-include("statements.jl")
-include("entities.jl")
 include("quote.jl")
+include("strings.jl")
+include("dialects.jl")
+include("catalogs.jl")
 include("clauses.jl")
 include("nodes.jl")
+include("connections.jl")
+include("types.jl")
 include("annotate.jl")
 include("translate.jl")
 include("render.jl")
 include("reflect.jl")
-
-const Not = Fun.not
-const And = Fun.and
-const Or = Fun.or
-const Like = Fun.like
-const In = Fun."in"
-const NotIn = Fun."not in"
-const IsNull = Fun."is null"
-const IsNotNull = Fun."is not null"
-const Case = Fun.case
-const Concat = Fun.concat
-const Coalesce = Fun.coalesce
 
 end

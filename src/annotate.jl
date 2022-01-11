@@ -331,21 +331,23 @@ get_path(map::PathMap, n) =
     get_path(map, get(map.origins, n, 0))
 
 struct AnnotateContext
+    catalog::SQLCatalog
     path_map::PathMap
     current_path::Vector{Int}
     handles::Dict{SQLNode, Int}
     boxes::Vector{BoxNode}
     with_nodes::Dict{Symbol, SQLNode}
 
-    AnnotateContext() =
-        new(PathMap(),
+    AnnotateContext(catalog) =
+        new(catalog,
+            PathMap(),
             Int[0],
             Dict{SQLNode, Int}(),
             BoxNode[],
             Dict{Symbol, SQLNode}())
 
     AnnotateContext(ctx::AnnotateContext; with_nodes = nothing) =
-        new(ctx.path_map, ctx.current_path, ctx.handles, ctx.boxes, something(with_nodes, ctx.with_nodes))
+        new(ctx.catalog, ctx.path_map, ctx.current_path, ctx.handles, ctx.boxes, something(with_nodes, ctx.with_nodes))
 end
 
 function grow_path!(ctx::AnnotateContext, n::SQLNode)
@@ -499,12 +501,18 @@ function annotate(n::FromNode, ctx)
         FromTable(table = source)
     elseif source isa Symbol
         over = get(ctx.with_nodes, source, nothing)
-        if over === nothing
-            throw(ReferenceError(REFERENCE_ERROR_TYPE.UNDEFINED_TABLE_REFERENCE,
-                                 name = source,
-                                 path = get_path(ctx)))
+        if over !== nothing
+            FromReference(over = over, name = source)
+        else
+            table = get(ctx.catalog, source, nothing)
+            if table !== nothing
+                FromTable(table = table)
+            else
+                throw(ReferenceError(REFERENCE_ERROR_TYPE.UNDEFINED_TABLE_REFERENCE,
+                                     name = source,
+                                     path = get_path(ctx)))
+            end
         end
-        FromReference(over = over, name = source)
     else
         FromNothing()
     end

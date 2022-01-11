@@ -1,5 +1,63 @@
 # Rendering SQL.
 
+render(n; connection = nothing, catalog = nothing, dialect = :default) =
+    render(connection !== nothing ? connection :
+           catalog !== nothing ? catalog : convert(SQLDialect, dialect),
+           n)
+
+render(conn::SQLConnection, n) =
+    render(conn.catalog, n)
+
+render(catalog::SQLCatalog, n) =
+    render(catalog, convert(SQLNode, n))
+
+render(dialect::SQLDialect, n) =
+    render(SQLCatalog(dialect = dialect), n)
+
+function render(catalog::SQLCatalog, n::SQLNode)
+    cache = catalog.cache
+    if cache !== nothing
+        sql = get(cache, n, nothing)
+        if sql !== nothing
+            return sql
+        end
+    end
+    actx = AnnotateContext(catalog)
+    n′ = annotate(n, actx)
+    @debug "FunSQL.annotate\n" * sprint(pprint, n′) _group = Symbol("FunSQL.annotate")
+    resolve!(actx)
+    @debug "FunSQL.resolve!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.resolve!")
+    link!(actx)
+    @debug "FunSQL.link!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.link!")
+    tctx = TranslateContext(actx)
+    c = translate_toplevel(n′, tctx)
+    @debug "FunSQL.translate\n" * sprint(pprint, c) _group = Symbol("FunSQL.translate")
+    sql = render(catalog.dialect, c)
+    @debug "FunSQL.render\n" * sql _group = Symbol("FunSQL.render")
+    if cache !== nothing
+        cache[n] = sql
+    end
+    sql
+end
+
+render(conn::SQLConnection, c::AbstractSQLClause) =
+    render(conn.catalog, c)
+
+render(catalog::SQLCatalog, c::AbstractSQLClause) =
+    render(catalog.dialect, c)
+
+render(dialect::SQLDialect, c::AbstractSQLClause) =
+    render(dialect, convert(SQLClause, c))
+
+function render(dialect::SQLDialect, c::SQLClause)
+    ctx = RenderContext(dialect)
+    render(ctx, convert(SQLClause, c))
+    raw = String(take!(ctx.io))
+    SQLString(raw, vars = ctx.vars)
+end
+
+# SQL Serialization.
+
 mutable struct RenderContext <: IO
     dialect::SQLDialect
     io::IOBuffer
@@ -22,13 +80,6 @@ function newline(ctx::RenderContext)
     for k = 1:ctx.level
         print(ctx, "  ")
     end
-end
-
-function render(c::AbstractSQLClause; dialect = :default)
-    ctx = RenderContext(dialect)
-    render(ctx, convert(SQLClause, c))
-    sql = String(take!(ctx.io))
-    SQLStatement(sql = sql, dialect = ctx.dialect, vars = ctx.vars)
 end
 
 function render(ctx, name::Symbol)

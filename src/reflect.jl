@@ -65,13 +65,15 @@ end
 reflect_sql(d::SQLDialect) =
     render(reflect_clause(d), dialect = d)
 
-function reflect(conn; schema = nothing, dialect = :default)
+function reflect(conn; schema = nothing, dialect = SQLDialect(typeof(conn)), cache_maxsize = default_cache_maxsize)
     dialect = convert(SQLDialect, dialect)
     sql = reflect_sql(dialect)
     params = pack(sql, (; schema = something(schema, missing)))
     stmt = DBInterface.prepare(conn, String(sql))
     cr = DBInterface.execute(stmt, params)
-    tables_from_column_list(Tables.rows(cr))
+    SQLCatalog(tables = tables_from_column_list(Tables.rows(cr)),
+               dialect = dialect,
+               cache_maxsize = cache_maxsize)
 end
 
 function tables_from_column_list(rows)
