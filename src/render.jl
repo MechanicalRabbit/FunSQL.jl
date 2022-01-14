@@ -12,7 +12,7 @@ render(catalog::SQLCatalog, n) =
     render(catalog, convert(SQLNode, n))
 
 render(dialect::SQLDialect, n) =
-    render(SQLCatalog(dialect = dialect), n)
+    render(SQLCatalog(dialect = dialect, cache = nothing), n)
 
 function render(catalog::SQLCatalog, n::SQLNode)
     cache = catalog.cache

@@ -108,20 +108,19 @@ _table_entry((n, t)::Pair{<:Union{Symbol, AbstractString}, SQLTable}) =
 struct SQLCatalog <: AbstractDict{Symbol, SQLTable}
     table_map::Dict{Symbol, SQLTable}
     dialect::SQLDialect
-    cache::Union{LRU{Any, SQLString}, Nothing}
+    cache::Any # Union{AbstractDict{SQLNode, SQLString}, Nothing}
 
-    function SQLCatalog(; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache_maxsize = 1024)
+    function SQLCatalog(; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache = default_cache_maxsize)
         table_map = _table_map(tables)
-        cache =
-            cache_maxsize > 0 ?
-            LRU{Any, SQLString}(maxsize = cache_maxsize) :
-            nothing
+        if cache isa Number
+            cache = LRU{SQLNode, SQLString}(maxsize = cache)
+        end
         new(table_map, dialect, cache)
     end
 end
 
-SQLCatalog(tables...; dialect = :default, cache_maxsize = default_cache_maxsize) =
-    SQLCatalog(tables = tables, dialect = dialect, cache_maxsize = cache_maxsize)
+SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize) =
+    SQLCatalog(tables = tables, dialect = dialect, cache = cache)
 
 function PrettyPrinting.quoteof(c::SQLCatalog)
     ex = Expr(:call, nameof(SQLCatalog))
@@ -131,9 +130,13 @@ function PrettyPrinting.quoteof(c::SQLCatalog)
     push!(ex.args, Expr(:kw, :dialect, quoteof(c.dialect)))
     cache = c.cache
     if cache === nothing
-        push!(ex.args, Expr(:kw, :cache_maxsize, 0))
-    elseif cache.maxsize != default_cache_maxsize
-        push!(ex.args, Expr(:kw, :cache_maxsize, cache.maxsize))
+        push!(ex.args, Expr(:kw, :cache, nothing))
+    elseif cache isa LRU{SQLNode, SQLString}
+        if cache.maxsize != default_cache_maxsize
+            push!(ex.args, Expr(:kw, :cache, cache.maxsize))
+        end
+    else
+        push!(ex.args, Expr(:kw, :cache, Expr(:call, typeof(cache))))
     end
     ex
 end
