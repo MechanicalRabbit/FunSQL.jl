@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v0.9.2
+
+* Compatibility with PrettyPrinting 0.4.
+
+
 ## v0.9.1
 
 * `Join`: add `optional` flag to omit the `JOIN` clause in the case when
