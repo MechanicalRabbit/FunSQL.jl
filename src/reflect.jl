@@ -65,7 +65,7 @@ end
 reflect_sql(d::SQLDialect) =
     render(reflect_clause(d), dialect = d)
 
-function reflect(conn; schema = nothing, dialect = SQLDialect(typeof(conn)), cache_maxsize = default_cache_maxsize)
+function reflect(conn; schema = nothing, dialect = SQLDialect(typeof(conn)), cache = default_cache_maxsize)
     dialect = convert(SQLDialect, dialect)
     sql = reflect_sql(dialect)
     params = pack(sql, (; schema = something(schema, missing)))
@@ -73,7 +73,7 @@ function reflect(conn; schema = nothing, dialect = SQLDialect(typeof(conn)), cac
     cr = DBInterface.execute(stmt, params)
     SQLCatalog(tables = tables_from_column_list(Tables.rows(cr)),
                dialect = dialect,
-               cache_maxsize = cache_maxsize)
+               cache = cache)
 end
 
 function tables_from_column_list(rows)
