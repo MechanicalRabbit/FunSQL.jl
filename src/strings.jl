@@ -35,6 +35,14 @@ Base.print(io::IO, sql::SQLString) =
 Base.write(io::IO, sql::SQLString) =
     write(io, sql.raw)
 
+function PrettyPrinting.quoteof(sql::SQLString)
+    ex = Expr(:call, nameof(SQLString), sql.raw)
+    if !isempty(sql.vars)
+        push!(ex.args, Expr(:kw, :vars, quoteof(sql.vars)))
+    end
+    ex
+end
+
 function Base.show(io::IO, sql::SQLString)
     print(io, "SQLString(")
     show(io, sql.raw)
@@ -45,6 +53,9 @@ function Base.show(io::IO, sql::SQLString)
     print(io, ')')
     nothing
 end
+
+Base.show(io::IO, ::MIME"text/plain", sql::SQLString) =
+    pprint(io, sql)
 
 """
     pack(sql::SQLString, vars::Union{Dict, NamedTuple}) :: Vector{Any}
