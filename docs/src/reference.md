@@ -26,7 +26,7 @@ Pages = ["reflect.jl"]
 ```
 
 
-## `SQLConnection`
+## `SQLConnection` and `SQLStatement`
 
 ```@autodocs
 Modules = [FunSQL]

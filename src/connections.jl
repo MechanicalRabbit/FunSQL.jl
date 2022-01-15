@@ -17,6 +17,14 @@ end
 SQLConnection(raw::RawConnType; catalog) where {RawConnType} =
     SQLConnection{RawConnType}(raw, catalog = catalog)
 
+function Base.show(io::IO, conn::SQLConnection)
+    print(io, "SQLConnection(")
+    show(io, conn.raw)
+    print(io, ", catalog = ")
+    show(io, conn.catalog)
+    print(io, ')')
+end
+
 """
     SQLStatement(conn, raw; vars = Symbol[])
 
@@ -33,6 +41,18 @@ end
 
 SQLStatement(conn::SQLConnection{RawConnType}, raw::RawStmtType; vars = Symbol[]) where {RawConnType, RawStmtType} =
     SQLStatement{RawConnType, RawStmtType}(conn, raw, vars = vars)
+
+function Base.show(io::IO, stmt::SQLStatement)
+    print(io, "SQLStatement(")
+    show(io, stmt.conn)
+    print(io, ", ")
+    show(io, stmt.raw)
+    if !isempty(stmt.vars)
+        print(io, ", vars = ")
+        show(io, stmt.vars)
+    end
+    print(io, ')')
+end
 
 """
 Shorthand for [`SQLConnection`](@ref).
@@ -124,5 +144,5 @@ DBInterface.getconnection(stmt::SQLStatement) =
     stmt.conn
 
 DBInterface.close!(stmt::SQLStatement) =
-    DBInterface.close(stmt.raw)
+    DBInterface.close!(stmt.raw)
 

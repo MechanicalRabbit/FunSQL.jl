@@ -2,10 +2,9 @@
 
 ```@contents
 Pages = [
-    "catalogs.md",
     "clauses.md",
-    "dialects.md",
     "nodes.md",
+    "other.md",
 ]
 ```
 

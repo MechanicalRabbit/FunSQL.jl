@@ -16,18 +16,14 @@ render(conn::SQLConnection, n) =
 render(catalog::SQLCatalog, n) =
     render(catalog, convert(SQLNode, n))
 
-render(dialect::SQLDialect, n) =
-    render(SQLCatalog(dialect = dialect, cache = nothing), n)
-
 """
-    render(catalog::Union{SQLConnection, SQLCatalog, SQLDialect},
-           node::SQLNode)::SQLString
+    render(catalog::Union{SQLConnection, SQLCatalog}, node::SQLNode)::SQLString
 
 Serialize the query node as a SQL statement.
 
 Parameter `catalog` of [`SQLCatalog`](@ref) type encapsulates available
 database tables and the target SQL dialect.  A [`SQLConnection`](@ref) object
-or a [`SQLDialect`](@ref) object are also accepted.
+is also accepted.
 
 Parameter `node` is a composite [`SQLNode`](@ref) object.
 
@@ -77,9 +73,6 @@ function render(catalog::SQLCatalog, n::SQLNode)
     end
     sql
 end
-
-render(conn::SQLConnection, c::AbstractSQLClause) =
-    render(conn.catalog, c)
 
 render(catalog::SQLCatalog, c::AbstractSQLClause) =
     render(catalog.dialect, c)
