@@ -68,7 +68,7 @@ function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
     ex
 end
 
-const default_cache_maxsize = 1024
+const default_cache_maxsize = 256
 
 _table_map(tables::Dict{Symbol, SQLTable}) =
     tables
@@ -169,9 +169,13 @@ function Base.show(io::IO, c::SQLCatalog)
     print(io, "dialect = ", c.dialect)
     cache = c.cache
     if cache === nothing
-        print(io, ", cache_maxsize = 0")
-    elseif cache.maxsize != default_cache_maxsize
-        print(io, ", cache_maxsize = ", cache.maxsize)
+        print(io, ", cache = nothing")
+    elseif cache isa LRU{SQLNode, SQLString}
+        if cache.maxsize != default_cache_maxsize
+            print(io, ", cache = ", cache.maxsize)
+        end
+    else
+        print(io, ", cache = ", typeof(cache), "()")
     end
     print(io, ')')
     nothing

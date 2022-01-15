@@ -1,4 +1,4 @@
-# SQL Dialects
+# `SQLDialect`
 
 In FunSQL, properties and capabilities of a particular SQL dialect
 are encapsulated in a `SQLDialect` object.

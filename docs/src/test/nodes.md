@@ -1,4 +1,4 @@
-# SQL Nodes
+# `SQLNode`
 
     using FunSQL:
         Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
