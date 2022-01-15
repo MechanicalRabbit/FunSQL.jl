@@ -5,6 +5,17 @@ CurrentModule = FunSQL
 ```
 
 
+## Importing FunSQL
+
+FunSQL does not export any symbols by default.  The following statement imports
+all available query constructors and the function [`render`](@ref).
+
+    using FunSQL:
+        FunSQL, Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get,
+        Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
+        Partition, Select, Sort, Var, Where, With, WithExternal, render
+
+
 ## Establishing a database connection
 
 We use FunSQL to assemble SQL queries.  To actually run these queries, we need
@@ -24,142 +35,49 @@ schema.
 
 ```julia
 const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
-const DB = download(URL)
+const DATABASE = download(URL)
 ```
 
 *Download the database file as an [artifact](../Artifacts.toml).*
 
     using Pkg.Artifacts, LazyArtifacts
 
-    const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
+    const DATABASE = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
     #-> ⋮
 
-*Create a SQLite connection object.*
+*Create a connection object.*
 
     using SQLite
 
-    const conn = SQLite.DB(DB)
+    const conn = DBInterface.connect(FunSQL.DB{SQLite.DB}, DATABASE)
 
 
-## Importing FunSQL
+## Database connection with LibPQ.jl
 
-FunSQL does not export any symbols by default.  The following statement imports
-all available query constructors, a [`SQLTable`](@ref) constructor, and the
-function [`reflect`](@ref) and [`render`](@ref).
-
-    using FunSQL:
-        Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get, Group,
-        Highlight, Join, LeftJoin, Limit, Lit, Order, Partition, SQLTable,
-        Select, Sort, Var, Where, reflect, render
-
-
-## Database reflection
-
-For each database table referenced in a query, we need to create a
-[`SQLTable`](@ref) object encapsulating the name of the table and the list of
-the table columns.
-
-    SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
-
-Instead of creating `SQLTable` objects manually, we could call the function
-[`reflect`](@ref) to fetch a list of available tables from the database itself.
-
-    const tables = reflect(conn, dialect = :sqlite)
-
-    display(tables)
-    #=>
-    SQLCatalog(
-        :attribute_definition => SQLTable(:attribute_definition,
-                                          columns = [:attribute_definition_id,
-                                                     :attribute_name,
-                                                     :attribute_description,
-                                                     :attribute_type_concept_id,
-                                                     :attribute_syntax]),
-        ⋮
-        :vocabulary => SQLTable(:vocabulary,
-                                columns = [:vocabulary_id,
-                                           :vocabulary_name,
-                                           :vocabulary_reference,
-                                           :vocabulary_version,
-                                           :vocabulary_concept_id]),
-        dialect = SQLDialect(:sqlite))
-    =#
-
-It is convenient to expose each `SQLTable` object as a constant.
-
-    for (n, t) in tables
-        @eval const $n = $t
-    end
-
-    display(person)
-    #=>
-    SQLTable(:person,
-             columns = [:person_id,
-                        :gender_concept_id,
-                        :year_of_birth,
-                        :month_of_birth,
-                        :day_of_birth,
-                        :time_of_birth,
-                        :race_concept_id,
-                        :ethnicity_concept_id,
-                        :location_id,
-                        :provider_id,
-                        :care_site_id,
-                        :person_source_value,
-                        :gender_source_value,
-                        :gender_source_concept_id,
-                        :race_source_value,
-                        :race_source_concept_id,
-                        :ethnicity_source_value,
-                        :ethnicity_source_concept_id])
-    =#
-
-Alternatively, we could encapsulate all `SQLTable` objects in a `NamedTuple`.
-
-    const db = NamedTuple(tables)
-
-    display(db.person)
-    #=>
-    SQLTable(:person,
-             columns = [:person_id,
-                        :gender_concept_id,
-                        :year_of_birth,
-                        :month_of_birth,
-                        :day_of_birth,
-                        :time_of_birth,
-                        :race_concept_id,
-                        :ethnicity_concept_id,
-                        :location_id,
-                        :provider_id,
-                        :care_site_id,
-                        :person_source_value,
-                        :gender_source_value,
-                        :gender_source_concept_id,
-                        :race_source_value,
-                        :race_source_concept_id,
-                        :ethnicity_source_value,
-                        :ethnicity_source_concept_id])
-    =#
-
-
-## Database reflection with LibPQ.jl
-
-The function `reflect()` relies on the
-[DBInterface.jl](https://github.com/JuliaDatabases/DBInterface.jl) package to
-execute the SQL query that retrieves a list of available database tables.
+To create a connection object, FunSQL relies on the
+[DBInterface.jl](https://github.com/JuliaDatabases/DBInterface.jl) package.
 Unfortunately [LibPQ.jl](https://github.com/invenia/LibPQ.jl), the PostgreSQL
-client library, does not support DBInterface.  To make `reflect()` work, we
-need to manually bridge LibPQ and DBInterface.
+client library, does not support DBInterface.  To make `DBInterface.connect`
+work, we need to manually bridge LibPQ and DBInterface.
 
 ```julia
 using LibPQ
 using DBInterface
+
+DBInterface.connect(::Type{LibPQ.Connection}, args...; kws...) =
+    LibPQ.Connection(args...; kws...)
 
 DBInterface.prepare(conn::LibPQ.Connection, args...; kws...) =
     LibPQ.prepare(conn, args...; kws...)
 
 DBInterface.execute(conn::Union{LibPQ.Connection, LibPQ.Statement}, args...; kws...) =
     LibPQ.execute(conn, args...; kws...)
+```
+
+Now we can create a FunSQL connection using `DBInterface.connect`.
+
+```julia
+const conn = DBInterface.connect(FunSQL.DB{LibPQ.Connection}, …)
 ```
 
 
@@ -170,9 +88,12 @@ FunSQL query consists of a single [`From`](@ref) node.
 
 *Show all patient records.*
 
-    q = From(person)
+    q = From(:person)
 
-    sql = render(q, dialect = :sqlite)
+We use the function [`render`](@ref) to serialize the query node as a SQL
+statement.
+
+    sql = render(conn, q)
 
     print(sql)
     #=>
@@ -182,6 +103,8 @@ FunSQL query consists of a single [`From`](@ref) node.
       "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     =#
+
+This query could be executed with `DBInterface.execute`.
 
     res = DBInterface.execute(conn, sql)
 
@@ -209,6 +132,28 @@ To display the output of a query, it is convenient to use the
                                                                   14 columns omitted
     =#
 
+We could also directly apply `DBInterface.execute` to the query node in order
+to render and immediately execute it.
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    10×18 DataFrame
+     Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+         │ Int64      Int64              Int64          Int64           Int64      ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │      1780               8532           1940               2             ⋯
+       2 │     30091               8532           1932               8
+       3 │     37455               8532           1913               7
+       4 │     42383               8507           1922               2
+       5 │     69985               8532           1956               7             ⋯
+       6 │     72120               8507           1937              10
+       7 │     82328               8532           1957               9
+       8 │     95538               8507           1923              11
+       9 │    107680               8532           1963              12             ⋯
+      10 │    110862               8507           1911               4
+                                                                  14 columns omitted
+    =#
+
 
 ## `WHERE`, `ORDER`, `LIMIT`
 
@@ -218,14 +163,12 @@ them in any order.
 
 *Show the top 3 oldest male patients.*
 
-    q = From(person) |>
+    q = From(:person) |>
         Where(Get.gender_concept_id .== 8507) |>
         Order(Get.year_of_birth) |>
         Limit(3)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
@@ -237,9 +180,7 @@ them in any order.
     LIMIT 3
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     3×18 DataFrame
      Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
@@ -253,14 +194,12 @@ them in any order.
 
 *Show all males among the top 3 oldest patients.*
 
-    q = From(person) |>
+    q = From(:person) |>
         Order(Get.year_of_birth) |>
         Limit(3) |>
         Where(Get.gender_concept_id .== 8507)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_2"."person_id",
@@ -278,9 +217,7 @@ them in any order.
     WHERE ("person_2"."gender_concept_id" = 8507)
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     2×18 DataFrame
      Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
@@ -299,21 +236,17 @@ To apply an aggregate function to the dataset as a whole, we use a
 
 *Show the number of patient records.*
 
-    q = From(person) |>
+    q = From(:person) |>
         Group() |>
         Select(Agg.count())
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT COUNT(*) AS "count"
     FROM "person" AS "person_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     1×1 DataFrame
      Row │ count
@@ -330,20 +263,16 @@ FunSQL will render it as a `SELECT DISTINCT` clause.
 
 *Show all US states present in the location records.*
 
-    q = From(location) |>
+    q = From(:location) |>
         Group(Get.state)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT DISTINCT "location_1"."state"
     FROM "location" AS "location_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     10×1 DataFrame
      Row │ state
@@ -369,19 +298,20 @@ output columns.
 
 *Filter out all "source" columns from patient records.*
 
+    const person_table = conn.catalog[:person]
+
     is_not_source_column(c::Symbol) =
         !contains(String(c), "source")
 
-    q = From(person) |>
-        Select(Get.(filter(is_not_source_column, person.columns))...)
+    q = From(:person) |>
+        Select(Get.(filter(is_not_source_column, person_table.columns))...)
 
-    # q = From(person) |>
-    #     Select(args = [Get(c) for c in person.columns if is_not_source_column(c)])
+    # q = From(:person) |>
+    #     Select(args = [Get(c) for c in person_table.columns if is_not_source_column(c)])
 
     display(q)
     #=>
-    let person = SQLTable(:person, …),
-        q1 = From(person),
+    let q1 = From(:person),
         q2 = q1 |>
              Select(Get.person_id,
                     Get.gender_concept_id,
@@ -398,9 +328,7 @@ output columns.
     end
     =#
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
@@ -417,9 +345,7 @@ output columns.
     FROM "person" AS "person_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     10×11 DataFrame
      Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
@@ -444,11 +370,11 @@ output columns.
 branches of the [`Join`](@ref) node.  By default, columns fenced by `As` are
 not present in the output.
 
-    q = From(person) |>
-        Join(From(visit_occurrence) |> As(:visit),
+    q = From(:person) |>
+        Join(From(:visit_occurrence) |> As(:visit),
              on = Get.person_id .== Get.visit.person_id)
 
-    print(render(q, dialect = :sqlite))
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
@@ -458,11 +384,11 @@ not present in the output.
     JOIN "visit_occurrence" AS "visit_occurrence_1" ON ("person_1"."person_id" = "visit_occurrence_1"."person_id")
     =#
 
-    q′ = From(person) |> As(:person) |>
-         Join(From(visit_occurrence),
+    q′ = From(:person) |> As(:person) |>
+         Join(From(:visit_occurrence),
               on = Get.person.person_id .== Get.person_id)
 
-    print(render(q′, dialect = :sqlite))
+    render(conn, q′) |> print
     #=>
     SELECT
       "visit_occurrence_1"."visit_occurrence_id",
@@ -475,20 +401,22 @@ not present in the output.
 We could use a [`Select`](@ref) node to output the columns of both branches,
 however we must ensure that all column names are unique.
 
+    const visit_occurrence_table = conn.catalog[:visit_occurrence]
+
     q = q |>
-        Select(Get.(person.columns)...,
-               Get.(visit_occurrence.columns, over = Get.visit)...)
+        Select(Get.(person_table.columns)...,
+               Get.(visit_occurrence_table.columns, over = Get.visit)...)
     #=>
     ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
     ⋮
     =#
 
     q = q |>
-        Select(Get.(person.columns)...,
-               Get.(filter(!in(person.columns), visit_occurrence.columns),
+        Select(Get.(person_table.columns)...,
+               Get.(filter(!in(person_table.columns), visit_occurrence_table.columns),
                     over = Get.visit)...)
 
-    print(render(q, dialect = :sqlite))
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
@@ -516,26 +444,24 @@ stratified by the age group at the time of diagnosis.*
                  "100 +")
 
     ConceptByName(name) =
-        From(concept) |>
+        From(:concept) |>
         Where(Fun.like(Get.concept_name, "%$(name)%"))
 
     MyocardialInfarctionConcept() =
         ConceptByName("myocardial infarction")
 
     MyocardialInfarctionOccurrence() =
-        From(condition_occurrence) |>
+        From(:condition_occurrence) |>
         Join(:concept => MyocardialInfarctionConcept(),
              on = Get.condition_concept_id .== Get.concept.concept_id)
 
-    q = From(person) |>
+    q = From(:person) |>
         Join(:condition => MyocardialInfarctionOccurrence(),
              on = Get.person_id .== Get.condition.person_id) |>
         Group(:age_group => AgeGroup(PersonAgeAt(Get.condition.condition_start_date))) |>
         Select(Get.age_group, Agg.count())
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       (CASE WHEN ((STRFTIME('%Y', "condition_1"."condition_start_date") - "person_1"."year_of_birth") < 5) THEN '0 - 4' …  ELSE '100 +' END) AS "age_group",
@@ -555,9 +481,7 @@ stratified by the age group at the time of diagnosis.*
     GROUP BY (CASE WHEN ((STRFTIME('%Y', "condition_1"."condition_start_date") - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '100 +' END)
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     3×2 DataFrame
      Row │ age_group  count
@@ -584,14 +508,14 @@ between consecutive events.*
     using Dates
 
     ConceptByName(name) =
-        From(concept) |>
+        From(:concept) |>
         Where(Fun.like(Get.concept_name, "%$(name)%"))
 
     MyocardialInfarctionConcept() =
         ConceptByName("myocardial infarction")
 
     MyocardialInfarctionOccurrence() =
-        From(condition_occurrence) |>
+        From(:condition_occurrence) |>
         Join(:concept => MyocardialInfarctionConcept(),
              on = Get.condition_concept_id .== Get.concept.concept_id)
 
@@ -599,7 +523,7 @@ between consecutive events.*
         ConceptByName("inpatient")
 
     InpatientVisitOccurrence() =
-        From(visit_occurrence) |>
+        From(:visit_occurrence) |>
         Join(:concept => InpatientVisitConcept(),
              on = Get.visit_concept_id .== Get.concept.concept_id)
 
@@ -627,9 +551,7 @@ between consecutive events.*
     q = FilteredMyocardialInfarctionDuringInpatientVisit() |>
         Select(Get.person_id, Get.condition_start_date)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "condition_occurrence_2"."person_id",
@@ -661,9 +583,7 @@ between consecutive events.*
     WHERE (("condition_occurrence_2"."boundary" IS NULL) OR ("condition_occurrence_2"."boundary" < "condition_occurrence_2"."condition_start_date"))
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     1×2 DataFrame
      Row │ person_id  condition_start_date
@@ -700,13 +620,11 @@ transformations.
         Define(:start_date => Agg.min(start_date),
                :end_date => Agg.max(end_date))
 
-    q = From(visit_occurrence) |>
+    q = From(:visit_occurrence) |>
         MergeOverlappingIntervals(Get.visit_start_date, Get.visit_end_date) |>
         Select(Get.person_id, Get.start_date, Get.end_date)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "visit_occurrence_3"."person_id",
@@ -732,9 +650,7 @@ transformations.
       "visit_occurrence_3"."period"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     25×3 DataFrame
      Row │ person_id  start_date  end_date
@@ -766,13 +682,11 @@ one year gap between them.*
         MergeOverlappingIntervals(start_date, Fun.date(end_date, gap)) |>
         Define(:end_date => Fun.date(Get.end_date, -gap))
 
-    q = From(visit_occurrence) |>
+    q = From(:visit_occurrence) |>
         MergeIntervalsByGap(Get.visit_start_date, Get.visit_end_date, Day(365)) |>
         Select(Get.person_id, Get.start_date, Get.end_date)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "visit_occurrence_3"."person_id",
@@ -798,9 +712,7 @@ one year gap between them.*
       "visit_occurrence_3"."period"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     12×3 DataFrame
      Row │ person_id  start_date  end_date

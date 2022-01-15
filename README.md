@@ -36,11 +36,11 @@ Illinois was seen by a healthcare provider?*
 With FunSQL, this question is expressed as a composite query object:
 
 ```julia
-From(person) |>
+From(:person) |>
 Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-Join(From(location) |> Where(Get.state .== "IL") |> As(:location),
+Join(From(:location) |> Where(Get.state .== "IL") |> As(:location),
      on = Get.location_id .== Get.location.location_id) |>
-Join(From(visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
+Join(From(:visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
      on = Get.person_id .== Get.visit_group.person_id,
      left = true) |>
 Select(Get.person_id,
@@ -84,10 +84,6 @@ Scalar expressions are straightforward: `Fun.between` and `.==` is how FunSQL
 represents SQL functions and operators; `Agg.max` is a notation for aggregate
 functions; `Get.person_id` is a reference to a column; `Get.location.person_id`
 refers to a column fenced by `As(:location)`.
-
-Variables `person`, `location`, and `visit_occurrence` are `SQLTable` objects
-describing the corresponding tables.  For the description of this database and
-more examples, see the [Usage Guide][guide-url].
 
 Notably, FunSQL notation does not rely on macros or anonymous functions as they
 hinder modular query construction.  FunSQL queries and their intermediate
