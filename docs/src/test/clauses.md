@@ -1,4 +1,4 @@
-# SQL Clauses
+# `SQLClause`
 
     using FunSQL:
         AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
