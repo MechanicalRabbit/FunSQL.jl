@@ -65,8 +65,25 @@ end
 reflect_sql(d::SQLDialect) =
     render(reflect_clause(d), dialect = d)
 
-function reflect(conn; schema = nothing, dialect = SQLDialect(typeof(conn)), cache = default_cache_maxsize)
-    dialect = convert(SQLDialect, dialect)
+"""
+    reflect(conn;
+            schema = nothing,
+            dialect = nothing,
+            cache = $default_cache_maxsize)::SQLCatalog
+
+Retrieve the information about available database tables.
+
+The function returns a [`SQLCatalog`](@ref) object.  The catalog
+will be populated with the tables from the given database `schema`, or,
+if parameter `schema` is not set, from the default database schema
+(e.g., schema `public` for PostgreSQL).
+
+Parameter `dialect` specifies the target [`SQLDialect`](@ref).  If not set,
+`dialect` will be inferred from the type of the connection object.
+
+"""
+function reflect(conn; schema = nothing, dialect = nothing, cache = default_cache_maxsize)
+    dialect = dialect === nothing ? SQLDialect(typeof(conn)) : convert(SQLDialect, dialect)
     sql = reflect_sql(dialect)
     params = pack(sql, (; schema = something(schema, missing)))
     stmt = DBInterface.prepare(conn, String(sql))

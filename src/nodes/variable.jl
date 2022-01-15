@@ -17,20 +17,23 @@ VariableNode(name) =
 
 A reference to a query parameter.
 
+Specify the value for the parameter with [`Bind`](@ref) to create
+a correlated subquery or a lateral join.
+
 # Examples
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(person) |>
-           Where(Get.year_of_birth .> Var.year);
+           Where(Get.year_of_birth .> Var.YEAR);
 
 julia> print(render(q))
 SELECT
   "person_1"."person_id",
   "person_1"."year_of_birth"
 FROM "person" AS "person_1"
-WHERE ("person_1"."year_of_birth" > :year)
+WHERE ("person_1"."year_of_birth" > :YEAR)
 ```
 """
 Var(args...; kws...) =

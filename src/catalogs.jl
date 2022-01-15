@@ -5,40 +5,20 @@
     SQLTable(name; schema = nothing, columns)
     SQLTable(name, columns...; schema = nothing)
 
-The structure of a SQL table or a table-like entity (TEMP TABLE, VIEW, etc) for
-use as a reference in assembling SQL queries.
+The structure of a SQL table or a table-like entity (`TEMP TABLE`, `VIEW`, etc)
+for use as a reference in assembling SQL queries.
 
 The `SQLTable` constructor expects the table `name`, a vector `columns` of
 column names, and, optionally, the name of the table `schema`.  A name can be
-provided as a `Symbol` or `String` value.
+a `Symbol` or a `String` value.
 
 # Examples
 
 ```jldoctest
-julia> t = SQLTable(:location,
-                    :location_id, :address_1, :address_2, :city, :state, :zip);
-
-
-julia> show(t.name)
-:location
-
-julia> show(t.columns)
-[:location_id, :address_1, :address_2, :city, :state, :zip]
-```
-
-```jldoctest
-julia> t = SQLTable(schema = "public",
-                    name = "person",
-                    columns = ["person_id", "birth_datetime", "location_id"]);
-
-julia> show(t.schema)
-:public
-
-julia> show(t.name)
-:person
-
-julia> show(t.columns)
-[:person_id, :birth_datetime, :location_id]
+julia> person = SQLTable(schema = "public",
+                         name = "person",
+                         columns = ["person_id", "year_of_birth"])
+SQLTable(:person, schema = :public, columns = [:person_id, :year_of_birth])
 ```
 """
 struct SQLTable
@@ -105,8 +85,45 @@ _table_entry(t::SQLTable) =
 _table_entry((n, t)::Pair{<:Union{Symbol, AbstractString}, SQLTable}) =
     Symbol(n) => t
 
+"""
+    SQLCatalog(; tables = Dict{Symbol, SQLTable}(),
+                 dialect = :default,
+                 cache = $default_cache_maxsize)
+    SQLCatalog(tables...; dialect = :default, cache = $default_cache_maxsize)
+
+`SQLCatalog` encapsulates available database `tables`, the target SQL `dialect`,
+and a `cache` of serialized queries.
+
+Parameter `tables` is either a dictionary or a vector of [`SQLTable`](@ref)
+objects, where the vector will be converted to a dictionary with
+table names as keys.  A table in the catalog can be included to
+a query using the [`From`](@ref) node.
+
+Parameter `dialect` is a [`SQLDialect`](@ref) object describing the target
+SQL dialect.
+
+Parameter `cache` specifies the size of the LRU cache containing results
+of the [`render`](@ref) function.  Set `cache` to `nothing` to disable
+the cache, or set `cache` to an arbitrary `Dict`-like object to provide
+a custom cache implementation.
+
+# Examples
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id]);
+
+julia> location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia> catalog = SQLCatalog(person, location, dialect = :postgresql)
+SQLCatalog(:location => SQLTable(:location, columns = [:location_id, :state]),
+           :person =>
+               SQLTable(:person,
+                        columns = [:person_id, :year_of_birth, :location_id]),
+           dialect = SQLDialect(:postgresql))
+```
+"""
 struct SQLCatalog <: AbstractDict{Symbol, SQLTable}
-    table_map::Dict{Symbol, SQLTable}
+    tables::Dict{Symbol, SQLTable}
     dialect::SQLDialect
     cache::Any # Union{AbstractDict{SQLNode, SQLString}, Nothing}
 
@@ -124,8 +141,8 @@ SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize) =
 
 function PrettyPrinting.quoteof(c::SQLCatalog)
     ex = Expr(:call, nameof(SQLCatalog))
-    for name in sort!(collect(keys(c.table_map)))
-        push!(ex.args, Expr(:call, :(=>), QuoteNode(name), quoteof(c.table_map[name])))
+    for name in sort!(collect(keys(c.tables)))
+        push!(ex.args, Expr(:call, :(=>), QuoteNode(name), quoteof(c.tables[name])))
     end
     push!(ex.args, Expr(:kw, :dialect, quoteof(c.dialect)))
     cache = c.cache
@@ -143,7 +160,7 @@ end
 
 function Base.show(io::IO, c::SQLCatalog)
     print(io, "SQLCatalog(")
-    l = length(c.table_map)
+    l = length(c.tables)
     if l == 1
         print(io, "…1 table…, ")
     elseif l > 1
@@ -164,17 +181,17 @@ Base.show(io::IO, ::MIME"text/plain", c::SQLCatalog) =
     pprint(io, c)
 
 Base.get(c::SQLCatalog, key::Union{Symbol, AbstractString}, default) =
-    get(c.table_map, Symbol(key), default)
+    get(c.tables, Symbol(key), default)
 
 Base.get(default::Base.Callable, c::SQLCatalog, key::Union{Symbol, AbstractString}) =
-    get(default, c.table_map, Symbol(key))
+    get(default, c.tables, Symbol(key))
 
 Base.getindex(c::SQLCatalog, key::Union{Symbol, AbstractString}) =
-    c.table_map[Symbol(key)]
+    c.tables[Symbol(key)]
 
 Base.iterate(c::SQLCatalog, state...) =
-    iterate(c.table_map, state...)
+    iterate(c.tables, state...)
 
 Base.length(c::SQLCatalog) =
-    length(c.table_map)
+    length(c.tables)
 

@@ -17,7 +17,7 @@ OrderClause(by...; over = nothing) =
     ORDER(; over = nothing, by = [])
     ORDER(by...; over = nothing)
 
-A `ORDER BY` clause.
+An `ORDER BY` clause.
 
 # Examples
 

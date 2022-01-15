@@ -26,6 +26,7 @@ The `iterator` query should have an alias specified with [`As`](@ref); it can
 refer to the output of the previous iteration using [`From`](@ref) with the same
 alias.
 
+The `Iterate` node is translated to a recursive common table expression:
 ```sql
 WITH RECURSIVE iterator AS (
   SELECT ...
@@ -39,6 +40,8 @@ FROM iterator
 ```
 
 # Examples
+
+*Calculate the factorial.*
 
 ```jldoctest
 julia> q = Define(:n => 1, :f => 1) |>

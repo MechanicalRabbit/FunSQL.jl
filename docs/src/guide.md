@@ -578,7 +578,7 @@ The SQL value `NULL` is represented by the Julia constant `missing`:
     #-> SELECT NULL AS "_"
 
 
-## `Get`
+## `Get`: Column References
 
 The [`Get`](@ref) node creates a column reference.  The `Get` constructor
 admits several equivalent forms:
@@ -607,7 +607,7 @@ The notation `qₚ.location_id` and `qₗ.location_id` is a syntax sugar for
     Get(:location_id, over = qₗ)
 
 
-## `Fun`
+## `Fun`: SQL Functions and Operators
 
 SQL functions and operators are represented using the [`Fun`](@ref) node, which
 also has several equivalent forms:

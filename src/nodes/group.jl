@@ -23,11 +23,13 @@ GroupNode(by...; over = nothing) =
     Group(; over; by = [])
     Group(by...; over)
 
-The `Group` node partitions the input rows into disjoint groups `by` the given
-grouping key and outputs all unique values of the key.  Aggregate functions
-applied to the output of `Group` summarize the values from the rows of each
-group.
+The `Group` node summarizes the input dataset.
 
+Specifically, `Group` outputs all unique values of the given grouping key.
+This key partitions the input rows into disjoint groups that are summarized
+by aggregate functions [`Agg`](@ref) applied to the output of `Group`.
+
+The `Group` node is translated to a SQL query with a `GROUP BY` clause:
 ```sql
 SELECT ...
 FROM \$over
@@ -35,6 +37,22 @@ GROUP BY \$by...
 ```
 
 # Examples
+
+*Total number of patients.*
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           Group() |>
+           Select(Agg.count());
+
+julia> print(render(q))
+SELECT COUNT(*) AS "count"
+FROM "person" AS "person_1"
+```
+
+*Number of patients per year of birth.*
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
@@ -51,16 +69,17 @@ FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
 
-```jldoctest
-julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+*Distinct states among all available locations.*
 
-julia> q = From(person) |>
-           Group() |>
-           Select(Agg.count(distinct = true, Get.year_of_birth));
+```jldoctest
+julia> location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia> q = From(location) |>
+           Group(Get.state);
 
 julia> print(render(q))
-SELECT COUNT(DISTINCT "person_1"."year_of_birth") AS "count"
-FROM "person" AS "person_1"
+SELECT DISTINCT "location_1"."state"
+FROM "location" AS "location_1"
 ```
 """
 Group(args...; kws...) =

@@ -17,6 +17,17 @@ NoteClause(text; over = nothing, postfix = false) =
     NOTE(text; over = nothing, postfix = false)
 
 A free-form prefix of postfix annotation.
+
+# Examples
+
+```jldoctest
+julia> c = FROM(:p => :person) |>
+           NOTE("TABLESAMPLE SYSTEM (50)", postfix = true) |>
+           SELECT((:p, :person_id));
+
+julia> print(render(c))
+SELECT "p"."person_id"
+FROM "person" AS "p" TABLESAMPLE SYSTEM (50)
 ```
 """
 NOTE(args...; kws...) =

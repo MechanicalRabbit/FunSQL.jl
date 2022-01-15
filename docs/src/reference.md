@@ -10,22 +10,15 @@ Pages = ["FunSQL.jl"]
 ```
 
 
-## SQL Dialects
+## `render()`
 
 ```@autodocs
 Modules = [FunSQL]
-Pages = ["dialects.jl"]
-```
-
-## SQL Entities
-
-```@autodocs
-Modules = [FunSQL]
-Pages = ["entities.jl"]
+Pages = ["render.jl"]
 ```
 
 
-## Reflection
+## `reflect()`
 
 ```@autodocs
 Modules = [FunSQL]
@@ -33,75 +26,410 @@ Pages = ["reflect.jl"]
 ```
 
 
-## SQL Statements
+## `SQLConnection`
 
 ```@autodocs
 Modules = [FunSQL]
-Pages = ["statements.jl"]
+Pages = ["connections.jl"]
 ```
 
 
-## Semantic Structure
+## `SQLCatalog` and `SQLTable`
 
 ```@autodocs
 Modules = [FunSQL]
-Pages = [
-    "nodes.jl",
-    "nodes/aggregate.jl",
-    "nodes/append.jl",
-    "nodes/as.jl",
-    "nodes/bind.jl",
-    "nodes/define.jl",
-    "nodes/from.jl",
-    "nodes/function.jl",
-    "nodes/get.jl",
-    "nodes/group.jl",
-    "nodes/highlight.jl",
-    "nodes/iterate.jl",
-    "nodes/join.jl",
-    "nodes/limit.jl",
-    "nodes/literal.jl",
-    "nodes/order.jl",
-    "nodes/partition.jl",
-    "nodes/select.jl",
-    "nodes/sort.jl",
-    "nodes/variable.jl",
-    "nodes/where.jl",
-    "nodes/with.jl",
-    "nodes/with_external.jl",
-]
+Pages = ["catalogs.jl"]
 ```
 
 
-## Syntactic Structure
+## `SQLDialect`
 
 ```@autodocs
 Modules = [FunSQL]
-Pages = [
-    "clauses.jl",
-    "clauses/aggregate.jl",
-    "clauses/as.jl",
-    "clauses/case.jl",
-    "clauses/from.jl",
-    "clauses/function.jl",
-    "clauses/group.jl",
-    "clauses/having.jl",
-    "clauses/identifier.jl",
-    "clauses/join.jl",
-    "clauses/keyword.jl",
-    "clauses/limit.jl",
-    "clauses/literal.jl",
-    "clauses/note.jl",
-    "clauses/operator.jl",
-    "clauses/order.jl",
-    "clauses/partition.jl",
-    "clauses/select.jl",
-    "clauses/sort.jl",
-    "clauses/union.jl",
-    "clauses/variable.jl",
-    "clauses/where.jl",
-    "clauses/window.jl",
-    "clauses/with.jl",
-]
+Pages = ["dialects.jl"]
+```
+
+
+## `SQLString`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["strings.jl"]
+```
+
+
+## `AbstractSQLNode`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes.jl"]
+```
+
+
+## `Agg`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/aggregate.jl"]
+```
+
+
+## `Append`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/append.jl"]
+```
+
+
+## `As`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/as.jl"]
+```
+
+
+## `Bind`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/bind.jl"]
+```
+
+
+## `Define`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/define.jl"]
+```
+
+
+## `From`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/from.jl"]
+```
+
+
+## `Fun`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/function.jl"]
+```
+
+
+## `Get`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/get.jl"]
+```
+
+
+## `Group`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/group.jl"]
+```
+
+
+## `Highlight`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/highlight.jl"]
+```
+
+
+## `Iterate`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/iterate.jl"]
+```
+
+
+## `Join`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/join.jl"]
+```
+
+
+## `Limit`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/limit.jl"]
+```
+
+
+## `Lit`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/literal.jl"]
+```
+
+
+## `Order`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/order.jl"]
+```
+
+
+## `Partition`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/partition.jl"]
+```
+
+
+## `Select`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/select.jl"]
+```
+
+
+## `Sort`, `Asc`, and `Desc`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/sort.jl"]
+```
+
+
+## `Var`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/variable.jl"]
+```
+
+
+## `Where`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/where.jl"]
+```
+
+
+## `With`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/with.jl"]
+```
+
+
+## `WithExternal`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/with_external.jl"]
+```
+
+
+## `AbstractSQLClause`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses.jl"]
+```
+
+
+## `AGG`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/aggregate.jl"]
+```
+
+
+## `AS`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/as.jl"]
+```
+
+
+## `CASE`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/case.jl"]
+```
+
+
+## `FROM`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/from.jl"]
+```
+
+
+## `FUN`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/function.jl"]
+```
+
+
+## `GROUP`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/group.jl"]
+```
+
+
+## `HAVING`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/having.jl"]
+```
+
+
+## `ID`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/identifier.jl"]
+```
+
+
+## `JOIN`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/join.jl"]
+```
+
+
+## `KW`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/keyword.jl"]
+```
+
+
+## `LIMIT`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/limit.jl"]
+```
+
+
+## `LIT`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/literal.jl"]
+```
+
+
+## `NOTE`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/note.jl"]
+```
+
+
+## `OP`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/operator.jl"]
+```
+
+
+## `ORDER`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/order.jl"]
+```
+
+
+## `PARTITION`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/partition.jl"]
+```
+
+
+## `SELECT`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/select.jl"]
+```
+
+
+## `SORT`, `ASC`, and `DESC`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/sort.jl"]
+```
+
+
+## `UNION`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/union.jl"]
+```
+
+
+## `VAR`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/variable.jl"]
+```
+
+
+## `WHERE`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/where.jl"]
+```
+
+
+## `WINDOW`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/window.jl"]
+```
+
+
+## `WITH`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/with.jl"]
 ```
 

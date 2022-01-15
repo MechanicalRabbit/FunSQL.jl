@@ -14,16 +14,25 @@ FromNode(source) =
     From(; source)
     From(source)
 
-`From` outputs the content of a database table.  The parameter `source`
-could be a [`SQLTable`](@ref) object, a symbol (for use with [`With`](@ref)),
-or `nothing`.
+`From` outputs the content of a database table.
 
+The parameter `source` could be a [`SQLTable`](@ref) object, a `Symbol`
+value, or `nothing`.  When `source` is a symbol, it can refer to either
+a table in [`SQLCatalog`](@ref) or an intemediate dataset defined with
+the [`With`](@ref) node.
+
+The `From` node is translated to a SQL query with a `FROM` clause:
 ```sql
 SELECT ...
 FROM \$source
 ```
 
+`From(nothing)` emits a dataset with one row and no columns and can usually
+be omitted.
+
 # Examples
+
+*List all patients.*
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
@@ -37,13 +46,29 @@ SELECT
 FROM "person" AS "person_1"
 ```
 
+*List all patients.*
+
+```jldoctest
+julia> catalog = SQLCatalog(
+           :person => SQLTable(:person, columns = [:person_id, :year_of_birth]));
+
+julia> q = From(:person);
+
+julia> print(render(catalog, q))
+SELECT
+  "person_1"."person_id",
+  "person_1"."year_of_birth"
+FROM "person" AS "person_1"
+```
+
+*Show all patients diagnosed with essential hypertension.*
+
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> condition_occurrence =
-           SQLTable(:condition_occurrence, columns = [:condition_occurrence_id,
-                                                      :person_id,
-                                                      :condition_concept_id]);
+           SQLTable(:condition_occurrence,
+                    columns = [:condition_occurrence_id, :person_id, :condition_concept_id]);
 
 julia> q = From(person) |>
            Where(Fun.in(Get.person_id, From(:essential_hypertension) |>
@@ -68,11 +93,19 @@ WHERE ("person_1"."person_id" IN (
 ))
 ```
 
+*Show the current date.*
+
 ```jldoctest
-julia> q = From(nothing);
+julia> q = From(nothing) |>
+           Select(Fun.current_date());
 
 julia> print(render(q))
-SELECT NULL
+SELECT CURRENT_DATE AS "current_date"
+
+julia> q = Select(Fun.current_date());
+
+julia> print(render(q))
+SELECT CURRENT_DATE AS "current_date"
 ```
 """
 From(args...; kws...) =

@@ -16,13 +16,15 @@ if isempty(ARGS)
         :DocTestSetup,
         quote
             using FunSQL:
-                SQLTable,
+                SQLString, pack,
+                SQLDialect,
+                SQLTable, SQLCatalog,
                 Agg, Append, As, Asc, Bind, Define, Desc, From, Fun, Get,
                 Group, Highlight, Iterate, Join, LeftJoin, Limit, Order,
                 Partition, Select, Sort, Var, Where, With, WithExternal,
                 AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN,
-                KW, LIMIT, LIT, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR,
-                WHERE, WINDOW, WITH,
+                KW, LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT,
+                UNION, VAR, WHERE, WINDOW, WITH,
                 render
             using Dates
         end)

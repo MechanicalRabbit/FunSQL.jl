@@ -17,6 +17,7 @@ WhereNode(condition; over = nothing) =
 
 The `Where` node filters the input rows by the given `condition`.
 
+`Where` is translated to a SQL query with a `WHERE` clause:
 ```sql
 SELECT ...
 FROM \$over

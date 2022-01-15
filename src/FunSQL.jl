@@ -13,22 +13,6 @@ const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
 
 """
-    render(node::Union{SQLNode, SQLClause}; dialect = :default)::SQLString
-
-Serialize the given SQL node or SQL clause object.
-"""
-function render
-end
-
-"""
-    reflect(conn; schema = nothing, dialect = :default)::Vector{SQLTable}
-
-Retrieve a list of available database tables.
-"""
-function reflect
-end
-
-"""
 Base error class for all errors raised by FunSQL.
 """
 abstract type FunSQLError <: Exception
@@ -45,6 +29,7 @@ include("connections.jl")
 include("types.jl")
 include("annotate.jl")
 include("translate.jl")
+include("serialize.jl")
 include("render.jl")
 include("reflect.jl")
 

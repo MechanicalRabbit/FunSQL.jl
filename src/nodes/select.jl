@@ -30,16 +30,23 @@ SELECT \$args...
 FROM \$over
 ```
 
+Set the column labels with [`As`](@ref).
+
 # Examples
 
+*List patient IDs and their age.*
+
 ```jldoctest
-julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+julia> person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
 
 julia> q = From(person) |>
-           Select(Get.person_id);
+           Select(Get.person_id,
+                  :age => Fun.now() .- Get.birth_datetime);
 
 julia> print(render(q))
-SELECT "person_1"."person_id"
+SELECT
+  "person_1"."person_id",
+  (NOW() - "person_1"."birth_datetime") AS "age"
 FROM "person" AS "person_1"
 ```
 """

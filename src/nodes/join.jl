@@ -19,22 +19,37 @@ JoinNode(joinee, on; over = nothing, left = false, right = false, optional = fal
     JoinNode(over = over, joinee = joinee, on = on, left = left, right = right, optional = optional)
 
 """
-    Join(; over = nothing, joinee, on, left = false, right = false, optional = optional)
-    Join(joinee; over = nothing, on, left = false, right = false, optional = optional)
-    Join(joinee, on; over = nothing, left = false, right = false, optional = optional)
+    Join(; over = nothing, joinee, on, left = false, right = false, optional = false)
+    Join(joinee; over = nothing, on, left = false, right = false, optional = false)
+    Join(joinee, on; over = nothing, left = false, right = false, optional = false)
 
 `Join` correlates two input datasets.
 
-When `optional` is set, the `JOIN` clause is omitted if the output contains
-no data from the `joinee` branch.
-
+The `Join` node is translated to a query with a `JOIN` clause:
 ```sql
 SELECT ...
 FROM \$over
 JOIN \$joinee ON \$on
 ```
 
+You can specify the join type:
+
+* `INNER JOIN` (the default);
+* `LEFT JOIN` (`left = true` or [`LeftJoin`](@ref));
+* `RIGHT JOIN` (`right = true`);
+* `FULL JOIN` (both `left = true` and `right = true`);
+* `CROSS JOIN` (`on = true`).
+
+When `optional` is set, the `JOIN` clause is omitted if the query does not
+depend on any columns from the `joinee` branch.
+
+To make a lateral join, apply [`Bind`](@ref) to the `joinee` branch.
+
+Use [`As`](@ref) to disambiguate output columns.
+
 # Examples
+
+*Show patients with their state of residence.*
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :location_id]);
