@@ -315,6 +315,24 @@ translate(::Val{Symbol("is not null")}, n::FunctionNode, ctx) =
 translate(::Val{:case}, n::FunctionNode, ctx) =
     CASE(args = SQLClause[translate(arg, ctx) for arg in n.args])
 
+function translate(::Val{:cast}, n::FunctionNode, ctx)
+    args = translate(n.args, ctx)
+    if length(args) == 2 && @dissect(args[2], LIT(val = t)) && t isa AbstractString
+        FUN(:CAST, args[1], KW(:AS, OP(t)))
+    else
+        FUN(:CAST, args = args)
+    end
+end
+
+function translate(::Val{:extract}, n::FunctionNode, ctx)
+    args = translate(n.args, ctx)
+    if length(args) == 2 && @dissect(args[1], LIT(val = f)) && f isa AbstractString
+        FUN(:EXTRACT, OP(f), KW(:FROM, args[2]))
+    else
+        FUN(:EXTRACT, args = args)
+    end
+end
+
 for (name, op) in (("between", "BETWEEN"), ("not between", "NOT BETWEEN"))
     @eval begin
         function translate(::Val{Symbol($name)}, n::FunctionNode, ctx)

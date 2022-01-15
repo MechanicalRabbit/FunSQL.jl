@@ -50,14 +50,41 @@ import .LIMIT_STYLE.LimitStyle
                  variable_prefix = ':',
                  identifier_quotes = ('"', '"'),
                  has_boolean_literals = true,
-                 limit_style = :ansi)
+                 limit_style = :ansi,
+                 has_recursive_annotation = true)
     SQLDialect(template::SQLDialect; kws...)
     SQLDialect(name::Symbol, kws...)
+    SQLDialect(ConnType::Type)
 
 Properties and capabilities of a particular SQL dialect.
 
-Use the constructor `SQLDialect(name::Symbol)` to create one of the known
-dialects: `:postgresql`, `:sqlite`, `:mysql`, `:redshift`, `:sqlserver`.
+Use `SQLDialect(name::Symbol)` to create one of the known dialects.
+The following names are recognized:
+* `:mysql`
+* `:postgresql`
+* `:redshift`
+* `:sqlite`
+* `:sqlserver`
+
+Keyword parameters override individual properties of a dialect.
+
+Use `SQLDialect(ConnType::Type)` to detect the dialect based on the type
+of the database connection object.  The following types are recognized:
+* `LibPQ.Connection`
+* `MySQL.Connection`
+* `SQLite.DB`
+
+# Examples
+
+```jldoctest
+julia> postgresql_dialect = SQLDialect(:postgresql)
+SQLDialect(:postgresql)
+
+julia> postgresql_odbc_dialect = SQLDialect(:postgresql,
+                                            variable_style = :positional,
+                                            variable_prefix = '?')
+SQLDialect(:postgresql, variable_style = :POSITIONAL, variable_prefix = '?')
+```
 """
 struct SQLDialect
     name::Symbol

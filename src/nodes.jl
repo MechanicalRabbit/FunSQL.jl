@@ -4,12 +4,14 @@
 # Base node type.
 
 """
-A SQL expression.
+A tabular or a scalar operation that can be expressed as a SQL query.
 """
 abstract type AbstractSQLNode
 end
 
-# A node that produces tabular output.
+"""
+A node that produces tabular output.
+"""
 abstract type TabularNode <: AbstractSQLNode
 end
 
@@ -243,6 +245,9 @@ PrettyPrinting.quoteof(ns::Vector{SQLNode}, ctx::QuoteContext) =
 
 # Errors.
 
+"""
+A duplicate label where unique labels are expected.
+"""
 struct DuplicateLabelError <: FunSQLError
     name::Symbol
     path::Vector{SQLNode}
@@ -256,6 +261,9 @@ function Base.showerror(io::IO, err::DuplicateLabelError)
     showpath(io, err.path)
 end
 
+"""
+A scalar operation where a tabular operation is expected.
+"""
 struct IllFormedError <: FunSQLError
     path::Vector{SQLNode}
 
@@ -287,6 +295,9 @@ end
 
 import .REFERENCE_ERROR_TYPE.ReferenceErrorType
 
+"""
+An undefined or an invalid reference.
+"""
 struct ReferenceError <: FunSQLError
     type::ReferenceErrorType
     name::Union{Symbol, Nothing}

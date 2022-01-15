@@ -24,9 +24,10 @@ WithNode(args...; over = nothing, materialized = nothing) =
     With(; over = nothing, args, materialized = nothing)
     With(args...; over = nothing, materialized = nothing)
 
-`With` assigns a name to a temporary dataset.  This dataset could be
-referred to by name in the `over` query.
+`With` assigns a name to a temporary dataset.  The dataset content can be
+retrieved within the `over` query using the [`From`](@ref) node.
 
+`With` is translated to a common table expression:
 ```
 WITH \$args...
 SELECT ...

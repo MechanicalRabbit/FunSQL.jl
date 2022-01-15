@@ -24,7 +24,6 @@ are automatically converted to SQL literals.
 ```jldoctest
 julia> c = LIT(missing);
 
-
 julia> print(render(c))
 NULL
 ```

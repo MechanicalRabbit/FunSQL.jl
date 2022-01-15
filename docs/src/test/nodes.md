@@ -632,14 +632,12 @@ FunSQL can properly represents many SQL functions and operators with irregular
 syntax.
 
     q = From(person) |>
-        Where(Fun.and(Fun."is null"(Get.birth_datetime), Fun."is not null"(Get.year_of_birth)))
+        Where(Fun.and(Fun."is null"(Get.birth_datetime), Fun."is not null"(Get.year_of_birth))) |>
+        Select(:year_of_birth => Fun.cast(Fun.extract("YEAR", Get.birth_datetime), "INT"))
 
     print(render(q))
     #=>
-    SELECT
-      "person_1"."person_id",
-      ⋮
-      "person_1"."location_id"
+    SELECT CAST(EXTRACT(YEAR FROM "person_1"."birth_datetime") AS INT) AS "year_of_birth"
     FROM "person" AS "person_1"
     WHERE
       ("person_1"."birth_datetime" IS NULL) AND

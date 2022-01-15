@@ -26,10 +26,18 @@ AggregateNode(name, args...; over = nothing, distinct = false, filter = nothing)
     Agg(; over = nothing, name, distinct = false, args = [], filter = nothing)
     Agg(name; over = nothing, distinct = false, args = [], filter = nothing)
     Agg(name, args...; over = nothing, distinct = false, filter = nothing)
+    Agg.name(args...; over = nothing, distinct = false, filter = nothing)
 
 An application of an aggregate function.
 
-# Example
+An `Agg` node must be applied to the output of a [`Group`](@ref) or
+a [`Partition`](@ref) node.  In a `Group` context, it is translated to
+a regular aggregate function, and in a `Partition` context, it is translated
+to a window function.
+
+# Examples
+
+*Number of patients per year of birth.*
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
@@ -46,17 +54,21 @@ FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
 
-```jldoctest
-julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+*Number of distinct states among all available locations.*
 
-julia> q = From(person) |>
+```jldoctest
+julia> location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia> q = From(location) |>
            Group() |>
-           Select(Agg.count(distinct = true, Get.year_of_birth));
+           Select(Agg.count(distinct = true, Get.state));
 
 julia> print(render(q))
-SELECT COUNT(DISTINCT "person_1"."year_of_birth") AS "count"
-FROM "person" AS "person_1"
+SELECT COUNT(DISTINCT "location_1"."state") AS "count"
+FROM "location" AS "location_1"
 ```
+
+*For each patient, show the date of their latest visit to a healthcare provider.*
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id]);
@@ -84,6 +96,27 @@ LEFT JOIN (
   FROM "visit_occurrence" AS "visit_occurrence_1"
   GROUP BY "visit_occurrence_1"."person_id"
 ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
+```
+
+*For each visit, show the number of days passed since the previous visit.*
+
+```jldoctest
+julia> visit_occurrence =
+           SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
+
+julia> q = From(visit_occurrence) |>
+           Partition(Get.person_id,
+                     order_by = [Get.visit_start_date]) |>
+           Select(Get.person_id,
+                  Get.visit_start_date,
+                  :gap => Get.visit_start_date .- Agg.lag(Get.visit_start_date));
+
+julia> print(render(q))
+SELECT
+  "visit_occurrence_1"."person_id",
+  "visit_occurrence_1"."visit_start_date",
+  ("visit_occurrence_1"."visit_start_date" - (LAG("visit_occurrence_1"."visit_start_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date"))) AS "gap"
+FROM "visit_occurrence" AS "visit_occurrence_1"
 ```
 """
 Agg(args...; kws...) =

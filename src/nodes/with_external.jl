@@ -25,8 +25,8 @@ WithExternalNode(args...; over = nothing, schema = nothing, handler = nothing) =
     WithExternal(; over = nothing, args, schema = nothing, handler = nothing)
     WithExternal(args...; over = nothing, schema = nothing, handler = nothing)
 
-`WithExternal` assigns a name to a temporary dataset.  The dataset could be
-referred to by name in the `over` query.
+`WithExternal` assigns a name to a temporary dataset.  The dataset content
+can be retrieved within the `over` query using the [`From`](@ref) node.
 
 The definition of the dataset is converted to a `Pair{SQLTable, SQLClause}`
 object and sent to `handler`, which can use it, for instance, to construct
@@ -44,7 +44,7 @@ julia> condition_occurrence =
 
 julia> handler((tbl, def)) =
            println("CREATE TEMP TABLE ", render(ID(tbl.name)), " AS\\n",
-                   render(def), ";");
+                   render(def), ";\\n");
 
 julia> q = From(person) |>
            Where(Fun.in(Get.person_id, From(:essential_hypertension) |>
@@ -59,6 +59,7 @@ CREATE TEMP TABLE "essential_hypertension" AS
 SELECT "condition_occurrence_1"."person_id"
 FROM "condition_occurrence" AS "condition_occurrence_1"
 WHERE ("condition_occurrence_1"."condition_concept_id" = 320128);
+
 SELECT
   "person_1"."person_id",
   "person_1"."year_of_birth"

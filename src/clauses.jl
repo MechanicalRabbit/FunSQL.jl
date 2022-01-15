@@ -4,7 +4,7 @@
 # Base type.
 
 """
-A part of a SQL query.
+A component of a SQL syntax tree.
 """
 abstract type AbstractSQLClause
 end

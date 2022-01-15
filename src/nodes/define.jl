@@ -23,16 +23,18 @@ DefineNode(args...; over = nothing) =
     Define(; over; args = [])
     Define(args...; over)
 
-`Define` adds a column to the output.
+The `Define` node adds or replaces output columns.
 
 # Examples
+
+*Show patients who are at least 16 years old.*
 
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
 
 julia> q = From(person) |>
            Define(:age => Fun.now() .- Get.birth_datetime) |>
-           Where(Get.age .> "16 years");
+           Where(Get.age .>= "16 years");
 
 julia> print(render(q))
 SELECT
@@ -40,7 +42,24 @@ SELECT
   "person_1"."birth_datetime",
   (NOW() - "person_1"."birth_datetime") AS "age"
 FROM "person" AS "person_1"
-WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
+WHERE ((NOW() - "person_1"."birth_datetime") >= '16 years')
+```
+
+*Conceal the year of birth of patients born before 1930.*
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(person) |>
+           Define(:year_of_birth => Fun.case(Get.year_of_birth .>= 1930,
+                                             Get.year_of_birth,
+                                             missing));
+
+julia> print(render(q))
+SELECT
+  "person_1"."person_id",
+  (CASE WHEN ("person_1"."year_of_birth" >= 1930) THEN "person_1"."year_of_birth" ELSE NULL END) AS "year_of_birth"
+FROM "person" AS "person_1"
 ```
 """
 Define(args...; kws...) =

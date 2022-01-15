@@ -17,6 +17,10 @@ AppendNode(args...; over = nothing) =
 
 `Append` concatenates input datasets.
 
+Only the columns that are present in every input dataset will be included
+to the output of `Append`.
+
+An `Append` node is translated to a `UNION ALL` query:
 ```sql
 SELECT ...
 FROM \$over
@@ -29,6 +33,8 @@ UNION ALL
 
 # Examples
 
+*Show the dates of all measuments and observations.*
+
 ```jldoctest
 julia> measurement = SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_date]);
 
@@ -37,24 +43,18 @@ julia> observation = SQLTable(:observation, columns = [:observation_id, :person_
 julia> q = From(measurement) |>
            Define(:date => Get.measurement_date) |>
            Append(From(observation) |>
-                  Define(:date => Get.observation_date)) |>
-           Select(Get.person_id, Get.date);
+                  Define(:date => Get.observation_date));
 
 julia> print(render(q))
 SELECT
-  "union_1"."person_id",
-  "union_1"."date"
-FROM (
-  SELECT
-    "measurement_1"."person_id",
-    "measurement_1"."measurement_date" AS "date"
-  FROM "measurement" AS "measurement_1"
-  UNION ALL
-  SELECT
-    "observation_1"."person_id",
-    "observation_1"."observation_date" AS "date"
-  FROM "observation" AS "observation_1"
-) AS "union_1"
+  "measurement_1"."person_id",
+  "measurement_1"."measurement_date" AS "date"
+FROM "measurement" AS "measurement_1"
+UNION ALL
+SELECT
+  "observation_1"."person_id",
+  "observation_1"."observation_date" AS "date"
+FROM "observation" AS "observation_1"
 ```
 """
 Append(args...; kws...) =
