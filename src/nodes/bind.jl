@@ -41,8 +41,8 @@ julia> visit_occurrence = SQLTable(:visit_occurrence, columns = [:visit_occurren
 
 julia> q = From(:person) |>
            Where(Fun.exists(From(:visit_occurrence) |>
-                            Where(Get.person_id .== Var.person_id) |>
-                            Bind(Get.person_id)));
+                            Where(Get.person_id .== Var.PERSON_ID) |>
+                            Bind(:PERSON_ID => Get.person_id)));
 
 julia> print(render(q, tables = [person, visit_occurrence]))
 SELECT "person_1"."person_id"
@@ -65,10 +65,10 @@ julia> visit_occurrence =
 
 julia> q = From(:person) |>
            LeftJoin(From(:visit_occurrence) |>
-                    Where(Get.person_id .== Var.person_id) |>
+                    Where(Get.person_id .== Var.PERSON_ID) |>
                     Order(Get.visit_start_date |> Desc()) |>
                     Limit(1) |>
-                    Bind(:person_id => Get.person_id) |>
+                    Bind(:PERSON_ID => Get.person_id) |>
                     As(:visit),
                     on = true) |>
             Select(Get.person_id, Get.visit.visit_start_date);

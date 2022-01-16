@@ -10,8 +10,8 @@ This guide will teach you how to assemble SQL queries using FunSQL.
 ## Test Database
 
 To demonstrate database queries, we need a test database.  The database we use
-here is a tiny 10 person sample of simulated patient data extracted from a much
-larger [CMS DE-SynPuf
+in this guide is a tiny 10 person sample of simulated patient data extracted
+from a much larger [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
 For a database engine, we picked [SQLite](https://www.sqlite.org/).  Using
 SQLite in a guide is convenient because it does not require a database server
@@ -20,12 +20,34 @@ supports SQLite and many other database engines.  The techniques discussed here
 are not specific to SQLite and once you learn them, you will be able to apply
 them to any SQL database.
 
-If you wish to follow along with the guide and run the examples, download
-the database file:
+The data in the test database is stored in the format of the [OMOP Common Data
+Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an open
+source database schema for observational healthcare data.  In this guide, we
+will only use a small fragment of the Common Data Model.
+
+![Fragment of the OMOP Common Data Model](omop-common-data-model.drawio.svg)
+
+The patient data, including basic demographic information, is stored in the
+table `person`.  Patient addresses are stored in a separate table `location`,
+linked to `person` by the key column `location_id`.
+
+The bulk of patient data consists of clinical events: visits to healthcare
+providers, recorded observations, diagnosed conditions, prescribed medications,
+etc.  In this guide we only use two types of events, visits and conditions.
+
+The specific type of the event (e.g., *Inpatient* visit or *Essential
+hypertension* condition) is indicated using a *concept id* column, which refers
+to the `concept` table.  Different concepts may be related to each other.  For
+instance, *Essential hypertension* **is a** *Hypertensive disorder*, which
+itself **is a** *Disorder of cardiovascular system*.  Concept relationships are
+recorded in the corresponding table.
+
+If you wish to follow along with the guide and run the examples, download the
+[database
+file](https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite):
 
 ```julia
-const URL = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite"
-const DB = download(URL)
+DATABASE = download("https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite")
 ```
 
 All examples in this guide are tested on each update using the
@@ -36,13 +58,13 @@ URL as an [artifact](../Artifacts.toml) and use
 
     using Pkg.Artifacts, LazyArtifacts
 
-    const DB = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
+    DATABASE = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
     #-> ⋮
 
 
-## Database Connection
+## Using FunSQL
 
-To interact with a SQLite database from Julia code, we need to install the
+To interact with an SQLite database from Julia code, we need to install the
 [SQLite](https://github.com/JuliaDatabases/SQLite.jl) package:
 
 ```julia
@@ -51,82 +73,128 @@ using Pkg
 Pkg.add("SQLite")
 ```
 
-Once the package is installed, we can use it to connect to the database:
+With the package installed, we can open a database connection:
 
+    using FunSQL
     using SQLite
 
-    const conn = SQLite.DB(DB)
+    conn = DBInterface.connect(FunSQL.DB{SQLite.DB}, DATABASE)
 
-Later we will use the `conn` object to execute database queries.
+This call to [`DBInterface.connect`](@ref) creates a connection to the SQLite
+database, retrieves the catalog of available database tables, and returns a
+FunSQL connection object.
 
+Some applications open many connections to the same database.  For instance, a
+web application may open a new database connection on every incoming HTTP
+request.  In this case, it may be worth to have all these connections to
+share the same database catalog.  The application can start with loading
+the catalog using using [`reflect`](@ref).
 
-## Database Schema
+    using FunSQL: reflect
 
-The data in the test database is stored in the format of the [OMOP Common Data
-Model](https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html), an open
-source database schema for observational healthcare data.  In this guide, we
-will only use a small fragment of the Common Data Model.
+    catalog = reflect(DBInterface.connect(SQLite.DB, DATABASE))
 
-![Fragment of the OMOP Common Data Model](omop-common-data-model.drawio.svg)
+Then whenever a new connection is created, this catalog object could be reused.
 
-Before we can start assembling queries with FunSQL, we need to make FunSQL
-aware of the database schema.  For each table in the database, we need to
-create a corresponding [`SQLTable`](@ref) object, which encapsulates the name
-of the table together with the names of the columns.
+    conn = FunSQL.DB(DBInterface.connect(SQLite.DB, DATABASE),
+                     catalog = catalog)
 
-    using FunSQL: SQLTable
+!!! warning
 
-The patient data, including basic demographic information, is stored in the
-table `person`:
+    Some database drivers, including the PostgreSQL client library
+    [LibPQ.jl](https://github.com/invenia/LibPQ.jl), do not support
+    DBInterface.  For instructions on how to enable DBInterface for LibPQ, see
+    [this example](@ref Database-connection-with-LibPQ.jl).
 
-    const person =
-        SQLTable(:person,
-                 columns = [:person_id, :year_of_birth, :location_id])
+Using the connection object, we can execute FunSQL queries.  For example, the
+following query outputs the content of the table `person`:
 
-Patient addresses are stored in a separate table `location`, linked to `person`
-by the key column `location_id`:
+    using FunSQL: From
 
-    const location =
-        SQLTable(:location,
-                 columns = [:location_id, :city, :state])
+    q = From(:person)
 
-The bulk of patient data consists of clinical events: visits to healthcare
-providers, recorded observations, diagnosed conditions, prescribed medications,
-etc.  In this guide we only use two types of events, visits and conditions:
+This query could be executed with [`DBInterface.execute`](@ref).
 
-    const visit_occurrence =
-        SQLTable(:visit_occurrence,
-                 columns = [:visit_occurrence_id, :person_id,
-                            :visit_concept_id,
-                            :visit_start_date, :visit_end_date])
+    res = DBInterface.execute(conn, q)
 
-    const condition_occurrence =
-        SQLTable(:condition_occurrence,
-                 columns = [:condition_occurrence_id, :person_id,
-                            :condition_concept_id,
-                            :condition_start_date, :condition_end_date])
+To display the result of a query, it is convenient to convert it to a
+[DataFrame](https://github.com/JuliaData/DataFrames.jl) object.
 
-The specific type of the event (e.g., *Inpatient* visit or *Essential
-hypertension* condition) is indicated using a *concept id* column, which refers
-to the `concept` table:
+    using DataFrames
 
-    const concept =
-        SQLTable(:concept,
-                 columns = [:concept_id, :concept_name])
+    DataFrame(res)
+    #=>
+    10×18 DataFrame
+     Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+         │ Int64      Int64              Int64          Int64           Int64      ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │      1780               8532           1940               2             ⋯
+       2 │     30091               8532           1932               8
+       3 │     37455               8532           1913               7
+       4 │     42383               8507           1922               2
+       5 │     69985               8532           1956               7             ⋯
+       6 │     72120               8507           1937              10
+       7 │     82328               8532           1957               9
+       8 │     95538               8507           1923              11
+       9 │    107680               8532           1963              12             ⋯
+      10 │    110862               8507           1911               4
+                                                                  14 columns omitted
+    =#
 
-Different concepts may be related to each other.  For instance, *Essential
-hypertension* **is a** *Hypertensive disorder*, which itself **is a** *Disorder
-of cardiovascular system*.  Concept relationships are recorded in the
-corresponding table:
+Instead of executing the query directly, we can [`render`](@ref) it to generate
+the corresponding SQL statement.
 
-    const concept_relationship =
-        SQLTable(:concept_relationship,
-                 columns = [:concept_id_1, :concept_id_2, :relationship_id])
+    using FunSQL: render
+
+    sql = render(conn, q)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."time_of_birth",
+      "person_1"."race_concept_id",
+      "person_1"."ethnicity_concept_id",
+      "person_1"."location_id",
+      "person_1"."provider_id",
+      "person_1"."care_site_id",
+      "person_1"."person_source_value",
+      "person_1"."gender_source_value",
+      "person_1"."gender_source_concept_id",
+      "person_1"."race_source_value",
+      "person_1"."race_source_concept_id",
+      "person_1"."ethnicity_source_value",
+      "person_1"."ethnicity_source_concept_id"
+    FROM "person" AS "person_1"
+    =#
+
+In fact, we do not need a database connection if all we want is to generate a
+SQL query.  For this purpose, we only need a [`SQLCatalog`](@ref) object that
+describes the structure of the database tables and the target SQL dialect.
+
+    using FunSQL: SQLCatalog, SQLTable
+
+    catalog = SQLCatalog(SQLTable(:person, columns = [:person_id, :year_of_birth]),
+                         dialect = :sqlite)
+
+    sql = render(catalog, q)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    =#
 
 
 ## Why FunSQL?
 
-Let us start with clarifying the purpose of FunSQL.  Consider a problem:
+Let us clarify the purpose of FunSQL.  Consider a problem:
 
 *Find all patients born between 1930 and 1940 and living in Illinois, and for
 each patient show their current age (by the end of 2020).*
@@ -150,21 +218,7 @@ string literal:
     WHERE (p.year_of_birth BETWEEN 1930 AND 1940) AND (l.state = 'IL')
     """
 
-Using the appropriate [database engine
-API](https://juliadatabases.org/SQLite.jl/stable/#DBInterface.execute) and the
-connection object created [earlier](@ref Test-Database), we can execute this
-query and get back the answer:
-
-    res = DBInterface.execute(conn, sql)
-    #-> SQLite.Query( … )
-
-As an aside, it is convenient to use the
-[DataFrame](https://github.com/JuliaData/DataFrames.jl) interface to show the
-output of a query in tabular form:
-
-    using DataFrames
-
-    DataFrame(res)
+    DBInterface.execute(conn, sql) |> DataFrame
     #=>
     1×2 DataFrame
      Row │ person_id  age
@@ -173,60 +227,27 @@ output of a query in tabular form:
        1 │     72120     83
     =#
 
-FunSQL introduces an extra step to this workflow.  Instead of embedding the SQL
-query directly into Julia code, we construct a *query object*:
+With FunSQL, instead of embedding the SQL query directly into Julia code, we
+construct a *query object*:
 
     using FunSQL: As, From, Fun, Get, Join, Select, Where
 
-    q = From(person) |>
+    q = From(:person) |>
         Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-        Join(From(location) |> Where(Get.state .== "IL") |> As(:location),
+        Join(From(:location) |> Where(Get.state .== "IL") |> As(:location),
              on = Get.location_id .== Get.location.location_id) |>
         Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
 The value of `q` is a composite object of type [`SQLNode`](@ref).  "Composite"
 means that `q` is assembled from components (also of type `SQLNode`), which
 themselves are either atomic or assembled from smaller components.  Different
-kinds of components are created by `SQLNode` constructors such as `From`,
-`Where`, `Fun`, `Get`, etc.
+kinds of components are created by `SQLNode` constructors such as
+[`From`](@ref), [`Where`](@ref), [`Fun`](@ref), [`Get`](@ref), etc.
 
-The actual SQL query is generated by *rendering* the query object:
+We use the same `DBInterface.execute` method to serialize the query object as a
+SQL statement and immediately execute it:
 
-    using FunSQL: render
-
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
-    #=>
-    SELECT
-      "person_2"."person_id",
-      (2020 - "person_2"."year_of_birth") AS "age"
-    FROM (
-      SELECT
-        "person_1"."location_id",
-        "person_1"."person_id",
-        "person_1"."year_of_birth"
-      FROM "person" AS "person_1"
-      WHERE ("person_1"."year_of_birth" BETWEEN 1930 AND 1940)
-    ) AS "person_2"
-    JOIN (
-      SELECT "location_1"."location_id"
-      FROM "location" AS "location_1"
-      WHERE ("location_1"."state" = 'IL')
-    ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
-    =#
-
-Notice that the [`render`](@ref) function takes a parameter called `dialect`.
-Although the SQL language is standardized, different implementations of SQL
-tend to deviate from the standard far enough to make them mutually
-incompatible.  For this reason, FunSQL lets us select the target SQL dialect.
-
-At this point, the job of FunSQL is done and, just as before, we can execute
-the query and display the result:
-
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     1×2 DataFrame
      Row │ person_id  age
@@ -248,16 +269,16 @@ fragments, it is tedious, error-prone and definitely not fun.  FunSQL provides
 a more robust and effective approach: build the query as a composite data
 structure.
 
-Here is how a parameterized query may be constructed with FunSQL:
+Here is how this parameterized query may be constructed with FunSQL:
 
     function FindPatients(; start_year = nothing,
                             end_year = nothing,
                             states = String[])
-        q = From(person) |>
+        q = From(:person) |>
             Where(BirthRange(start_year, end_year))
         if !isempty(states)
             q = q |>
-                Join(:location => From(location) |>
+                Join(:location => From(:location) |>
                                   Where(Fun.in(Get.state, states...)),
                      on = Get.location_id .== Get.location.location_id)
         end
@@ -278,17 +299,27 @@ Here is how a parameterized query may be constructed with FunSQL:
 The function `FindPatients` effectively becomes a new `SQLNode` constructor,
 which can be used directly or as a component of a larger query.
 
-*Show all patients.*
+*Show all patient data.*
 
     q = FindPatients()
 
-    print(render(q, dialect = :sqlite))
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
-    SELECT
-      "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
-    FROM "person" AS "person_1"
+    10×18 DataFrame
+     Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+         │ Int64      Int64              Int64          Int64           Int64      ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │      1780               8532           1940               2             ⋯
+       2 │     30091               8532           1932               8
+       3 │     37455               8532           1913               7
+       4 │     42383               8507           1922               2
+       5 │     69985               8532           1956               7             ⋯
+       6 │     72120               8507           1937              10
+       7 │     82328               8532           1957               9
+       8 │     95538               8507           1923              11
+       9 │    107680               8532           1963              12             ⋯
+      10 │    110862               8507           1911               4
+                                                                  14 columns omitted
     =#
 
 *Show all patients born in or after 1930.*
@@ -296,11 +327,18 @@ which can be used directly or as a component of a larger query.
     q = FindPatients(start_year = 1930) |>
         Select(Get.person_id)
 
-    print(render(q, dialect = :sqlite))
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
-    SELECT "person_1"."person_id"
-    FROM "person" AS "person_1"
-    WHERE ("person_1"."year_of_birth" >= 1930)
+    6×1 DataFrame
+     Row │ person_id
+         │ Int64
+    ─────┼───────────
+       1 │      1780
+       2 │     30091
+       3 │     69985
+       4 │     72120
+       5 │     82328
+       6 │    107680
     =#
 
 *Find all patients born between 1930 and 1940 and living in Illinois, and for
@@ -309,26 +347,13 @@ each patient show their current age.*
     q = FindPatients(start_year = 1930, end_year = 1940, states = ["IL"]) |>
         Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
-    print(render(q, dialect = :sqlite))
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
-    SELECT
-      "person_2"."person_id",
-      (2020 - "person_2"."year_of_birth") AS "age"
-    FROM (
-      SELECT
-        "person_1"."location_id",
-        "person_1"."person_id",
-        "person_1"."year_of_birth"
-      FROM "person" AS "person_1"
-      WHERE
-        ("person_1"."year_of_birth" >= 1930) AND
-        ("person_1"."year_of_birth" <= 1940)
-    ) AS "person_2"
-    JOIN (
-      SELECT "location_1"."location_id"
-      FROM "location" AS "location_1"
-      WHERE ("location_1"."state" IN ('IL'))
-    ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
+    1×2 DataFrame
+     Row │ person_id  age
+         │ Int64      Int64
+    ─────┼──────────────────
+       1 │     72120     83
     =#
 
 
@@ -339,9 +364,9 @@ Recall the query from the [previous section](@ref Why-FunSQL?):
 *Find all patients born between 1930 and 1940 and living in Illinois, and for
 each patient show their current age.*
 
-    From(person) |>
+    From(:person) |>
     Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-    Join(From(location) |> Where(Get.state .== "IL") |> As(:location),
+    Join(From(:location) |> Where(Get.state .== "IL") |> As(:location),
          on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
 
@@ -365,7 +390,6 @@ The following tabular operations are available in FunSQL.
 | :-------------------- | :------------------------------------------------ |
 | [`Append`](@ref)      | concatenate datasets                              |
 | [`As`](@ref)          | wrap all columns in a nested record               |
-| [`Bind`](@ref)        | correlate a subquery in a *join* expression       |
 | [`Define`](@ref)      | add an output column                              |
 | [`From`](@ref)        | produce the content of a database table           |
 | [`Group`](@ref)       | partition the dataset into disjoint groups        |
@@ -373,7 +397,7 @@ The following tabular operations are available in FunSQL.
 | [`Join`](@ref)        | correlate two datasets                            |
 | [`Limit`](@ref)       | truncate the dataset                              |
 | [`Order`](@ref)       | sort the dataset                                  |
-| [`Partition`](@ref)   | add a window to the dataset                       |
+| [`Partition`](@ref)   | relate dataset rows to each other                 |
 | [`Select`](@ref)      | specify output columns                            |
 | [`Where`](@ref)       | filter the dataset by the given condition         |
 | [`With`](@ref)        | assign a name to a temporary dataset              |
@@ -382,18 +406,31 @@ The following tabular operations are available in FunSQL.
 ## `From`, `Select`, and `Define`
 
 The [`From`](@ref) node outputs the content of a database table.  The
-constructor takes one argument, a `SQLTable` object (see the section [Database
-Schema](@ref)).  In a query, a bare `SQLTable` object is automatically
-converted to a `From` node, so one could write more compactly:
+constructor takes one argument, the name of the table.
 
-*For each patient, show their current age.*
+As opposed to SQL, FunSQL does not demand that all queries have an explicit
+`Select`.  The following query will produce all columns of the table:
 
-    person |>
-    Select(Get.person_id, :age => 2020 .- Get.year_of_birth)
+*Show all patients.*
+
+    using FunSQL: From
+
+    q = From(:person)
+
+    render(conn, q) |> print
+    #=>
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
+    FROM "person" AS "person_1"
+    =#
 
 It is possible for a query not to have a `From` node:
 
 *Show the current date and time.*
+
+    using FunSQL: Select
 
     q = Select(Fun.current_timestamp())
 
@@ -406,7 +443,7 @@ In this query, the `Select` node is not connected to any source of data.  In
 such a case, it is supplied with a *unit dataset* containing one row and no
 columns.  Hence this query will generate one row of output.
 
-The same effect could be achieved with the `From(nothing)` node.
+The same effect could be achieved with `From(nothing)`.
 
     q = From(nothing) |>
         Select(Fun.current_timestamp())
@@ -416,25 +453,21 @@ The same effect could be achieved with the `From(nothing)` node.
     print(sql)
     #-> SELECT CURRENT_TIMESTAMP AS "current_timestamp"
 
-In general, the [`Select`](@ref) node is used to specify the output columns.
-The name of the column is either derived from the expression or set explicitly
-with `As` (or its shorthand, the arrow (`=>`) operator).
+The [`Select`](@ref) node is used to specify the output columns.  The name of
+the column is either derived from the expression or set explicitly with
+[`As`](@ref) (or the shorthand `=>`).
 
-As opposed to SQL, FunSQL does not demand that all queries have an explicit
-`Select`.  The following query will produce all columns of the table:
+*For each patient, show their ID and the current age.*
 
-*Show all patients.*
+    q = From(:person) |>
+        Select(Get.person_id,
+               :age => 2020 .- Get.year_of_birth)
 
-    q = From(person)
-
-    sql = render(q)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
+      (2020 - "person_1"."year_of_birth") AS "age"
     FROM "person" AS "person_1"
     =#
 
@@ -445,38 +478,38 @@ To add a new column while preserving existing output columns, we use the
 
     using FunSQL: Define
 
-    q = From(person) |>
+    q = From(:person) |>
         Define(:age => 2020 .- Get.year_of_birth)
 
-    sql = render(q)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id",
+      ⋮
+      "person_1"."ethnicity_source_concept_id",
       (2020 - "person_1"."year_of_birth") AS "age"
     FROM "person" AS "person_1"
     =#
 
 `Define` could also be used to replace an existing column.
 
-*Hide the year of birth of patients born before 1930.*
+*Hide the day of birth of patients born before 1930.*
 
-    q = From(person) |>
-        Define(:year_of_birth => Fun.case(Get.year_of_birth .>= 1930,
-                                          Get.year_of_birth,
-                                          missing))
+    q = From(:person) |>
+        Define(:day_of_birth => Fun.case(Get.year_of_birth .>= 1930,
+                                         Get.day_of_birth,
+                                         missing))
 
-    sql = render(q)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      (CASE WHEN ("person_1"."year_of_birth" >= 1930) THEN "person_1"."year_of_birth" ELSE NULL END) AS "year_of_birth",
-      "person_1"."location_id"
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      (CASE WHEN ("person_1"."year_of_birth" >= 1930) THEN "person_1"."day_of_birth" ELSE NULL END) AS "day_of_birth",
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     =#
 
@@ -491,8 +524,8 @@ record:
 
 *Show all patients together with their state of residence.*
 
-    person |>
-    Join(:location => location,
+    From(:person) |>
+    Join(:location => From(:location),
          Get.location_id .== Get.location.location_id,
          left = true) |>
     Select(Get.person_id, Get.location.state)
@@ -503,8 +536,8 @@ very common requirement, FunSQL provides an alias:
 
     using FunSQL: LeftJoin
 
-    person |>
-    LeftJoin(:location => location,
+    From(:person) |>
+    LeftJoin(:location => From(:location),
              Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, Get.location.state)
 
@@ -513,8 +546,8 @@ pipelines.  The first pipeline is attached using the `|>` operator and the
 second one is provided as an argument to the `Join` constructor.
 Alternatively, both input pipelines can be specified as keyword arguments:
 
-    Join(over = person,
-         joinee = :location => location,
+    Join(over = From(:person),
+         joinee = :location => From(:location),
          on = Get.location_id .== Get.location.location_id,
          left = true) |>
     Select(Get.person_id, Get.location.state)
@@ -528,8 +561,8 @@ one of the datasets into a nested record.  This is the action of the arrow
 
     using FunSQL: As
 
-    From(person) |>
-    LeftJoin(From(location) |> As(:location),
+    From(:person) |>
+    LeftJoin(From(:location) |> As(:location),
              on = Get.location_id .== Get.location.location_id) |>
     Select(Get.person_id, Get.location.state)
 
@@ -550,7 +583,7 @@ FunSQL.
 | :-------------------- | :------------------------------------------------ |
 | [`Agg`](@ref)         | apply an aggregate function                       |
 | [`As`](@ref)          | assign a column alias                             |
-| [`Bind`](@ref)        | correlate an inner subquery                       |
+| [`Bind`](@ref)        | create a correlated subquery                      |
 | [`Fun`](@ref)         | apply a scalar function or a scalar operator      |
 | [`Get`](@ref)         | produce the value of a column                     |
 | [`Lit`](@ref)         | produce a constant value                          |
@@ -558,7 +591,7 @@ FunSQL.
 | [`Var`](@ref)         | produce the value of a query parameter            |
 
 
-## `Lit`
+## `Lit`: SQL Literals
 
 The [`Lit`](@ref) node creates a literal value, although we could usually omit
 the constructor:
@@ -572,9 +605,7 @@ The SQL value `NULL` is represented by the Julia constant `missing`:
 
     q = Select(missing)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #-> SELECT NULL AS "_"
 
 
@@ -595,8 +626,8 @@ reference to the node that produces it:
 
 *Show all patients with their state of residence.*
 
-    qₚ = From(person)
-    qₗ = From(location)
+    qₚ = From(:person)
+    qₗ = From(:location)
     q = qₚ |>
         LeftJoin(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
         Select(qₚ.person_id, qₗ.state)
@@ -627,18 +658,16 @@ We should note that FunSQL does not verify if a SQL function or an operator is
 used correctly or even whether it exists or not.  In such a case, FunSQL will
 generate a SQL query that fails to execute:
 
-    q = From(person) |>
+    q = From(:person) |>
         Select(Fun.frobnicate(Get.year_of_birth))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT FROBNICATE("person_1"."year_of_birth") AS "frobnicate"
     FROM "person" AS "person_1"
     =#
 
-    DBInterface.execute(conn, sql)
+    DBInterface.execute(conn, q)
     #-> ERROR: SQLite.SQLiteException("no such function: FROBNICATE")
 
 On the other hand, FunSQL will correctly serialize many SQL functions and
@@ -647,12 +676,10 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
 
 *Show the demographic cohort of each patient.*
 
-    q = From(person) |>
+    q = From(:person) |>
         Select(Fun.case(Get.year_of_birth .<= 1960, "boomer", "millenial"))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT (CASE WHEN ("person_1"."year_of_birth" <= 1960) THEN 'boomer' ELSE 'millenial' END) AS "case"
     FROM "person" AS "person_1"
@@ -663,23 +690,21 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
 
 [`Group`](@ref) and aggregate functions are used for summarizing data to report
 totals, averages and so on.  We start by applying the `Group` node to partition
-the input rows into disjoint groups.  We can then use aggregate functions to
-calculate summary values from the rows of each group.  In FunSQL, aggregate
-functions are created using the [`Agg`](@ref) node.  In the following example,
-we use the aggregate function `Agg.count`, which simply counts the number of
-rows in each group.
+the input rows into disjoint groups.  Then, for each group, we can calculate
+summary values using aggregate functions.  In FunSQL, aggregate functions are
+created using the [`Agg`](@ref) node.  In the following example, we use the
+aggregate function `Agg.count`, which simply counts the number of rows in each
+group.
 
 *Show the number of patients by the year of birth.*
 
     using FunSQL: Agg, Group
 
-    q = From(person) |>
+    q = From(:person) |>
         Group(Get.year_of_birth) |>
         Select(Get.year_of_birth, Agg.count())
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."year_of_birth",
@@ -688,9 +713,7 @@ rows in each group.
     GROUP BY "person_1"."year_of_birth"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     10×2 DataFrame
      Row │ year_of_birth  count
@@ -709,21 +732,17 @@ achieve the same effect.
 
 *Show the average year of birth.*
 
-    q = From(person) |>
+    q = From(:person) |>
         Group() |>
         Select(Agg.avg(Get.year_of_birth))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT AVG("person_1"."year_of_birth") AS "avg"
     FROM "person" AS "person_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     1×1 DataFrame
      Row │ avg
@@ -739,20 +758,16 @@ all distinct values of the grouping key.
 
 *Show the US states that are present in the location records.*
 
-    q = From(location) |>
+    q = From(:location) |>
         Group(Get.state)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT DISTINCT "location_1"."state"
     FROM "location" AS "location_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     10×1 DataFrame
      Row │ state
@@ -778,13 +793,11 @@ clause.
 
 *Show patients who saw a doctor within the last year.*
 
-    q = From(visit_occurrence) |>
+    q = From(:visit_occurrence) |>
         Group(Get.person_id) |>
         Where(Agg.max(Get.visit_end_date) .>= Fun.date("now", "-1 year"))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT "visit_occurrence_1"."person_id"
     FROM "visit_occurrence" AS "visit_occurrence_1"
@@ -797,15 +810,13 @@ with `Get` in order to use an aggregate function.
 
 *For each patient, show the date of their latest visit to a doctor.*
 
-    q = From(person) |>
-        LeftJoin(:visit_group => From(visit_occurrence) |> Group(Get.person_id),
+    q = From(:person) |>
+        LeftJoin(:visit_group => From(:visit_occurrence) |> Group(Get.person_id),
                  on = Get.person_id .== Get.visit_group.person_id) |>
         Select(Get.person_id,
                Get.visit_group |> Agg.max(Get.visit_start_date))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
@@ -843,7 +854,7 @@ rows prior to the current row.
 
     using FunSQL: Partition
 
-    q = From(visit_occurrence) |>
+    q = From(:visit_occurrence) |>
         Partition(Get.person_id,
                   order_by = [Get.visit_start_date],
                   frame = (mode = :rows, start = -Inf, finish = -1)) |>
@@ -852,9 +863,7 @@ rows prior to the current row.
                Get.visit_end_date,
                :gap => Fun.julianday(Get.visit_start_date) .- Fun.julianday(Agg.max(Get.visit_end_date)))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "visit_occurrence_1"."person_id",
@@ -864,9 +873,7 @@ rows prior to the current row.
     FROM "visit_occurrence" AS "visit_occurrence_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
     27×4 DataFrame
      Row │ person_id  visit_start_date  visit_end_date  gap
@@ -895,9 +902,7 @@ supported by SQL syntax.
     WHERE p.year_of_birth BETWEEN ? AND ?
     """
 
-    res = DBInterface.execute(conn, sql, (1930, 1940))
-
-    DataFrame(res)
+    DBInterface.execute(conn, sql, (1930, 1940)) |> DataFrame
     #=>
     3×1 DataFrame
      Row │ person_id
@@ -913,13 +918,11 @@ parameter references are created using the [`Var`](@ref) node.
 
     using FunSQL: Var
 
-    q = From(person) |>
-        Where(Fun.between(Get.year_of_birth, Var.start_year, Var.end_year)) |>
+    q = From(:person) |>
+        Where(Fun.between(Get.year_of_birth, Var.START_YEAR, Var.END_YEAR)) |>
         Select(Get.person_id)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
@@ -927,18 +930,10 @@ parameter references are created using the [`Var`](@ref) node.
     =#
 
 While we specified parameters by name, in the generated SQL query the same
-parameters are numbered.  If we know the values of the parameters and we wish
-to execute the query with them, we need to pack the values in the order in
-which parameters appear in the SQL query:
+parameters are numbered.  FunSQL will automatically [`pack`](@ref) named
+parameters in the order in which they appear in the SQL query.
 
-    using FunSQL: pack
-
-    params = pack(sql, (start_year = 1930, end_year = 1940))
-    #-> Any[1930, 1940]
-
-    res = DBInterface.execute(conn, sql, params)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q, START_YEAR = 1930, END_YEAR = 1940) |> DataFrame
     #=>
     3×1 DataFrame
      Row │ person_id
@@ -961,21 +956,19 @@ It is easy to assemble an inner query with FunSQL.
 
 *Find the oldest patients.*
 
-    qᵢ = From(person) |>
+    qᵢ = From(:person) |>
          Group() |>
          Select(Agg.min(Get.year_of_birth))
 
-    qₒ = From(person) |>
-         Where(Get.year_of_birth .== qᵢ)
+    qₒ = From(:person) |>
+         Where(Get.year_of_birth .== qᵢ) |>
+         Select(Get.person_id, Get.year_of_birth)
 
-    sql = render(qₒ, dialect = :sqlite)
-
-    print(sql)
+    render(conn, qₒ) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
+      "person_1"."year_of_birth"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" = (
       SELECT MIN("person_2"."year_of_birth") AS "min"
@@ -983,33 +976,29 @@ It is easy to assemble an inner query with FunSQL.
     ))
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, qₒ) |> DataFrame
     #=>
-    1×3 DataFrame
-     Row │ person_id  year_of_birth  location_id
-         │ Int64      Int64          Int64
-    ─────┼───────────────────────────────────────
-       1 │    110862           1911          436
+    1×2 DataFrame
+     Row │ person_id  year_of_birth
+         │ Int64      Int64
+    ─────┼──────────────────────────
+       1 │    110862           1911
     =#
 
 *Find patients with no visits to a healthcare provider.*
 
-    qᵢ = From(visit_occurrence) |>
+    qᵢ = From(:visit_occurrence) |>
          Select(Get.person_id)
 
-    qₒ = From(person) |>
+    qₒ = From(:person) |>
          Where(Fun."not in"(Get.person_id, qᵢ))
 
-    sql = render(qₒ, dialect = :sqlite)
-
-    print(sql)
+    render(conn, qₒ) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."person_id" NOT IN (
       SELECT "visit_occurrence_1"."person_id"
@@ -1017,14 +1006,12 @@ It is easy to assemble an inner query with FunSQL.
     ))
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, qₒ) |> DataFrame
     #=>
-    0×3 DataFrame
+    0×18 DataFrame
     =#
 
-An inner query may depend on the data from the outer query.  Such inner queries
+The inner query may depend on the data from the outer query.  Such inner queries
 are called *correlated*.  In FunSQL, correlated queries are created using the
 [`Bind`](@ref) node.  Specifically, in the body of a correlated query we use
 [query parameters](@ref Query-Parameters) to refer to the external data.  The
@@ -1036,26 +1023,22 @@ expression evaluated in the context of the outer query.
     using FunSQL: Bind
 
     CorrelatedCondition(person_id, start_date, end_date) =
-        From(condition_occurrence) |>
-        Where(Fun.and(Get.person_id .== Var.person_id,
-                      Fun.between(Get.condition_start_date, Var.start_date, Var.end_date))) |>
-        Bind(:person_id => person_id,
-             :start_date => start_date,
-             :end_date => end_date)
+        From(:condition_occurrence) |>
+        Where(Fun.and(Get.person_id .== Var.PERSON_ID,
+                      Fun.between(Get.condition_start_date, Var.START_DATE, Var.END_DATE))) |>
+        Bind(:PERSON_ID => person_id,
+             :START_DATE => start_date,
+             :END_DATE => end_date)
 
-    q = From(visit_occurrence) |>
+    q = From(:visit_occurrence) |>
         Where(Fun.exists(CorrelatedCondition(Get.person_id, Get.visit_start_date, Get.visit_end_date)))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "visit_occurrence_1"."visit_occurrence_id",
-      "visit_occurrence_1"."person_id",
-      "visit_occurrence_1"."visit_concept_id",
-      "visit_occurrence_1"."visit_start_date",
-      "visit_occurrence_1"."visit_end_date"
+      ⋮
+      "visit_occurrence_1"."visit_source_concept_id"
     FROM "visit_occurrence" AS "visit_occurrence_1"
     WHERE (EXISTS (
       SELECT NULL
@@ -1077,17 +1060,15 @@ specify a particular order of output rows, we use the [`Order`](@ref) node.
 
     using FunSQL: Order
 
-    q = From(person) |>
+    q = From(:person) |>
         Order(Get.year_of_birth)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."year_of_birth"
     =#
@@ -1099,17 +1080,15 @@ the rows in an ascending or in a descending order.
 
     using FunSQL: Desc
 
-    q = From(person) |>
+    q = From(:person) |>
         Order(Get.year_of_birth |> Desc())
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."year_of_birth" DESC
     =#
@@ -1121,18 +1100,16 @@ the output deterministic, `Limit` must be applied right after `Order`.
 
     using FunSQL: Limit
 
-    q = From(person) |>
+    q = From(:person) |>
         Order(Get.year_of_birth) |>
         Limit(1:3)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
       "person_1"."person_id",
-      "person_1"."year_of_birth",
-      "person_1"."location_id"
+      ⋮
+      "person_1"."ethnicity_source_concept_id"
     FROM "person" AS "person_1"
     ORDER BY "person_1"."year_of_birth"
     LIMIT 3
@@ -1142,36 +1119,40 @@ the output deterministic, `Limit` must be applied right after `Order`.
 
 ## `Append` and `Iterate`
 
-The `Append` node concatenates two or more input datasets.  Only the columns
-that are present in every input dataset will be included to the output.
+The [`Append`](@ref) node concatenates two or more input datasets.  Only the
+columns that are present in every input dataset will be included to the output.
 
 *Show all clinical events (visits and conditions) associated with each patient.*
 
     using FunSQL: Append
 
-    q = From(visit_occurrence) |>
+    q = From(:visit_occurrence) |>
         Define(:type => "visit", :date => Get.visit_start_date) |>
-        Append(From(condition_occurrence) |>
+        Append(From(:condition_occurrence) |>
                Define(:type => "condition", :date => Get.condition_start_date)) |>
         Order(Get.person_id, Get.date)
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
     SELECT
+      "union_1"."visit_occurrence_id",
       "union_1"."person_id",
+      "union_1"."provider_id",
       "union_1"."type",
       "union_1"."date"
     FROM (
       SELECT
+        "visit_occurrence_1"."visit_occurrence_id",
         "visit_occurrence_1"."person_id",
+        "visit_occurrence_1"."provider_id",
         'visit' AS "type",
         "visit_occurrence_1"."visit_start_date" AS "date"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       UNION ALL
       SELECT
+        "condition_occurrence_1"."visit_occurrence_id",
         "condition_occurrence_1"."person_id",
+        "condition_occurrence_1"."provider_id",
         'condition' AS "type",
         "condition_occurrence_1"."condition_start_date" AS "date"
       FROM "condition_occurrence" AS "condition_occurrence_1"
@@ -1181,31 +1162,29 @@ that are present in every input dataset will be included to the output.
       "union_1"."date"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
-    53×3 DataFrame
-     Row │ person_id  type       date
-         │ Int64      String     String
-    ─────┼──────────────────────────────────
-       1 │      1780  visit      2008-04-09
-       2 │      1780  visit      2008-04-10
-       3 │      1780  condition  2008-04-10
-       4 │      1780  visit      2008-11-22
-       5 │      1780  condition  2008-11-22
-       6 │      1780  visit      2009-05-22
-       7 │      1780  condition  2009-05-22
-       8 │     30091  visit      2008-11-12
-      ⋮  │     ⋮          ⋮          ⋮
-      47 │    110862  condition  2008-09-07
-      48 │    110862  visit      2009-06-30
-      49 │    110862  condition  2009-06-30
-      50 │    110862  visit      2009-09-30
-      51 │    110862  condition  2009-09-30
-      52 │    110862  visit      2010-06-07
-      53 │    110862  condition  2010-06-07
-                             38 rows omitted
+    53×5 DataFrame
+     Row │ visit_occurrence_id  person_id  provider_id  type       date
+         │ Int64                Int64      Int64        String     String
+    ─────┼────────────────────────────────────────────────────────────────────
+       1 │               88179       1780         5247  visit      2008-04-09
+       2 │               88246       1780        61112  visit      2008-04-10
+       3 │               88246       1780        61112  condition  2008-04-10
+       4 │               88214       1780        12674  visit      2008-11-22
+       5 │               88214       1780        12674  condition  2008-11-22
+       6 │               88263       1780        61118  visit      2009-05-22
+       7 │               88263       1780        61118  condition  2009-05-22
+       8 │             1454922      30091        36303  visit      2008-11-12
+      ⋮  │          ⋮               ⋮           ⋮           ⋮          ⋮
+      47 │             5314671     110862         5159  condition  2008-09-07
+      48 │             5314690     110862        31906  visit      2009-06-30
+      49 │             5314690     110862        31906  condition  2009-06-30
+      50 │             5314664     110862        31857  visit      2009-09-30
+      51 │             5314664     110862        31857  condition  2009-09-30
+      52 │             5314696     110862       192777  visit      2010-06-07
+      53 │             5314696     110862       192777  condition  2010-06-07
+                                                               38 rows omitted
     =#
 
 For a second example, consider the table `concept`, which contains the
@@ -1216,8 +1195,8 @@ concepts may be related to each other (*Myocardial Infarction* has a subtype
 immediate subtypes as the function:
 
     SubtypesOf(base) =
-        From(concept) |>
-        Join(From(concept_relationship) |>
+        From(:concept) |>
+        Join(From(:concept_relationship) |>
              Where(Get.relationship_id .== "Is a"),
              on = Get.concept_id .== Get.concept_id_1) |>
         Join(:base => base,
@@ -1225,23 +1204,20 @@ immediate subtypes as the function:
 
 *Show the concept "Myocardial Infarction" and its immediate subtypes.*
 
-    base = From(concept) |>
+    base = From(:concept) |>
            Where(Get.concept_name .== "Myocardial infarction")
 
     q = base |> Append(SubtypesOf(base))
 
-    sql = render(q, dialect = :sqlite)
-
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
-    2×2 DataFrame
-     Row │ concept_id  concept_name
-         │ Int64       String
-    ─────┼─────────────────────────────────────────
-       1 │    4329847  Myocardial infarction
-       2 │     312327  Acute myocardial infarction
+    2×7 DataFrame
+     Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
+         │ Int64       String                       String     String         Stri ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction        Condition  SNOMED         Clin ⋯
+       2 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin
+                                                                   3 columns omitted
     =#
 
 But how can we fetch not just immediate, but all of the subtypes of a concept?
@@ -1267,20 +1243,28 @@ This is exactly the action of the [`Iterate`](@ref) node.
     q = base |>
         Iterate(:subtype => SubtypesOf(From(:subtype)))
 
-    sql = render(q, dialect = :sqlite)
-
-    print(sql)
+    render(conn, q) |> print
     #=>
-    WITH RECURSIVE "subtype_1" ("concept_id", "concept_name") AS (
+    WITH RECURSIVE "subtype_1" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code") AS (
       SELECT
         "concept_1"."concept_id",
-        "concept_1"."concept_name"
+        "concept_1"."concept_name",
+        "concept_1"."domain_id",
+        "concept_1"."vocabulary_id",
+        "concept_1"."concept_class_id",
+        "concept_1"."standard_concept",
+        "concept_1"."concept_code"
       FROM "concept" AS "concept_1"
       WHERE ("concept_1"."concept_name" = 'Myocardial infarction')
       UNION ALL
       SELECT
         "concept_2"."concept_id",
-        "concept_2"."concept_name"
+        "concept_2"."concept_name",
+        "concept_2"."domain_id",
+        "concept_2"."vocabulary_id",
+        "concept_2"."concept_class_id",
+        "concept_2"."standard_concept",
+        "concept_2"."concept_code"
       FROM "concept" AS "concept_2"
       JOIN (
         SELECT
@@ -1293,23 +1277,27 @@ This is exactly the action of the [`Iterate`](@ref) node.
     )
     SELECT
       "subtype_1"."concept_id",
-      "subtype_1"."concept_name"
+      "subtype_1"."concept_name",
+      "subtype_1"."domain_id",
+      "subtype_1"."vocabulary_id",
+      "subtype_1"."concept_class_id",
+      "subtype_1"."standard_concept",
+      "subtype_1"."concept_code"
     FROM "subtype_1"
     =#
 
-    res = DBInterface.execute(conn, sql)
-
-    DataFrame(res)
+    DBInterface.execute(conn, q) |> DataFrame
     #=>
-    6×2 DataFrame
-     Row │ concept_id  concept_name
-         │ Int64       String
-    ─────┼───────────────────────────────────────────────
-       1 │    4329847  Myocardial infarction
-       2 │     312327  Acute myocardial infarction
-       3 │     434376  Acute myocardial infarction of a…
-       4 │     438170  Acute myocardial infarction of i…
-       5 │     438438  Acute myocardial infarction of a…
-       6 │     444406  Acute subendocardial infarction
+    6×7 DataFrame
+     Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+         │ Int64       String                             String     String        ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+       2 │     312327  Acute myocardial infarction        Condition  SNOMED
+       3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+       4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+       5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+       6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                                   3 columns omitted
     =#
 
