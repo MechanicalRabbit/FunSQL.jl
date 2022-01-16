@@ -462,27 +462,27 @@ attribute.
 
 A query variable is created with the `Var` constructor.
 
-    e = Var(:year)
-    #-> Var.year
+    e = Var(:YEAR)
+    #-> Var.YEAR
 
 Alternatively, use shorthand notation.
 
-    Var.year
-    #-> Var.year
+    Var.YEAR
+    #-> Var.YEAR
 
-    Var."year"
-    #-> Var.year
+    Var."YEAR"
+    #-> Var.YEAR
 
-    Var[:year]
-    #-> Var.year
+    Var[:YEAR]
+    #-> Var.YEAR
 
-    Var["year"]
-    #-> Var.year
+    Var["YEAR"]
+    #-> Var.YEAR
 
 Unbound query variables are serialized as query parameters.
 
     q = From(person) |>
-        Where(Get.year_of_birth .> Var.year)
+        Where(Get.year_of_birth .> Var.YEAR)
 
     sql = render(q)
 
@@ -493,18 +493,18 @@ Unbound query variables are serialized as query parameters.
       ⋮
       "person_1"."location_id"
     FROM "person" AS "person_1"
-    WHERE ("person_1"."year_of_birth" > :year)
+    WHERE ("person_1"."year_of_birth" > :YEAR)
     =#
 
     sql.vars
-    #-> [:year]
+    #-> [:YEAR]
 
 Query variables could be bound using the `Bind` constructor.
 
     q0(person_id) =
         From(visit_occurrence) |>
-        Where(Get.person_id .== Var.person_id) |>
-        Bind(:person_id => person_id)
+        Where(Get.person_id .== Var.PERSON_ID) |>
+        Bind(:PERSON_ID => person_id)
 
     q0(1)
     #-> (…) |> Bind(…)
@@ -513,8 +513,8 @@ Query variables could be bound using the `Bind` constructor.
     #=>
     let visit_occurrence = SQLTable(:visit_occurrence, …),
         q1 = From(visit_occurrence),
-        q2 = q1 |> Where(Fun."=="(Get.person_id, Var.person_id))
-        q2 |> Bind(Lit(1) |> As(:person_id))
+        q2 = q1 |> Where(Fun."=="(Get.person_id, Var.PERSON_ID))
+        q2 |> Bind(Lit(1) |> As(:PERSON_ID))
     end
     =#
 
@@ -555,10 +555,10 @@ An empty `Bind` can be created.
 
 `Bind` requires that all variables have a unique name.
 
-    Bind(:person_id => 1, :person_id => 2)
+    Bind(:PERSON_ID => 1, :PERSON_ID => 2)
     #=>
-    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
-    Bind(Lit(1) |> As(:person_id), Lit(2) |> As(:person_id))
+    ERROR: FunSQL.DuplicateLabelError: PERSON_ID is used more than once in:
+    Bind(Lit(1) |> As(:PERSON_ID), Lit(2) |> As(:PERSON_ID))
     =#
 
 
@@ -1821,10 +1821,10 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
     q0(person_id) =
         From(visit_occurrence) |>
-        Where(Get.person_id .== Var.person_id) |>
+        Where(Get.person_id .== Var.PERSON_ID) |>
         Partition(order_by = [Get.visit_start_date]) |>
         Where(Agg.row_number() .== 1) |>
-        Bind(:person_id => person_id)
+        Bind(:PERSON_ID => person_id)
 
     print(render(q0(1)))
     #=>
