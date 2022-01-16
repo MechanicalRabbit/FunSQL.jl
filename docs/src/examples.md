@@ -28,7 +28,7 @@ a regular database library such as
 In the following examples, we use a SQLite database containing a tiny sample
 of the [CMS DE-SynPuf
 dataset](https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF).
-See the [Usage Guide](@ref Database-Schema) for the description of the database
+See the [Usage Guide](@ref Test-Database) for the description of the database
 schema.
 
 *Download the database file.*
@@ -138,20 +138,7 @@ to render and immediately execute it.
     DBInterface.execute(conn, q) |> DataFrame
     #=>
     10×18 DataFrame
-     Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
-         │ Int64      Int64              Int64          Int64           Int64      ⋯
-    ─────┼──────────────────────────────────────────────────────────────────────────
-       1 │      1780               8532           1940               2             ⋯
-       2 │     30091               8532           1932               8
-       3 │     37455               8532           1913               7
-       4 │     42383               8507           1922               2
-       5 │     69985               8532           1956               7             ⋯
-       6 │     72120               8507           1937              10
-       7 │     82328               8532           1957               9
-       8 │     95538               8507           1923              11
-       9 │    107680               8532           1963              12             ⋯
-      10 │    110862               8507           1911               4
-                                                                  14 columns omitted
+    ⋮
     =#
 
 
@@ -529,10 +516,10 @@ between consecutive events.*
 
     CorrelatedInpatientVisit(person_id, date) =
         InpatientVisitOccurrence() |>
-        Where(Fun.and(Get.person_id .== Var.person_id,
-                      Fun.between(Var.date, Get.visit_start_date, Get.visit_end_date))) |>
-        Bind(:person_id => person_id,
-             :date => date)
+        Where(Fun.and(Get.person_id .== Var.PERSON_ID,
+                      Fun.between(Var.DATE, Get.visit_start_date, Get.visit_end_date))) |>
+        Bind(:PERSON_ID => person_id,
+             :DATE => date)
 
     MyocardialInfarctionDuringInpatientVisit() =
         MyocardialInfarctionOccurrence() |>
