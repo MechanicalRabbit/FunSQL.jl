@@ -62,32 +62,25 @@ const DB = SQLConnection
 """
     DBInterface.connect(DB{RawConnType},
                         args...;
-                        catalog = nothing,
                         schema = nothing,
                         dialect = nothing,
                         cache = $default_cache_maxsize,
                         kws...)
 
-Connect to the database server and return a [`SQLConnection`](@ref) object.
+Connect to the database server, call [`reflect`](@ref) to retrieve the
+information about available tables and return a [`SQLConnection`](@ref) object.
 
-The function creates a raw database connection object by calling:
+Extra parameters `args` and `kws` are passed to the call:
 
     DBInterface.connect(RawConnType, args...; kws...)
-
-If `catalog` is not set, it is retrieved from the database
-using [`reflect`](@ref), which consumes the parameters `schema`,
-`dialect`, and `cache`.
 """
 function DBInterface.connect(::Type{SQLConnection{RawConnType}}, args...;
-                             catalog::Union{SQLCatalog, Nothing} = nothing,
                              schema = nothing,
                              dialect = nothing,
                              cache = default_cache_maxsize,
                              kws...) where {RawConnType}
     raw = DBInterface.connect(RawConnType, args...; kws...)
-    if catalog === nothing
-        catalog = reflect(raw, schema = schema, dialect = dialect, cache = cache)
-    end
+    catalog = reflect(raw, schema = schema, dialect = dialect, cache = cache)
     SQLConnection{RawConnType}(raw, catalog = catalog)
 end
 
