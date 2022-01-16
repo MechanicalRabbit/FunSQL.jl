@@ -29,10 +29,10 @@ WHERE \$condition
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Where(Fun(">", Get.year_of_birth, 2000));
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."person_id",
   "person_1"."year_of_birth"

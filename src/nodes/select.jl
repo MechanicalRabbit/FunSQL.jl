@@ -39,11 +39,11 @@ Set the column labels with [`As`](@ref).
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Select(Get.person_id,
                   :age => Fun.now() .- Get.birth_datetime);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."person_id",
   (NOW() - "person_1"."birth_datetime") AS "age"

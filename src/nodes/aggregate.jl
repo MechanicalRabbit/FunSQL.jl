@@ -42,11 +42,11 @@ to a window function.
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Group(Get.year_of_birth) |>
            Select(Get.year_of_birth, Agg.count());
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."year_of_birth",
   COUNT(*) AS "count"
@@ -59,11 +59,11 @@ GROUP BY "person_1"."year_of_birth"
 ```jldoctest
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> q = From(location) |>
+julia> q = From(:location) |>
            Group() |>
            Select(Agg.count(distinct = true, Get.state));
 
-julia> print(render(q))
+julia> print(render(q, tables = [location]))
 SELECT COUNT(DISTINCT "location_1"."state") AS "count"
 FROM "location" AS "location_1"
 ```
@@ -76,15 +76,15 @@ julia> person = SQLTable(:person, columns = [:person_id]);
 julia> visit_occurrence =
            SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
 
-julia> q = From(person) |>
-           LeftJoin(:visit_group => From(visit_occurrence) |>
+julia> q = From(:person) |>
+           LeftJoin(:visit_group => From(:visit_occurrence) |>
                                     Group(Get.person_id),
                     on = (Get.person_id .== Get.visit_group.person_id)) |>
            Select(Get.person_id,
                   :max_visit_start_date =>
                       Get.visit_group |> Agg.max(Get.visit_start_date));
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, visit_occurrence]))
 SELECT
   "person_1"."person_id",
   "visit_group_1"."max" AS "max_visit_start_date"
@@ -104,14 +104,14 @@ LEFT JOIN (
 julia> visit_occurrence =
            SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
 
-julia> q = From(visit_occurrence) |>
+julia> q = From(:visit_occurrence) |>
            Partition(Get.person_id,
                      order_by = [Get.visit_start_date]) |>
            Select(Get.person_id,
                   Get.visit_start_date,
                   :gap => Get.visit_start_date .- Agg.lag(Get.visit_start_date));
 
-julia> print(render(q))
+julia> print(render(q, tables = [visit_occurrence]))
 SELECT
   "visit_occurrence_1"."person_id",
   "visit_occurrence_1"."visit_start_date",
