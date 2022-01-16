@@ -119,14 +119,14 @@ when they are used in the context of a SQL clause.
 
 Placeholder parameters to a SQL query are created with `VAR()` constructor.
 
-    c = VAR(:year)
-    #-> VAR(:year)
+    c = VAR(:YEAR)
+    #-> VAR(:YEAR)
 
     display(c)
-    #-> VAR(:year)
+    #-> VAR(:YEAR)
 
     print(render(c))
-    #-> :year
+    #-> :YEAR
 
 Rendering of a SQL parameter depends on the chosen dialect.
 
@@ -142,8 +142,8 @@ Rendering of a SQL parameter depends on the chosen dialect.
 Function `pack()` converts named parameters to a positional form.
 
     c = FROM(:person) |>
-        WHERE(OP("OR", OP("=", :gender_concept_id, VAR(:gender)),
-                       OP("=", :gender_source_concept_id, VAR(:gender)))) |>
+        WHERE(OP("OR", OP("=", :gender_concept_id, VAR(:GENDER)),
+                       OP("=", :gender_source_concept_id, VAR(:GENDER)))) |>
         SELECT(:person_id)
 
     sql = render(c, dialect = :sqlite)
@@ -155,13 +155,13 @@ Function `pack()` converts named parameters to a positional form.
     WHERE (("gender_concept_id" = ?1) OR ("gender_source_concept_id" = ?1))
     =#
 
-    pack(sql, (gender = 8532,))
+    pack(sql, (GENDER = 8532,))
     #-> Any[8532]
 
-    pack(sql, Dict(:gender => 8532))
+    pack(sql, Dict(:GENDER => 8532))
     #-> Any[8532]
 
-    pack(sql, Dict("gender" => 8532))
+    pack(sql, Dict("GENDER" => 8532))
     #-> Any[8532]
 
 If the dialect does not support numbered parameters, `pack()` may need to
@@ -176,7 +176,7 @@ duplicate parameter values.
     WHERE ((`gender_concept_id` = ?) OR (`gender_source_concept_id` = ?))
     =#
 
-    pack(sql, (gender = 8532,))
+    pack(sql, (GENDER = 8532,))
     #-> Any[8532, 8532]
 
 
