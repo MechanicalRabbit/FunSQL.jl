@@ -56,12 +56,12 @@ julia> person = SQLTable(:person, columns = [:person_id, :location_id]);
 
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> q = person |>
-           Join(:location => location,
+julia> q = From(:person) |>
+           Join(:location => From(:location),
                 Get.location_id .== Get.location.location_id) |>
            Select(Get.person_id, Get.location.state);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, location]))
 SELECT
   "person_1"."person_id",
   "location_1"."state"

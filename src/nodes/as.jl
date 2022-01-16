@@ -30,9 +30,9 @@ The arrow operator (`=>`) is a shorthand notation for `As`.
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |> Select(:id => Get.person_id);
+julia> q = From(:person) |> Select(:id => Get.person_id);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT "person_1"."person_id" AS "id"
 FROM "person" AS "person_1"
 ```
@@ -44,12 +44,12 @@ julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :locati
 
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> q = From(person) |>
-           Join(From(location) |> As(:location),
+julia> q = From(:person) |>
+           Join(From(:location) |> As(:location),
                 on = Get.location_id .== Get.location.location_id) |>
            Select(Get.person_id, Get.location.state);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, location]))
 SELECT
   "person_1"."person_id",
   "location_1"."state"

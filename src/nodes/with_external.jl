@@ -46,15 +46,15 @@ julia> handler((tbl, def)) =
            println("CREATE TEMP TABLE ", render(ID(tbl.name)), " AS\\n",
                    render(def), ";\\n");
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Where(Fun.in(Get.person_id, From(:essential_hypertension) |>
                                        Select(Get.person_id))) |>
            WithExternal(:essential_hypertension =>
-                            From(condition_occurrence) |>
+                            From(:condition_occurrence) |>
                             Where(Get.condition_concept_id .== 320128),
                         handler = handler);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, condition_occurrence]))
 CREATE TEMP TABLE "essential_hypertension" AS
 SELECT "condition_occurrence_1"."person_id"
 FROM "condition_occurrence" AS "condition_occurrence_1"

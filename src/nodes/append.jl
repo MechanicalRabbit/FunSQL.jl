@@ -40,12 +40,12 @@ julia> measurement = SQLTable(:measurement, columns = [:measurement_id, :person_
 
 julia> observation = SQLTable(:observation, columns = [:observation_id, :person_id, :observation_date]);
 
-julia> q = From(measurement) |>
+julia> q = From(:measurement) |>
            Define(:date => Get.measurement_date) |>
-           Append(From(observation) |>
+           Append(From(:observation) |>
                   Define(:date => Get.observation_date));
 
-julia> print(render(q))
+julia> print(render(q, tables = [measurement, observation]))
 SELECT
   "measurement_1"."person_id",
   "measurement_1"."measurement_date" AS "date"

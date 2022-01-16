@@ -34,10 +34,10 @@ produces the given column.
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Select(Get.person_id);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT "person_1"."person_id"
 FROM "person" AS "person_1"
 ```
@@ -49,12 +49,12 @@ julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :locati
 
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> q = From(person) |>
-           Join(From(location) |> As(:location),
+julia> q = From(:person) |>
+           Join(From(:location) |> As(:location),
                 on = Get.location_id .== Get.location.location_id) |>
            Select(Get.person_id, Get.location.state);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, location]))
 SELECT
   "person_1"."person_id",
   "location_1"."state"
@@ -69,15 +69,15 @@ julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :locati
 
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> qₚ = From(person);
+julia> qₚ = From(:person);
 
-julia> qₗ = From(location);
+julia> qₗ = From(:location);
 
 julia> q = qₚ |>
            Join(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
            Select(qₚ.person_id, qₗ.state);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, location]))
 SELECT
   "person_1"."person_id",
   "location_1"."state"

@@ -43,11 +43,11 @@ GROUP BY \$by...
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Group() |>
            Select(Agg.count());
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT COUNT(*) AS "count"
 FROM "person" AS "person_1"
 ```
@@ -57,11 +57,11 @@ FROM "person" AS "person_1"
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Group(Get.year_of_birth) |>
            Select(Get.year_of_birth, Agg.count());
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."year_of_birth",
   COUNT(*) AS "count"
@@ -74,10 +74,10 @@ GROUP BY "person_1"."year_of_birth"
 ```jldoctest
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
-julia> q = From(location) |>
+julia> q = From(:location) |>
            Group(Get.state);
 
-julia> print(render(q))
+julia> print(render(q, tables = [location]))
 SELECT DISTINCT "location_1"."state"
 FROM "location" AS "location_1"
 ```

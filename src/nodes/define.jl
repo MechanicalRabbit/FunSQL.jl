@@ -32,11 +32,11 @@ The `Define` node adds or replaces output columns.
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Define(:age => Fun.now() .- Get.birth_datetime) |>
            Where(Get.age .>= "16 years");
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."person_id",
   "person_1"."birth_datetime",
@@ -50,12 +50,12 @@ WHERE ((NOW() - "person_1"."birth_datetime") >= '16 years')
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Define(:year_of_birth => Fun.case(Get.year_of_birth .>= 1930,
                                              Get.year_of_birth,
                                              missing));
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."person_id",
   (CASE WHEN ("person_1"."year_of_birth" >= 1930) THEN "person_1"."year_of_birth" ELSE NULL END) AS "year_of_birth"

@@ -39,12 +39,12 @@ julia> person = SQLTable(:person, columns = [:person_id]);
 
 julia> visit_occurrence = SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id]);
 
-julia> q = From(person) |>
-           Where(Fun.exists(From(visit_occurrence) |>
+julia> q = From(:person) |>
+           Where(Fun.exists(From(:visit_occurrence) |>
                             Where(Get.person_id .== Var.person_id) |>
                             Bind(Get.person_id)));
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, visit_occurrence]))
 SELECT "person_1"."person_id"
 FROM "person" AS "person_1"
 WHERE (EXISTS (
@@ -63,8 +63,8 @@ julia> person = SQLTable(:person, columns = [:person_id]);
 julia> visit_occurrence =
            SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
 
-julia> q = From(person) |>
-           LeftJoin(From(visit_occurrence) |>
+julia> q = From(:person) |>
+           LeftJoin(From(:visit_occurrence) |>
                     Where(Get.person_id .== Var.person_id) |>
                     Order(Get.visit_start_date |> Desc()) |>
                     Limit(1) |>
@@ -73,7 +73,7 @@ julia> q = From(person) |>
                     on = true) |>
             Select(Get.person_id, Get.visit.visit_start_date);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, visit_occurrence]))
 SELECT
   "person_1"."person_id",
   "visit_1"."visit_start_date"

@@ -33,10 +33,10 @@ Specify the sort order with [`Asc`](@ref), [`Desc`](@ref), or [`Sort`](@ref).
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Order(Get.year_of_birth);
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."person_id",
   "person_1"."year_of_birth"

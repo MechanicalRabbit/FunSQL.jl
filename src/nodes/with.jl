@@ -44,14 +44,14 @@ julia> condition_occurrence =
                                                       :person_id,
                                                       :condition_concept_id]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Where(Fun.in(Get.person_id, From(:essential_hypertension) |>
                                        Select(Get.person_id))) |>
            With(:essential_hypertension =>
-                    From(condition_occurrence) |>
+                    From(:condition_occurrence) |>
                     Where(Get.condition_concept_id .== 320128));
 
-julia> print(render(q))
+julia> print(render(q, tables = [person, condition_occurrence]))
 WITH "essential_hypertension_1" ("person_id") AS (
   SELECT "condition_occurrence_1"."person_id"
   FROM "condition_occurrence" AS "condition_occurrence_1"

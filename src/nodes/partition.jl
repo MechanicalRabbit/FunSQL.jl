@@ -40,11 +40,11 @@ WINDOW w AS (PARTITION BY \$by... ORDER BY \$order_by...)
 julia> visit_occurrence =
            SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
 
-julia> q = From(visit_occurrence) |>
+julia> q = From(:visit_occurrence) |>
            Partition(Get.person_id, order_by = [Get.visit_start_date]) |>
            Select(Agg.row_number(), Get.visit_occurrence_id);
 
-julia> print(render(q))
+julia> print(render(q, tables = [visit_occurrence]))
 SELECT
   (ROW_NUMBER() OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number",
   "visit_occurrence_1"."visit_occurrence_id"
@@ -56,13 +56,13 @@ FROM "visit_occurrence" AS "visit_occurrence_1"
 ```jldoctest
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
-julia> q = From(person) |>
+julia> q = From(:person) |>
            Group(Get.year_of_birth) |>
            Partition(order_by = [Get.year_of_birth],
                      frame = (mode = :range, start = -1, finish = 1)) |>
            Select(Get.year_of_birth, Agg.avg(Agg.count()));
 
-julia> print(render(q))
+julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."year_of_birth",
   (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
