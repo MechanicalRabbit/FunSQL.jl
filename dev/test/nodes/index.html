@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Nodes · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../guide/">Usage Guide</a></li><li><a class="tocitem" href="../../reference/">API Reference</a></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Nodes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Nodes</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/nodes.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Nodes"><a class="docs-heading-anchor" href="#SQL-Nodes">SQL Nodes</a><a id="SQL-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Nodes" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Nodes · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><script src="../../../copy.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../guide/">Usage Guide</a></li><li><a class="tocitem" href="../../reference/">API Reference</a></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Nodes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Nodes</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/nodes.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Nodes"><a class="docs-heading-anchor" href="#SQL-Nodes">SQL Nodes</a><a id="SQL-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Nodes" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
     Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
     Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
     Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
@@ -330,19 +330,19 @@ Define(:age =&gt; Fun.now() .- Get.birth_datetime,
 ERROR: FunSQL.DuplicateLabelError: age is used more than once in:
 Define(Fun.&quot;-&quot;(Fun.now(), Get.birth_datetime) |&gt; As(:age),
        Fun.&quot;-&quot;(Fun.current_timestamp(), Get.birth_datetime) |&gt; As(:age))
-=#</code></pre><h2 id="Variables"><a class="docs-heading-anchor" href="#Variables">Variables</a><a id="Variables-1"></a><a class="docs-heading-anchor-permalink" href="#Variables" title="Permalink"></a></h2><p>A query variable is created with the <code>Var</code> constructor.</p><pre><code class="language-julia hljs">e = Var(:year)
-#-&gt; Var.year</code></pre><p>Alternatively, use shorthand notation.</p><pre><code class="language-julia hljs">Var.year
-#-&gt; Var.year
+=#</code></pre><h2 id="Variables"><a class="docs-heading-anchor" href="#Variables">Variables</a><a id="Variables-1"></a><a class="docs-heading-anchor-permalink" href="#Variables" title="Permalink"></a></h2><p>A query variable is created with the <code>Var</code> constructor.</p><pre><code class="language-julia hljs">e = Var(:YEAR)
+#-&gt; Var.YEAR</code></pre><p>Alternatively, use shorthand notation.</p><pre><code class="language-julia hljs">Var.YEAR
+#-&gt; Var.YEAR
 
-Var.&quot;year&quot;
-#-&gt; Var.year
+Var.&quot;YEAR&quot;
+#-&gt; Var.YEAR
 
-Var[:year]
-#-&gt; Var.year
+Var[:YEAR]
+#-&gt; Var.YEAR
 
-Var[&quot;year&quot;]
-#-&gt; Var.year</code></pre><p>Unbound query variables are serialized as query parameters.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
-    Where(Get.year_of_birth .&gt; Var.year)
+Var[&quot;YEAR&quot;]
+#-&gt; Var.YEAR</code></pre><p>Unbound query variables are serialized as query parameters.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Where(Get.year_of_birth .&gt; Var.YEAR)
 
 sql = render(q)
 
@@ -353,14 +353,14 @@ SELECT
   ⋮
   &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; :year)
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; :YEAR)
 =#
 
 sql.vars
-#-&gt; [:year]</code></pre><p>Query variables could be bound using the <code>Bind</code> constructor.</p><pre><code class="language-julia hljs">q0(person_id) =
+#-&gt; [:YEAR]</code></pre><p>Query variables could be bound using the <code>Bind</code> constructor.</p><pre><code class="language-julia hljs">q0(person_id) =
     From(visit_occurrence) |&gt;
-    Where(Get.person_id .== Var.person_id) |&gt;
-    Bind(:person_id =&gt; person_id)
+    Where(Get.person_id .== Var.PERSON_ID) |&gt;
+    Bind(:PERSON_ID =&gt; person_id)
 
 q0(1)
 #-&gt; (…) |&gt; Bind(…)
@@ -369,8 +369,8 @@ display(q0(1))
 #=&gt;
 let visit_occurrence = SQLTable(:visit_occurrence, …),
     q1 = From(visit_occurrence),
-    q2 = q1 |&gt; Where(Fun.&quot;==&quot;(Get.person_id, Var.person_id))
-    q2 |&gt; Bind(Lit(1) |&gt; As(:person_id))
+    q2 = q1 |&gt; Where(Fun.&quot;==&quot;(Get.person_id, Var.PERSON_ID))
+    q2 |&gt; Bind(Lit(1) |&gt; As(:PERSON_ID))
 end
 =#
 
@@ -399,10 +399,10 @@ WHERE (EXISTS (
   WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
 ))
 =#</code></pre><p>An empty <code>Bind</code> can be created.</p><pre><code class="language-julia hljs">Bind(args = [])
-#-&gt; Bind(args = [])</code></pre><p><code>Bind</code> requires that all variables have a unique name.</p><pre><code class="language-julia hljs">Bind(:person_id =&gt; 1, :person_id =&gt; 2)
+#-&gt; Bind(args = [])</code></pre><p><code>Bind</code> requires that all variables have a unique name.</p><pre><code class="language-julia hljs">Bind(:PERSON_ID =&gt; 1, :PERSON_ID =&gt; 2)
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
-Bind(Lit(1) |&gt; As(:person_id), Lit(2) |&gt; As(:person_id))
+ERROR: FunSQL.DuplicateLabelError: PERSON_ID is used more than once in:
+Bind(Lit(1) |&gt; As(:PERSON_ID), Lit(2) |&gt; As(:PERSON_ID))
 =#</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;
 #-&gt; Fun.:(&quot;&gt;&quot;)
 
@@ -452,14 +452,12 @@ WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; IN (
     (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;F&#39;)
 ))
 =#</code></pre><p>FunSQL can properly represents many SQL functions and operators with irregular syntax.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
-    Where(Fun.and(Fun.&quot;is null&quot;(Get.birth_datetime), Fun.&quot;is not null&quot;(Get.year_of_birth)))
+    Where(Fun.and(Fun.&quot;is null&quot;(Get.birth_datetime), Fun.&quot;is not null&quot;(Get.year_of_birth))) |&gt;
+    Select(:year_of_birth =&gt; Fun.cast(Fun.extract(&quot;YEAR&quot;, Get.birth_datetime), &quot;INT&quot;))
 
 print(render(q))
 #=&gt;
-SELECT
-  &quot;person_1&quot;.&quot;person_id&quot;,
-  ⋮
-  &quot;person_1&quot;.&quot;location_id&quot;
+SELECT CAST(EXTRACT(YEAR FROM &quot;person_1&quot;.&quot;birth_datetime&quot;) AS INT) AS &quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE
   (&quot;person_1&quot;.&quot;birth_datetime&quot; IS NULL) AND
@@ -1406,10 +1404,10 @@ JOIN (
 ) AS &quot;location_2&quot; ON (&quot;person_2&quot;.&quot;location_id&quot; = &quot;location_2&quot;.&quot;location_id&quot;)
 =#</code></pre><p><code>Join</code> can be applied to correlated subqueries.</p><pre><code class="language-julia hljs">q0(person_id) =
     From(visit_occurrence) |&gt;
-    Where(Get.person_id .== Var.person_id) |&gt;
+    Where(Get.person_id .== Var.PERSON_ID) |&gt;
     Partition(order_by = [Get.visit_start_date]) |&gt;
     Where(Agg.row_number() .== 1) |&gt;
-    Bind(:person_id =&gt; person_id)
+    Bind(:PERSON_ID =&gt; person_id)
 
 print(render(q0(1)))
 #=&gt;
@@ -1979,4 +1977,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Friday 14 January 2022 14:07">Friday 14 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.11 on <span class="colophon-date" title="Sunday 16 January 2022 22:10">Sunday 16 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Clauses · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../guide/">Usage Guide</a></li><li><a class="tocitem" href="../../reference/">API Reference</a></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Clauses</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Clauses</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/clauses.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Clauses"><a class="docs-heading-anchor" href="#SQL-Clauses">SQL Clauses</a><a id="SQL-Clauses-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Clauses" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Clauses · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><script src="../../../copy.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../guide/">Usage Guide</a></li><li><a class="tocitem" href="../../reference/">API Reference</a></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Clauses</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Clauses</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/clauses.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Clauses"><a class="docs-heading-anchor" href="#SQL-Clauses">SQL Clauses</a><a id="SQL-Clauses-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Clauses" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
     AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
     LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR,
     WHERE, WINDOW, WITH, pack, render</code></pre><p>The syntactic structure of a SQL query is represented as a tree of <code>SQLClause</code> objects.  Different types of clauses are created by specialized constructors and connected using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
@@ -60,14 +60,14 @@ print(render(c))
 #=&gt;
 SELECT &quot;p&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;p&quot;
-=#</code></pre><h2 id="SQL-Variables"><a class="docs-heading-anchor" href="#SQL-Variables">SQL Variables</a><a id="SQL-Variables-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Variables" title="Permalink"></a></h2><p>Placeholder parameters to a SQL query are created with <code>VAR()</code> constructor.</p><pre><code class="language-julia hljs">c = VAR(:year)
-#-&gt; VAR(:year)
+=#</code></pre><h2 id="SQL-Variables"><a class="docs-heading-anchor" href="#SQL-Variables">SQL Variables</a><a id="SQL-Variables-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Variables" title="Permalink"></a></h2><p>Placeholder parameters to a SQL query are created with <code>VAR()</code> constructor.</p><pre><code class="language-julia hljs">c = VAR(:YEAR)
+#-&gt; VAR(:YEAR)
 
 display(c)
-#-&gt; VAR(:year)
+#-&gt; VAR(:YEAR)
 
 print(render(c))
-#-&gt; :year</code></pre><p>Rendering of a SQL parameter depends on the chosen dialect.</p><pre><code class="language-julia hljs">print(render(c, dialect = :sqlite))
+#-&gt; :YEAR</code></pre><p>Rendering of a SQL parameter depends on the chosen dialect.</p><pre><code class="language-julia hljs">print(render(c, dialect = :sqlite))
 #-&gt; ?1
 
 print(render(c, dialect = :postgresql))
@@ -75,8 +75,8 @@ print(render(c, dialect = :postgresql))
 
 print(render(c, dialect = :mysql))
 #-&gt; ?</code></pre><p>Function <code>pack()</code> converts named parameters to a positional form.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
-    WHERE(OP(&quot;OR&quot;, OP(&quot;=&quot;, :gender_concept_id, VAR(:gender)),
-                   OP(&quot;=&quot;, :gender_source_concept_id, VAR(:gender)))) |&gt;
+    WHERE(OP(&quot;OR&quot;, OP(&quot;=&quot;, :gender_concept_id, VAR(:GENDER)),
+                   OP(&quot;=&quot;, :gender_source_concept_id, VAR(:GENDER)))) |&gt;
     SELECT(:person_id)
 
 sql = render(c, dialect = :sqlite)
@@ -88,13 +88,13 @@ FROM &quot;person&quot;
 WHERE ((&quot;gender_concept_id&quot; = ?1) OR (&quot;gender_source_concept_id&quot; = ?1))
 =#
 
-pack(sql, (gender = 8532,))
+pack(sql, (GENDER = 8532,))
 #-&gt; Any[8532]
 
-pack(sql, Dict(:gender =&gt; 8532))
+pack(sql, Dict(:GENDER =&gt; 8532))
 #-&gt; Any[8532]
 
-pack(sql, Dict(&quot;gender&quot; =&gt; 8532))
+pack(sql, Dict(&quot;GENDER&quot; =&gt; 8532))
 #-&gt; Any[8532]</code></pre><p>If the dialect does not support numbered parameters, <code>pack()</code> may need to duplicate parameter values.</p><pre><code class="language-julia hljs">sql = render(c, dialect = :mysql)
 
 print(sql)
@@ -104,7 +104,7 @@ FROM `person`
 WHERE ((`gender_concept_id` = ?) OR (`gender_source_concept_id` = ?))
 =#
 
-pack(sql, (gender = 8532,))
+pack(sql, (GENDER = 8532,))
 #-&gt; Any[8532, 8532]</code></pre><h2 id="SQL-Functions"><a class="docs-heading-anchor" href="#SQL-Functions">SQL Functions</a><a id="SQL-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Functions" title="Permalink"></a></h2><p>An application of a SQL function is created with <code>FUN()</code> constructor.</p><pre><code class="language-julia hljs">c = FUN(&quot;CONCAT&quot;, :city, &quot;, &quot;, :state)
 #-&gt; FUN(&quot;CONCAT&quot;, …)
 
@@ -865,4 +865,4 @@ print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Friday 14 January 2022 14:07">Friday 14 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.11 on <span class="colophon-date" title="Sunday 16 January 2022 22:10">Sunday 16 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
