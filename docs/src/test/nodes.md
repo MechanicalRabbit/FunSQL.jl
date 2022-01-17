@@ -8,7 +8,6 @@
 
 We start with specifying the database model.
 
-
     const concept =
         SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code])
 

@@ -1,7 +1,7 @@
 name = "FunSQL"
 uuid = "cf6cc811-59f4-4a10-b258-a8547a8f6407"
 authors = ["Kirill Simonov <xi@resolvent.net>", "Clark C. Evans <cce@clarkevans.com>"]
-version = "0.9.2"
+version = "0.10.0"
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"

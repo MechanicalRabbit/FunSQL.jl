@@ -1,6 +1,27 @@
 # Release Notes
 
 
+## v0.10.0
+
+* Add `SQLCatalog` type that encapsulates information about database
+  tables, the target SQL dialect, and a cache of rendered queries.
+* Add function `reflect` to retrieve information about available
+  database tables.
+* `From(::Symbol)` can refer to a table in the database catalog.
+* Add a dependency on `DBInterface` package.
+* Add type `SQLConnection <: DBInterface.Connection` that combines
+  a raw database connection and the database catalog. Also add
+  `SQLStatement <: DBInterface.Statement`.
+* Implement `DBInterface.connect` to create a database connection
+  and call `reflect` to retrieve the database catalog.
+* Implement `DBInterface.prepare` and `DBInterface.execute` to
+  render a query node to SQL and immediately compile or execute it.
+* Allow `render` to take a `SQLConnection` or a `SQLCatalog` argument.
+* Rename `SQLStatement` to `SQLString`, drop the `dialect` field.
+* Update the guide and the examples to use the DBInterface API
+  and improve many docstrings.
+
+
 ## v0.9.2
 
 * Compatibility with PrettyPrinting 0.4.
@@ -33,25 +54,25 @@
 * Require Julia ≥ 1.6.
 * Render each argument on a separate line for `SELECT`, `GROUP BY`, `ORDER BY`,
   as well as for a top-level `AND` in `WHERE` and `HAVING`.
-* Improved `SQLDialect` interface.
-* Added Jacob's `CASE` example.
+* Improve `SQLDialect` interface.
+* Add Jacob's `CASE` example.
 
 
 ## v0.8.1
 
-* Updated documentation and examples.
-* Fixed quoting of MySQL identifiers.
+* Update documentation and examples.
+* Fix quoting of MySQL identifiers.
 
 
 ## v0.8.0
 
-* Refactored the SQL translator to make it faster and easier to maintain.
-* Improved error messages.
+* Refactor the SQL translator to make it faster and easier to maintain.
+* Improve error messages.
 * Include columns added by `Define` to the output.
 * Report an error when `Agg` is used without `Group`.
 * Deduplicate identical aggregates in a `Group` subquery.
 * Support for `WITH` clause.
-* Updated the Tutorial/Usage Guide.
+* Update the Tutorial/Usage Guide.
 
 
 ## v0.7.0
