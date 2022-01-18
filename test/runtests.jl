@@ -24,7 +24,7 @@ if isempty(ARGS)
                 Partition, Select, Sort, Var, Where, With, WithExternal,
                 AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN,
                 KW, LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT,
-                UNION, VAR, WHERE, WINDOW, WITH,
+                UNION, VALUES, VAR, WHERE, WINDOW, WITH,
                 render
             using Dates
         end)

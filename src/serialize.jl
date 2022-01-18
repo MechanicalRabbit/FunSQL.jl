@@ -515,6 +515,61 @@ function serialize!(c::UnionClause, ctx)
     end
 end
 
+function serialize!(c::ValuesClause, ctx)
+    nested = ctx.nested
+    if nested
+        ctx.level += 1
+        print(ctx, '(')
+        newline(ctx)
+    end
+    ctx.nested = true
+    l = length(c.rows)
+    print(ctx, "VALUES")
+    if l == 1
+        print(ctx, ' ')
+    elseif l > 1
+        ctx.level += 1
+        newline(ctx)
+    end
+    first_row = true
+    row_constructor = ctx.dialect.values_row_constructor
+    for row in c.rows
+        if !first_row
+            print(ctx, ',')
+            newline(ctx)
+        else
+            first_row = false
+        end
+        if row isa Union{Tuple, NamedTuple}
+            first_val = true
+            if row_constructor !== nothing
+                print(ctx, row_constructor)
+            end
+            print(ctx, '(')
+            for val in row
+                if !first_val
+                    print(ctx, ", ")
+                else
+                    first_val = false
+                end
+                serialize!(val, ctx)
+            end
+            print(ctx, ')')
+        else
+            serialize!(row, ctx)
+        end
+    end
+    if l > 1
+        ctx.level -= 1
+    end
+    ctx.nested = nested
+    if nested
+        ctx.level -= 1
+        newline(ctx)
+        print(ctx, ')')
+    end
+end
+
 function serialize!(c::VariableClause, ctx)
     style = ctx.dialect.variable_style
     prefix = ctx.dialect.variable_prefix

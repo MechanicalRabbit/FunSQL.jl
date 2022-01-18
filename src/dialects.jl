@@ -51,7 +51,8 @@ import .LIMIT_STYLE.LimitStyle
                  identifier_quotes = ('"', '"'),
                  has_boolean_literals = true,
                  limit_style = :ansi,
-                 has_recursive_annotation = true)
+                 has_recursive_annotation = true,
+                 values_row_constructor = nothing)
     SQLDialect(template::SQLDialect; kws...)
     SQLDialect(name::Symbol, kws...)
     SQLDialect(ConnType::Type)
@@ -94,6 +95,7 @@ struct SQLDialect
     has_boolean_literals::Bool
     limit_style::LimitStyle
     has_recursive_annotation::Bool
+    values_row_constructor::Union{Symbol, Nothing}
 
     SQLDialect(;
                name = :default,
@@ -102,14 +104,16 @@ struct SQLDialect
                identifier_quotes = ('"', '"'),
                has_boolean_literals = true,
                limit_style = LIMIT_STYLE.ANSI,
-               has_recursive_annotation = true) =
+               has_recursive_annotation = true,
+               values_row_constructor = nothing) =
         new(name,
             variable_style,
             variable_prefix,
             identifier_quotes,
             has_boolean_literals,
             limit_style,
-            has_recursive_annotation)
+            has_recursive_annotation,
+            values_row_constructor)
 end
 
 const default_dialect =
@@ -119,7 +123,8 @@ const mysql_dialect =
                variable_style = VARIABLE_STYLE.POSITIONAL,
                variable_prefix = '?',
                identifier_quotes = ('`', '`'),
-               limit_style = LIMIT_STYLE.MYSQL)
+               limit_style = LIMIT_STYLE.MYSQL,
+               values_row_constructor = :ROW)
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
                variable_style = VARIABLE_STYLE.NUMBERED,
