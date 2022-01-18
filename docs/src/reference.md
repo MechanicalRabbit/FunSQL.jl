@@ -402,6 +402,14 @@ Pages = ["clauses/union.jl"]
 ```
 
 
+## `VALUES`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["clauses/values.jl"]
+```
+
+
 ## `VAR`
 
 ```@autodocs

@@ -2,8 +2,8 @@
 
     using FunSQL:
         AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
-        LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT, UNION, VAR,
-        WHERE, WINDOW, WITH, pack, render
+        LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT, UNION, VALUES,
+        VAR, WHERE, WINDOW, WITH, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -1008,6 +1008,73 @@ Rendering a nested `UNION` clause adds parentheses around it.
       FROM "observation"
     ) AS "union"
     WHERE ("date" > '2000-01-01')
+    =#
+
+
+## `VALUES` Clause
+
+A `VALUES` clause is created with `VALUES()` constructor.
+
+    c = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
+    #-> VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
+
+    display(c)
+    #-> VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
+
+    print(render(c))
+    #=>
+    VALUES
+      ('SQL', 1974),
+      ('Julia', 2012),
+      ('FunSQL', 2021)
+    =#
+
+MySQL has special syntax for rows.
+
+    print(render(c, dialect = :mysql))
+    #=>
+    VALUES
+      ROW('SQL', 1974),
+      ROW('Julia', 2012),
+      ROW('FunSQL', 2021)
+    =#
+
+When `VALUES` clause contains a single row, it is emitted on the same
+line.
+
+    c = VALUES([("SQL", 1974)])
+
+    print(render(c))
+    #-> VALUES ('SQL', 1974)
+
+`VALUES` accepts a vector of scalar values.
+
+    c = VALUES(["SQL", "Julia", "FunSQL"])
+
+    print(render(c))
+    #=>
+    VALUES
+      'SQL',
+      'Julia',
+      'FunSQL'
+    =#
+
+When `VALUES` is nested in a `FROM` clause, it is wrapped in parentheses.
+
+    c = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)]) |>
+        AS(:values, columns = [:name, :year]) |>
+        FROM() |>
+        SELECT(OP("*"))
+
+    print(render(c))
+    #=>
+    SELECT *
+    FROM (
+      VALUES
+        ('SQL', 1974),
+        ('Julia', 2012),
+        ('FunSQL', 2021)
+    ) AS "values" ("name", "year")
     =#
 
 
