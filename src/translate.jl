@@ -561,6 +561,61 @@ function assemble(n::FromTableNode, refs, ctx)
     Assemblage(c, cols = cols, repl = repl)
 end
 
+function assemble(n::FromValuesNode, refs, ctx)
+    columns = Symbol[fieldnames(typeof(n.columns))...]
+    column_set = Set{Symbol}(columns)
+    seen = Set{Symbol}()
+    for ref in refs
+        @dissect(ref, nothing |> Get(name = name)) && name in column_set || error()
+        if !(name in seen)
+            push!(seen, name)
+        end
+    end
+    if length(seen) == length(n.columns)
+        rows = Tables.rowtable(n.columns)
+        column_aliases = columns
+    elseif !isempty(seen)
+        rows = Tables.rowtable(NamedTuple([(k, v) for (k, v) in pairs(n.columns) if k in seen]))
+        column_aliases = filter(in(seen), columns)
+    else
+        rows = fill((; _ = missing), length(n.columns[1]))
+        column_aliases = [:_]
+    end
+    alias = allocate_alias(ctx, :values)
+    cols = OrderedDict{Symbol, SQLClause}()
+    if isempty(rows)
+        c = WHERE(false)
+        for col in columns
+            col in seen || continue
+            cols[col] = LIT(missing)
+        end
+    elseif ctx.dialect.has_as_columns
+        c = FROM(AS(alias, columns = column_aliases, over = VALUES(rows)))
+        for col in columns
+            col in seen || continue
+            cols[col] = ID(over = alias, name = col)
+        end
+    else
+        column_prefix = ctx.dialect.values_column_prefix
+        column_index = ctx.dialect.values_column_index
+        column_prefix !== nothing || error()
+        c = FROM(AS(alias, over = VALUES(rows)))
+        for col in columns
+            col in seen || continue
+            name = Symbol(column_prefix, column_index)
+            cols[col] = ID(over = alias, name = name)
+            column_index += 1
+        end
+    end
+    repl = Dict{SQLNode, Symbol}()
+    for ref in refs
+        if @dissect(ref, nothing |> Get(name = name))
+            repl[ref] = name
+        end
+    end
+    Assemblage(c, cols = cols, repl = repl)
+end
+
 function assemble(n::GroupNode, refs, ctx)
     has_aggregates = any(ref -> @dissect(ref, Agg()), refs)
     if isempty(n.by) && !has_aggregates

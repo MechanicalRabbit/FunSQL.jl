@@ -90,7 +90,8 @@ dissect(scr::Symbol, ::typeof(HandleBound), pats::Vector{Any}) =
 PrettyPrinting.quoteof(n::HandleBoundNode, ctx::QuoteContext) =
     Expr(:call, nameof(NameBound), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :handle, n.handle))
 
-# A generic From node is specialized to FromNothing, FromTable, or FromReference.
+# A generic From node is specialized to FromNothing, FromTable,
+# FromReference, or FromValues.
 mutable struct FromNothingNode <: TabularNode
 end
 
@@ -134,6 +135,19 @@ PrettyPrinting.quoteof(n::FromReferenceNode, ctx::QuoteContext) =
          nameof(FromReference),
          Expr(:kw, :over, quoteof(n.over, ctx)),
          Expr(:kw, :name, QuoteNode(n.name)))
+
+mutable struct FromValuesNode <: TabularNode
+    columns::NamedTuple
+
+    FromValuesNode(; columns) =
+        new(columns)
+end
+
+FromValues(args...; kws...) =
+    FromValuesNode(args...; kws...) |> SQLNode
+
+PrettyPrinting.quoteof(n::FromValuesNode, ctx::QuoteContext) =
+    Expr(:call, nameof(FromValues), Expr(:kw, :columns, n.columns))
 
 # Annotated Bind node.
 mutable struct IntBindNode <: AbstractSQLNode
@@ -513,6 +527,8 @@ function annotate(n::FromNode, ctx)
                                      path = get_path(ctx)))
             end
         end
+    elseif source isa NamedTuple
+        FromValues(columns = source)
     else
         FromNothing()
     end
@@ -706,6 +722,16 @@ function resolve(n::FromTableNode, ctx)
     end
     row = RowType(fields)
     BoxType(n.table.name, row)
+end
+
+function resolve(n::FromValuesNode, ctx)
+    columns = fieldnames(typeof(n.columns))
+    fields = FieldTypeMap()
+    for f in columns
+        fields[f] = ScalarType()
+    end
+    row = RowType(fields)
+    BoxType(:values, row)
 end
 
 function resolve(n::GroupNode, ctx)
@@ -970,7 +996,7 @@ function link!(n::DefineNode, refs::Vector{SQLNode}, ctx)
     end
 end
 
-link!(::Union{FromNothingNode, FromTableNode}, ::Vector{SQLNode}, ctx) =
+link!(::Union{FromNothingNode, FromTableNode, FromValuesNode}, ::Vector{SQLNode}, ctx) =
     nothing
 
 function link!(n::FromReferenceNode, refs::Vector{SQLNode}, ctx)

@@ -27,6 +27,7 @@ if isempty(ARGS)
                 UNION, VALUES, VAR, WHERE, WINDOW, WITH,
                 render
             using Dates
+            using DataFrames: DataFrame
         end)
     with_logger(Logging.ConsoleLogger(stderr, Logging.Warn)) do
         doctest(FunSQL)

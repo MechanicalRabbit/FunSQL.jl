@@ -1,10 +1,22 @@
 # From node.
 
+_from_source(source::Union{SQLTable, Symbol, Nothing}) =
+    source
+
+_from_source(source::AbstractString) =
+    Symbol(source)
+
+function _from_source(source)
+    columns = Tables.columntable(source)
+    length(columns) > 0 || throw(DomainError(source, "a table with at least one column is expected"))
+    columns
+end
+
 mutable struct FromNode <: TabularNode
-    source::Union{SQLTable, Symbol, Nothing}
+    source::Union{SQLTable, Symbol, NamedTuple, Nothing}
 
     FromNode(; source) =
-        new(source isa AbstractString ? Symbol(source) : source)
+        new(_from_source(source))
 end
 
 FromNode(source) =
@@ -16,16 +28,22 @@ FromNode(source) =
 
 `From` outputs the content of a database table.
 
-The parameter `source` could be a [`SQLTable`](@ref) object, a `Symbol`
-value, or `nothing`.  When `source` is a symbol, it can refer to either
-a table in [`SQLCatalog`](@ref) or an intemediate dataset defined with
-the [`With`](@ref) node.
+The parameter `source` could be one of:
+* a [`SQLTable`](@ref) object;
+* a `Symbol` value;
+* a `DataFrame` or any Tables.jl-compatible dataset;
+* `nothing`.
+When `source` is a symbol, it can refer to either a table in
+[`SQLCatalog`](@ref) or an intermediate dataset defined with the [`With`](@ref)
+node.
 
 The `From` node is translated to a SQL query with a `FROM` clause:
 ```sql
 SELECT ...
 FROM \$source
 ```
+
+`From(::DataFrame)` is translated to a `VALUES` clause.
 
 `From(nothing)` emits a dataset with one row and no columns and can usually
 be omitted.
@@ -105,6 +123,28 @@ julia> q = Select(Fun.current_date());
 
 julia> print(render(q))
 SELECT CURRENT_DATE AS "current_date"
+```
+
+Query a `DataFrame`.
+
+```jldoctest
+julia> df = DataFrame(name = ["SQL", "Julia", "FunSQL"],
+                      year = [1974, 2012, 2021]);
+
+julia> q = From(df) |>
+           Group() |>
+           Select(Agg.min(Get.year), Agg.max(Get.year));
+
+julia> print(render(q))
+SELECT
+  MIN("values_1"."year") AS "min",
+  MAX("values_1"."year") AS "max"
+FROM (
+  VALUES
+    (1974),
+    (2012),
+    (2021)
+) AS "values_1" ("year")
 ```
 """
 From(args...; kws...) =

@@ -95,7 +95,10 @@ struct SQLDialect
     has_boolean_literals::Bool
     limit_style::LimitStyle
     has_recursive_annotation::Bool
+    has_as_columns::Bool
     values_row_constructor::Union{Symbol, Nothing}
+    values_column_prefix::Union{Symbol, Nothing}
+    values_column_index::Int
 
     SQLDialect(;
                name = :default,
@@ -105,7 +108,10 @@ struct SQLDialect
                has_boolean_literals = true,
                limit_style = LIMIT_STYLE.ANSI,
                has_recursive_annotation = true,
-               values_row_constructor = nothing) =
+               has_as_columns = true,
+               values_row_constructor = nothing,
+               values_column_prefix = :column,
+               values_column_index = 1) =
         new(name,
             variable_style,
             variable_prefix,
@@ -113,7 +119,10 @@ struct SQLDialect
             has_boolean_literals,
             limit_style,
             has_recursive_annotation,
-            values_row_constructor)
+            has_as_columns,
+            values_row_constructor,
+            values_column_prefix,
+            values_column_index)
 end
 
 const default_dialect =
@@ -124,7 +133,9 @@ const mysql_dialect =
                variable_prefix = '?',
                identifier_quotes = ('`', '`'),
                limit_style = LIMIT_STYLE.MYSQL,
-               values_row_constructor = :ROW)
+               values_row_constructor = :ROW,
+               values_column_prefix = :column_,
+               values_column_index = 0)
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
                variable_style = VARIABLE_STYLE.NUMBERED,
@@ -137,14 +148,16 @@ const sqlite_dialect =
     SQLDialect(name = :sqlite,
                variable_style = VARIABLE_STYLE.NUMBERED,
                variable_prefix = '?',
-               limit_style = LIMIT_STYLE.SQLITE)
+               limit_style = LIMIT_STYLE.SQLITE,
+               has_as_columns = false)
 const sqlserver_dialect =
     SQLDialect(name = :sqlserver,
                variable_style = VARIABLE_STYLE.POSITIONAL,
                variable_prefix = '?',
                identifier_quotes = ('[', ']'),
                has_boolean_literals = false,
-               has_recursive_annotation = false)
+               has_recursive_annotation = false,
+               values_column_prefix = nothing)
 const standard_dialects = [
     mysql_dialect,
     postgresql_dialect,
