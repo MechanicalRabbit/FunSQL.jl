@@ -947,9 +947,9 @@ parameters in the order in which they appear in the SQL query.
 
 ## Correlated Queries
 
-An *inner query* is a SQL query that is included into the *outer query* a part
-of a scalar expression.  An inner query must either produce a single value or
-be used as an argument of a query operator, such as `IN` or `EXISTS`, which
+An *inner query* is a SQL query that is included into the *outer query* as a
+part of a scalar expression.  An inner query must either produce a single value
+or be used as an argument of a query operator, such as `IN` or `EXISTS`, which
 transforms the query output to a scalar value.
 
 It is easy to assemble an inner query with FunSQL.
