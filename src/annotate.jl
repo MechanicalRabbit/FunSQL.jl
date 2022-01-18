@@ -147,7 +147,7 @@ FromValues(args...; kws...) =
     FromValuesNode(args...; kws...) |> SQLNode
 
 PrettyPrinting.quoteof(n::FromValuesNode, ctx::QuoteContext) =
-    Expr(:call, nameof(FromValues), Expr(:kw, :columns, n.columns))
+    Expr(:call, nameof(FromValues), Expr(:kw, :columns, quoteof(n.columns, ctx)))
 
 # Annotated Bind node.
 mutable struct IntBindNode <: AbstractSQLNode

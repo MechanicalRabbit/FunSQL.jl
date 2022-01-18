@@ -166,6 +166,8 @@ function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
         Expr(:call, nameof(From), tex)
     elseif source isa Symbol
         Expr(:call, nameof(From), QuoteNode(source))
+    elseif source isa NamedTuple
+        Expr(:call, nameof(From), quoteof(source, ctx))
     else
         Expr(:call, nameof(From), source)
     end
@@ -177,6 +179,8 @@ function label(n::FromNode)
         source.name
     elseif source isa Symbol
         source
+    elseif source isa NamedTuple
+        :values
     else
         :_
     end

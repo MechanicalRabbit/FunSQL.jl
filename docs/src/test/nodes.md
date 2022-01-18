@@ -1139,6 +1139,101 @@ has no columns.
     WHERE FALSE
     =#
 
+When `From` takes a Tables-compatible argument, it generates a `VALUES` query.
+
+    using DataFrames
+
+    df = DataFrame(name = ["SQL", "Julia", "FunSQL"],
+                   year = [1974, 2012, 2021])
+
+    q = From(df)
+    #-> From(…)
+
+    display(q)
+    #-> From((name = ["SQL", …], year = [1974, …]))
+
+    print(render(q))
+    #=>
+    SELECT
+      "values_1"."name",
+      "values_1"."year"
+    FROM (
+      VALUES
+        ('SQL', 1974),
+        ('Julia', 2012),
+        ('FunSQL', 2021)
+    ) AS "values_1" ("name", "year")
+    =#
+
+SQLite does not support column aliases with `AS` clause.
+
+    print(render(q, dialect = :sqlite))
+    #=>
+    SELECT
+      "values_1"."column1" AS "name",
+      "values_1"."column2" AS "year"
+    FROM (
+      VALUES
+        ('SQL', 1974),
+        ('Julia', 2012),
+        ('FunSQL', 2021)
+    ) AS "values_1"
+    =#
+
+Only columns that are used in the query will be serialized.
+
+    q = From(df) |>
+        Select(Get.name)
+
+    print(render(q))
+    #=>
+    SELECT "values_1"."name"
+    FROM (
+      VALUES
+        ('SQL'),
+        ('Julia'),
+        ('FunSQL')
+    ) AS "values_1" ("name")
+    =#
+
+A column of NULLs will be added if no actual columns are used.
+
+    q = From(df) |>
+        Group() |>
+        Select(Agg.count())
+
+    print(render(q))
+    #=>
+    SELECT COUNT(*) AS "count"
+    FROM (
+      VALUES
+        (NULL),
+        (NULL),
+        (NULL)
+    ) AS "values_1" ("_")
+    =#
+
+Since `VALUES` clause requires at least one row of data, a different
+representation is used when the source table is empty.
+
+    q = From(df[1:0, :])
+
+    print(render(q))
+    #=>
+    SELECT
+      NULL AS "name",
+      NULL AS "year"
+    WHERE FALSE
+    =#
+
+The source table must have at least one column.
+
+    q = From(df[1:0, 1:0])
+    #=>
+    ERROR: DomainError with 0×0 DataFrame:
+    a table with at least one column is expected
+    =#
+
 `From(nothing)` will generate a *unit* dataset with one row.
 
     q = From(nothing)
