@@ -540,7 +540,7 @@ function serialize!(c::ValuesClause, ctx)
         else
             first_row = false
         end
-        if row isa Union{Tuple, NamedTuple}
+        if row isa Union{Vector, Tuple, NamedTuple}
             first_val = true
             if row_constructor !== nothing
                 print(ctx, row_constructor)
