@@ -862,6 +862,76 @@ print(render(q))
 SELECT NULL
 FROM &quot;empty&quot; AS &quot;empty_1&quot;
 WHERE FALSE
+=#</code></pre><p>When <code>From</code> takes a Tables-compatible argument, it generates a <code>VALUES</code> query.</p><pre><code class="language-julia hljs">using DataFrames
+
+df = DataFrame(name = [&quot;SQL&quot;, &quot;Julia&quot;, &quot;FunSQL&quot;],
+               year = [1974, 2012, 2021])
+
+q = From(df)
+#-&gt; From(…)
+
+display(q)
+#-&gt; From((name = [&quot;SQL&quot;, …], year = [1974, …]))
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;values_1&quot;.&quot;name&quot;,
+  &quot;values_1&quot;.&quot;year&quot;
+FROM (
+  VALUES
+    (&#39;SQL&#39;, 1974),
+    (&#39;Julia&#39;, 2012),
+    (&#39;FunSQL&#39;, 2021)
+) AS &quot;values_1&quot; (&quot;name&quot;, &quot;year&quot;)
+=#</code></pre><p>SQLite does not support column aliases with <code>AS</code> clause.</p><pre><code class="language-julia hljs">print(render(q, dialect = :sqlite))
+#=&gt;
+SELECT
+  &quot;values_1&quot;.&quot;column1&quot; AS &quot;name&quot;,
+  &quot;values_1&quot;.&quot;column2&quot; AS &quot;year&quot;
+FROM (
+  VALUES
+    (&#39;SQL&#39;, 1974),
+    (&#39;Julia&#39;, 2012),
+    (&#39;FunSQL&#39;, 2021)
+) AS &quot;values_1&quot;
+=#</code></pre><p>Only columns that are used in the query will be serialized.</p><pre><code class="language-julia hljs">q = From(df) |&gt;
+    Select(Get.name)
+
+print(render(q))
+#=&gt;
+SELECT &quot;values_1&quot;.&quot;name&quot;
+FROM (
+  VALUES
+    (&#39;SQL&#39;),
+    (&#39;Julia&#39;),
+    (&#39;FunSQL&#39;)
+) AS &quot;values_1&quot; (&quot;name&quot;)
+=#</code></pre><p>A column of NULLs will be added if no actual columns are used.</p><pre><code class="language-julia hljs">q = From(df) |&gt;
+    Group() |&gt;
+    Select(Agg.count())
+
+print(render(q))
+#=&gt;
+SELECT COUNT(*) AS &quot;count&quot;
+FROM (
+  VALUES
+    (NULL),
+    (NULL),
+    (NULL)
+) AS &quot;values_1&quot; (&quot;_&quot;)
+=#</code></pre><p>Since <code>VALUES</code> clause requires at least one row of data, a different representation is used when the source table is empty.</p><pre><code class="language-julia hljs">q = From(df[1:0, :])
+
+print(render(q))
+#=&gt;
+SELECT
+  NULL AS &quot;name&quot;,
+  NULL AS &quot;year&quot;
+WHERE FALSE
+=#</code></pre><p>The source table must have at least one column.</p><pre><code class="language-julia hljs">q = From(df[1:0, 1:0])
+#=&gt;
+ERROR: DomainError with 0×0 DataFrame:
+a table with at least one column is expected
 =#</code></pre><p><code>From(nothing)</code> will generate a <em>unit</em> dataset with one row.</p><pre><code class="language-julia hljs">q = From(nothing)
 
 display(q)
@@ -1977,4 +2047,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.12 on <span class="colophon-date" title="Tuesday 18 January 2022 08:31">Tuesday 18 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.12 on <span class="colophon-date" title="Wednesday 19 January 2022 08:23">Wednesday 19 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
