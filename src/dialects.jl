@@ -45,14 +45,7 @@ end
 import .LIMIT_STYLE.LimitStyle
 
 """
-    SQLDialect(; name = :default,
-                 variable_style = :named,
-                 variable_prefix = ':',
-                 identifier_quotes = ('"', '"'),
-                 has_boolean_literals = true,
-                 limit_style = :ansi,
-                 has_recursive_annotation = true,
-                 values_row_constructor = nothing)
+    SQLDialect(; name = :default, kws...)
     SQLDialect(template::SQLDialect; kws...)
     SQLDialect(name::Symbol, kws...)
     SQLDialect(ConnType::Type)
@@ -67,7 +60,8 @@ The following names are recognized:
 * `:sqlite`
 * `:sqlserver`
 
-Keyword parameters override individual properties of a dialect.
+Keyword parameters override individual properties of a dialect.  For details,
+check the source code.
 
 Use `SQLDialect(ConnType::Type)` to detect the dialect based on the type
 of the database connection object.  The following types are recognized:
