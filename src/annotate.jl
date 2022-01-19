@@ -771,6 +771,9 @@ function annotate(n::WithExternalNode, ctx)
     WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
 end
 
+annotate(n::WithThisNode, ctx) =
+    annotate(WithNode(over = n.arg, args = n.over !== nothing ? SQLNode[n.over] : SQLNode[]), ctx)
+
 
 # Type resolution.
 
