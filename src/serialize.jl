@@ -127,6 +127,13 @@ function serialize!(c::AggregateClause, ctx)
         print(ctx, "DISTINCT ")
     end
     serialize!(c.args, ctx)
+    if !isempty(c.order_by)
+        if !isempty(c.args)
+            print(ctx, ' ')
+        end
+        print(ctx, "ORDER BY ")
+        serialize!(c.order_by, ctx)
+    end
     print(ctx, ')')
     if c.filter !== nothing
         print(ctx, " FILTER (WHERE ")

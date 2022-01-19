@@ -4,6 +4,7 @@ mutable struct AggregateClause <: AbstractSQLClause
     name::Symbol
     distinct::Bool
     args::Vector{SQLClause}
+    order_by::Vector{SQLClause}
     filter::Union{SQLClause, Nothing}
     over::Union{SQLClause, Nothing}
 
@@ -11,21 +12,22 @@ mutable struct AggregateClause <: AbstractSQLClause
                     name::Union{Symbol, AbstractString},
                     distinct = false,
                     args = SQLClause[],
+                    order_by = SQLClause[],
                     filter = nothing,
                     over = nothing) =
-        new(Symbol(name), distinct, args, filter, over)
+        new(Symbol(name), distinct, args, order_by, filter, over)
 end
 
-AggregateClause(name; distinct = false, args = SQLClause[], filter = nothing, over = nothing) =
-    AggregateClause(name = name, distinct = distinct, args = args, filter = filter, over = over)
+AggregateClause(name; distinct = false, args = SQLClause[], order_by = SQLClause[], filter = nothing, over = nothing) =
+    AggregateClause(name = name, distinct = distinct, args = args, order_by = order_by, filter = filter, over = over)
 
-AggregateClause(name, args...; distinct = false, filter = nothing, over = nothing) =
-    AggregateClause(name, distinct = distinct, args = SQLClause[args...], filter = filter, over = over)
+AggregateClause(name, args...; distinct = false, order_by = SQLClause[], filter = nothing, over = nothing) =
+    AggregateClause(name, distinct = distinct, args = SQLClause[args...], order_by = order_by, filter = filter, over = over)
 
 """
-    AGG(; name, distinct = false, args = [], filter = nothing, over = nothing)
-    AGG(name; distinct = false, args = [], filter = nothing, over = nothing)
-    AGG(name, args...; distinct = false, filter = nothing, over = nothing)
+    AGG(; name, distinct = false, args = [], order_by = [], filter = nothing, over = nothing)
+    AGG(name; distinct = false, args = [], order_by = [], filter = nothing, over = nothing)
+    AGG(name, args...; distinct = false, order_by = [], filter = nothing, over = nothing)
 
 An application of an aggregate function.
 
@@ -43,6 +45,13 @@ julia> c = AGG(:COUNT, distinct = true, :year_of_birth);
 
 julia> print(render(c))
 COUNT(DISTINCT "year_of_birth")
+```
+
+```jldoctest
+julia> c = AGG(:STRING_AGG, :zip, ",", order_by = [:zip]);
+
+julia> print(render(c))
+STRING_AGG("zip", ',' ORDER BY "zip")
 ```
 
 ```jldoctest
