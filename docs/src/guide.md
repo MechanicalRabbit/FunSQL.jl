@@ -88,13 +88,13 @@ Some applications open many connections to the same database.  For instance, a
 web application may open a new database connection on every incoming HTTP
 request.  In this case, it may be worth to have all these connections to
 share the same database catalog.  The application can start with loading
-the catalog using using [`reflect`](@ref).
+the catalog using using [`reflect`](@ref):
 
     using FunSQL: reflect
 
     catalog = reflect(DBInterface.connect(SQLite.DB, DATABASE))
 
-Then whenever a new connection is created, this catalog object could be reused.
+Then whenever a new connection is created, this catalog object could be reused:
 
     conn = FunSQL.DB(DBInterface.connect(SQLite.DB, DATABASE),
                      catalog = catalog)
@@ -113,12 +113,12 @@ following query outputs the content of the table `person`:
 
     q = From(:person)
 
-This query could be executed with [`DBInterface.execute`](@ref).
+This query could be executed with [`DBInterface.execute`](@ref):
 
     res = DBInterface.execute(conn, q)
 
 To display the result of a query, it is convenient to convert it to a
-[DataFrame](https://github.com/JuliaData/DataFrames.jl) object.
+[DataFrame](https://github.com/JuliaData/DataFrames.jl) object:
 
     using DataFrames
 
@@ -142,7 +142,7 @@ To display the result of a query, it is convenient to convert it to a
     =#
 
 Instead of executing the query directly, we can [`render`](@ref) it to generate
-the corresponding SQL statement.
+the corresponding SQL statement:
 
     using FunSQL: render
 
@@ -174,7 +174,7 @@ the corresponding SQL statement.
 
 In fact, we do not need a database connection if all we want is to generate a
 SQL query.  For this purpose, we only need a [`SQLCatalog`](@ref) object that
-describes the structure of the database tables and the target SQL dialect.
+describes the structure of the database tables and the target SQL dialect:
 
     using FunSQL: SQLCatalog, SQLTable
 
@@ -426,6 +426,31 @@ As opposed to SQL, FunSQL does not demand that all queries have an explicit
     FROM "person" AS "person_1"
     =#
 
+The `From` node also accepts a `DataFrame` or any argument supporting the
+[`Tables.jl`](https://github.com/JuliaData/Tables.jl) interface, which is very
+convenient when you need to correlate database content with external data.
+Keep in mind that `From` serializes a `DataFrame` argument as a part of the
+query, so for a large `DataFrame` it is better to load it into the database
+and query it as a regular table.
+
+    df = DataFrame(person_id = ["SQL", "Julia", "FunSQL"],
+                   year_of_birth = [1974, 2012, 2021])
+
+    q = From(df)
+
+    render(conn, q) |> print
+    #=>
+    SELECT
+      "values_1"."column1" AS "person_id",
+      "values_1"."column2" AS "year_of_birth"
+    FROM (
+      VALUES
+        ('SQL', 1974),
+        ('Julia', 2012),
+        ('FunSQL', 2021)
+    ) AS "values_1"
+    =#
+
 It is possible for a query not to have a `From` node:
 
 *Show the current date and time.*
@@ -443,7 +468,7 @@ In this query, the `Select` node is not connected to any source of data.  In
 such a case, it is supplied with a *unit dataset* containing one row and no
 columns.  Hence this query will generate one row of output.
 
-The same effect could be achieved with `From(nothing)`.
+The same effect could be achieved with `From(nothing)`:
 
     q = From(nothing) |>
         Select(Fun.current_timestamp())
@@ -520,7 +545,7 @@ The [`Join`](@ref) node correlates the rows of two input datasets.
 Predominantly, `Join` is used for looking up table records by key.  In the
 following example, `Join` associates each `person` record with their `location`
 using the key column `location_id` that uniquely identifies a `location`
-record:
+record.
 
 *Show all patients together with their state of residence.*
 
@@ -672,7 +697,7 @@ generate a SQL query that fails to execute:
 
 On the other hand, FunSQL will correctly serialize many SQL functions and
 operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
-`EXISTS`, `CASE`, and others:
+`EXISTS`, `CASE`, and others.
 
 *Show the demographic cohort of each patient.*
 
@@ -914,7 +939,7 @@ supported by SQL syntax.
     =#
 
 FunSQL can be used to construct a query with parameters.  Similar to `Get`,
-parameter references are created using the [`Var`](@ref) node.
+parameter references are created using the [`Var`](@ref) node:
 
     using FunSQL: Var
 
@@ -952,7 +977,7 @@ part of a scalar expression.  An inner query must either produce a single value
 or be used as an argument of a query operator, such as `IN` or `EXISTS`, which
 transforms the query output to a scalar value.
 
-It is easy to assemble an inner query with FunSQL.
+It is easy to assemble an inner query with FunSQL:
 
 *Find the oldest patients.*
 
