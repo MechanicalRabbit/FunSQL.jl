@@ -278,6 +278,55 @@ FunSQL will render it as a `SELECT DISTINCT` clause.
     =#
 
 
+## Generating a complex `CASE` clause
+
+*Show the number of patients stratified by the age group.*
+
+In this query, we need to place a person's age into one of the age buckets:
+*0 -- 4*, *5 -- 9*, *10 -- 14*, …, *95 -- 99*, *100 +*.  This is a tedious
+expression to write in raw SQL, but it could be written very compactly in
+FunSQL by using array comprehension to build the `CASE` expression.
+
+    using Dates
+
+    PersonAgeAt(date) =
+        Fun.strftime("%Y", date) .- Get.year_of_birth
+
+    AgeGroup(age) =
+        Fun.case(Iterators.flatten([(age .< y, "$(y-5) - $(y-1)")
+                                    for y = 5:5:100])...,
+                 "≥ 100")
+
+    q = From(:person) |>
+        Group(:age_group => AgeGroup(PersonAgeAt(Date("2020-01-01")))) |>
+        Order(Get.age_group) |>
+        Select(Get.age_group, Agg.count())
+
+    render(conn, q) |> print
+    #=>
+    SELECT
+      (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group",
+      COUNT(*) AS "count"
+    FROM "person" AS "person_1"
+    GROUP BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
+    ORDER BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
+    =#
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    6×2 DataFrame
+     Row │ age_group  count
+         │ String     Int64
+    ─────┼──────────────────
+       1 │ 55 - 59        1
+       2 │ 60 - 64        2
+       3 │ 80 - 84        2
+       4 │ 85 - 89        1
+       5 │ 95 - 99        2
+       6 │ ≥ 100          2
+    =#
+
+
 ## Filtering output columns
 
 By default, the [`From`](@ref) node outputs all columns of a table, but we
@@ -642,55 +691,6 @@ query.
       LEFT JOIN "subtype_2" ON ("subtype_1"."concept_id" = "subtype_2"."concept_id")
       WHERE ("subtype_2"."concept_id" IS NULL)
     ) AS "concept_5" ON ("condition_occurrence_1"."condition_concept_id" = "concept_5"."concept_id")
-    =#
-
-
-## Generating a complex `CASE` clause
-
-*Show the number of patients stratified by the age group.*
-
-In this query, we need to place a person's age into one of the age buckets:
-*0 -- 4*, *5 -- 9*, *10 -- 14*, …, *95 -- 99*, *100 +*.  This is a tedious
-expression to write in raw SQL, but it could be written very compactly in
-FunSQL by using array comprehension to build the `CASE` expression.
-
-    using Dates
-
-    PersonAgeAt(date) =
-        Fun.strftime("%Y", date) .- Get.year_of_birth
-
-    AgeGroup(age) =
-        Fun.case(Iterators.flatten([(age .< y, "$(y-5) - $(y-1)")
-                                    for y = 5:5:100])...,
-                 "≥ 100")
-
-    q = From(:person) |>
-        Group(:age_group => AgeGroup(PersonAgeAt(Date("2020-01-01")))) |>
-        Order(Get.age_group) |>
-        Select(Get.age_group, Agg.count())
-
-    render(conn, q) |> print
-    #=>
-    SELECT
-      (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group",
-      COUNT(*) AS "count"
-    FROM "person" AS "person_1"
-    GROUP BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
-    ORDER BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
-    =#
-
-    DBInterface.execute(conn, q) |> DataFrame
-    #=>
-    6×2 DataFrame
-     Row │ age_group  count
-         │ String     Int64
-    ─────┼──────────────────
-       1 │ 55 - 59        1
-       2 │ 60 - 64        2
-       3 │ 80 - 84        2
-       4 │ 85 - 89        1
-       5 │ 95 - 99        2
-       6 │ ≥ 100          2
     =#
 
 
