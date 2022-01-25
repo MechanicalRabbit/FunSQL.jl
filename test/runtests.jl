@@ -6,6 +6,10 @@ using FunSQL
 ENV["LINES"] = "24"
 ENV["COLUMNS"] = "80"
 
+# Ignore the difference in the output of `print(Int)` between 32-bit and 64-bit platforms.
+subs = NarrativeTest.common_subs()
+push!(subs, r"Int64" => s"Int(32|64)")
+
 if isempty(ARGS)
 
     @testset "FunSQL" begin
@@ -34,10 +38,10 @@ if isempty(ARGS)
     end
 
     @info "Running narrative tests..."
-    NarrativeTest.testset(joinpath(@__DIR__, "../docs/src"))
+    NarrativeTest.testset(joinpath(@__DIR__, "../docs/src"), subs = subs)
 
     end
 
 else
-    NarrativeTest.testset(ARGS)
+    NarrativeTest.testset(ARGS, subs = subs)
 end
