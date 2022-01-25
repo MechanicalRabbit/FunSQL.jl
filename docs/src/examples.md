@@ -218,7 +218,7 @@ them in any order.
 
 ## `SELECT COUNT(*) FROM table`
 
-To apply an aggregate function to the dataset as a whole, we use a
+To calculate an aggregate value for the whole dataset, we apply a
 [`Group`](@ref) node without arguments.
 
 *Show the number of patient records.*
@@ -280,8 +280,11 @@ FunSQL will render it as a `SELECT DISTINCT` clause.
 
 ## Filtering output columns
 
-Either broadcasting or vector comprehension could be used to filter the list of
-output columns.
+By default, the [`From`](@ref) node outputs all columns of a table, but we
+could restrict or change the list of output columns using [`Select`](@ref).
+Typically, we would directly pass the definitions of output columns as
+individual arguments of `Select`, but occasionally it is convenient to generate
+the definitions programmatically.
 
 *Filter out all "source" columns from patient records.*
 
@@ -417,10 +420,235 @@ however we must ensure that all column names are unique.
     =#
 
 
+## Querying concepts
+
+Medical terms, such as *Inpatient* (visit) or *Myocardial infarction*
+(condition), are stored in the table `concept`.  Concepts are typically
+identified by the *vocabulary* and the *code* within the vocabulary.  For
+example, *Myocardial infarction* has a code *22298006* in the [*SNOMED
+CT*](https://en.wikipedia.org/wiki/SNOMED_CT) vocabulary.
+
+Concept may be related to each other.  For example, *Acute myocardial
+infarction* **is a** subtype of *Myocardial infarction*.  Relationships between
+concepts are stored in the table `concept_relationship` with the column
+`relationship_id` specifying the type of the relationship.
+
+Querying healthcare information often starts with identifying the set
+of relevant concepts.  For example, a researcher may want to specify
+a concept set containing
+
+* *Myocardial infarction* (SNOMED 22298006);
+* And all the subtypes;
+* But excluding *Acute subendocardial infarction* (SNOMED 70422006).
+
+This suggests us to make a FunSQL-based mini-language for querying concept
+sets.  This language will include primitives for fetching concepts by name, or
+by vocabulary and code, operations for adding related concepts, and combining
+and excluding concept sets.  These operations could be expressed directly in
+terms of FunSQL queries.
+
+We start with a primitive for finding a concept by its code in the vocabulary.
+
+    ConceptByCode(vocabulary, code) =
+        From(:concept) |>
+        Where(Fun.and(Get.vocabulary_id .== vocabulary,
+                      Get.concept_code .== code))
+
+    ConceptByCode(vocabulary, codes...) =
+        From(:concept) |>
+        Where(Fun.and(Get.vocabulary_id .== vocabulary,
+                      Fun.in(Get.concept_code, codes...)))
+
+It is convenient to add a shortcut for common vocabularies.
+
+    SNOMED(codes...) =
+        ConceptByCode("SNOMED", codes...)
+
+Now we can define
+
+    q = SNOMED("22298006")          # Myocardial infarction
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    1×10 DataFrame
+     Row │ concept_id  concept_name           domain_id  vocabulary_id  concept_cl ⋯
+         │ Int64       String                 String     String         String     ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction  Condition  SNOMED         Clinical F ⋯
+                                                                   6 columns omitted
+    =#
+
+The following composite query pipeline can be applied to a set of concepts to
+determine their immediate subtypes.
+
+    ImmediateSubtypes() =
+        As(:base) |>
+        Join(From(:concept_relationship) |>
+             Where(Get.relationship_id .== "Is a") |>
+             As(:concept_relationship),
+             on = Get.base.concept_id .== Get.concept_relationship.concept_id_2) |>
+        Join(From(:concept),
+             on = Get.concept_relationship.concept_id_1 .== Get.concept_id)
+
+    q = SNOMED("22298006") |>       # Myocardial infarction
+        ImmediateSubtypes()
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    1×10 DataFrame
+     Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
+         │ Int64       String                       String     String         Stri ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin ⋯
+                                                                   6 columns omitted
+    =#
+
+Recursively applying `ImmediateSubtypes` with [`Iterate`](@ref) gives us the
+concept set together will all subtypes.
+
+    WithSubtypes() =
+        Iterate(:subtype => From(:subtype) |>
+                            ImmediateSubtypes())
+
+    q = SNOMED("22298006") |>       # Myocardial infarction
+        WithSubtypes()
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    6×10 DataFrame
+     Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+         │ Int64       String                             String     String        ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+       2 │     312327  Acute myocardial infarction        Condition  SNOMED
+       3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+       4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+       5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+       6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                                   6 columns omitted
+    =#
+
+Finally, we add operations on a concept set for adding or removing concepts.
+
+    IncludingConcepts(include) =
+        Append(include)
+
+    ExcludingConcepts(exclude) =
+        LeftJoin(:exclude => exclude,
+                 Get.concept_id .== Get.exclude.concept_id) |>
+        Where(Fun."is null"(Get.exclude.concept_id))
+
+    q = SNOMED("22298006") |>       # Myocardial infarction
+        WithSubtypes() |>
+        ExcludingConcepts(
+            SNOMED("70422006") |>   # Acute subendocardial infarction
+            WithSubtypes())
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    5×10 DataFrame
+     Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+         │ Int64       String                             String     String        ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+       2 │     312327  Acute myocardial infarction        Condition  SNOMED
+       3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+       4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+       5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+                                                                   6 columns omitted
+    =#
+
+Given a concept set, it is now easy to find the matching clinical conditions.
+
+    MyocardialInfarctionConcepts() =
+        SNOMED("22298006") |>       # Myocardial infarction
+        WithSubtypes() |>
+        ExcludingConcepts(
+            SNOMED("70422006") |>   # Acute subendocardial infarction
+            WithSubtypes())
+
+    q = From(:condition_occurrence) |>
+        Join(MyocardialInfarctionConcepts(),
+             Get.condition_concept_id .== Get.concept_id) |>
+        Select(Get.person_id, Get.condition_start_date)
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    6×2 DataFrame
+     Row │ person_id  condition_start_date
+         │ Int64      String
+    ─────┼─────────────────────────────────
+       1 │      1780  2008-04-10
+       2 │     37455  2010-08-12
+       3 │     69985  2010-05-06
+       4 │    110862  2008-09-07
+       5 │    110862  2008-09-07
+       6 │    110862  2010-06-07
+    =#
+
+This notation is much more compact and readable than the corresponding SQL
+query.
+
+    render(conn, q) |> print
+    #=>
+    WITH RECURSIVE "subtype_1" ("concept_id") AS (
+      SELECT "concept_1"."concept_id"
+      FROM "concept" AS "concept_1"
+      WHERE
+        ("concept_1"."vocabulary_id" = 'SNOMED') AND
+        ("concept_1"."concept_code" = '22298006')
+      UNION ALL
+      SELECT "concept_2"."concept_id"
+      FROM "subtype_1"
+      JOIN (
+        SELECT
+          "concept_relationship_1"."concept_id_2",
+          "concept_relationship_1"."concept_id_1"
+        FROM "concept_relationship" AS "concept_relationship_1"
+        WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
+      ) AS "concept_relationship_2" ON ("subtype_1"."concept_id" = "concept_relationship_2"."concept_id_2")
+      JOIN "concept" AS "concept_2" ON ("concept_relationship_2"."concept_id_1" = "concept_2"."concept_id")
+    ),
+    "subtype_2" ("concept_id") AS (
+      SELECT "concept_3"."concept_id"
+      FROM "concept" AS "concept_3"
+      WHERE
+        ("concept_3"."vocabulary_id" = 'SNOMED') AND
+        ("concept_3"."concept_code" = '70422006')
+      UNION ALL
+      SELECT "concept_4"."concept_id"
+      FROM "subtype_2"
+      JOIN (
+        SELECT
+          "concept_relationship_3"."concept_id_2",
+          "concept_relationship_3"."concept_id_1"
+        FROM "concept_relationship" AS "concept_relationship_3"
+        WHERE ("concept_relationship_3"."relationship_id" = 'Is a')
+      ) AS "concept_relationship_4" ON ("subtype_2"."concept_id" = "concept_relationship_4"."concept_id_2")
+      JOIN "concept" AS "concept_4" ON ("concept_relationship_4"."concept_id_1" = "concept_4"."concept_id")
+    )
+    SELECT
+      "condition_occurrence_1"."person_id",
+      "condition_occurrence_1"."condition_start_date"
+    FROM "condition_occurrence" AS "condition_occurrence_1"
+    JOIN (
+      SELECT "subtype_1"."concept_id"
+      FROM "subtype_1"
+      LEFT JOIN "subtype_2" ON ("subtype_1"."concept_id" = "subtype_2"."concept_id")
+      WHERE ("subtype_2"."concept_id" IS NULL)
+    ) AS "concept_5" ON ("condition_occurrence_1"."condition_concept_id" = "concept_5"."concept_id")
+    =#
+
+
 ## Encapsulating complex SQL expressions
 
 *Show the number of patients diagnosed with myocardial infarction
 stratified by the age group at the time of diagnosis.*
+
+In this query, we need to place a person's age into one of the age buckets:
+*0 -- 4*, *5 -- 9*, *10 -- 14*, …, *95 -- 99*, *100 +*.  This is a tedious
+expression to write in raw SQL, but it could be written very compactly in
+FunSQL by using array comprehension to build the conditional expression.
 
     PersonAgeAt(date) =
         Fun.strftime("%Y", date) .- Get.year_of_birth
