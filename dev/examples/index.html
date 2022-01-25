@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · FunSQL.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><script src="../../copy.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../guide/">Usage Guide</a></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Importing-FunSQL"><span>Importing FunSQL</span></a></li><li><a class="tocitem" href="#Establishing-a-database-connection"><span>Establishing a database connection</span></a></li><li><a class="tocitem" href="#Database-connection-with-LibPQ.jl"><span>Database connection with LibPQ.jl</span></a></li><li><a class="tocitem" href="#SELECT-*-FROM-table"><span><code>SELECT * FROM table</code></span></a></li><li><a class="tocitem" href="#WHERE,-ORDER,-LIMIT"><span><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></span></a></li><li><a class="tocitem" href="#SELECT-COUNT(*)-FROM-table"><span><code>SELECT COUNT(*) FROM table</code></span></a></li><li><a class="tocitem" href="#SELECT-DISTINCT"><span><code>SELECT DISTINCT</code></span></a></li><li><a class="tocitem" href="#Filtering-output-columns"><span>Filtering output columns</span></a></li><li><a class="tocitem" href="#Output-columns-of-a-Join"><span>Output columns of a <code>Join</code></span></a></li><li><a class="tocitem" href="#Encapsulating-complex-SQL-expressions"><span>Encapsulating complex SQL expressions</span></a></li><li><a class="tocitem" href="#Assembling-queries-incrementally"><span>Assembling queries incrementally</span></a></li><li><a class="tocitem" href="#Merging-overlapping-intervals"><span>Merging overlapping intervals</span></a></li></ul></li><li><a class="tocitem" href="../test/">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><h2 id="Importing-FunSQL"><a class="docs-heading-anchor" href="#Importing-FunSQL">Importing FunSQL</a><a id="Importing-FunSQL-1"></a><a class="docs-heading-anchor-permalink" href="#Importing-FunSQL" title="Permalink"></a></h2><p>FunSQL does not export any symbols by default.  The following statement imports all available query constructors and the function <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a>.</p><pre><code class="language-julia hljs">using FunSQL:
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · FunSQL.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><script src="../../copy.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../guide/">Usage Guide</a></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Importing-FunSQL"><span>Importing FunSQL</span></a></li><li><a class="tocitem" href="#Establishing-a-database-connection"><span>Establishing a database connection</span></a></li><li><a class="tocitem" href="#Database-connection-with-LibPQ.jl"><span>Database connection with LibPQ.jl</span></a></li><li><a class="tocitem" href="#SELECT-*-FROM-table"><span><code>SELECT * FROM table</code></span></a></li><li><a class="tocitem" href="#WHERE,-ORDER,-LIMIT"><span><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></span></a></li><li><a class="tocitem" href="#SELECT-COUNT(*)-FROM-table"><span><code>SELECT COUNT(*) FROM table</code></span></a></li><li><a class="tocitem" href="#SELECT-DISTINCT"><span><code>SELECT DISTINCT</code></span></a></li><li><a class="tocitem" href="#Filtering-output-columns"><span>Filtering output columns</span></a></li><li><a class="tocitem" href="#Output-columns-of-a-Join"><span>Output columns of a <code>Join</code></span></a></li><li><a class="tocitem" href="#Querying-concepts"><span>Querying concepts</span></a></li><li><a class="tocitem" href="#Encapsulating-complex-SQL-expressions"><span>Encapsulating complex SQL expressions</span></a></li><li><a class="tocitem" href="#Assembling-queries-incrementally"><span>Assembling queries incrementally</span></a></li><li><a class="tocitem" href="#Merging-overlapping-intervals"><span>Merging overlapping intervals</span></a></li></ul></li><li><a class="tocitem" href="../test/">Test Suite</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/examples.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><h2 id="Importing-FunSQL"><a class="docs-heading-anchor" href="#Importing-FunSQL">Importing FunSQL</a><a id="Importing-FunSQL-1"></a><a class="docs-heading-anchor-permalink" href="#Importing-FunSQL" title="Permalink"></a></h2><p>FunSQL does not export any symbols by default.  The following statement imports all available query constructors and the function <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a>.</p><pre><code class="language-julia hljs">using FunSQL:
     FunSQL, Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get,
     Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
     Partition, Select, Sort, Var, Where, With, WithExternal, render</code></pre><h2 id="Establishing-a-database-connection"><a class="docs-heading-anchor" href="#Establishing-a-database-connection">Establishing a database connection</a><a id="Establishing-a-database-connection-1"></a><a class="docs-heading-anchor-permalink" href="#Establishing-a-database-connection" title="Permalink"></a></h2><p>We use FunSQL to assemble SQL queries.  To actually run these queries, we need a regular database library such as <a href="https://github.com/JuliaDatabases/SQLite.jl">SQLite.jl</a>, <a href="https://github.com/invenia/LibPQ.jl">LibPQ.jl</a>, <a href="https://github.com/JuliaDatabases/MySQL.jl">MySQL.jl</a>, or <a href="https://github.com/JuliaDatabases/ODBC.jl">ODBC.jl</a>.</p><p>In the following examples, we use a SQLite database containing a tiny sample of the <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>. See the <a href="../guide/#Test-Database">Usage Guide</a> for the description of the database schema.</p><p><em>Download the database file.</em></p><pre><code class="language-julia hljs">const URL = &quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;
@@ -109,7 +109,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    1 │    110862               8507           1911               4             ⋯
    2 │     42383               8507           1922               2
                                                               14 columns omitted
-=#</code></pre><h2 id="SELECT-COUNT(*)-FROM-table"><a class="docs-heading-anchor" href="#SELECT-COUNT(*)-FROM-table"><code>SELECT COUNT(*) FROM table</code></a><a id="SELECT-COUNT(*)-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-COUNT(*)-FROM-table" title="Permalink"></a></h2><p>To apply an aggregate function to the dataset as a whole, we use a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node without arguments.</p><p><em>Show the number of patient records.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+=#</code></pre><h2 id="SELECT-COUNT(*)-FROM-table"><a class="docs-heading-anchor" href="#SELECT-COUNT(*)-FROM-table"><code>SELECT COUNT(*) FROM table</code></a><a id="SELECT-COUNT(*)-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-COUNT(*)-FROM-table" title="Permalink"></a></h2><p>To calculate an aggregate value for the whole dataset, we apply a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node without arguments.</p><p><em>Show the number of patient records.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     Group() |&gt;
     Select(Agg.count())
 
@@ -151,7 +151,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    8 │ GA
    9 │ MA
   10 │ IL
-=#</code></pre><h2 id="Filtering-output-columns"><a class="docs-heading-anchor" href="#Filtering-output-columns">Filtering output columns</a><a id="Filtering-output-columns-1"></a><a class="docs-heading-anchor-permalink" href="#Filtering-output-columns" title="Permalink"></a></h2><p>Either broadcasting or vector comprehension could be used to filter the list of output columns.</p><p><em>Filter out all &quot;source&quot; columns from patient records.</em></p><pre><code class="language-julia hljs">const person_table = conn.catalog[:person]
+=#</code></pre><h2 id="Filtering-output-columns"><a class="docs-heading-anchor" href="#Filtering-output-columns">Filtering output columns</a><a id="Filtering-output-columns-1"></a><a class="docs-heading-anchor-permalink" href="#Filtering-output-columns" title="Permalink"></a></h2><p>By default, the <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node outputs all columns of a table, but we could restrict or change the list of output columns using <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a>. Typically, we would directly pass the definitions of output columns as individual arguments of <code>Select</code>, but occasionally it is convenient to generate the definitions programmatically.</p><p><em>Filter out all &quot;source&quot; columns from patient records.</em></p><pre><code class="language-julia hljs">const person_table = conn.catalog[:person]
 
 is_not_source_column(c::Symbol) =
     !contains(String(c), &quot;source&quot;)
@@ -267,7 +267,164 @@ SELECT
   &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
-=#</code></pre><h2 id="Encapsulating-complex-SQL-expressions"><a class="docs-heading-anchor" href="#Encapsulating-complex-SQL-expressions">Encapsulating complex SQL expressions</a><a id="Encapsulating-complex-SQL-expressions-1"></a><a class="docs-heading-anchor-permalink" href="#Encapsulating-complex-SQL-expressions" title="Permalink"></a></h2><p><em>Show the number of patients diagnosed with myocardial infarction stratified by the age group at the time of diagnosis.</em></p><pre><code class="language-julia hljs">PersonAgeAt(date) =
+=#</code></pre><h2 id="Querying-concepts"><a class="docs-heading-anchor" href="#Querying-concepts">Querying concepts</a><a id="Querying-concepts-1"></a><a class="docs-heading-anchor-permalink" href="#Querying-concepts" title="Permalink"></a></h2><p>Medical terms, such as <em>Inpatient</em> (visit) or <em>Myocardial infarction</em> (condition), are stored in the table <code>concept</code>.  Concepts are typically identified by the <em>vocabulary</em> and the <em>code</em> within the vocabulary.  For example, <em>Myocardial infarction</em> has a code <em>22298006</em> in the <a href="https://en.wikipedia.org/wiki/SNOMED_CT"><em>SNOMED CT</em></a> vocabulary.</p><p>Concept may be related to each other.  For example, <em>Acute myocardial infarction</em> <strong>is a</strong> subtype of <em>Myocardial infarction</em>.  Relationships between concepts are stored in the table <code>concept_relationship</code> with the column <code>relationship_id</code> specifying the type of the relationship.</p><p>Querying healthcare information often starts with identifying the set of relevant concepts.  For example, a researcher may want to specify a concept set containing</p><ul><li><em>Myocardial infarction</em> (SNOMED 22298006);</li><li>And all the subtypes;</li><li>But excluding <em>Acute subendocardial infarction</em> (SNOMED 70422006).</li></ul><p>This suggests us to make a FunSQL-based mini-language for querying concept sets.  This language will include primitives for fetching concepts by name, or by vocabulary and code, operations for adding related concepts, and combining and excluding concept sets.  These operations could be expressed directly in terms of FunSQL queries.</p><p>We start with a primitive for finding a concept by its code in the vocabulary.</p><pre><code class="language-julia hljs">ConceptByCode(vocabulary, code) =
+    From(:concept) |&gt;
+    Where(Fun.and(Get.vocabulary_id .== vocabulary,
+                  Get.concept_code .== code))
+
+ConceptByCode(vocabulary, codes...) =
+    From(:concept) |&gt;
+    Where(Fun.and(Get.vocabulary_id .== vocabulary,
+                  Fun.in(Get.concept_code, codes...)))</code></pre><p>It is convenient to add a shortcut for common vocabularies.</p><pre><code class="language-julia hljs">SNOMED(codes...) =
+    ConceptByCode(&quot;SNOMED&quot;, codes...)</code></pre><p>Now we can define</p><pre><code class="language-julia hljs">q = SNOMED(&quot;22298006&quot;)          # Myocardial infarction
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×10 DataFrame
+ Row │ concept_id  concept_name           domain_id  vocabulary_id  concept_cl ⋯
+     │ Int64       String                 String     String         String     ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction  Condition  SNOMED         Clinical F ⋯
+                                                               6 columns omitted
+=#</code></pre><p>The following composite query pipeline can be applied to a set of concepts to determine their immediate subtypes.</p><pre><code class="language-julia hljs">ImmediateSubtypes() =
+    As(:base) |&gt;
+    Join(From(:concept_relationship) |&gt;
+         Where(Get.relationship_id .== &quot;Is a&quot;) |&gt;
+         As(:concept_relationship),
+         on = Get.base.concept_id .== Get.concept_relationship.concept_id_2) |&gt;
+    Join(From(:concept),
+         on = Get.concept_relationship.concept_id_1 .== Get.concept_id)
+
+q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    ImmediateSubtypes()
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×10 DataFrame
+ Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
+     │ Int64       String                       String     String         Stri ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin ⋯
+                                                               6 columns omitted
+=#</code></pre><p>Recursively applying <code>ImmediateSubtypes</code> with <a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a> gives us the concept set together will all subtypes.</p><pre><code class="language-julia hljs">WithSubtypes() =
+    Iterate(:subtype =&gt; From(:subtype) |&gt;
+                        ImmediateSubtypes())
+
+q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    WithSubtypes()
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×10 DataFrame
+ Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+     │ Int64       String                             String     String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+   2 │     312327  Acute myocardial infarction        Condition  SNOMED
+   3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+   4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+   5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+   6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                               6 columns omitted
+=#</code></pre><p>Finally, we add operations on a concept set for adding or removing concepts.</p><pre><code class="language-julia hljs">IncludingConcepts(include) =
+    Append(include)
+
+ExcludingConcepts(exclude) =
+    LeftJoin(:exclude =&gt; exclude,
+             Get.concept_id .== Get.exclude.concept_id) |&gt;
+    Where(Fun.&quot;is null&quot;(Get.exclude.concept_id))
+
+q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    WithSubtypes() |&gt;
+    ExcludingConcepts(
+        SNOMED(&quot;70422006&quot;) |&gt;   # Acute subendocardial infarction
+        WithSubtypes())
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+5×10 DataFrame
+ Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+     │ Int64       String                             String     String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+   2 │     312327  Acute myocardial infarction        Condition  SNOMED
+   3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+   4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+   5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+                                                               6 columns omitted
+=#</code></pre><p>Given a concept set, it is now easy to find the matching clinical conditions.</p><pre><code class="language-julia hljs">MyocardialInfarctionConcepts() =
+    SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    WithSubtypes() |&gt;
+    ExcludingConcepts(
+        SNOMED(&quot;70422006&quot;) |&gt;   # Acute subendocardial infarction
+        WithSubtypes())
+
+q = From(:condition_occurrence) |&gt;
+    Join(MyocardialInfarctionConcepts(),
+         Get.condition_concept_id .== Get.concept_id) |&gt;
+    Select(Get.person_id, Get.condition_start_date)
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×2 DataFrame
+ Row │ person_id  condition_start_date
+     │ Int64      String
+─────┼─────────────────────────────────
+   1 │      1780  2008-04-10
+   2 │     37455  2010-08-12
+   3 │     69985  2010-05-06
+   4 │    110862  2008-09-07
+   5 │    110862  2008-09-07
+   6 │    110862  2010-06-07
+=#</code></pre><p>This notation is much more compact and readable than the corresponding SQL query.</p><pre><code class="language-julia hljs">render(conn, q) |&gt; print
+#=&gt;
+WITH RECURSIVE &quot;subtype_1&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_1&quot;
+  WHERE
+    (&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
+    (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;22298006&#39;)
+  UNION ALL
+  SELECT &quot;concept_2&quot;.&quot;concept_id&quot;
+  FROM &quot;subtype_1&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;,
+      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
+    WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;subtype_1&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_2&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
+),
+&quot;subtype_2&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_3&quot;
+  WHERE
+    (&quot;concept_3&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
+    (&quot;concept_3&quot;.&quot;concept_code&quot; = &#39;70422006&#39;)
+  UNION ALL
+  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
+  FROM &quot;subtype_2&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_3&quot;.&quot;concept_id_2&quot;,
+      &quot;concept_relationship_3&quot;.&quot;concept_id_1&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_3&quot;
+    WHERE (&quot;concept_relationship_3&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_4&quot; ON (&quot;subtype_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
+)
+SELECT
+  &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
+FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+JOIN (
+  SELECT &quot;subtype_1&quot;.&quot;concept_id&quot;
+  FROM &quot;subtype_1&quot;
+  LEFT JOIN &quot;subtype_2&quot; ON (&quot;subtype_1&quot;.&quot;concept_id&quot; = &quot;subtype_2&quot;.&quot;concept_id&quot;)
+  WHERE (&quot;subtype_2&quot;.&quot;concept_id&quot; IS NULL)
+) AS &quot;concept_5&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;concept_5&quot;.&quot;concept_id&quot;)
+=#</code></pre><h2 id="Encapsulating-complex-SQL-expressions"><a class="docs-heading-anchor" href="#Encapsulating-complex-SQL-expressions">Encapsulating complex SQL expressions</a><a id="Encapsulating-complex-SQL-expressions-1"></a><a class="docs-heading-anchor-permalink" href="#Encapsulating-complex-SQL-expressions" title="Permalink"></a></h2><p><em>Show the number of patients diagnosed with myocardial infarction stratified by the age group at the time of diagnosis.</em></p><p>In this query, we need to place a person&#39;s age into one of the age buckets: <em>0 – 4</em>, <em>5 – 9</em>, <em>10 – 14</em>, …, <em>95 – 99</em>, <em>100 +</em>.  This is a tedious expression to write in raw SQL, but it could be written very compactly in FunSQL by using array comprehension to build the conditional expression.</p><pre><code class="language-julia hljs">PersonAgeAt(date) =
     Fun.strftime(&quot;%Y&quot;, date) .- Get.year_of_birth
 
 AgeGroup(age) =
@@ -525,4 +682,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
   10 │     95538  2009-03-30  2009-09-02
   11 │    107680  2009-06-07  2009-07-30
   12 │    110862  2008-09-07  2010-06-07
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.12 on <span class="colophon-date" title="Wednesday 19 January 2022 08:23">Wednesday 19 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.12 on <span class="colophon-date" title="Tuesday 25 January 2022 07:57">Tuesday 25 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
