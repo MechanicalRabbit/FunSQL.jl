@@ -354,6 +354,7 @@ the definitions programmatically.
                                                                    7 columns omitted
     =#
 
+
 ## Output columns of a `Join`
 
 [`As`](@ref) is often used to disambiguate the columns of the two input
@@ -439,7 +440,8 @@ a concept set containing
 
 * *Myocardial infarction* (SNOMED 22298006);
 * And all the subtypes;
-* But excluding *Acute subendocardial infarction* (SNOMED 70422006).
+* But excluding *Acute subendocardial infarction* (SNOMED 70422006) and its
+  subtypes.
 
 This suggests us to make a FunSQL-based mini-language for querying concept
 sets.  This language will include primitives for fetching concepts by name, or
@@ -463,6 +465,9 @@ It is convenient to add a shortcut for common vocabularies.
 
     SNOMED(codes...) =
         ConceptByCode("SNOMED", codes...)
+
+    VISIT(codes...) =
+        ConceptByCode("Visit", codes...)
 
 Now we can define
 
@@ -640,15 +645,16 @@ query.
     =#
 
 
-## Encapsulating complex SQL expressions
+## Generating a complex `CASE` clause
 
-*Show the number of patients diagnosed with myocardial infarction
-stratified by the age group at the time of diagnosis.*
+*Show the number of patients stratified by the age group.*
 
 In this query, we need to place a person's age into one of the age buckets:
 *0 -- 4*, *5 -- 9*, *10 -- 14*, …, *95 -- 99*, *100 +*.  This is a tedious
 expression to write in raw SQL, but it could be written very compactly in
-FunSQL by using array comprehension to build the conditional expression.
+FunSQL by using array comprehension to build the `CASE` expression.
+
+    using Dates
 
     PersonAgeAt(date) =
         Fun.strftime("%Y", date) .- Get.year_of_birth
@@ -656,55 +662,35 @@ FunSQL by using array comprehension to build the conditional expression.
     AgeGroup(age) =
         Fun.case(Iterators.flatten([(age .< y, "$(y-5) - $(y-1)")
                                     for y = 5:5:100])...,
-                 "100 +")
-
-    ConceptByName(name) =
-        From(:concept) |>
-        Where(Fun.like(Get.concept_name, "%$(name)%"))
-
-    MyocardialInfarctionConcept() =
-        ConceptByName("myocardial infarction")
-
-    MyocardialInfarctionOccurrence() =
-        From(:condition_occurrence) |>
-        Join(:concept => MyocardialInfarctionConcept(),
-             on = Get.condition_concept_id .== Get.concept.concept_id)
+                 "≥ 100")
 
     q = From(:person) |>
-        Join(:condition => MyocardialInfarctionOccurrence(),
-             on = Get.person_id .== Get.condition.person_id) |>
-        Group(:age_group => AgeGroup(PersonAgeAt(Get.condition.condition_start_date))) |>
+        Group(:age_group => AgeGroup(PersonAgeAt(Date("2020-01-01")))) |>
+        Order(Get.age_group) |>
         Select(Get.age_group, Agg.count())
 
     render(conn, q) |> print
     #=>
     SELECT
-      (CASE WHEN ((STRFTIME('%Y', "condition_1"."condition_start_date") - "person_1"."year_of_birth") < 5) THEN '0 - 4' …  ELSE '100 +' END) AS "age_group",
+      (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group",
       COUNT(*) AS "count"
     FROM "person" AS "person_1"
-    JOIN (
-      SELECT
-        "condition_occurrence_1"."person_id",
-        "condition_occurrence_1"."condition_start_date"
-      FROM "condition_occurrence" AS "condition_occurrence_1"
-      JOIN (
-        SELECT "concept_1"."concept_id"
-        FROM "concept" AS "concept_1"
-        WHERE ("concept_1"."concept_name" LIKE '%myocardial infarction%')
-      ) AS "concept_2" ON ("condition_occurrence_1"."condition_concept_id" = "concept_2"."concept_id")
-    ) AS "condition_1" ON ("person_1"."person_id" = "condition_1"."person_id")
-    GROUP BY (CASE WHEN ((STRFTIME('%Y', "condition_1"."condition_start_date") - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '100 +' END)
+    GROUP BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
+    ORDER BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
     =#
 
     DBInterface.execute(conn, q) |> DataFrame
     #=>
-    3×2 DataFrame
+    6×2 DataFrame
      Row │ age_group  count
          │ String     Int64
     ─────┼──────────────────
-       1 │ 50 - 54        1
-       2 │ 65 - 69        1
-       3 │ 95 - 99        4
+       1 │ 55 - 59        1
+       2 │ 60 - 64        2
+       3 │ 80 - 84        2
+       4 │ 85 - 89        1
+       5 │ 95 - 99        2
+       6 │ ≥ 100          2
     =#
 
 
@@ -712,35 +698,101 @@ FunSQL by using array comprehension to build the conditional expression.
 
 It is often convenient to build a query incrementally, one component at a time.
 This allows us to validate individual components, inspect their output, and
-possibly reuse them in other queries.  Note that FunSQL allows to encapsulate
-not just intermediate datasets, but also dataset operations such as
-`FilterByGap()`.
+possibly reuse them in other queries.
 
 *Find all occurrences of myocardial infarction that was diagnosed during an
 inpatient visit.  Filter out repeating occurrences by requiring a 180-day gap
 between consecutive events.*
 
-    using Dates
-
-    ConceptByName(name) =
-        From(:concept) |>
-        Where(Fun.like(Get.concept_name, "%$(name)%"))
+We start with generating two datasets: inpatient visits and myocardial
+infarction conditions.  For constructing the concepts *Inpatient Visit* and
+*Myocardial Infarction*, we use the definitions from the section [Querying
+concepts](@ref):
 
     MyocardialInfarctionConcept() =
-        ConceptByName("myocardial infarction")
+        SNOMED("22298006") |>
+        WithSubtypes()
+
+    DBInterface.execute(conn, MyocardialInfarctionConcept()) |> DataFrame
+    #=>
+    6×10 DataFrame
+     Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+         │ Int64       String                             String     String        ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+       2 │     312327  Acute myocardial infarction        Condition  SNOMED
+       3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+       4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+       5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+       6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                                   6 columns omitted
+    =#
 
     MyocardialInfarctionOccurrence() =
         From(:condition_occurrence) |>
         Join(:concept => MyocardialInfarctionConcept(),
              on = Get.condition_concept_id .== Get.concept.concept_id)
 
+    DBInterface.execute(conn, MyocardialInfarctionOccurrence()) |> DataFrame
+    #=>
+    11×11 DataFrame
+     Row │ condition_occurrence_id  person_id  condition_concept_id  condition_sta ⋯
+         │ Int64                    Int64      Int64                 String        ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │                  228161       1780                312327  2008-04-10    ⋯
+       2 │                 3767773      30091                444406  2009-08-02
+       3 │                 4696273      37455                438438  2010-08-12
+       4 │                 8701359      69985                444406  2010-07-22
+       5 │                 8701405      69985                312327  2010-05-06    ⋯
+       6 │                11881327      95538                444406  2009-03-30
+       7 │                13374905     107680                444406  2009-07-20
+       8 │                13769162     110862                444406  2009-09-30
+       9 │                13769189     110862                438170  2008-09-07    ⋯
+      10 │                13769190     110862                434376  2008-09-07
+      11 │                13769260     110862                312327  2010-06-07
+                                                                   8 columns omitted
+    =#
+
     InpatientVisitConcept() =
-        ConceptByName("inpatient")
+        VISIT("IP") |>
+        WithSubtypes()
+
+    DBInterface.execute(conn, InpatientVisitConcept()) |> DataFrame
+    #=>
+    2×10 DataFrame
+     Row │ concept_id  concept_name        domain_id  vocabulary_id         concep ⋯
+         │ Int64       String              String     String                String ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │       9201  Inpatient Visit     Visit      Visit                 Visit  ⋯
+       2 │       8717  Inpatient Hospital  Visit      CMS Place of Service  Visit
+                                                                   6 columns omitted
+    =#
 
     InpatientVisitOccurrence() =
         From(:visit_occurrence) |>
         Join(:concept => InpatientVisitConcept(),
              on = Get.visit_concept_id .== Get.concept.concept_id)
+
+    DBInterface.execute(conn, InpatientVisitOccurrence()) |> DataFrame
+    #=>
+    6×12 DataFrame
+     Row │ visit_occurrence_id  person_id  visit_concept_id  visit_start_date  vis ⋯
+         │ Int64                Int64      Int64             String            Mis ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │               88179       1780              9201  2008-04-09            ⋯
+       2 │             1454883      30091              9201  2009-07-30
+       3 │             3359790      69985              9201  2010-07-22
+       4 │             4586628      95538              9201  2009-03-30
+       5 │             5162803     107680              9201  2009-07-20            ⋯
+       6 │             5314664     110862              9201  2009-09-30
+                                                                   8 columns omitted
+    =#
+
+Using these two datasets, we need to find those conditions that occurred during
+one of the visits.  We start with building a parameterized query that finds
+visits overlapping with a specified timestamp.
+
+    using Dates
 
     CorrelatedInpatientVisit(person_id, date) =
         InpatientVisitOccurrence() |>
@@ -749,15 +801,89 @@ between consecutive events.*
         Bind(:PERSON_ID => person_id,
              :DATE => date)
 
+    q = CorrelatedInpatientVisit(1780, Date("2008-04-10"))
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    1×12 DataFrame
+     Row │ visit_occurrence_id  person_id  visit_concept_id  visit_start_date  vis ⋯
+         │ Int64                Int64      Int64             String            Mis ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │               88179       1780              9201  2008-04-09            ⋯
+                                                                   8 columns omitted
+    =#
+
+We will use this query to correlate inpatient visits with the date of the
+diagnosed condition.
+
     MyocardialInfarctionDuringInpatientVisit() =
         MyocardialInfarctionOccurrence() |>
         Where(Fun.exists(CorrelatedInpatientVisit(Get.person_id, Get.condition_start_date)))
+
+    DBInterface.execute(conn, MyocardialInfarctionDuringInpatientVisit()) |> DataFrame
+    #=>
+    6×11 DataFrame
+     Row │ condition_occurrence_id  person_id  condition_concept_id  condition_sta ⋯
+         │ Int64                    Int64      Int64                 String        ⋯
+    ─────┼──────────────────────────────────────────────────────────────────────────
+       1 │                  228161       1780                312327  2008-04-10    ⋯
+       2 │                 3767773      30091                444406  2009-08-02
+       3 │                 8701359      69985                444406  2010-07-22
+       4 │                11881327      95538                444406  2009-03-30
+       5 │                13374905     107680                444406  2009-07-20    ⋯
+       6 │                13769162     110862                444406  2009-09-30
+                                                                   8 columns omitted
+    =#
+
+Finally, we must exclude any events that occurred within 180 days from the
+previous event.  For this purpose, we build a filtering pipeline:
+
+    using Dates
 
     FilterByGap(date, gap) =
         Partition(Get.person_id, order_by = [date]) |>
         Define(:boundary => Agg.lag(Fun.date(date, gap))) |>
         Where(Fun.or(Fun."is null"(Get.boundary),
                      Get.boundary .< date))
+
+To verify that this pipeline operates correctly, we could apply it
+to a synthetic dataset.
+
+    events = DataFrame([(person_id = 1, date = Date("2020-01-01")),    # ✓
+                        (person_id = 1, date = Date("2020-02-01")),    # ✗
+                        (person_id = 1, date = Date("2021-01-01")),    # ✓
+                        (person_id = 1, date = Date("2021-05-01")),    # ✗
+                        (person_id = 1, date = Date("2021-10-01")),    # ✗
+                        (person_id = 2, date = Date("2020-01-01")),    # ✓
+    ])
+    #=>
+    6×2 DataFrame
+     Row │ person_id  date
+         │ Int64      Date
+    ─────┼───────────────────────
+       1 │         1  2020-01-01
+       2 │         1  2020-02-01
+       3 │         1  2021-01-01
+       4 │         1  2021-05-01
+       5 │         1  2021-10-01
+       6 │         2  2020-01-01
+    =#
+
+    q = From(events) |>
+        FilterByGap(Get.date, Day(180))
+
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    3×3 DataFrame
+     Row │ person_id  date        boundary
+         │ Int64      String      String?
+    ─────┼───────────────────────────────────
+       1 │         1  2020-01-01  missing
+       2 │         1  2021-01-01  2020-07-30
+       3 │         2  2020-01-01  missing
+    =#
+
+Now we have all the components to construct the final query:
 
     FilteredMyocardialInfarctionDuringInpatientVisit() =
         MyocardialInfarctionDuringInpatientVisit() |>
@@ -766,8 +892,58 @@ between consecutive events.*
     q = FilteredMyocardialInfarctionDuringInpatientVisit() |>
         Select(Get.person_id, Get.condition_start_date)
 
+    DBInterface.execute(conn, q) |> DataFrame
+    #=>
+    6×2 DataFrame
+     Row │ person_id  condition_start_date
+         │ Int64      String
+    ─────┼─────────────────────────────────
+       1 │      1780  2008-04-10
+       2 │     30091  2009-08-02
+       3 │     69985  2010-07-22
+       4 │     95538  2009-03-30
+       5 │    107680  2009-07-20
+       6 │    110862  2009-09-30
+    =#
+
     render(conn, q) |> print
     #=>
+    WITH RECURSIVE "subtype_1" ("concept_id") AS (
+      SELECT "concept_1"."concept_id"
+      FROM "concept" AS "concept_1"
+      WHERE
+        ("concept_1"."vocabulary_id" = 'SNOMED') AND
+        ("concept_1"."concept_code" = '22298006')
+      UNION ALL
+      SELECT "concept_2"."concept_id"
+      FROM "subtype_1"
+      JOIN (
+        SELECT
+          "concept_relationship_1"."concept_id_2",
+          "concept_relationship_1"."concept_id_1"
+        FROM "concept_relationship" AS "concept_relationship_1"
+        WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
+      ) AS "concept_relationship_2" ON ("subtype_1"."concept_id" = "concept_relationship_2"."concept_id_2")
+      JOIN "concept" AS "concept_2" ON ("concept_relationship_2"."concept_id_1" = "concept_2"."concept_id")
+    ),
+    "subtype_2" ("concept_id") AS (
+      SELECT "concept_3"."concept_id"
+      FROM "concept" AS "concept_3"
+      WHERE
+        ("concept_3"."vocabulary_id" = 'Visit') AND
+        ("concept_3"."concept_code" = 'IP')
+      UNION ALL
+      SELECT "concept_4"."concept_id"
+      FROM "subtype_2"
+      JOIN (
+        SELECT
+          "concept_relationship_3"."concept_id_2",
+          "concept_relationship_3"."concept_id_1"
+        FROM "concept_relationship" AS "concept_relationship_3"
+        WHERE ("concept_relationship_3"."relationship_id" = 'Is a')
+      ) AS "concept_relationship_4" ON ("subtype_2"."concept_id" = "concept_relationship_4"."concept_id_2")
+      JOIN "concept" AS "concept_4" ON ("concept_relationship_4"."concept_id_1" = "concept_4"."concept_id")
+    )
     SELECT
       "condition_occurrence_2"."person_id",
       "condition_occurrence_2"."condition_start_date"
@@ -777,34 +953,17 @@ between consecutive events.*
         "condition_occurrence_1"."condition_start_date",
         (LAG(DATE("condition_occurrence_1"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_1"."person_id" ORDER BY "condition_occurrence_1"."condition_start_date")) AS "boundary"
       FROM "condition_occurrence" AS "condition_occurrence_1"
-      JOIN (
-        SELECT "concept_1"."concept_id"
-        FROM "concept" AS "concept_1"
-        WHERE ("concept_1"."concept_name" LIKE '%myocardial infarction%')
-      ) AS "concept_2" ON ("condition_occurrence_1"."condition_concept_id" = "concept_2"."concept_id")
+      JOIN "subtype_1" ON ("condition_occurrence_1"."condition_concept_id" = "subtype_1"."concept_id")
       WHERE (EXISTS (
         SELECT NULL
         FROM "visit_occurrence" AS "visit_occurrence_1"
-        JOIN (
-          SELECT "concept_3"."concept_id"
-          FROM "concept" AS "concept_3"
-          WHERE ("concept_3"."concept_name" LIKE '%inpatient%')
-        ) AS "concept_4" ON ("visit_occurrence_1"."visit_concept_id" = "concept_4"."concept_id")
+        JOIN "subtype_2" ON ("visit_occurrence_1"."visit_concept_id" = "subtype_2"."concept_id")
         WHERE
           ("visit_occurrence_1"."person_id" = "condition_occurrence_1"."person_id") AND
           ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")
       ))
     ) AS "condition_occurrence_2"
     WHERE (("condition_occurrence_2"."boundary" IS NULL) OR ("condition_occurrence_2"."boundary" < "condition_occurrence_2"."condition_start_date"))
-    =#
-
-    DBInterface.execute(conn, q) |> DataFrame
-    #=>
-    1×2 DataFrame
-     Row │ person_id  condition_start_date
-         │ Int64      String
-    ─────┼─────────────────────────────────
-       1 │      1780  2008-04-10
     =#
 
 
