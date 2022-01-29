@@ -33,21 +33,34 @@ presentation][juliacon2021-url] ([slides][juliacon2021-slides]), explore the
 *When was the last time each person born between 1930 and 1940 and living in
 Illinois was seen by a healthcare provider?*
 
-With FunSQL, this question is expressed as a composite query object:
+<details><summary>Database Schema</summary>
+
+![](./example-schema.drawio.svg)
+
+</details>
+
+<details><summary>Pipeline Diagram</summary>
+
+![](./example-pipeline.drawio.svg)
+
+</details>
+
+<details><summary>Julia Code</summary>
 
 ```julia
 From(:person) |>
 Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
 Join(From(:location) |> Where(Get.state .== "IL") |> As(:location),
      on = Get.location_id .== Get.location.location_id) |>
-Join(From(:visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
-     on = Get.person_id .== Get.visit_group.person_id,
-     left = true) |>
+LeftJoin(From(:visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
+         on = Get.person_id .== Get.visit_group.person_id) |>
 Select(Get.person_id,
        Get.visit_group |> Agg.max(Get.visit_start_date) |> As(:latest_visit_date))
 ```
 
-This object is rendered by FunSQL into the following SQL statement:
+</details>
+
+<details><summary>Generated SQL</summary>
 
 ```sql
 SELECT
@@ -73,6 +86,8 @@ LEFT JOIN (
   GROUP BY "visit_occurrence_1"."person_id"
 ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")
 ```
+
+</details>
 
 With FunSQL, SQL clauses such as `FROM`, `WHERE`, and `JOIN` are represented by
 invocations of `From`, `Where`, and `Join` connected together using the pipe
