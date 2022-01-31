@@ -1,6 +1,12 @@
 # Release Notes
 
 
+## v0.10.1
+
+* `From` can take a `DataFrame` or any `Tables.jl`-compatible source.
+* More examples.
+
+
 ## v0.10.0
 
 * Add `SQLCatalog` type that encapsulates information about database
