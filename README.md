@@ -45,7 +45,7 @@ Illinois was seen by a healthcare provider?*
 
 </details>
 
-<details><summary>Julia Code</summary>
+<details open><summary>Julia Code</summary>
 
 ```julia
 From(:person) |>
