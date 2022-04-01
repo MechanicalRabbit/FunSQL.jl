@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v0.10.2
+
+* Generate aliases for CTE tables (fixes #33).
+
+
 ## v0.10.1
 
 * `From` can take a `DataFrame` or any `Tables.jl`-compatible source.
