@@ -653,17 +653,17 @@ query.
         ("concept_1"."concept_code" = '22298006')
       UNION ALL
       SELECT "concept_2"."concept_id"
-      FROM "subtype_1"
+      FROM "subtype_1" AS "subtype_2"
       JOIN (
         SELECT
           "concept_relationship_1"."concept_id_2",
           "concept_relationship_1"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
-      ) AS "concept_relationship_2" ON ("subtype_1"."concept_id" = "concept_relationship_2"."concept_id_2")
+      ) AS "concept_relationship_2" ON ("subtype_2"."concept_id" = "concept_relationship_2"."concept_id_2")
       JOIN "concept" AS "concept_2" ON ("concept_relationship_2"."concept_id_1" = "concept_2"."concept_id")
     ),
-    "subtype_2" ("concept_id") AS (
+    "subtype_4" ("concept_id") AS (
       SELECT "concept_3"."concept_id"
       FROM "concept" AS "concept_3"
       WHERE
@@ -671,14 +671,14 @@ query.
         ("concept_3"."concept_code" = '70422006')
       UNION ALL
       SELECT "concept_4"."concept_id"
-      FROM "subtype_2"
+      FROM "subtype_4" AS "subtype_5"
       JOIN (
         SELECT
           "concept_relationship_3"."concept_id_2",
           "concept_relationship_3"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_3"
         WHERE ("concept_relationship_3"."relationship_id" = 'Is a')
-      ) AS "concept_relationship_4" ON ("subtype_2"."concept_id" = "concept_relationship_4"."concept_id_2")
+      ) AS "concept_relationship_4" ON ("subtype_5"."concept_id" = "concept_relationship_4"."concept_id_2")
       JOIN "concept" AS "concept_4" ON ("concept_relationship_4"."concept_id_1" = "concept_4"."concept_id")
     )
     SELECT
@@ -686,10 +686,10 @@ query.
       "condition_occurrence_1"."condition_start_date"
     FROM "condition_occurrence" AS "condition_occurrence_1"
     JOIN (
-      SELECT "subtype_1"."concept_id"
-      FROM "subtype_1"
-      LEFT JOIN "subtype_2" ON ("subtype_1"."concept_id" = "subtype_2"."concept_id")
-      WHERE ("subtype_2"."concept_id" IS NULL)
+      SELECT "subtype_3"."concept_id"
+      FROM "subtype_1" AS "subtype_3"
+      LEFT JOIN "subtype_4" AS "subtype_6" ON ("subtype_3"."concept_id" = "subtype_6"."concept_id")
+      WHERE ("subtype_6"."concept_id" IS NULL)
     ) AS "concept_5" ON ("condition_occurrence_1"."condition_concept_id" = "concept_5"."concept_id")
     =#
 
@@ -916,17 +916,17 @@ Now we have all the components to construct the final query:
         ("concept_1"."concept_code" = '22298006')
       UNION ALL
       SELECT "concept_2"."concept_id"
-      FROM "subtype_1"
+      FROM "subtype_1" AS "subtype_2"
       JOIN (
         SELECT
           "concept_relationship_1"."concept_id_2",
           "concept_relationship_1"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
-      ) AS "concept_relationship_2" ON ("subtype_1"."concept_id" = "concept_relationship_2"."concept_id_2")
+      ) AS "concept_relationship_2" ON ("subtype_2"."concept_id" = "concept_relationship_2"."concept_id_2")
       JOIN "concept" AS "concept_2" ON ("concept_relationship_2"."concept_id_1" = "concept_2"."concept_id")
     ),
-    "subtype_2" ("concept_id") AS (
+    "subtype_4" ("concept_id") AS (
       SELECT "concept_3"."concept_id"
       FROM "concept" AS "concept_3"
       WHERE
@@ -934,14 +934,14 @@ Now we have all the components to construct the final query:
         ("concept_3"."concept_code" = 'IP')
       UNION ALL
       SELECT "concept_4"."concept_id"
-      FROM "subtype_2"
+      FROM "subtype_4" AS "subtype_5"
       JOIN (
         SELECT
           "concept_relationship_3"."concept_id_2",
           "concept_relationship_3"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_3"
         WHERE ("concept_relationship_3"."relationship_id" = 'Is a')
-      ) AS "concept_relationship_4" ON ("subtype_2"."concept_id" = "concept_relationship_4"."concept_id_2")
+      ) AS "concept_relationship_4" ON ("subtype_5"."concept_id" = "concept_relationship_4"."concept_id_2")
       JOIN "concept" AS "concept_4" ON ("concept_relationship_4"."concept_id_1" = "concept_4"."concept_id")
     )
     SELECT
@@ -953,11 +953,11 @@ Now we have all the components to construct the final query:
         "condition_occurrence_1"."condition_start_date",
         (LAG(DATE("condition_occurrence_1"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_1"."person_id" ORDER BY "condition_occurrence_1"."condition_start_date")) AS "boundary"
       FROM "condition_occurrence" AS "condition_occurrence_1"
-      JOIN "subtype_1" ON ("condition_occurrence_1"."condition_concept_id" = "subtype_1"."concept_id")
+      JOIN "subtype_1" AS "subtype_3" ON ("condition_occurrence_1"."condition_concept_id" = "subtype_3"."concept_id")
       WHERE (EXISTS (
         SELECT NULL
         FROM "visit_occurrence" AS "visit_occurrence_1"
-        JOIN "subtype_2" ON ("visit_occurrence_1"."visit_concept_id" = "subtype_2"."concept_id")
+        JOIN "subtype_4" AS "subtype_6" ON ("visit_occurrence_1"."visit_concept_id" = "subtype_6"."concept_id")
         WHERE
           ("visit_occurrence_1"."person_id" = "condition_occurrence_1"."person_id") AND
           ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")

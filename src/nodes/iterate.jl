@@ -59,15 +59,15 @@ WITH RECURSIVE "factorial_1" ("n", "f") AS (
     1 AS "f"
   UNION ALL
   SELECT
-    ("factorial_1"."n" + 1) AS "n",
-    ("factorial_1"."f" * ("factorial_1"."n" + 1)) AS "f"
-  FROM "factorial_1"
-  WHERE (("factorial_1"."n" + 1) <= 10)
+    ("factorial_2"."n" + 1) AS "n",
+    ("factorial_2"."f" * ("factorial_2"."n" + 1)) AS "f"
+  FROM "factorial_1" AS "factorial_2"
+  WHERE (("factorial_2"."n" + 1) <= 10)
 )
 SELECT
-  "factorial_1"."n",
-  "factorial_1"."f"
-FROM "factorial_1"
+  "factorial_3"."n",
+  "factorial_3"."f"
+FROM "factorial_1" AS "factorial_3"
 ```
 """
 Iterate(args...; kws...) =

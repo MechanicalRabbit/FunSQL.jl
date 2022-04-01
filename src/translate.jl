@@ -526,8 +526,10 @@ end
 function assemble(n::FromReferenceNode, refs, ctx)
     cte_a = ctx.cte_map[n.over]
     a = unwrap_repl(cte_a.a)
-    c = FROM(over = ID(over = cte_a.schema, name = cte_a.name))
-    subs = make_subs(a, cte_a.name)
+    alias = allocate_alias(ctx, n.name)
+    tbl = ID(over = cte_a.schema, name = cte_a.name)
+    c = FROM(AS(over = tbl, name = alias))
+    subs = make_subs(a, alias)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
         push!(trns, ref => subs[ref])
@@ -777,8 +779,9 @@ function assemble(n::KnotNode, refs, ctx)
     union = Assemblage(union_clause, cols = cols, repl = repl)
     ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(union, name = union_alias)
     ctx.recursive[] = true
-    c = FROM(over = ID(union_alias))
-    subs = make_subs(union, union_alias)
+    alias = allocate_alias(ctx, n.name)
+    c = FROM(AS(over = ID(union_alias), name = alias))
+    subs = make_subs(union, alias)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
         push!(trns, ref => subs[ref])

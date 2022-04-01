@@ -1298,17 +1298,17 @@ This is exactly the action of the [`Iterate`](@ref) node.
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
       ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_1")
-      JOIN "subtype_1" ON ("concept_relationship_2"."concept_id_2" = "subtype_1"."concept_id")
+      JOIN "subtype_1" AS "subtype_2" ON ("concept_relationship_2"."concept_id_2" = "subtype_2"."concept_id")
     )
     SELECT
-      "subtype_1"."concept_id",
-      "subtype_1"."concept_name",
-      "subtype_1"."domain_id",
-      "subtype_1"."vocabulary_id",
-      "subtype_1"."concept_class_id",
-      "subtype_1"."standard_concept",
-      "subtype_1"."concept_code"
-    FROM "subtype_1"
+      "subtype_3"."concept_id",
+      "subtype_3"."concept_name",
+      "subtype_3"."domain_id",
+      "subtype_3"."vocabulary_id",
+      "subtype_3"."concept_class_id",
+      "subtype_3"."standard_concept",
+      "subtype_3"."concept_code"
+    FROM "subtype_1" AS "subtype_3"
     =#
 
     DBInterface.execute(conn, q) |> DataFrame

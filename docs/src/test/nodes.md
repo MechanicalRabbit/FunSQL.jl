@@ -943,15 +943,15 @@ to create a factorial table.
         1 AS "f"
       UNION ALL
       SELECT
-        ("factorial_1"."n" + 1) AS "n",
-        (("factorial_1"."n" + 1) * "factorial_1"."f") AS "f"
-      FROM "factorial_1"
-      WHERE (("factorial_1"."n" + 1) <= 10)
+        ("factorial_2"."n" + 1) AS "n",
+        (("factorial_2"."n" + 1) * "factorial_2"."f") AS "f"
+      FROM "factorial_1" AS "factorial_2"
+      WHERE (("factorial_2"."n" + 1) <= 10)
     )
     SELECT
-      "factorial_1"."n",
-      "factorial_1"."f"
-    FROM "factorial_1"
+      "factorial_3"."n",
+      "factorial_3"."f"
+    FROM "factorial_1" AS "factorial_3"
     =#
 
 The set of columns produced by `Iterate` is the intersection of the columns
@@ -969,12 +969,12 @@ produced by the base query and the iterator query.
     WITH RECURSIVE "self_1" ("m") AS (
       SELECT 0 AS "m"
       UNION ALL
-      SELECT ("self_1"."m" + 1) AS "m"
-      FROM "self_1"
-      WHERE ("self_1"."m" < 10)
+      SELECT ("self_2"."m" + 1) AS "m"
+      FROM "self_1" AS "self_2"
+      WHERE ("self_2"."m" < 10)
     )
-    SELECT "self_1"."m"
-    FROM "self_1"
+    SELECT "self_3"."m"
+    FROM "self_1" AS "self_3"
     =#
 
 `Iterate` aligns the columns of its subqueries.
@@ -993,20 +993,20 @@ produced by the base query and the iterator query.
         1 AS "f"
       UNION ALL
       SELECT
-        "factorial_2"."n",
-        "factorial_2"."f"
+        "factorial_3"."n",
+        "factorial_3"."f"
       FROM (
         SELECT
-          (("factorial_1"."n" + 1) * "factorial_1"."f") AS "f",
-          ("factorial_1"."n" + 1) AS "n"
-        FROM "factorial_1"
-        WHERE ("factorial_1"."n" < 10)
-      ) AS "factorial_2"
+          (("factorial_2"."n" + 1) * "factorial_2"."f") AS "f",
+          ("factorial_2"."n" + 1) AS "n"
+        FROM "factorial_1" AS "factorial_2"
+        WHERE ("factorial_2"."n" < 10)
+      ) AS "factorial_3"
     )
     SELECT
-      "factorial_1"."n",
-      "factorial_1"."f"
-    FROM "factorial_1"
+      "factorial_4"."n",
+      "factorial_4"."f"
+    FROM "factorial_1" AS "factorial_4"
     =#
 
 
@@ -1278,10 +1278,10 @@ We can create a temporary dataset using `With` and refer to it with `From`.
       WHERE ("person_1"."gender_concept_id" = 8507)
     )
     SELECT
-      "male_1"."person_id",
+      "male_2"."person_id",
       ⋮
-      "male_1"."location_id"
-    FROM "male_1"
+      "male_2"."location_id"
+    FROM "male_1" AS "male_2"
     =#
 
 `With` definitions can be annotated as *materialized* or *not materialized*:
@@ -1300,7 +1300,7 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     )
     SELECT
       ⋮
-    FROM "male_1"
+    FROM "male_1" AS "male_2"
     =#
 
     q = From(:male) |>
@@ -1316,7 +1316,7 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     )
     SELECT
       ⋮
-    FROM "male_1"
+    FROM "male_1" AS "male_2"
     =#
 
 `With` can take more than one definition.
@@ -1341,11 +1341,11 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     SELECT
       (
         SELECT COUNT(*) AS "count"
-        FROM "male_1"
+        FROM "male_1" AS "male_2"
       ) AS "male_count",
       (
         SELECT COUNT(*) AS "count"
-        FROM "female_1"
+        FROM "female_1" AS "female_2"
       ) AS "female_count"
     =#
 
@@ -1420,10 +1420,10 @@ for a `CREATE TABLE AS` or `SELECT INFO` statement.
     WHERE ("person_1"."gender_concept_id" = 8507);
 
     SELECT
-      "male"."person_id",
+      "male_1"."person_id",
       ⋮
-      "male"."location_id"
-    FROM "tmp"."male"
+      "male_1"."location_id"
+    FROM "tmp"."male" AS "male_1"
     =#
 
 Datasets defined by `WithExternal` must have a unique label.

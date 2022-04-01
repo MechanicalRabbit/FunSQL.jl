@@ -105,8 +105,8 @@ SELECT
   "person_1"."year_of_birth"
 FROM "person" AS "person_1"
 WHERE ("person_1"."person_id" IN (
-  SELECT "essential_hypertension_1"."person_id"
-  FROM "essential_hypertension_1"
+  SELECT "essential_hypertension_2"."person_id"
+  FROM "essential_hypertension_1" AS "essential_hypertension_2"
 ))
 ```
 
