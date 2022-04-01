@@ -722,15 +722,15 @@ WITH RECURSIVE &quot;factorial_1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
     1 AS &quot;f&quot;
   UNION ALL
   SELECT
-    (&quot;factorial_1&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
-    ((&quot;factorial_1&quot;.&quot;n&quot; + 1) * &quot;factorial_1&quot;.&quot;f&quot;) AS &quot;f&quot;
-  FROM &quot;factorial_1&quot;
-  WHERE ((&quot;factorial_1&quot;.&quot;n&quot; + 1) &lt;= 10)
+    (&quot;factorial_2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
+    ((&quot;factorial_2&quot;.&quot;n&quot; + 1) * &quot;factorial_2&quot;.&quot;f&quot;) AS &quot;f&quot;
+  FROM &quot;factorial_1&quot; AS &quot;factorial_2&quot;
+  WHERE ((&quot;factorial_2&quot;.&quot;n&quot; + 1) &lt;= 10)
 )
 SELECT
-  &quot;factorial_1&quot;.&quot;n&quot;,
-  &quot;factorial_1&quot;.&quot;f&quot;
-FROM &quot;factorial_1&quot;
+  &quot;factorial_3&quot;.&quot;n&quot;,
+  &quot;factorial_3&quot;.&quot;f&quot;
+FROM &quot;factorial_1&quot; AS &quot;factorial_3&quot;
 =#</code></pre><p>The set of columns produced by <code>Iterate</code> is the intersection of the columns produced by the base query and the iterator query.</p><pre><code class="language-julia hljs">q = Define(:k =&gt; 0, :m =&gt; 0) |&gt;
     Iterate(From(:self) |&gt;
             As(:previous) |&gt;
@@ -743,12 +743,12 @@ print(render(q))
 WITH RECURSIVE &quot;self_1&quot; (&quot;m&quot;) AS (
   SELECT 0 AS &quot;m&quot;
   UNION ALL
-  SELECT (&quot;self_1&quot;.&quot;m&quot; + 1) AS &quot;m&quot;
-  FROM &quot;self_1&quot;
-  WHERE (&quot;self_1&quot;.&quot;m&quot; &lt; 10)
+  SELECT (&quot;self_2&quot;.&quot;m&quot; + 1) AS &quot;m&quot;
+  FROM &quot;self_1&quot; AS &quot;self_2&quot;
+  WHERE (&quot;self_2&quot;.&quot;m&quot; &lt; 10)
 )
-SELECT &quot;self_1&quot;.&quot;m&quot;
-FROM &quot;self_1&quot;
+SELECT &quot;self_3&quot;.&quot;m&quot;
+FROM &quot;self_1&quot; AS &quot;self_3&quot;
 =#</code></pre><p><code>Iterate</code> aligns the columns of its subqueries.</p><pre><code class="language-julia hljs">q = Select(:n =&gt; 1, :f =&gt; 1) |&gt;
     Iterate(From(:factorial) |&gt;
             Where(Get.n .&lt; 10) |&gt;
@@ -763,20 +763,20 @@ WITH RECURSIVE &quot;factorial_1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
     1 AS &quot;f&quot;
   UNION ALL
   SELECT
-    &quot;factorial_2&quot;.&quot;n&quot;,
-    &quot;factorial_2&quot;.&quot;f&quot;
+    &quot;factorial_3&quot;.&quot;n&quot;,
+    &quot;factorial_3&quot;.&quot;f&quot;
   FROM (
     SELECT
-      ((&quot;factorial_1&quot;.&quot;n&quot; + 1) * &quot;factorial_1&quot;.&quot;f&quot;) AS &quot;f&quot;,
-      (&quot;factorial_1&quot;.&quot;n&quot; + 1) AS &quot;n&quot;
-    FROM &quot;factorial_1&quot;
-    WHERE (&quot;factorial_1&quot;.&quot;n&quot; &lt; 10)
-  ) AS &quot;factorial_2&quot;
+      ((&quot;factorial_2&quot;.&quot;n&quot; + 1) * &quot;factorial_2&quot;.&quot;f&quot;) AS &quot;f&quot;,
+      (&quot;factorial_2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;
+    FROM &quot;factorial_1&quot; AS &quot;factorial_2&quot;
+    WHERE (&quot;factorial_2&quot;.&quot;n&quot; &lt; 10)
+  ) AS &quot;factorial_3&quot;
 )
 SELECT
-  &quot;factorial_1&quot;.&quot;n&quot;,
-  &quot;factorial_1&quot;.&quot;f&quot;
-FROM &quot;factorial_1&quot;
+  &quot;factorial_4&quot;.&quot;n&quot;,
+  &quot;factorial_4&quot;.&quot;f&quot;
+FROM &quot;factorial_1&quot; AS &quot;factorial_4&quot;
 =#</code></pre><h2 id="As"><a class="docs-heading-anchor" href="#As"><code>As</code></a><a id="As-1"></a><a class="docs-heading-anchor-permalink" href="#As" title="Permalink"></a></h2><p>An alias to an expression can be added with the <code>As</code> constructor.</p><pre><code class="language-julia hljs">e = 42 |&gt; As(:integer)
 #-&gt; (…) |&gt; As(:integer)
 
@@ -967,10 +967,10 @@ WITH &quot;male_1&quot; (&quot;person_id&quot;, …, &quot;location_id&quot;) AS
   WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; = 8507)
 )
 SELECT
-  &quot;male_1&quot;.&quot;person_id&quot;,
+  &quot;male_2&quot;.&quot;person_id&quot;,
   ⋮
-  &quot;male_1&quot;.&quot;location_id&quot;
-FROM &quot;male_1&quot;
+  &quot;male_2&quot;.&quot;location_id&quot;
+FROM &quot;male_1&quot; AS &quot;male_2&quot;
 =#</code></pre><p><code>With</code> definitions can be annotated as <em>materialized</em> or <em>not materialized</em>:</p><pre><code class="language-julia hljs">q = From(:male) |&gt;
     With(From(person) |&gt;
          Where(Get.gender_concept_id .== 8507) |&gt;
@@ -985,7 +985,7 @@ WITH &quot;male_1&quot; ( … ) AS MATERIALIZED (
 )
 SELECT
   ⋮
-FROM &quot;male_1&quot;
+FROM &quot;male_1&quot; AS &quot;male_2&quot;
 =#
 
 q = From(:male) |&gt;
@@ -1001,7 +1001,7 @@ WITH &quot;male_1&quot; ( … ) AS NOT MATERIALIZED (
 )
 SELECT
   ⋮
-FROM &quot;male_1&quot;
+FROM &quot;male_1&quot; AS &quot;male_2&quot;
 =#</code></pre><p><code>With</code> can take more than one definition.</p><pre><code class="language-julia hljs">q = Select(:male_count =&gt; From(:male) |&gt; Group() |&gt; Select(Agg.count()),
            :female_count =&gt; From(:female) |&gt; Group() |&gt; Select(Agg.count())) |&gt;
     With(:male =&gt; From(person) |&gt; Where(Get.gender_concept_id .== 8507),
@@ -1022,11 +1022,11 @@ WITH &quot;male_1&quot; (&quot;_&quot;) AS (
 SELECT
   (
     SELECT COUNT(*) AS &quot;count&quot;
-    FROM &quot;male_1&quot;
+    FROM &quot;male_1&quot; AS &quot;male_2&quot;
   ) AS &quot;male_count&quot;,
   (
     SELECT COUNT(*) AS &quot;count&quot;
-    FROM &quot;female_1&quot;
+    FROM &quot;female_1&quot; AS &quot;female_2&quot;
   ) AS &quot;female_count&quot;
 =#</code></pre><p>A dataset defined by <code>With</code> must have an explicit label assigned to it.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     With(From(person))
@@ -1084,10 +1084,10 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; = 8507);
 
 SELECT
-  &quot;male&quot;.&quot;person_id&quot;,
+  &quot;male_1&quot;.&quot;person_id&quot;,
   ⋮
-  &quot;male&quot;.&quot;location_id&quot;
-FROM &quot;tmp&quot;.&quot;male&quot;
+  &quot;male_1&quot;.&quot;location_id&quot;
+FROM &quot;tmp&quot;.&quot;male&quot; AS &quot;male_1&quot;
 =#</code></pre><p>Datasets defined by <code>WithExternal</code> must have a unique label.</p><pre><code class="language-julia hljs">From(:p) |&gt;
 WithExternal(:p =&gt; From(person),
              :p =&gt; From(person))
@@ -2047,4 +2047,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Friday 1 April 2022 00:26">Friday 1 April 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Friday 1 April 2022 15:52">Friday 1 April 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
