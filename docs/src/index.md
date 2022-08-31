@@ -11,6 +11,7 @@ Pages = [
     "reference.md",
     "examples.md",
     "test/index.md",
+    "two-kinds.md",
 ]
 ```
 

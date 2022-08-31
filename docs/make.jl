@@ -21,6 +21,9 @@ makedocs(
         "reference.md",
         "examples.md",
         "test/index.md",
+        "Articles" => [
+          "two-kinds.md",
+        ],
     ],
     modules = [FunSQL],
     doctest = false
