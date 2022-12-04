@@ -27,7 +27,7 @@ with the database catalog.
     #-> SQLite.Stmt( … )
 
     DBInterface.execute(conn, "SELECT * FROM person")
-    #-> SQLite.Query( … )
+    #-> SQLite.Query{false}( … )
 
 When `DBInterface.prepare` is applied to a query node, it returns
 a FunSQL-specific `SQLStatement` object.
@@ -43,7 +43,7 @@ a FunSQL-specific `SQLStatement` object.
     #-> SQLConnection( … )
 
     DBInterface.execute(stmt)
-    #-> SQLite.Query( … )
+    #-> SQLite.Query{false}( … )
 
     DBInterface.close!(stmt)
 
@@ -59,7 +59,7 @@ by name.
     #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR])
 
     DBInterface.execute(stmt, YEAR = 1950)
-    #-> SQLite.Query( … )
+    #-> SQLite.Query{false}( … )
 
     DBInterface.close!(stmt)
 

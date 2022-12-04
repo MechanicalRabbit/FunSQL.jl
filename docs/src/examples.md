@@ -624,6 +624,7 @@ Given a concept set, it is now easy to find the matching clinical conditions.
     q = From(:condition_occurrence) |>
         Join(MyocardialInfarctionConcepts(),
              Get.condition_concept_id .== Get.concept_id) |>
+        Order(Get.condition_occurrence_id) |>
         Select(Get.person_id, Get.condition_start_date)
 
     DBInterface.execute(conn, q) |> DataFrame
@@ -691,6 +692,7 @@ query.
       LEFT JOIN "subtype_4" AS "subtype_6" ON ("subtype_3"."concept_id" = "subtype_6"."concept_id")
       WHERE ("subtype_6"."concept_id" IS NULL)
     ) AS "concept_5" ON ("condition_occurrence_1"."condition_concept_id" = "concept_5"."concept_id")
+    ORDER BY "condition_occurrence_1"."condition_occurrence_id"
     =#
 
 
@@ -731,7 +733,8 @@ concepts](@ref):
     MyocardialInfarctionOccurrence() =
         From(:condition_occurrence) |>
         Join(:concept => MyocardialInfarctionConcept(),
-             on = Get.condition_concept_id .== Get.concept.concept_id)
+             on = Get.condition_concept_id .== Get.concept.concept_id) |>
+        Order(Get.condition_occurrence_id)
 
     DBInterface.execute(conn, MyocardialInfarctionOccurrence()) |> DataFrame
     #=>
@@ -945,25 +948,31 @@ Now we have all the components to construct the final query:
       JOIN "concept" AS "concept_4" ON ("concept_relationship_4"."concept_id_1" = "concept_4"."concept_id")
     )
     SELECT
-      "condition_occurrence_2"."person_id",
-      "condition_occurrence_2"."condition_start_date"
+      "condition_occurrence_3"."person_id",
+      "condition_occurrence_3"."condition_start_date"
     FROM (
       SELECT
-        "condition_occurrence_1"."person_id",
-        "condition_occurrence_1"."condition_start_date",
-        (LAG(DATE("condition_occurrence_1"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_1"."person_id" ORDER BY "condition_occurrence_1"."condition_start_date")) AS "boundary"
-      FROM "condition_occurrence" AS "condition_occurrence_1"
-      JOIN "subtype_1" AS "subtype_3" ON ("condition_occurrence_1"."condition_concept_id" = "subtype_3"."concept_id")
+        "condition_occurrence_2"."person_id",
+        "condition_occurrence_2"."condition_start_date",
+        (LAG(DATE("condition_occurrence_2"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_2"."person_id" ORDER BY "condition_occurrence_2"."condition_start_date")) AS "boundary"
+      FROM (
+        SELECT
+          "condition_occurrence_1"."person_id",
+          "condition_occurrence_1"."condition_start_date"
+        FROM "condition_occurrence" AS "condition_occurrence_1"
+        JOIN "subtype_1" AS "subtype_3" ON ("condition_occurrence_1"."condition_concept_id" = "subtype_3"."concept_id")
+        ORDER BY "condition_occurrence_1"."condition_occurrence_id"
+      ) AS "condition_occurrence_2"
       WHERE (EXISTS (
         SELECT NULL
         FROM "visit_occurrence" AS "visit_occurrence_1"
         JOIN "subtype_4" AS "subtype_6" ON ("visit_occurrence_1"."visit_concept_id" = "subtype_6"."concept_id")
         WHERE
-          ("visit_occurrence_1"."person_id" = "condition_occurrence_1"."person_id") AND
-          ("condition_occurrence_1"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")
+          ("visit_occurrence_1"."person_id" = "condition_occurrence_2"."person_id") AND
+          ("condition_occurrence_2"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")
       ))
-    ) AS "condition_occurrence_2"
-    WHERE (("condition_occurrence_2"."boundary" IS NULL) OR ("condition_occurrence_2"."boundary" < "condition_occurrence_2"."condition_start_date"))
+    ) AS "condition_occurrence_3"
+    WHERE (("condition_occurrence_3"."boundary" IS NULL) OR ("condition_occurrence_3"."boundary" < "condition_occurrence_3"."condition_start_date"))
     =#
 
 
