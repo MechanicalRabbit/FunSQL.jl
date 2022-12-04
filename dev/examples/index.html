@@ -402,6 +402,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
 q = From(:condition_occurrence) |&gt;
     Join(MyocardialInfarctionConcepts(),
          Get.condition_concept_id .== Get.concept_id) |&gt;
+    Order(Get.condition_occurrence_id) |&gt;
     Select(Get.person_id, Get.condition_start_date)
 
 DBInterface.execute(conn, q) |&gt; DataFrame
@@ -464,6 +465,7 @@ JOIN (
   LEFT JOIN &quot;subtype_4&quot; AS &quot;subtype_6&quot; ON (&quot;subtype_3&quot;.&quot;concept_id&quot; = &quot;subtype_6&quot;.&quot;concept_id&quot;)
   WHERE (&quot;subtype_6&quot;.&quot;concept_id&quot; IS NULL)
 ) AS &quot;concept_5&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;concept_5&quot;.&quot;concept_id&quot;)
+ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_occurrence_id&quot;
 =#</code></pre><h2 id="Assembling-queries-incrementally"><a class="docs-heading-anchor" href="#Assembling-queries-incrementally">Assembling queries incrementally</a><a id="Assembling-queries-incrementally-1"></a><a class="docs-heading-anchor-permalink" href="#Assembling-queries-incrementally" title="Permalink"></a></h2><p>It is often convenient to build a query incrementally, one component at a time. This allows us to validate individual components, inspect their output, and possibly reuse them in other queries.</p><p><em>Find all occurrences of myocardial infarction that was diagnosed during an inpatient visit.  Filter out repeating occurrences by requiring a 180-day gap between consecutive events.</em></p><p>We start with generating two datasets: inpatient visits and myocardial infarction conditions.  For constructing the concepts <em>Inpatient Visit</em> and <em>Myocardial Infarction</em>, we use the definitions from the section <a href="#Querying-concepts">Querying concepts</a>:</p><pre><code class="language-julia hljs">MyocardialInfarctionConcept() =
     SNOMED(&quot;22298006&quot;) |&gt;
     WithSubtypes()
@@ -486,7 +488,8 @@ DBInterface.execute(conn, MyocardialInfarctionConcept()) |&gt; DataFrame
 MyocardialInfarctionOccurrence() =
     From(:condition_occurrence) |&gt;
     Join(:concept =&gt; MyocardialInfarctionConcept(),
-         on = Get.condition_concept_id .== Get.concept.concept_id)
+         on = Get.condition_concept_id .== Get.concept.concept_id) |&gt;
+    Order(Get.condition_occurrence_id)
 
 DBInterface.execute(conn, MyocardialInfarctionOccurrence()) |&gt; DataFrame
 #=&gt;
@@ -675,25 +678,31 @@ WITH RECURSIVE &quot;subtype_1&quot; (&quot;concept_id&quot;) AS (
   JOIN &quot;concept&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
 )
 SELECT
-  &quot;condition_occurrence_2&quot;.&quot;person_id&quot;,
-  &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;
+  &quot;condition_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;condition_occurrence_3&quot;.&quot;condition_start_date&quot;
 FROM (
   SELECT
-    &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
-    &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;,
-    (LAG(DATE(&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;, &#39;180 days&#39;)) OVER (PARTITION BY &quot;condition_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;)) AS &quot;boundary&quot;
-  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
-  JOIN &quot;subtype_1&quot; AS &quot;subtype_3&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;subtype_3&quot;.&quot;concept_id&quot;)
+    &quot;condition_occurrence_2&quot;.&quot;person_id&quot;,
+    &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;,
+    (LAG(DATE(&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;, &#39;180 days&#39;)) OVER (PARTITION BY &quot;condition_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;)) AS &quot;boundary&quot;
+  FROM (
+    SELECT
+      &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+      &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
+    FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+    JOIN &quot;subtype_1&quot; AS &quot;subtype_3&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;subtype_3&quot;.&quot;concept_id&quot;)
+    ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_occurrence_id&quot;
+  ) AS &quot;condition_occurrence_2&quot;
   WHERE (EXISTS (
     SELECT NULL
     FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
     JOIN &quot;subtype_4&quot; AS &quot;subtype_6&quot; ON (&quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot; = &quot;subtype_6&quot;.&quot;concept_id&quot;)
     WHERE
-      (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;condition_occurrence_1&quot;.&quot;person_id&quot;) AND
-      (&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
+      (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;condition_occurrence_2&quot;.&quot;person_id&quot;) AND
+      (&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
   ))
-) AS &quot;condition_occurrence_2&quot;
-WHERE ((&quot;condition_occurrence_2&quot;.&quot;boundary&quot; IS NULL) OR (&quot;condition_occurrence_2&quot;.&quot;boundary&quot; &lt; &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;))
+) AS &quot;condition_occurrence_3&quot;
+WHERE ((&quot;condition_occurrence_3&quot;.&quot;boundary&quot; IS NULL) OR (&quot;condition_occurrence_3&quot;.&quot;boundary&quot; &lt; &quot;condition_occurrence_3&quot;.&quot;condition_start_date&quot;))
 =#</code></pre><h2 id="Merging-overlapping-intervals"><a class="docs-heading-anchor" href="#Merging-overlapping-intervals">Merging overlapping intervals</a><a id="Merging-overlapping-intervals-1"></a><a class="docs-heading-anchor-permalink" href="#Merging-overlapping-intervals" title="Permalink"></a></h2><p>Merging overlapping intervals into a single encompassing period could be done in three steps:</p><ol><li>Tag the intervals that start a new period.</li><li>Enumerate the periods.</li><li>Group the intervals by the period number.</li></ol><p>FunSQL lets us encapsulate and reuse this rather complex sequence of transformations.</p><p><em>Merge overlapping visits.</em></p><pre><code class="language-julia hljs">MergeOverlappingIntervals(start_date, end_date) =
     Partition(Get.person_id,
               order_by = [start_date],
@@ -812,4 +821,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
   10 │     95538  2009-03-30  2009-09-02
   11 │    107680  2009-06-07  2009-07-30
   12 │    110862  2008-09-07  2010-06-07
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 1 December 2022 00:33">Thursday 1 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Sunday 4 December 2022 08:50">Sunday 4 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
