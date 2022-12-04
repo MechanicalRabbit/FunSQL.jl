@@ -16,7 +16,7 @@ conn = SQLConnection(raw_conn, catalog = catalog)
 #-&gt; SQLite.Stmt( … )
 
 DBInterface.execute(conn, &quot;SELECT * FROM person&quot;)
-#-&gt; SQLite.Query( … )</code></pre><p>When <code>DBInterface.prepare</code> is applied to a query node, it returns a FunSQL-specific <code>SQLStatement</code> object.</p><pre><code class="language-julia hljs">using FunSQL: From
+#-&gt; SQLite.Query{false}( … )</code></pre><p>When <code>DBInterface.prepare</code> is applied to a query node, it returns a FunSQL-specific <code>SQLStatement</code> object.</p><pre><code class="language-julia hljs">using FunSQL: From
 
 q = From(:person)
 
@@ -27,7 +27,7 @@ DBInterface.getconnection(stmt)
 #-&gt; SQLConnection( … )
 
 DBInterface.execute(stmt)
-#-&gt; SQLite.Query( … )
+#-&gt; SQLite.Query{false}( … )
 
 DBInterface.close!(stmt)</code></pre><p>For a query with parameters, this allows us to specify the parameter values by name.</p><pre><code class="language-julia hljs">using FunSQL: Get, Var, Where
 
@@ -38,7 +38,7 @@ stmt = DBInterface.prepare(conn, q)
 #-&gt; SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR])
 
 DBInterface.execute(stmt, YEAR = 1950)
-#-&gt; SQLite.Query( … )
+#-&gt; SQLite.Query{false}( … )
 
 DBInterface.close!(stmt)
 
@@ -183,4 +183,4 @@ pack(sql, Dict(:YEAR =&gt; 1950))
 
 pack(sql, Dict(&quot;YEAR&quot; =&gt; 1950))
 #-&gt; Any[1950]</code></pre><p><code>pack</code> can also be applied to a regular string, in which case it returns the parameters unchanged.</p><pre><code class="language-julia hljs">pack(&quot;SELECT * FROM person WHERE year_of_birth &gt;= ?&quot;, (1950,))
-#-&gt; (1950,)</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Sunday 4 December 2022 08:50">Sunday 4 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+#-&gt; (1950,)</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Sunday 4 December 2022 09:11">Sunday 4 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
