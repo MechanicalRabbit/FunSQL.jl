@@ -641,6 +641,11 @@ function assemble(n::GroupNode, refs, ctx)
             push!(trns, ref => translate(ref, ctx, subs))
         end
     end
+    if !has_aggregates
+        for name in keys(n.label_map)
+            push!(trns, Get(name = name) => by[n.label_map[name]])
+        end
+    end
     repl, cols = make_repl_cols(trns)
     @assert !isempty(cols)
     if has_aggregates

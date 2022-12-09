@@ -910,7 +910,7 @@ columns of the nested queries.
     =#
 
 
-## Iterate
+## `Iterate`
 
 The `Iterate` constructor creates an iteration query.  We could use it
 to create a factorial table.
@@ -1552,6 +1552,23 @@ used more than once.
 
     print(render(q))
     #-> SELECT NULL
+
+A `SELECT DISTINCT` query must include all the keys even when they are not used
+downstream.
+
+    q = From(person) |>
+        Group(Get.year_of_birth) |>
+        Group() |>
+        Select(Agg.count())
+
+    print(render(q))
+    #=>
+    SELECT COUNT(*) AS "count"
+    FROM (
+      SELECT DISTINCT "person_1"."year_of_birth"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    =#
 
 `Group` requires all keys to have unique aliases.
 
