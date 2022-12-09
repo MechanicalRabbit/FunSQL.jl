@@ -694,7 +694,7 @@ FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
 UNION ALL
 SELECT &quot;observation_1&quot;.&quot;person_id&quot;
 FROM &quot;observation&quot; AS &quot;observation_1&quot;
-=#</code></pre><h2 id="Iterate"><a class="docs-heading-anchor" href="#Iterate">Iterate</a><a id="Iterate-1"></a><a class="docs-heading-anchor-permalink" href="#Iterate" title="Permalink"></a></h2><p>The <code>Iterate</code> constructor creates an iteration query.  We could use it to create a factorial table.</p><pre><code class="language-julia hljs">q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
+=#</code></pre><h2 id="Iterate"><a class="docs-heading-anchor" href="#Iterate"><code>Iterate</code></a><a id="Iterate-1"></a><a class="docs-heading-anchor-permalink" href="#Iterate" title="Permalink"></a></h2><p>The <code>Iterate</code> constructor creates an iteration query.  We could use it to create a factorial table.</p><pre><code class="language-julia hljs">q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
     Iterate(From(:factorial) |&gt;
             Define(:n =&gt; Get.n .+ 1) |&gt;
             Define(:f =&gt; Get.n .* Get.f) |&gt;
@@ -1182,7 +1182,19 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
     Group()
 
 print(render(q))
-#-&gt; SELECT NULL</code></pre><p><code>Group</code> requires all keys to have unique aliases.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+#-&gt; SELECT NULL</code></pre><p>A <code>SELECT DISTINCT</code> query must include all the keys even when they are not used downstream.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Group(Get.year_of_birth) |&gt;
+    Group() |&gt;
+    Select(Agg.count())
+
+print(render(q))
+#=&gt;
+SELECT COUNT(*) AS &quot;count&quot;
+FROM (
+  SELECT DISTINCT &quot;person_1&quot;.&quot;year_of_birth&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+) AS &quot;person_2&quot;
+=#</code></pre><p><code>Group</code> requires all keys to have unique aliases.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.person_id, Get.person_id)
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
@@ -2047,4 +2059,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Sunday 4 December 2022 09:11">Sunday 4 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Friday 9 December 2022 13:38">Friday 9 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
