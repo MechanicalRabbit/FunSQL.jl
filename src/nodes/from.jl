@@ -1,10 +1,16 @@
 # From node.
 
-_from_source(source::Union{SQLTable, Symbol, Nothing}) =
+struct Self
+end
+
+_from_source(source::Union{SQLTable, Symbol, Self, Nothing}) =
     source
 
 _from_source(source::AbstractString) =
     Symbol(source)
+
+_from_source(::typeof(^)) =
+    Self()
 
 function _from_source(source)
     columns = Tables.columntable(source)
@@ -13,7 +19,7 @@ function _from_source(source)
 end
 
 mutable struct FromNode <: TabularNode
-    source::Union{SQLTable, Symbol, NamedTuple, Nothing}
+    source::Union{SQLTable, Symbol, Self, NamedTuple, Nothing}
 
     FromNode(; source) =
         new(_from_source(source))
@@ -31,6 +37,7 @@ FromNode(source) =
 The parameter `source` could be one of:
 * a [`SQLTable`](@ref) object;
 * a `Symbol` value;
+* a `Self()` or `^`;
 * a `DataFrame` or any Tables.jl-compatible dataset;
 * `nothing`.
 When `source` is a symbol, it can refer to either a table in
@@ -42,6 +49,10 @@ The `From` node is translated to a SQL query with a `FROM` clause:
 SELECT ...
 FROM \$source
 ```
+
+`From(Self())` (which can be abbreviated as `From(^)`) must be a component of
+of [`Iterate`](@ref).  In the context of [`Iterate`](@ref), it refers to the
+output of the previous iteration.
 
 `From(::DataFrame)` is translated to a `VALUES` clause.
 
@@ -166,6 +177,8 @@ function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
         Expr(:call, nameof(From), tex)
     elseif source isa Symbol
         Expr(:call, nameof(From), QuoteNode(source))
+    elseif source isa Self
+        Expr(:call, nameof(From), :^)
     elseif source isa NamedTuple
         Expr(:call, nameof(From), quoteof(source, ctx))
     else

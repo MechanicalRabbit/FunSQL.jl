@@ -22,9 +22,8 @@ applied: to the output of `over`, then to the output of its previous run, and
 so on, until the iterator produces no data.  All these outputs are concatenated
 to generate the output of `Iterate`.
 
-The `iterator` query should have an alias specified with [`As`](@ref); it can
-refer to the output of the previous iteration using [`From`](@ref) with the same
-alias.
+The `iterator` query may explicitly refer to the output of the previous run
+using `From(^)` notation.
 
 The `Iterate` node is translated to a recursive common table expression:
 ```sql
@@ -46,28 +45,54 @@ FROM iterator
 ```jldoctest
 julia> q = Define(:n => 1, :f => 1) |>
            Iterate(
-               From(:factorial) |>
                Define(:n => Get.n .+ 1) |>
                Define(:f => Get.f .* Get.n) |>
-               Where(Get.n .<= 10) |>
-               As(:factorial));
+               Where(Get.n .<= 10));
 
 julia> print(render(q))
-WITH RECURSIVE "factorial_1" ("n", "f") AS (
+WITH RECURSIVE "__1" ("n", "f") AS (
   SELECT
     1 AS "n",
     1 AS "f"
   UNION ALL
   SELECT
-    ("factorial_2"."n" + 1) AS "n",
-    ("factorial_2"."f" * ("factorial_2"."n" + 1)) AS "f"
-  FROM "factorial_1" AS "factorial_2"
-  WHERE (("factorial_2"."n" + 1) <= 10)
+    ("__2"."n" + 1) AS "n",
+    ("__2"."f" * ("__2"."n" + 1)) AS "f"
+  FROM "__1" AS "__2"
+  WHERE (("__2"."n" + 1) <= 10)
 )
 SELECT
-  "factorial_3"."n",
-  "factorial_3"."f"
-FROM "factorial_1" AS "factorial_3"
+  "__3"."n",
+  "__3"."f"
+FROM "__1" AS "__3"
+```
+
+*Calculate the factorial, using `From(^)`.*
+
+```jldoctest
+julia> q = Define(:n => 1, :f => 1) |>
+           Iterate(
+               From(^) |>
+               Define(:n => Get.n .+ 1) |>
+               Define(:f => Get.f .* Get.n) |>
+               Where(Get.n .<= 10));
+
+julia> print(render(q))
+WITH RECURSIVE "__1" ("n", "f") AS (
+  SELECT
+    1 AS "n",
+    1 AS "f"
+  UNION ALL
+  SELECT
+    ("__2"."n" + 1) AS "n",
+    ("__2"."f" * ("__2"."n" + 1)) AS "f"
+  FROM "__1" AS "__2"
+  WHERE (("__2"."n" + 1) <= 10)
+)
+SELECT
+  "__3"."n",
+  "__3"."f"
+FROM "__1" AS "__3"
 ```
 """
 Iterate(args...; kws...) =

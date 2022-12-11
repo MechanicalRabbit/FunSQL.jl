@@ -78,6 +78,12 @@ An alias for `Join(...; ..., left = true)`.
 LeftJoin(args...; kws...) =
     Join(args...; kws..., left = true)
 
+"""
+An alias for `Join(...; ..., on = true)`.
+"""
+CrossJoin(args...; kws...) =
+    Join(args...; kws..., on = true)
+
 dissect(scr::Symbol, ::typeof(Join), pats::Vector{Any}) =
     dissect(scr, JoinNode, pats)
 

@@ -289,6 +289,7 @@ module REFERENCE_ERROR_TYPE
     AMBIGUOUS_AGGREGATE
     UNDEFINED_TABLE_REFERENCE
     INVALID_TABLE_REFERENCE
+    INVALID_SELF_REFERENCE
 end
 
 end
@@ -329,6 +330,8 @@ function Base.showerror(io::IO, err::ReferenceError)
         print(io, "cannot find $(err.name)")
     elseif err.type == REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE
         print(io, "table reference $(err.name) requires As")
+    elseif err.type == REFERENCE_ERROR_TYPE.INVALID_SELF_REFERENCE
+        print(io, "self-reference outside of Iterate")
     end
     showpath(io, err.path)
 end

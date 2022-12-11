@@ -916,97 +916,91 @@ The `Iterate` constructor creates an iteration query.  We could use it
 to create a factorial table.
 
     q = Define(:n => 1, :f => 1) |>
-        Iterate(From(:factorial) |>
-                Define(:n => Get.n .+ 1) |>
+        Iterate(Define(:n => Get.n .+ 1) |>
                 Define(:f => Get.n .* Get.f) |>
-                Where(Get.n .<= 10) |>
-                As(:factorial))
+                Where(Get.n .<= 10))
     #-> (…) |> Iterate(…)
 
     display(q)
     #=>
     let q1 = Define(Lit(1) |> As(:n), Lit(1) |> As(:f)),
-        q2 = From(:factorial),
-        q3 = q2 |> Define(Fun."+"(Get.n, Lit(1)) |> As(:n)),
-        q4 = q3 |> Define(Fun."*"(Get.n, Get.f) |> As(:f)),
-        q5 = q4 |> Where(Fun."<="(Get.n, Lit(10))),
-        q6 = q1 |> Iterate(q5 |> As(:factorial))
-        q6
+        q2 = Define(Fun."+"(Get.n, Lit(1)) |> As(:n)),
+        q3 = q2 |> Define(Fun."*"(Get.n, Get.f) |> As(:f)),
+        q4 = q3 |> Where(Fun."<="(Get.n, Lit(10))),
+        q5 = q1 |> Iterate(q4)
+        q5
     end
     =#
 
     print(render(q))
     #=>
-    WITH RECURSIVE "factorial_1" ("n", "f") AS (
+    WITH RECURSIVE "__1" ("n", "f") AS (
       SELECT
         1 AS "n",
         1 AS "f"
       UNION ALL
       SELECT
-        ("factorial_2"."n" + 1) AS "n",
-        (("factorial_2"."n" + 1) * "factorial_2"."f") AS "f"
-      FROM "factorial_1" AS "factorial_2"
-      WHERE (("factorial_2"."n" + 1) <= 10)
+        ("__2"."n" + 1) AS "n",
+        (("__2"."n" + 1) * "__2"."f") AS "f"
+      FROM "__1" AS "__2"
+      WHERE (("__2"."n" + 1) <= 10)
     )
     SELECT
-      "factorial_3"."n",
-      "factorial_3"."f"
-    FROM "factorial_1" AS "factorial_3"
+      "__3"."n",
+      "__3"."f"
+    FROM "__1" AS "__3"
     =#
 
 The set of columns produced by `Iterate` is the intersection of the columns
 produced by the base query and the iterator query.
 
     q = Define(:k => 0, :m => 0) |>
-        Iterate(From(:self) |>
-                As(:previous) |>
+        Iterate(As(:previous) |>
                 Where(Get.previous.m .< 10) |>
-                Define(:m => Get.previous.m .+ 1, :n => 0) |>
-                As(:self))
+                Define(:m => Get.previous.m .+ 1, :n => 0))
 
     print(render(q))
     #=>
-    WITH RECURSIVE "self_1" ("m") AS (
+    WITH RECURSIVE "previous_1" ("m") AS (
       SELECT 0 AS "m"
       UNION ALL
-      SELECT ("self_2"."m" + 1) AS "m"
-      FROM "self_1" AS "self_2"
-      WHERE ("self_2"."m" < 10)
+      SELECT ("union_1"."m" + 1) AS "m"
+      FROM "previous_1" AS "union_1"
+      WHERE ("union_1"."m" < 10)
     )
-    SELECT "self_3"."m"
-    FROM "self_1" AS "self_3"
+    SELECT "previous_2"."m"
+    FROM "previous_1" AS "previous_2"
     =#
 
 `Iterate` aligns the columns of its subqueries.
 
     q = Select(:n => 1, :f => 1) |>
-        Iterate(From(:factorial) |>
-                Where(Get.n .< 10) |>
-                Select(:f => (Get.n .+ 1) .* Get.f, :n => Get.n .+ 1) |>
-                As(:factorial))
+        Iterate(Where(Get.n .< 10) |>
+                Select(:f => (Get.n .+ 1) .* Get.f,
+                       :n => Get.n .+ 1))
 
     print(render(q))
     #=>
-    WITH RECURSIVE "factorial_1" ("n", "f") AS (
+    WITH RECURSIVE "__1" ("n", "f") AS (
       SELECT
         1 AS "n",
         1 AS "f"
       UNION ALL
       SELECT
-        "factorial_3"."n",
-        "factorial_3"."f"
+        "__3"."n",
+        "__3"."f"
       FROM (
         SELECT
-          (("factorial_2"."n" + 1) * "factorial_2"."f") AS "f",
-          ("factorial_2"."n" + 1) AS "n"
-        FROM "factorial_1" AS "factorial_2"
-        WHERE ("factorial_2"."n" < 10)
-      ) AS "factorial_3"
+          (("__2"."n" + 1) * "__2"."f") AS "f",
+          ("__2"."n" + 1) AS "n"
+        FROM "__1" AS "__2"
+        WHERE ("__2"."n" < 10)
+      ) AS "__3"
     )
     SELECT
-      "factorial_4"."n",
-      "factorial_4"."f"
-    FROM "factorial_1" AS "factorial_4"
+      "__4"."n",
+      "__4"."f"
+    FROM "__1" AS "__4"
     =#
 
 

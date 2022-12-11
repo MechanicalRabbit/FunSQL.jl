@@ -1270,11 +1270,11 @@ This is exactly the action of the [`Iterate`](@ref) node.
     using FunSQL: Iterate
 
     q = base |>
-        Iterate(:subtype => SubtypesOf(From(:subtype)))
+        Iterate(SubtypesOf(From(^)))
 
     render(conn, q) |> print
     #=>
-    WITH RECURSIVE "subtype_1" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code") AS (
+    WITH RECURSIVE "concept_2" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code") AS (
       SELECT
         "concept_1"."concept_id",
         "concept_1"."concept_name",
@@ -1287,32 +1287,32 @@ This is exactly the action of the [`Iterate`](@ref) node.
       WHERE ("concept_1"."concept_name" = 'Myocardial infarction')
       UNION ALL
       SELECT
-        "concept_2"."concept_id",
-        "concept_2"."concept_name",
-        "concept_2"."domain_id",
-        "concept_2"."vocabulary_id",
-        "concept_2"."concept_class_id",
-        "concept_2"."standard_concept",
-        "concept_2"."concept_code"
-      FROM "concept" AS "concept_2"
+        "concept_3"."concept_id",
+        "concept_3"."concept_name",
+        "concept_3"."domain_id",
+        "concept_3"."vocabulary_id",
+        "concept_3"."concept_class_id",
+        "concept_3"."standard_concept",
+        "concept_3"."concept_code"
+      FROM "concept" AS "concept_3"
       JOIN (
         SELECT
           "concept_relationship_1"."concept_id_1",
           "concept_relationship_1"."concept_id_2"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
-      ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_1")
-      JOIN "subtype_1" AS "subtype_2" ON ("concept_relationship_2"."concept_id_2" = "subtype_2"."concept_id")
+      ) AS "concept_relationship_2" ON ("concept_3"."concept_id" = "concept_relationship_2"."concept_id_1")
+      JOIN "concept_2" AS "concept_4" ON ("concept_relationship_2"."concept_id_2" = "concept_4"."concept_id")
     )
     SELECT
-      "subtype_3"."concept_id",
-      "subtype_3"."concept_name",
-      "subtype_3"."domain_id",
-      "subtype_3"."vocabulary_id",
-      "subtype_3"."concept_class_id",
-      "subtype_3"."standard_concept",
-      "subtype_3"."concept_code"
-    FROM "subtype_1" AS "subtype_3"
+      "concept_5"."concept_id",
+      "concept_5"."concept_name",
+      "concept_5"."domain_id",
+      "concept_5"."vocabulary_id",
+      "concept_5"."concept_class_id",
+      "concept_5"."standard_concept",
+      "concept_5"."concept_code"
+    FROM "concept_2" AS "concept_5"
     =#
 
     DBInterface.execute(conn, q) |> DataFrame
