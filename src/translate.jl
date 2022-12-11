@@ -525,11 +525,24 @@ end
 
 function assemble(n::FromReferenceNode, refs, ctx)
     cte_a = ctx.cte_map[n.over]
-    a = unwrap_repl(cte_a.a)
     alias = allocate_alias(ctx, n.name)
     tbl = ID(over = cte_a.schema, name = cte_a.name)
     c = FROM(AS(over = tbl, name = alias))
-    subs = make_subs(a, alias)
+    subs = make_subs(unwrap_repl(cte_a.a), alias)
+    trns = Pair{SQLNode, SQLClause}[]
+    for ref in refs
+        push!(trns, ref => subs[ref])
+    end
+    repl, cols = make_repl_cols(trns)
+    return Assemblage(c, cols = cols, repl = repl)
+end
+
+function assemble(n::FromSelfNode, refs, ctx)
+    cte_a = ctx.cte_map[n.over]
+    alias = allocate_alias(ctx, label(n.over))
+    tbl = ID(over = cte_a.schema, name = cte_a.name)
+    c = FROM(AS(over = tbl, name = alias))
+    subs = make_subs(cte_a.a, alias)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
         push!(trns, ref => subs[ref])
@@ -672,7 +685,7 @@ end
 
 function assemble(n::IntIterateNode, refs, ctx)
     ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
-    base = unwrap_repl(assemble(n.over, ctx′))
+    base = assemble(n.over, ctx′)
     @assert @dissect(base.clause, FROM())
     subs = make_subs(base, nothing)
     trns = Pair{SQLNode, SQLClause}[]
@@ -732,27 +745,22 @@ function assemble(n::KnotNode, refs, ctx)
     dups = Dict{SQLNode, SQLNode}()
     seen = Dict{Symbol, SQLNode}()
     for ref in refs
-        if @dissect(ref, over |> NameBound())
-            name = left.repl[over]
-            repl[ref] = name
-            if name in keys(seen)
-                dups[over] = seen[name]
-            else
-                seen[name] = over
-            end
+        name = left.repl[ref]
+        repl[ref] = name
+        if name in keys(seen)
+            dups[ref] = seen[name]
         else
-            error()
+            seen[name] = ref
         end
     end
     temp_union = Assemblage(left.clause, cols = left.cols, repl = repl)
     union_alias = allocate_alias(ctx, n.name)
     ctx.cte_map[SQLNode(n.box)] = CTEAssemblage(temp_union, name = union_alias)
-    right = unwrap_repl(assemble(n.iterator, ctx))
+    right = assemble(n.iterator, ctx)
     urefs = SQLNode[]
     for ref in refs
-        @dissect(ref, over |> NameBound()) || error()
-        !(over in keys(dups)) || continue
-        push!(urefs, over)
+        !(ref in keys(dups)) || continue
+        push!(urefs, ref)
     end
     cs = SQLClause[]
     for (arg, a) in (n.over => left, n.iterator => right)
