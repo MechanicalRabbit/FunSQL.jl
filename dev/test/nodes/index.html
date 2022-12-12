@@ -695,88 +695,125 @@ UNION ALL
 SELECT &quot;observation_1&quot;.&quot;person_id&quot;
 FROM &quot;observation&quot; AS &quot;observation_1&quot;
 =#</code></pre><h2 id="Iterate"><a class="docs-heading-anchor" href="#Iterate"><code>Iterate</code></a><a id="Iterate-1"></a><a class="docs-heading-anchor-permalink" href="#Iterate" title="Permalink"></a></h2><p>The <code>Iterate</code> constructor creates an iteration query.  We could use it to create a factorial table.</p><pre><code class="language-julia hljs">q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
-    Iterate(From(:factorial) |&gt;
-            Define(:n =&gt; Get.n .+ 1) |&gt;
+    Iterate(Define(:n =&gt; Get.n .+ 1) |&gt;
             Define(:f =&gt; Get.n .* Get.f) |&gt;
-            Where(Get.n .&lt;= 10) |&gt;
-            As(:factorial))
+            Where(Get.n .&lt;= 10))
 #-&gt; (…) |&gt; Iterate(…)
 
 display(q)
 #=&gt;
 let q1 = Define(Lit(1) |&gt; As(:n), Lit(1) |&gt; As(:f)),
-    q2 = From(:factorial),
+    q2 = Define(Fun.&quot;+&quot;(Get.n, Lit(1)) |&gt; As(:n)),
+    q3 = q2 |&gt; Define(Fun.&quot;*&quot;(Get.n, Get.f) |&gt; As(:f)),
+    q4 = q3 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, Lit(10))),
+    q5 = q1 |&gt; Iterate(q4)
+    q5
+end
+=#
+
+print(render(q))
+#=&gt;
+WITH RECURSIVE &quot;__1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
+  SELECT
+    1 AS &quot;n&quot;,
+    1 AS &quot;f&quot;
+  UNION ALL
+  SELECT
+    (&quot;__2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
+    ((&quot;__2&quot;.&quot;n&quot; + 1) * &quot;__2&quot;.&quot;f&quot;) AS &quot;f&quot;
+  FROM &quot;__1&quot; AS &quot;__2&quot;
+  WHERE ((&quot;__2&quot;.&quot;n&quot; + 1) &lt;= 10)
+)
+SELECT
+  &quot;__3&quot;.&quot;n&quot;,
+  &quot;__3&quot;.&quot;f&quot;
+FROM &quot;__1&quot; AS &quot;__3&quot;
+=#</code></pre><p>The iterator query may explicitly refer to the output of the previous iteration using <code>From(^)</code>.</p><pre><code class="language-julia hljs">q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
+    Iterate(From(^) |&gt;
+            Define(:n =&gt; Get.n .+ 1) |&gt;
+            Define(:f =&gt; Get.n .* Get.f) |&gt;
+            Where(Get.n .&lt;= 10))
+
+display(q)
+#=&gt;
+let q1 = Define(Lit(1) |&gt; As(:n), Lit(1) |&gt; As(:f)),
+    q2 = From(^),
     q3 = q2 |&gt; Define(Fun.&quot;+&quot;(Get.n, Lit(1)) |&gt; As(:n)),
     q4 = q3 |&gt; Define(Fun.&quot;*&quot;(Get.n, Get.f) |&gt; As(:f)),
     q5 = q4 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, Lit(10))),
-    q6 = q1 |&gt; Iterate(q5 |&gt; As(:factorial))
+    q6 = q1 |&gt; Iterate(q5)
     q6
 end
 =#
 
 print(render(q))
 #=&gt;
-WITH RECURSIVE &quot;factorial_1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
+WITH RECURSIVE &quot;__1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
   SELECT
     1 AS &quot;n&quot;,
     1 AS &quot;f&quot;
   UNION ALL
   SELECT
-    (&quot;factorial_2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
-    ((&quot;factorial_2&quot;.&quot;n&quot; + 1) * &quot;factorial_2&quot;.&quot;f&quot;) AS &quot;f&quot;
-  FROM &quot;factorial_1&quot; AS &quot;factorial_2&quot;
-  WHERE ((&quot;factorial_2&quot;.&quot;n&quot; + 1) &lt;= 10)
+    (&quot;__2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
+    ((&quot;__2&quot;.&quot;n&quot; + 1) * &quot;__2&quot;.&quot;f&quot;) AS &quot;f&quot;
+  FROM &quot;__1&quot; AS &quot;__2&quot;
+  WHERE ((&quot;__2&quot;.&quot;n&quot; + 1) &lt;= 10)
 )
 SELECT
-  &quot;factorial_3&quot;.&quot;n&quot;,
-  &quot;factorial_3&quot;.&quot;f&quot;
-FROM &quot;factorial_1&quot; AS &quot;factorial_3&quot;
-=#</code></pre><p>The set of columns produced by <code>Iterate</code> is the intersection of the columns produced by the base query and the iterator query.</p><pre><code class="language-julia hljs">q = Define(:k =&gt; 0, :m =&gt; 0) |&gt;
-    Iterate(From(:self) |&gt;
-            As(:previous) |&gt;
-            Where(Get.previous.m .&lt; 10) |&gt;
-            Define(:m =&gt; Get.previous.m .+ 1, :n =&gt; 0) |&gt;
-            As(:self))
+  &quot;__3&quot;.&quot;n&quot;,
+  &quot;__3&quot;.&quot;f&quot;
+FROM &quot;__1&quot; AS &quot;__3&quot;
+=#</code></pre><p>It is an error to use <code>From(^)</code> outside of <code>Iterate</code>.</p><pre><code class="language-julia hljs">q = From(^)
 
 print(render(q))
 #=&gt;
-WITH RECURSIVE &quot;self_1&quot; (&quot;m&quot;) AS (
+ERROR: FunSQL.ReferenceError: self-reference outside of Iterate in:
+let q1 = From(^)
+    q1
+end
+=#</code></pre><p>The set of columns produced by <code>Iterate</code> is the intersection of the columns produced by the base query and the iterator query.</p><pre><code class="language-julia hljs">q = Define(:k =&gt; 0, :m =&gt; 0) |&gt;
+    Iterate(As(:previous) |&gt;
+            Where(Get.previous.m .&lt; 10) |&gt;
+            Define(:m =&gt; Get.previous.m .+ 1, :n =&gt; 0))
+
+print(render(q))
+#=&gt;
+WITH RECURSIVE &quot;previous_1&quot; (&quot;m&quot;) AS (
   SELECT 0 AS &quot;m&quot;
   UNION ALL
-  SELECT (&quot;self_2&quot;.&quot;m&quot; + 1) AS &quot;m&quot;
-  FROM &quot;self_1&quot; AS &quot;self_2&quot;
-  WHERE (&quot;self_2&quot;.&quot;m&quot; &lt; 10)
+  SELECT (&quot;union_1&quot;.&quot;m&quot; + 1) AS &quot;m&quot;
+  FROM &quot;previous_1&quot; AS &quot;union_1&quot;
+  WHERE (&quot;union_1&quot;.&quot;m&quot; &lt; 10)
 )
-SELECT &quot;self_3&quot;.&quot;m&quot;
-FROM &quot;self_1&quot; AS &quot;self_3&quot;
+SELECT &quot;previous_2&quot;.&quot;m&quot;
+FROM &quot;previous_1&quot; AS &quot;previous_2&quot;
 =#</code></pre><p><code>Iterate</code> aligns the columns of its subqueries.</p><pre><code class="language-julia hljs">q = Select(:n =&gt; 1, :f =&gt; 1) |&gt;
-    Iterate(From(:factorial) |&gt;
-            Where(Get.n .&lt; 10) |&gt;
-            Select(:f =&gt; (Get.n .+ 1) .* Get.f, :n =&gt; Get.n .+ 1) |&gt;
-            As(:factorial))
+    Iterate(Where(Get.n .&lt; 10) |&gt;
+            Select(:f =&gt; (Get.n .+ 1) .* Get.f,
+                   :n =&gt; Get.n .+ 1))
 
 print(render(q))
 #=&gt;
-WITH RECURSIVE &quot;factorial_1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
+WITH RECURSIVE &quot;__1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
   SELECT
     1 AS &quot;n&quot;,
     1 AS &quot;f&quot;
   UNION ALL
   SELECT
-    &quot;factorial_3&quot;.&quot;n&quot;,
-    &quot;factorial_3&quot;.&quot;f&quot;
+    &quot;__3&quot;.&quot;n&quot;,
+    &quot;__3&quot;.&quot;f&quot;
   FROM (
     SELECT
-      ((&quot;factorial_2&quot;.&quot;n&quot; + 1) * &quot;factorial_2&quot;.&quot;f&quot;) AS &quot;f&quot;,
-      (&quot;factorial_2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;
-    FROM &quot;factorial_1&quot; AS &quot;factorial_2&quot;
-    WHERE (&quot;factorial_2&quot;.&quot;n&quot; &lt; 10)
-  ) AS &quot;factorial_3&quot;
+      ((&quot;__2&quot;.&quot;n&quot; + 1) * &quot;__2&quot;.&quot;f&quot;) AS &quot;f&quot;,
+      (&quot;__2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;
+    FROM &quot;__1&quot; AS &quot;__2&quot;
+    WHERE (&quot;__2&quot;.&quot;n&quot; &lt; 10)
+  ) AS &quot;__3&quot;
 )
 SELECT
-  &quot;factorial_4&quot;.&quot;n&quot;,
-  &quot;factorial_4&quot;.&quot;f&quot;
-FROM &quot;factorial_1&quot; AS &quot;factorial_4&quot;
+  &quot;__4&quot;.&quot;n&quot;,
+  &quot;__4&quot;.&quot;f&quot;
+FROM &quot;__1&quot; AS &quot;__4&quot;
 =#</code></pre><h2 id="As"><a class="docs-heading-anchor" href="#As"><code>As</code></a><a id="As-1"></a><a class="docs-heading-anchor-permalink" href="#As" title="Permalink"></a></h2><p>An alias to an expression can be added with the <code>As</code> constructor.</p><pre><code class="language-julia hljs">e = 42 |&gt; As(:integer)
 #-&gt; (…) |&gt; As(:integer)
 
@@ -2059,4 +2096,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Friday 9 December 2022 13:38">Friday 9 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Monday 12 December 2022 19:11">Monday 12 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
