@@ -951,6 +951,58 @@ to create a factorial table.
     FROM "__1" AS "__3"
     =#
 
+The iterator query may explicitly refer to the output of the previous iteration
+using `From(^)`.
+
+    q = Define(:n => 1, :f => 1) |>
+        Iterate(From(^) |>
+                Define(:n => Get.n .+ 1) |>
+                Define(:f => Get.n .* Get.f) |>
+                Where(Get.n .<= 10))
+
+    display(q)
+    #=>
+    let q1 = Define(Lit(1) |> As(:n), Lit(1) |> As(:f)),
+        q2 = From(^),
+        q3 = q2 |> Define(Fun."+"(Get.n, Lit(1)) |> As(:n)),
+        q4 = q3 |> Define(Fun."*"(Get.n, Get.f) |> As(:f)),
+        q5 = q4 |> Where(Fun."<="(Get.n, Lit(10))),
+        q6 = q1 |> Iterate(q5)
+        q6
+    end
+    =#
+
+    print(render(q))
+    #=>
+    WITH RECURSIVE "__1" ("n", "f") AS (
+      SELECT
+        1 AS "n",
+        1 AS "f"
+      UNION ALL
+      SELECT
+        ("__2"."n" + 1) AS "n",
+        (("__2"."n" + 1) * "__2"."f") AS "f"
+      FROM "__1" AS "__2"
+      WHERE (("__2"."n" + 1) <= 10)
+    )
+    SELECT
+      "__3"."n",
+      "__3"."f"
+    FROM "__1" AS "__3"
+    =#
+
+It is an error to use `From(^)` outside of `Iterate`.
+
+    q = From(^)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: self-reference outside of Iterate in:
+    let q1 = From(^)
+        q1
+    end
+    =#
+
 The set of columns produced by `Iterate` is the intersection of the columns
 produced by the base query and the iterator query.
 
