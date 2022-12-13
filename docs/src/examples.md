@@ -656,8 +656,8 @@ query.
       FROM "base_1" AS "concept_2"
       JOIN (
         SELECT
-          "concept_relationship_1"."concept_id_2",
-          "concept_relationship_1"."concept_id_1"
+          "concept_relationship_1"."concept_id_1",
+          "concept_relationship_1"."concept_id_2"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
       ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_2")
@@ -674,8 +674,8 @@ query.
       FROM "base_3" AS "concept_5"
       JOIN (
         SELECT
-          "concept_relationship_3"."concept_id_2",
-          "concept_relationship_3"."concept_id_1"
+          "concept_relationship_3"."concept_id_1",
+          "concept_relationship_3"."concept_id_2"
         FROM "concept_relationship" AS "concept_relationship_3"
         WHERE ("concept_relationship_3"."relationship_id" = 'Is a')
       ) AS "concept_relationship_4" ON ("concept_5"."concept_id" = "concept_relationship_4"."concept_id_2")
@@ -921,8 +921,8 @@ Now we have all the components to construct the final query:
       FROM "base_1" AS "concept_2"
       JOIN (
         SELECT
-          "concept_relationship_1"."concept_id_2",
-          "concept_relationship_1"."concept_id_1"
+          "concept_relationship_1"."concept_id_1",
+          "concept_relationship_1"."concept_id_2"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
       ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_2")
@@ -939,8 +939,8 @@ Now we have all the components to construct the final query:
       FROM "base_3" AS "concept_5"
       JOIN (
         SELECT
-          "concept_relationship_3"."concept_id_2",
-          "concept_relationship_3"."concept_id_1"
+          "concept_relationship_3"."concept_id_1",
+          "concept_relationship_3"."concept_id_2"
         FROM "concept_relationship" AS "concept_relationship_3"
         WHERE ("concept_relationship_3"."relationship_id" = 'Is a')
       ) AS "concept_relationship_4" ON ("concept_5"."concept_id" = "concept_relationship_4"."concept_id_2")
@@ -1021,9 +1021,9 @@ transformations.
       FROM (
         SELECT
           "visit_occurrence_1"."person_id",
-          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new",
           "visit_occurrence_1"."visit_start_date",
-          "visit_occurrence_1"."visit_end_date"
+          "visit_occurrence_1"."visit_end_date",
+          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
@@ -1083,9 +1083,9 @@ one year gap between them.*
       FROM (
         SELECT
           "visit_occurrence_1"."person_id",
-          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX(DATE("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new",
           "visit_occurrence_1"."visit_start_date",
-          "visit_occurrence_1"."visit_end_date"
+          "visit_occurrence_1"."visit_end_date",
+          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX(DATE("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"

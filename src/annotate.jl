@@ -9,9 +9,10 @@ mutable struct BoxNode <: TabularNode
     type::BoxType
     handle::Int
     refs::Vector{SQLNode}
+    imm_refs_begin_at::Union{Int, Nothing}
 
-    BoxNode(; over = nothing, type = EMPTY_BOX, handle = 0, refs = SQLNode[]) =
-        new(over, type, handle, refs)
+    BoxNode(; over = nothing, type = EMPTY_BOX, handle = 0, refs = SQLNode[], imm_refs_begin_at = nothing) =
+        new(over, type, handle, refs, imm_refs_begin_at)
 end
 
 Box(args...; kws...) =
@@ -31,6 +32,9 @@ function PrettyPrinting.quoteof(n::BoxNode, ctx::QuoteContext)
         end
         if !isempty(n.refs)
             push!(ex.args, Expr(:kw, :refs, Expr(:vect, quoteof(n.refs, ctx)...)))
+        end
+        if n.imm_refs_begin_at !== nothing
+            push!(ex.args, Expr(:kw, :imm_refs_begin_at, n.imm_refs_begin_at))
         end
     else
         push!(ex.args, :…)
@@ -53,6 +57,15 @@ box_type(n::BoxNode) =
 
 box_type(n::SQLNode) =
     box_type(n[]::BoxNode)
+
+function reset!(n::BoxNode)
+    empty!(n.refs)
+    n.imm_refs_begin_at = nothing
+end
+
+function begin_imm_refs!(n::BoxNode)
+    n.imm_refs_begin_at = length(n.refs) + 1
+end
 
 # Get(over = Get(:a), name = :b) => NameBound(over = Get(:b), name = :a)
 mutable struct NameBoundNode <: AbstractSQLNode
@@ -1028,16 +1041,19 @@ end
 function link!(n::DefineNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     seen = Set{Symbol}()
+    imm_refs = SQLNode[]
     for ref in refs
         if @dissect(ref, nothing |> Get(name = name)) && name in keys(n.label_map)
             !(name in seen) || continue
             push!(seen, name)
             col = n.args[n.label_map[name]]
-            gather_and_validate!(box.refs, col, box.type, ctx)
+            gather_and_validate!(imm_refs, col, box.type, ctx)
         else
             push!(box.refs, ref)
         end
     end
+    begin_imm_refs!(box)
+    append!(box.refs, imm_refs)
 end
 
 link!(::Union{FromNothingNode, FromTableNode, FromValuesNode}, ::Vector{SQLNode}, ctx) =
@@ -1057,6 +1073,7 @@ end
 
 function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
+    begin_imm_refs!(box)
     gather_and_validate!(box.refs, n.by, box.type, ctx)
     for ref in refs
         if @dissect(ref, nothing |> Agg(args = args, filter = filter))
@@ -1079,23 +1096,22 @@ end
 function link!(n::IntJoinNode, refs::Vector{SQLNode}, ctx)
     lbox = n.over[]::BoxNode
     rbox = n.joinee[]::BoxNode
-    lrefs = SQLNode[]
-    rrefs = SQLNode[]
     for ref in refs
         turn = route(lbox.type, rbox.type, ref)
         if turn < 0
-            push!(lrefs, ref)
+            push!(lbox.refs, ref)
         else
-            push!(rrefs, ref)
+            push!(rbox.refs, ref)
         end
     end
-    if !isempty(rrefs)
+    if !isempty(rbox.refs)
         n.skip = false
     end
     if n.skip
-        append!(lbox.refs, lrefs)
         return
     end
+    begin_imm_refs!(lbox)
+    begin_imm_refs!(rbox)
     gather_and_validate!(n.lateral, n.joinee, lbox.type, ctx)
     append!(lbox.refs, n.lateral)
     refs′ = SQLNode[]
@@ -1108,8 +1124,6 @@ function link!(n::IntJoinNode, refs::Vector{SQLNode}, ctx)
             push!(rbox.refs, ref)
         end
     end
-    append!(lbox.refs, lrefs)
-    append!(rbox.refs, rrefs)
 end
 
 function link!(n::KnotNode, ::Vector{SQLNode}, ctx)
@@ -1126,11 +1140,11 @@ function link!(n::KnotNode, ::Vector{SQLNode}, ctx)
                 repeat = true
             end
         end
-        empty!(n.box.refs)
+        reset!(n.box)
         append!(n.box.refs, refs)
         repeat || break
         for ibox in n.iterator_boxes
-            empty!(ibox.refs)
+            reset!(ibox)
         end
         append!(iterator_box.refs, refs)
         link!(reverse(n.iterator_boxes), ctx)
@@ -1143,33 +1157,39 @@ end
 function link!(n::OrderNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     append!(box.refs, refs)
+    begin_imm_refs!(box)
     gather_and_validate!(box.refs, n.by, box.type, ctx)
 end
 
 function link!(n::PartitionNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
+    imm_refs = SQLNode[]
     for ref in refs
         if @dissect(ref, nothing |> Agg(args = args, filter = filter))
-            gather_and_validate!(box.refs, args, box.type, ctx)
+            gather_and_validate!(imm_refs, args, box.type, ctx)
             if filter !== nothing
-                gather_and_validate!(box.refs, filter, box.type, ctx)
+                gather_and_validate!(imm_refs, filter, box.type, ctx)
             end
         else
             push!(box.refs, ref)
         end
     end
-    gather_and_validate!(box.refs, n.by, box.type, ctx)
-    gather_and_validate!(box.refs, n.order_by, box.type, ctx)
+    gather_and_validate!(imm_refs, n.by, box.type, ctx)
+    gather_and_validate!(imm_refs, n.order_by, box.type, ctx)
+    begin_imm_refs!(box)
+    append!(box.refs, imm_refs)
 end
 
 function link!(n::SelectNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
+    begin_imm_refs!(box)
     gather_and_validate!(box.refs, n.args, box.type, ctx)
 end
 
 function link!(n::WhereNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     append!(box.refs, refs)
+    begin_imm_refs!(box)
     gather_and_validate!(box.refs, n.condition, box.type, ctx)
 end
 

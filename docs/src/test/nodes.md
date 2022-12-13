@@ -849,13 +849,13 @@ nested subqueries.
     FROM "person" AS "person_1"
     JOIN (
       SELECT
-        "measurement_1"."person_id",
-        "measurement_1"."measurement_date" AS "date"
+        "measurement_1"."measurement_date" AS "date",
+        "measurement_1"."person_id"
       FROM "measurement" AS "measurement_1"
       UNION ALL
       SELECT
-        "observation_1"."person_id",
-        "observation_1"."observation_date" AS "date"
+        "observation_1"."observation_date" AS "date",
+        "observation_1"."person_id"
       FROM "observation" AS "observation_1"
     ) AS "assessment_1" ON ("person_1"."person_id" = "assessment_1"."person_id")
     WHERE ("assessment_1"."date" > CURRENT_TIMESTAMP)
@@ -1548,8 +1548,8 @@ used more than once.
     FROM "person" AS "person_1"
     JOIN (
       SELECT
-        "visit_occurrence_1"."person_id",
-        COUNT(*) AS "count"
+        COUNT(*) AS "count",
+        "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
@@ -1646,9 +1646,9 @@ downstream.
     FROM "person" AS "person_1"
     JOIN (
       SELECT
-        "visit_occurrence_1"."person_id",
         MAX("visit_occurrence_1"."visit_start_date") AS "max",
-        MAX("visit_occurrence_1"."visit_end_date") AS "max_2"
+        MAX("visit_occurrence_1"."visit_end_date") AS "max_2",
+        "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
@@ -1751,8 +1751,8 @@ corresponding `Group` could be determined unambiguously.
     FROM "person" AS "person_1"
     LEFT JOIN (
       SELECT
-        "visit_occurrence_1"."person_id",
-        COUNT(*) AS "count"
+        COUNT(*) AS "count",
+        "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_occurrence_2" ON ("person_1"."person_id" = "visit_occurrence_2"."person_id")
@@ -1877,9 +1877,9 @@ example which calculates non-overlapping visits.
       FROM (
         SELECT
           "visit_occurrence_1"."person_id",
-          (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new",
           "visit_occurrence_1"."visit_start_date",
-          "visit_occurrence_1"."visit_end_date"
+          "visit_occurrence_1"."visit_end_date",
+          (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
@@ -1960,15 +1960,15 @@ Nested subqueries that are combined with `Join` may fail to collapse.
       "location_2"."city"
     FROM (
       SELECT
-        "person_1"."location_id",
-        "person_1"."person_id"
+        "person_1"."person_id",
+        "person_1"."location_id"
       FROM "person" AS "person_1"
       WHERE ("person_1"."year_of_birth" > 1970)
     ) AS "person_2"
     JOIN (
       SELECT
-        "location_1"."location_id",
-        "location_1"."city"
+        "location_1"."city",
+        "location_1"."location_id"
       FROM "location" AS "location_1"
       WHERE ("location_1"."state" = 'IL')
     ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
@@ -2576,9 +2576,9 @@ and determine the columns to be provided by each tabular query.
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
     │     q1 = FromTable(table = person),
-    │     q2 = Get.location_id,
+    │     q2 = Get.person_id,
     │     q3 = Get.person_id,
-    │     q4 = Get.person_id,
+    │     q4 = Get.location_id,
     │     q5 = Get.year_of_birth,
     │     q6 = q1 |>
     │          Box(type = BoxType(:person,
@@ -2589,9 +2589,10 @@ and determine the columns to be provided by each tabular query.
     │                             :day_of_birth => ScalarType(),
     │                             :birth_datetime => ScalarType(),
     │                             :location_id => ScalarType()),
-    │              refs = [q2, q3, q4, q5]),
+    │              refs = [q2, q3, q4, q5],
+    │              imm_refs_begin_at = 4),
     ⋮
-    │     q32 = q31 |> Select(q4, q28 |> As(:max_visit_start_date)),
+    │     q32 = q31 |> Select(q2, q27 |> As(:max_visit_start_date)),
     │     q33 = q32 |>
     │           Box(type = BoxType(:person,
     │                              :person_id => ScalarType(),
@@ -2614,7 +2615,7 @@ On the next stage, the query object is converted to a SQL syntax tree.
     │ AS(:person_1) |>
     │ FROM() |>
     │ WHERE(OP("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
-    │ SELECT(ID(:person_1) |> ID(:location_id), ID(:person_1) |> ID(:person_id)) |>
+    │ SELECT(ID(:person_1) |> ID(:person_id), ID(:person_1) |> ID(:location_id)) |>
     │ AS(:person_2) |>
     │ FROM() |>
     │ JOIN(ID(:location) |>
@@ -2630,9 +2631,9 @@ On the next stage, the query object is converted to a SQL syntax tree.
     │      AS(:visit_occurrence_1) |>
     │      FROM() |>
     │      GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
-    │      SELECT(ID(:visit_occurrence_1) |> ID(:person_id),
-    │             AGG("MAX", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
-    │             AS(:max)) |>
+    │      SELECT(AGG("MAX", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
+    │             AS(:max),
+    │             ID(:visit_occurrence_1) |> ID(:person_id)) |>
     │      AS(:visit_group_1),
     │      OP("=",
     │         ID(:person_2) |> ID(:person_id),
@@ -2656,8 +2657,8 @@ Finally, the SQL tree is serialized into SQL.
     │   "visit_group_1"."max" AS "max_visit_start_date"
     │ FROM (
     │   SELECT
-    │     "person_1"."location_id",
-    │     "person_1"."person_id"
+    │     "person_1"."person_id",
+    │     "person_1"."location_id"
     │   FROM "person" AS "person_1"
     │   WHERE ("person_1"."year_of_birth" <= 2000)
     │ ) AS "person_2"
@@ -2668,8 +2669,8 @@ Finally, the SQL tree is serialized into SQL.
     │ ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
     │ LEFT JOIN (
     │   SELECT
-    │     "visit_occurrence_1"."person_id",
-    │     MAX("visit_occurrence_1"."visit_start_date") AS "max"
+    │     MAX("visit_occurrence_1"."visit_start_date") AS "max",
+    │     "visit_occurrence_1"."person_id"
     │   FROM "visit_occurrence" AS "visit_occurrence_1"
     │   GROUP BY "visit_occurrence_1"."person_id"
     │ ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")
