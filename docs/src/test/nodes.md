@@ -381,16 +381,27 @@ attribute.
     print(render(q |> Where(Get.age .> "16 years")))
     #=>
     SELECT
-      "person_1"."person_id",
-      "person_1"."gender_concept_id",
-      "person_1"."year_of_birth",
-      "person_1"."month_of_birth",
-      "person_1"."day_of_birth",
-      "person_1"."birth_datetime",
-      "person_1"."location_id",
-      (NOW() - "person_1"."birth_datetime") AS "age"
-    FROM "person" AS "person_1"
-    WHERE ((NOW() - "person_1"."birth_datetime") > '16 years')
+      "person_2"."person_id",
+      "person_2"."gender_concept_id",
+      "person_2"."year_of_birth",
+      "person_2"."month_of_birth",
+      "person_2"."day_of_birth",
+      "person_2"."birth_datetime",
+      "person_2"."location_id",
+      "person_2"."age"
+    FROM (
+      SELECT
+        "person_1"."person_id",
+        "person_1"."gender_concept_id",
+        "person_1"."year_of_birth",
+        "person_1"."month_of_birth",
+        "person_1"."day_of_birth",
+        "person_1"."birth_datetime",
+        "person_1"."location_id",
+        (NOW() - "person_1"."birth_datetime") AS "age"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    WHERE ("person_2"."age" > '16 years')
     =#
 
 `Define` can be used to override an existing field.
@@ -912,20 +923,23 @@ columns of the nested queries.
 
 ## `Iterate`
 
-The `Iterate` constructor creates an iteration query.  We could use it
-to create a factorial table.
+The `Iterate` constructor creates an iteration query.  In the argument of
+`Iterate`, the `From(^)` node refers to the output of the previous iteration.
+We could use `Iterate` and `From(^)` to create a factorial table.
 
     q = Define(:n => 1, :f => 1) |>
-        Iterate(Define(:n => Get.n .+ 1) |>
-                Define(:f => Get.n .* Get.f) |>
+        Iterate(From(^) |>
+                Define(:n => Get.n .+ 1, :f => Get.f .* (Get.n .+ 1)) |>
                 Where(Get.n .<= 10))
     #-> (…) |> Iterate(…)
 
     display(q)
     #=>
     let q1 = Define(Lit(1) |> As(:n), Lit(1) |> As(:f)),
-        q2 = Define(Fun."+"(Get.n, Lit(1)) |> As(:n)),
-        q3 = q2 |> Define(Fun."*"(Get.n, Get.f) |> As(:f)),
+        q2 = From(^),
+        q3 = q2 |>
+             Define(Fun."+"(Get.n, Lit(1)) |> As(:n),
+                    Fun."*"(Get.f, Fun."+"(Get.n, Lit(1))) |> As(:f)),
         q4 = q3 |> Where(Fun."<="(Get.n, Lit(10))),
         q5 = q1 |> Iterate(q4)
         q5
@@ -940,37 +954,27 @@ to create a factorial table.
         1 AS "f"
       UNION ALL
       SELECT
-        ("__2"."n" + 1) AS "n",
-        (("__2"."n" + 1) * "__2"."f") AS "f"
-      FROM "__1" AS "__2"
-      WHERE (("__2"."n" + 1) <= 10)
+        "__3"."n",
+        "__3"."f"
+      FROM (
+        SELECT
+          ("__2"."n" + 1) AS "n",
+          ("__2"."f" * ("__2"."n" + 1)) AS "f"
+        FROM "__1" AS "__2"
+      ) AS "__3"
+      WHERE ("__3"."n" <= 10)
     )
     SELECT
-      "__3"."n",
-      "__3"."f"
-    FROM "__1" AS "__3"
+      "__4"."n",
+      "__4"."f"
+    FROM "__1" AS "__4"
     =#
 
-The iterator query may explicitly refer to the output of the previous iteration
-using `From(^)`.
+The `From(^)` node in front of the iterator query can be omitted.
 
     q = Define(:n => 1, :f => 1) |>
-        Iterate(From(^) |>
-                Define(:n => Get.n .+ 1) |>
-                Define(:f => Get.n .* Get.f) |>
+        Iterate(Define(:n => Get.n .+ 1, :f => Get.f .* (Get.n .+ 1)) |>
                 Where(Get.n .<= 10))
-
-    display(q)
-    #=>
-    let q1 = Define(Lit(1) |> As(:n), Lit(1) |> As(:f)),
-        q2 = From(^),
-        q3 = q2 |> Define(Fun."+"(Get.n, Lit(1)) |> As(:n)),
-        q4 = q3 |> Define(Fun."*"(Get.n, Get.f) |> As(:f)),
-        q5 = q4 |> Where(Fun."<="(Get.n, Lit(10))),
-        q6 = q1 |> Iterate(q5)
-        q6
-    end
-    =#
 
     print(render(q))
     #=>
@@ -980,15 +984,20 @@ using `From(^)`.
         1 AS "f"
       UNION ALL
       SELECT
-        ("__2"."n" + 1) AS "n",
-        (("__2"."n" + 1) * "__2"."f") AS "f"
-      FROM "__1" AS "__2"
-      WHERE (("__2"."n" + 1) <= 10)
+        "__3"."n",
+        "__3"."f"
+      FROM (
+        SELECT
+          ("__2"."n" + 1) AS "n",
+          ("__2"."f" * ("__2"."n" + 1)) AS "f"
+        FROM "__1" AS "__2"
+      ) AS "__3"
+      WHERE ("__3"."n" <= 10)
     )
     SELECT
-      "__3"."n",
-      "__3"."f"
-    FROM "__1" AS "__3"
+      "__4"."n",
+      "__4"."f"
+    FROM "__1" AS "__4"
     =#
 
 It is an error to use `From(^)` outside of `Iterate`.
@@ -2425,21 +2434,22 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     =#
 
     q = From(person) |>
-        Group(Get.year_of_birth) |>
-        Where(Agg.count() .> 10) |>
-        Where(Agg.count() .< 100) |>
-        Where(Fun.and(Agg.count() .!= 33, Agg.count() .!= 66))
+        Group(Get.gender_concept_id) |>
+        Where(Agg.count(filter = Get.year_of_birth .== 2010) .> 10) |>
+        Where(Agg.count(filter = Get.year_of_birth .== 2000) .< 100) |>
+        Where(Fun.and(Agg.count(filter = Get.year_of_birth .== 1933) .!= 33,
+                      Agg.count(filter = Get.year_of_birth .== 1966) .!= 66))
 
     print(render(q))
     #=>
-    SELECT "person_1"."year_of_birth"
+    SELECT "person_1"."gender_concept_id"
     FROM "person" AS "person_1"
-    GROUP BY "person_1"."year_of_birth"
+    GROUP BY "person_1"."gender_concept_id"
     HAVING
-      (COUNT(*) > 10) AND
-      (COUNT(*) < 100) AND
-      (COUNT(*) <> 33) AND
-      (COUNT(*) <> 66)
+      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 2010))) > 10) AND
+      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 2000))) < 100) AND
+      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 1933))) <> 33) AND
+      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 1966))) <> 66)
     =#
 
 
