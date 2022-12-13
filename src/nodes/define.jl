@@ -38,11 +38,17 @@ julia> q = From(:person) |>
 
 julia> print(render(q, tables = [person]))
 SELECT
-  "person_1"."person_id",
-  "person_1"."birth_datetime",
-  (NOW() - "person_1"."birth_datetime") AS "age"
-FROM "person" AS "person_1"
-WHERE ((NOW() - "person_1"."birth_datetime") >= '16 years')
+  "person_2"."person_id",
+  "person_2"."birth_datetime",
+  "person_2"."age"
+FROM (
+  SELECT
+    "person_1"."person_id",
+    "person_1"."birth_datetime",
+    (NOW() - "person_1"."birth_datetime") AS "age"
+  FROM "person" AS "person_1"
+) AS "person_2"
+WHERE ("person_2"."age" >= '16 years')
 ```
 
 *Conceal the year of birth of patients born before 1930.*

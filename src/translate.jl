@@ -397,7 +397,33 @@ function assemble(n::BoxNode, ctx)
             repl′[ref] = base.repl[ref]
         end
     end
-    Assemblage(base.clause, cols = base.cols, repl = repl′)
+    a = Assemblage(base.clause, cols = base.cols, repl = repl′)
+    inhibit_duplicates(a, n, ctx)
+end
+
+function inhibit_duplicates(a::Assemblage, n::BoxNode, ctx)
+    imm_refs_begin_at = something(n.imm_refs_begin_at, length(n.refs) + 1)
+    imm_refs_begin_at <= length(n.refs) || return a
+    dups = Set{Symbol}()
+    for k = 1:lastindex(n.refs)
+        col = a.repl[n.refs[k]]
+        if col in dups
+            if k >= imm_refs_begin_at
+                alias = allocate_alias(ctx, n.type.name)
+                c = FROM(AS(over = complete(a), name = alias))
+                subs = make_subs(a, alias)
+                trns = Pair{SQLNode, SQLClause}[]
+                for ref in n.refs
+                    push!(trns, ref => subs[ref])
+                end
+                repl, cols = make_repl_cols(trns)
+                return Assemblage(c, cols = cols, repl = repl)
+            end
+        elseif !@dissect(a.cols[col], (nothing |> ID() || nothing |> ID() |> ID() || VAR() || LIT()))
+            push!(dups, col)
+        end
+    end
+    a
 end
 
 assemble(n::SQLNode, refs, ctx) =

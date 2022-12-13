@@ -44,10 +44,9 @@ FROM iterator
 
 ```jldoctest
 julia> q = Define(:n => 1, :f => 1) |>
-           Iterate(
-               Define(:n => Get.n .+ 1) |>
-               Define(:f => Get.f .* Get.n) |>
-               Where(Get.n .<= 10));
+           Iterate(From(^) |>
+                   Where(Get.n .< 10) |>
+                   Define(:n => Get.n .+ 1, :f => Get.f .* (Get.n .+ 1)));
 
 julia> print(render(q))
 WITH RECURSIVE "__1" ("n", "f") AS (
@@ -59,7 +58,7 @@ WITH RECURSIVE "__1" ("n", "f") AS (
     ("__2"."n" + 1) AS "n",
     ("__2"."f" * ("__2"."n" + 1)) AS "f"
   FROM "__1" AS "__2"
-  WHERE (("__2"."n" + 1) <= 10)
+  WHERE ("__2"."n" < 10)
 )
 SELECT
   "__3"."n",
@@ -67,15 +66,12 @@ SELECT
 FROM "__1" AS "__3"
 ```
 
-*Calculate the factorial, using `From(^)`.*
+*Calculate the factorial, with implicit `From(^)`.
 
 ```jldoctest
 julia> q = Define(:n => 1, :f => 1) |>
-           Iterate(
-               From(^) |>
-               Define(:n => Get.n .+ 1) |>
-               Define(:f => Get.f .* Get.n) |>
-               Where(Get.n .<= 10));
+           Iterate(Where(Get.n .< 10) |>
+                   Define(:n => Get.n .+ 1, :f => Get.f .* (Get.n .+ 1)));
 
 julia> print(render(q))
 WITH RECURSIVE "__1" ("n", "f") AS (
@@ -87,7 +83,7 @@ WITH RECURSIVE "__1" ("n", "f") AS (
     ("__2"."n" + 1) AS "n",
     ("__2"."f" * ("__2"."n" + 1)) AS "f"
   FROM "__1" AS "__2"
-  WHERE (("__2"."n" + 1) <= 10)
+  WHERE ("__2"."n" < 10)
 )
 SELECT
   "__3"."n",
