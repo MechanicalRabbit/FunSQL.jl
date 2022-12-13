@@ -849,8 +849,8 @@ with `Get` in order to use an aggregate function.
     FROM "person" AS "person_1"
     LEFT JOIN (
       SELECT
-        "visit_occurrence_1"."person_id",
-        MAX("visit_occurrence_1"."visit_start_date") AS "max"
+        MAX("visit_occurrence_1"."visit_start_date") AS "max",
+        "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
@@ -1297,8 +1297,8 @@ This is exactly the action of the [`Iterate`](@ref) node.
       FROM "concept" AS "concept_3"
       JOIN (
         SELECT
-          "concept_relationship_1"."concept_id_1",
-          "concept_relationship_1"."concept_id_2"
+          "concept_relationship_1"."concept_id_2",
+          "concept_relationship_1"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
       ) AS "concept_relationship_2" ON ("concept_3"."concept_id" = "concept_relationship_2"."concept_id_1")
