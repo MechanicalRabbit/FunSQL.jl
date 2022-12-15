@@ -306,14 +306,12 @@ FunSQL by using array comprehension to build the `CASE` expression.
     #=>
     SELECT
       "person_2"."age_group",
-      "person_2"."count"
+      COUNT(*) AS "count"
     FROM (
-      SELECT
-        (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group",
-        COUNT(*) AS "count"
+      SELECT (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group"
       FROM "person" AS "person_1"
-      GROUP BY (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END)
     ) AS "person_2"
+    GROUP BY "person_2"."age_group"
     ORDER BY "person_2"."age_group"
     =#
 
