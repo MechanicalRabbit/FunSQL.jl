@@ -388,8 +388,8 @@ SELECT
 FROM &quot;person&quot; AS &quot;person_1&quot;
 LEFT JOIN (
   SELECT
-    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
-    MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;
+    MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
@@ -697,8 +697,8 @@ WITH RECURSIVE &quot;concept_2&quot; (&quot;concept_id&quot;, &quot;concept_name
   FROM &quot;concept&quot; AS &quot;concept_3&quot;
   JOIN (
     SELECT
-      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;,
-      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;
+      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;,
+      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;
     FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
     WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
   ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_3&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_1&quot;)
@@ -728,4 +728,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
    6 │     444406  Acute subendocardial infarction    Condition  SNOMED
                                                                3 columns omitted
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Monday 12 December 2022 19:11">Monday 12 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 15 December 2022 17:04">Thursday 15 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
