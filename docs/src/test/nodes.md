@@ -928,17 +928,18 @@ nested subqueries.
     WHERE ("assessment_1"."date" > CURRENT_TIMESTAMP)
     =#
 
-    date_field = Get.date
     q = From(measurement) |>
         Define(:date => Get.measurement_date) |>
         Append(From(observation) |>
         Define(:date => Get.observation_date)) |>
-        Order(date_field) |>
-        Select(date_field)
+        Group(Get.date) |>
+        Define(Agg.count())
 
     print(render(q))
     #=>
-    SELECT "union_1"."date"
+    SELECT
+      "union_1"."date",
+      COUNT(*) AS "count"
     FROM (
       SELECT "measurement_1"."measurement_date" AS "date"
       FROM "measurement" AS "measurement_1"
@@ -946,7 +947,7 @@ nested subqueries.
       SELECT "observation_1"."observation_date" AS "date"
       FROM "observation" AS "observation_1"
     ) AS "union_1"
-    ORDER BY "union_1"."date"
+    GROUP BY "union_1"."date"
     =#
 
 `Append` will aligns the columns of its subqueries.
