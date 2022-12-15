@@ -620,6 +620,9 @@ function annotate_scalar(n::FunctionNode, ctx)
 end
 
 function annotate_scalar(n::GetNode, ctx)
+    if n.over === nothing
+        return n
+    end
     rebind(n.over, Get(name = n.name), ctx)
 end
 
@@ -1105,6 +1108,8 @@ function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     begin_imm_refs!(box)
     append!(box.refs, n.by)
+    has_aggregates = any(ref -> @dissect(ref, Agg()), refs)
+    has_aggregates || return
     for ref in refs
         if @dissect(ref, nothing |> Agg(args = args, filter = filter))
             gather_and_validate!(box.refs, args, box.type, ctx)
