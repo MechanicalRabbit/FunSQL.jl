@@ -456,6 +456,7 @@ function assemble(n::AppendNode, refs, ctx)
         name = base.repl[ref]
         if name in keys(seen)
             other_ref = seen[name]
+            other_ref !== ref || continue
             if all(a.repl[ref] === a.repl[other_ref] for (arg, a) in branches)
                 dups[ref] = seen[name]
             end
@@ -463,7 +464,13 @@ function assemble(n::AppendNode, refs, ctx)
             seen[name] = ref
         end
     end
-    urefs = SQLNode[ref for ref in refs if !(ref in keys(dups))]
+    urefs = SQLNode[]
+    for ref in refs
+        if !(ref in keys(dups))
+            push!(urefs, ref)
+            dups[ref] = ref
+        end
+    end
     repl, dummy_cols = make_repl_cols(urefs)
     for (ref, uref) in dups
         repl[ref] = repl[uref]
