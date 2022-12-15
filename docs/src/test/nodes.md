@@ -582,6 +582,38 @@ Query variables could be bound using the `Bind` constructor.
     ))
     =#
 
+When an argument to `Bind` is an aggregate, it must be evaluated in a nested
+subquery.
+
+    q0(person_id, date) =
+        From(observation) |>
+        Where(Fun.and(Get.person_id .== Var.PERSON_ID,
+                      Get.observation_date .>= Var.DATE)) |>
+        Bind(:PERSON_ID => person_id, :DATE => date)
+
+    q = From(visit_occurrence) |>
+        Group(Get.person_id) |>
+        Where(Fun.exists(q0(Get.person_id, Agg.max(Get.visit_start_date))))
+
+    print(render(q))
+    #=>
+    SELECT "visit_occurrence_2"."person_id"
+    FROM (
+      SELECT
+        "visit_occurrence_1"."person_id",
+        MAX("visit_occurrence_1"."visit_start_date") AS "max"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_occurrence_2"
+    WHERE (EXISTS (
+      SELECT NULL
+      FROM "observation" AS "observation_1"
+      WHERE
+        ("observation_1"."person_id" = "visit_occurrence_2"."person_id") AND
+        ("observation_1"."observation_date" >= "visit_occurrence_2"."max")
+    ))
+    =#
+
 An empty `Bind` can be created.
 
     Bind(args = [])
