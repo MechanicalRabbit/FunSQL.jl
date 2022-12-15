@@ -903,7 +903,12 @@ gather!(refs::Vector{SQLNode}, n::Union{AsNode, BoxNode, HighlightNode, SortNode
 
 function gather!(refs::Vector{SQLNode}, n::IntBindNode)
     gather!(refs, n.over)
-    gather!(refs, n.args)
+    refs′ = SQLNode[]
+    gather!(refs′, n.args)
+    append!(refs, refs′)
+    # Make sure complex definitions and aggregates are wrapped in a nested
+    # subquery.
+    append!(refs, refs′)
     n.owned = true
 end
 
