@@ -670,7 +670,7 @@ function assemble(n::GroupNode, refs, ctx)
         tail = FROM(AS(over = complete(base), name = base_alias))
     end
     subs = make_subs(base, base_alias)
-    by = translate(n.by, ctx, subs)
+    by = SQLClause[subs[key] for key in n.by]
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
         if @dissect(ref, nothing |> Get(name = name))
@@ -699,6 +699,28 @@ end
 
 assemble(n::HighlightNode, refs, ctx) =
     assemble(n.over, ctx)
+
+function assemble(n::IntAutoDefineNode, refs, ctx)
+    base = assemble(n.over, ctx)
+    if isempty(refs)
+        return base
+    end
+    if !@dissect(base.clause, SELECT() || UNION())
+        base_alias = nothing
+        c = base.clause
+    else
+        base_alias = allocate_alias(ctx, n.over)
+        c = FROM(AS(over = complete(base), name = base_alias))
+    end
+    subs = make_subs(base, base_alias)
+    repl = Dict{SQLNode, Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    for ref in refs
+        push!(trns, ref => translate(ref, ctx, subs))
+    end
+    repl, cols = make_repl_cols(trns)
+    Assemblage(c, cols = cols, repl = repl)
+end
 
 function assemble(n::IntBindNode, refs, ctx)
     vars′ = copy(ctx.vars)

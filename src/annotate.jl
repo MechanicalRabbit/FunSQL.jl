@@ -341,7 +341,29 @@ rebase(n::IntJoinNode, n′) =
     IntJoinNode(over = rebase(n.over, n′),
                      joinee = n.joinee, on = n.on, left = n.left, right = n.right, skip = n.skip, type = n.type, lateral = n.lateral)
 
-label(n::Union{NameBoundNode, HandleBoundNode, IntBindNode, IntJoinNode}) =
+# Calculates the keys of a Group node.
+mutable struct IntAutoDefineNode <: TabularNode
+    over::Union{SQLNode, Nothing}
+
+    IntAutoDefineNode(; over = nothing) =
+        new(over)
+end
+
+IntAutoDefine(args...; kws...) =
+    IntAutoDefineNode(args...; kws...) |> SQLNode
+
+function PrettyPrinting.quoteof(n::IntAutoDefineNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(IntAutoDefine))
+    if n.over !== nothing
+        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
+    end
+    ex
+end
+
+rebase(n::IntAutoDefineNode, n′) =
+    IntAutoDefineNode(over = rebase(n.over, n′))
+
+label(n::Union{NameBoundNode, HandleBoundNode, IntAutoDefineNode, IntBindNode, IntJoinNode}) =
     label(n.over)
 
 
@@ -603,6 +625,14 @@ end
 
 function annotate(n::GroupNode, ctx)
     over′ = annotate(n.over, ctx)
+    if !isempty(n.by)
+        def = IntAutoDefine(over = over′)
+        mark_origin!(ctx, def)
+        box = BoxNode(over = def)
+        push!(ctx.boxes, box)
+        over′ = convert(SQLNode, box)
+        mark_origin!(ctx, over′)
+    end
     by′ = annotate_scalar(n.by, ctx)
     Group(over = over′, by = by′, label_map = n.label_map)
 end
@@ -803,7 +833,7 @@ function resolve(n::GroupNode, ctx)
     BoxType(t.name, row)
 end
 
-resolve(n::Union{FromSelfNode, HighlightNode, IntBindNode, KnotNode, LimitNode, OrderNode, WhereNode, WithNode, WithExternalNode}, ctx) =
+resolve(n::Union{FromSelfNode, HighlightNode, IntAutoDefineNode, IntBindNode, KnotNode, LimitNode, OrderNode, WhereNode, WithNode, WithExternalNode}, ctx) =
     box_type(n.over)
 
 resolve_knot!(n::SQLNode, ctx) =
@@ -1074,15 +1104,23 @@ end
 function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     begin_imm_refs!(box)
-    gather_and_validate!(box.refs, n.by, box.type, ctx)
+    append!(box.refs, n.by)
     for ref in refs
         if @dissect(ref, nothing |> Agg(args = args, filter = filter))
             gather_and_validate!(box.refs, args, box.type, ctx)
             if filter !== nothing
                 gather_and_validate!(box.refs, filter, box.type, ctx)
             end
+        elseif @dissect(ref, nothing |> Get(name = name)) && name in keys(n.label_map)
+            push!(box.refs, n.by[n.label_map[name]])
         end
     end
+end
+
+function link!(n::IntAutoDefineNode, refs::Vector{SQLNode}, ctx)
+    box = n.over[]::BoxNode
+    begin_imm_refs!(box)
+    gather_and_validate!(box.refs, refs, box.type, ctx)
 end
 
 function link!(n::IntBindNode, refs::Vector{SQLNode}, ctx)

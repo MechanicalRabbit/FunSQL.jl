@@ -1565,6 +1565,36 @@ used more than once.
     WHERE ("visit_group_1"."count" >= 2)
     =#
 
+`Group` creates a nested subquery when this is necessary to avoid duplicating
+the group key expression.
+
+    q = From(person) |>
+        Group(:age => 2000 .- Get.year_of_birth) |>
+        Select(Agg.count())
+
+    print(render(q))
+    #=>
+    SELECT COUNT(*) AS "count"
+    FROM "person" AS "person_1"
+    GROUP BY (2000 - "person_1"."year_of_birth")
+    =#
+
+    q = From(person) |>
+        Group(:age => 2000 .- Get.year_of_birth) |>
+        Define(Agg.count())
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_2"."age",
+      COUNT(*) AS "count"
+    FROM (
+      SELECT (2000 - "person_1"."year_of_birth") AS "age"
+      FROM "person" AS "person_1"
+    ) AS "person_2"
+    GROUP BY "person_2"."age"
+    =#
+
 `Group` could be used consequently.
 
     q = From(measurement) |>
@@ -2525,13 +2555,13 @@ tabular node and hierarchical `Get` nodes are reversed.
     │     q1 = FromTable(table = person),
     │     q2 = q1 |> Box(),
     ⋮
-    │     q19 = q18 |>
+    │     q21 = q20 |>
     │           Select(Get.person_id,
     │                  NameBound(over = Agg.max(Get.visit_start_date),
     │                            name = :visit_group) |>
     │                  As(:max_visit_start_date)),
-    │     q20 = q19 |> Box()
-    │     q20
+    │     q22 = q21 |> Box()
+    │     q22
     │ end
     └ @ FunSQL …
     =#
@@ -2559,16 +2589,16 @@ it to the corresponding `Box` node.
     │                             :birth_datetime => ScalarType(),
     │                             :location_id => ScalarType())),
     ⋮
-    │     q19 = q18 |>
+    │     q21 = q20 |>
     │           Select(Get.person_id,
     │                  NameBound(over = Agg.max(Get.visit_start_date),
     │                            name = :visit_group) |>
     │                  As(:max_visit_start_date)),
-    │     q20 = q19 |>
+    │     q22 = q21 |>
     │           Box(type = BoxType(:person,
     │                              :person_id => ScalarType(),
     │                              :max_visit_start_date => ScalarType()))
-    │     q20
+    │     q22
     │ end
     └ @ FunSQL …
     =#
@@ -2602,13 +2632,13 @@ and determine the columns to be provided by each tabular query.
     │              refs = [q2, q3, q4, q5],
     │              imm_refs_begin_at = 4),
     ⋮
-    │     q32 = q31 |> Select(q2, q27 |> As(:max_visit_start_date)),
-    │     q33 = q32 |>
+    │     q34 = q33 |> Select(q2, q29 |> As(:max_visit_start_date)),
+    │     q35 = q34 |>
     │           Box(type = BoxType(:person,
     │                              :person_id => ScalarType(),
     │                              :max_visit_start_date => ScalarType()),
     │               refs = [Get.person_id, Get.max_visit_start_date])
-    │     q33
+    │     q35
     │ end
     └ @ FunSQL …
     =#
@@ -2686,4 +2716,3 @@ Finally, the SQL tree is serialized into SQL.
     │ ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")
     └ @ FunSQL …
     =#
-
