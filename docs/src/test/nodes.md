@@ -404,6 +404,30 @@ attribute.
     WHERE ("person_2"."age" > '16 years')
     =#
 
+`Define` does not create a nested query if the definition is a literal or
+a simple reference.
+
+    q = From(person) |>
+        Define(:year => Get.year_of_birth,
+               :threshold => 2000) |>
+        Where(Get.year .>= Get.threshold)
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."birth_datetime",
+      "person_1"."location_id",
+      "person_1"."year_of_birth" AS "year",
+      2000 AS "threshold"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" >= 2000)
+    =#
+
 `Define` can be used to override an existing field.
 
     q = From(person) |>
