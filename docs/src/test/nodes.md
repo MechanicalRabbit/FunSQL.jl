@@ -236,7 +236,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: cannot find person_id in:
+    ERROR: FunSQL.ReferenceError: cannot find `person_id` in:
     Select(Get.person_id)
     =#
 
@@ -246,7 +246,7 @@ When `Get` refers to an unknown attribute, an error is reported.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: cannot find q in:
+    ERROR: FunSQL.ReferenceError: cannot find `q` in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> As(:p) |> Select(Get.q.person_id)
@@ -263,7 +263,7 @@ unambiguously.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: person_id is ambiguous in:
+    ERROR: FunSQL.ReferenceError: `person_id` is ambiguous in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = From(person),
@@ -282,7 +282,7 @@ reference, will result in an error.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: incomplete reference p in:
+    ERROR: FunSQL.ReferenceError: incomplete reference `p` in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> As(:p) |> Select(Get.p)
@@ -295,7 +295,7 @@ reference, will result in an error.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: unexpected reference after person_id in:
+    ERROR: FunSQL.ReferenceError: unexpected reference after `person_id` in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> Select(Get.person_id.year_of_birth)
@@ -1477,7 +1477,7 @@ A dataset defined by `With` must have an explicit label assigned to it.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: table reference person requires As in:
+    ERROR: FunSQL.ReferenceError: table reference `person` requires As in:
     let person = SQLTable(:person, …),
         q1 = From(:person),
         q2 = From(person),
@@ -1507,7 +1507,7 @@ It is an error for `From` to refer to an undefined dataset.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: cannot find p in:
+    ERROR: FunSQL.ReferenceError: cannot find `p` in:
     let q1 = From(:p)
         q1
     end
