@@ -315,21 +315,21 @@ function Base.showerror(io::IO, err::ReferenceError)
     elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_HANDLE
         print(io, "node-bound reference is ambiguous")
     elseif err.type == REFERENCE_ERROR_TYPE.UNDEFINED_NAME
-        print(io, "cannot find $(err.name)")
+        print(io, "cannot find `$(err.name)`")
     elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME
-        print(io, "$(err.name) is ambiguous")
+        print(io, "`$(err.name)` is ambiguous")
     elseif err.type == REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE
-        print(io, "incomplete reference $(err.name)")
+        print(io, "incomplete reference `$(err.name)`")
     elseif err.type == REFERENCE_ERROR_TYPE.UNEXPECTED_SCALAR_TYPE
-        print(io, "unexpected reference after $(err.name)")
+        print(io, "unexpected reference after `$(err.name)`")
     elseif err.type == REFERENCE_ERROR_TYPE.UNEXPECTED_AGGREGATE
         print(io, "aggregate expression requires Group or Partition")
     elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_AGGREGATE
         print(io, "aggregate expression is ambiguous")
     elseif err.type == REFERENCE_ERROR_TYPE.UNDEFINED_TABLE_REFERENCE
-        print(io, "cannot find $(err.name)")
+        print(io, "cannot find `$(err.name)`")
     elseif err.type == REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE
-        print(io, "table reference $(err.name) requires As")
+        print(io, "table reference `$(err.name)` requires As")
     elseif err.type == REFERENCE_ERROR_TYPE.INVALID_SELF_REFERENCE
         print(io, "self-reference outside of Iterate")
     end
