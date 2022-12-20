@@ -45,7 +45,7 @@ FROM (
   SELECT
     "person_1"."person_id",
     "person_1"."birth_datetime",
-    (NOW() - "person_1"."birth_datetime") AS "age"
+    (now() - "person_1"."birth_datetime") AS "age"
   FROM "person" AS "person_1"
 ) AS "person_2"
 WHERE ("person_2"."age" >= '16 years')

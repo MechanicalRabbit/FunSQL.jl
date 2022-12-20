@@ -371,7 +371,7 @@ constructor.
       "person_1"."day_of_birth",
       "person_1"."birth_datetime",
       "person_1"."location_id",
-      (NOW() - "person_1"."birth_datetime") AS "age"
+      (now() - "person_1"."birth_datetime") AS "age"
     FROM "person" AS "person_1"
     =#
 
@@ -398,7 +398,7 @@ attribute.
         "person_1"."day_of_birth",
         "person_1"."birth_datetime",
         "person_1"."location_id",
-        (NOW() - "person_1"."birth_datetime") AS "age"
+        (now() - "person_1"."birth_datetime") AS "age"
       FROM "person" AS "person_1"
     ) AS "person_2"
     WHERE ("person_2"."age" > '16 years')
@@ -601,7 +601,7 @@ subquery.
     FROM (
       SELECT
         "visit_occurrence_1"."person_id",
-        MAX("visit_occurrence_1"."visit_start_date") AS "max"
+        max("visit_occurrence_1"."visit_start_date") AS "max"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_occurrence_2"
@@ -650,7 +650,7 @@ In a `SELECT` clause, operator calls get an alias from their name.
 
     print(render(From(person) |> Select(e)))
     #=>
-    SELECT ("person_1"."year_of_birth" > 2000) AS ">"
+    SELECT ("person_1"."year_of_birth" > 2000) AS "_"
     FROM "person" AS "person_1"
     =#
 
@@ -802,18 +802,6 @@ FunSQL can simplify logical expressions.
     WHERE (("person_1"."year_of_birth" > 1950) OR ("person_1"."year_of_birth" < 1960))
     =#
 
-    q = From(person) |>
-        Where(Fun."not in"(Get.person_id))
-
-    print(render(q))
-    #=>
-    SELECT
-      "person_1"."person_id",
-      ⋮
-      "person_1"."location_id"
-    FROM "person" AS "person_1"
-    =#
-
 
 ## `Append`
 
@@ -862,34 +850,34 @@ multiple queries.
     q = From(measurement) |>
         Define(:concept_id => Get.measurement_concept_id) |>
         Group(Get.person_id) |>
-        Define(:count_2 => 1) |>
+        Define(:count => 1, :count_2 => 2) |>
         Append(From(observation) |>
                Define(:concept_id => Get.observation_concept_id) |>
                Group(Get.person_id) |>
-               Define(:count_2 => 2)) |>
-        Select(Get.person_id, Agg.count(), Get.count_2, :count_distinct => Agg.count(distinct = true, Get.concept_id))
+               Define(:count => 10, :count_2 => 20)) |>
+        Select(Get.person_id, :agg_count => Agg.count(), Get.count_2, Get.count)
 
     print(render(q))
     #=>
     SELECT
       "union_1"."person_id",
-      "union_1"."count",
+      "union_1"."count" AS "agg_count",
       "union_1"."count_2",
-      "union_1"."count_3" AS "count_distinct"
+      "union_1"."count_3" AS "count"
     FROM (
       SELECT
         "measurement_1"."person_id",
-        COUNT(*) AS "count",
-        1 AS "count_2",
-        COUNT(DISTINCT "measurement_1"."measurement_concept_id") AS "count_3"
+        count(*) AS "count",
+        2 AS "count_2",
+        1 AS "count_3"
       FROM "measurement" AS "measurement_1"
       GROUP BY "measurement_1"."person_id"
       UNION ALL
       SELECT
         "observation_1"."person_id",
-        COUNT(*) AS "count",
-        2 AS "count_2",
-        COUNT(DISTINCT "observation_1"."observation_concept_id") AS "count_3"
+        count(*) AS "count",
+        20 AS "count_2",
+        10 AS "count_3"
       FROM "observation" AS "observation_1"
       GROUP BY "observation_1"."person_id"
     ) AS "union_1"
@@ -939,7 +927,7 @@ nested subqueries.
     #=>
     SELECT
       "union_1"."date",
-      COUNT(*) AS "count"
+      count(*) AS "count"
     FROM (
       SELECT "measurement_1"."measurement_date" AS "date"
       FROM "measurement" AS "measurement_1"
@@ -1337,7 +1325,7 @@ A column of NULLs will be added if no actual columns are used.
 
     print(render(q))
     #=>
-    SELECT COUNT(*) AS "count"
+    SELECT count(*) AS "count"
     FROM (
       VALUES
         (NULL),
@@ -1473,11 +1461,11 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     )
     SELECT
       (
-        SELECT COUNT(*) AS "count"
+        SELECT count(*) AS "count"
         FROM "male_1" AS "male_2"
       ) AS "male_count",
       (
-        SELECT COUNT(*) AS "count"
+        SELECT count(*) AS "count"
         FROM "female_1" AS "female_2"
       ) AS "female_count"
     =#
@@ -1612,7 +1600,7 @@ Partitions created by `Group` are summarized using aggregate expressions.
     #=>
     SELECT
       "person_1"."year_of_birth",
-      COUNT(*) AS "count"
+      count(*) AS "count"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
     =#
@@ -1635,7 +1623,7 @@ used more than once.
     FROM "person" AS "person_1"
     JOIN (
       SELECT
-        COUNT(*) AS "count",
+        count(*) AS "count",
         "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
@@ -1661,7 +1649,7 @@ the group key expression.
 
     print(render(q))
     #=>
-    SELECT COUNT(*) AS "count"
+    SELECT count(*) AS "count"
     FROM "person" AS "person_1"
     GROUP BY (2000 - "person_1"."year_of_birth")
     =#
@@ -1674,7 +1662,7 @@ the group key expression.
     #=>
     SELECT
       "person_2"."age",
-      COUNT(*) AS "count"
+      count(*) AS "count"
     FROM (
       SELECT (2000 - "person_1"."year_of_birth") AS "age"
       FROM "person" AS "person_1"
@@ -1693,9 +1681,9 @@ the group key expression.
     #=>
     SELECT
       "measurement_2"."count",
-      COUNT(*) AS "size"
+      count(*) AS "size"
     FROM (
-      SELECT COUNT(*) AS "count"
+      SELECT count(*) AS "count"
       FROM "measurement" AS "measurement_1"
       GROUP BY "measurement_1"."measurement_concept_id"
     ) AS "measurement_2"
@@ -1711,9 +1699,9 @@ the group key expression.
     print(render(q))
     #=>
     SELECT
-      COUNT(*) AS "count",
-      MIN("person_1"."year_of_birth") AS "min",
-      MAX("person_1"."year_of_birth") AS "max"
+      count(*) AS "count",
+      min("person_1"."year_of_birth") AS "min",
+      max("person_1"."year_of_birth") AS "max"
     FROM "person" AS "person_1"
     =#
 
@@ -1735,7 +1723,7 @@ downstream.
 
     print(render(q))
     #=>
-    SELECT COUNT(*) AS "count"
+    SELECT count(*) AS "count"
     FROM (
       SELECT DISTINCT "person_1"."year_of_birth"
       FROM "person" AS "person_1"
@@ -1772,8 +1760,8 @@ downstream.
     FROM "person" AS "person_1"
     JOIN (
       SELECT
-        MAX("visit_occurrence_1"."visit_start_date") AS "max",
-        MAX("visit_occurrence_1"."visit_end_date") AS "max_2",
+        max("visit_occurrence_1"."visit_start_date") AS "max",
+        max("visit_occurrence_1"."visit_end_date") AS "max_2",
         "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
@@ -1782,17 +1770,13 @@ downstream.
 
 Aggregate expressions can be applied to distinct values of the partition.
 
-    e = Agg.count(distinct = true, Get.year_of_birth)
-    #-> Agg.count(distinct = true, …)
-
-    display(e)
-    #-> Agg.count(distinct = true, Get.year_of_birth)
-
-    q = From(person) |> Group() |> Select(e)
+    q = From(person) |>
+        Group() |>
+        Select(Agg.count_distinct(Get.year_of_birth))
 
     print(render(q))
     #=>
-    SELECT COUNT(DISTINCT "person_1"."year_of_birth") AS "count"
+    SELECT count(DISTINCT "person_1"."year_of_birth") AS "count_distinct"
     FROM "person" AS "person_1"
     =#
 
@@ -1808,7 +1792,7 @@ Aggregate expressions can be applied to a filtered portion of a partition.
 
     print(render(q))
     #=>
-    SELECT (COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" > 1950))) AS "count"
+    SELECT (count(*) FILTER (WHERE ("person_1"."year_of_birth" > 1950))) AS "count"
     FROM "person" AS "person_1"
     =#
 
@@ -1873,11 +1857,11 @@ corresponding `Group` could be determined unambiguously.
     #=>
     SELECT
       "person_1"."person_id",
-      COALESCE("visit_occurrence_2"."count", 0) AS "count"
+      coalesce("visit_occurrence_2"."count", 0) AS "count"
     FROM "person" AS "person_1"
     LEFT JOIN (
       SELECT
-        COUNT(*) AS "count",
+        count(*) AS "count",
         "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
@@ -1935,7 +1919,7 @@ functions.
     #=>
     SELECT
       "person_1"."person_id",
-      (ROW_NUMBER() OVER (PARTITION BY "person_1"."gender_concept_id")) AS "row_number"
+      (row_number() OVER (PARTITION BY "person_1"."gender_concept_id")) AS "row_number"
     FROM "person" AS "person_1"
     =#
 
@@ -1964,7 +1948,7 @@ A partition may specify the window frame.
     #=>
     SELECT
       "person_1"."year_of_birth",
-      (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
+      (avg(count(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
     =#
@@ -1992,12 +1976,12 @@ example which calculates non-overlapping visits.
     #=>
     SELECT
       "visit_occurrence_3"."person_id",
-      MIN("visit_occurrence_3"."visit_start_date") AS "start_date",
-      MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
+      min("visit_occurrence_3"."visit_start_date") AS "start_date",
+      max("visit_occurrence_3"."visit_end_date") AS "end_date"
     FROM (
       SELECT
         "visit_occurrence_2"."person_id",
-        (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "group",
+        (sum("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "group",
         "visit_occurrence_2"."visit_start_date",
         "visit_occurrence_2"."visit_end_date"
       FROM (
@@ -2005,7 +1989,7 @@ example which calculates non-overlapping visits.
           "visit_occurrence_1"."person_id",
           "visit_occurrence_1"."visit_start_date",
           "visit_occurrence_1"."visit_end_date",
-          (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new"
+          (CASE WHEN (("visit_occurrence_1"."visit_start_date" - (max("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) <= 0) THEN 0 ELSE 1 END) AS "new"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
@@ -2122,7 +2106,7 @@ Nested subqueries that are combined with `Join` may fail to collapse.
         "visit_occurrence_1"."person_id",
         "visit_occurrence_1"."visit_start_date",
         "visit_occurrence_1"."visit_end_date",
-        (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
+        (row_number() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = 1)
     ) AS "visit_occurrence_2"
@@ -2150,7 +2134,7 @@ Nested subqueries that are combined with `Join` may fail to collapse.
         SELECT
           "visit_occurrence_1"."visit_occurrence_id",
           "visit_occurrence_1"."visit_start_date",
-          (ROW_NUMBER() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
+          (row_number() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
         FROM "visit_occurrence" AS "visit_occurrence_1"
         WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
       ) AS "visit_occurrence_2"
@@ -2547,7 +2531,7 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     SELECT "person_1"."year_of_birth"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
-    HAVING (COUNT(*) > 10)
+    HAVING (count(*) > 10)
     =#
 
     q = From(person) |>
@@ -2563,10 +2547,10 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
     FROM "person" AS "person_1"
     GROUP BY "person_1"."gender_concept_id"
     HAVING
-      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 2010))) > 10) AND
-      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 2000))) < 100) AND
-      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 1933))) <> 33) AND
-      ((COUNT(*) FILTER (WHERE ("person_1"."year_of_birth" = 1966))) <> 66)
+      ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 2010))) > 10) AND
+      ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 2000))) < 100) AND
+      ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 1933))) <> 33) AND
+      ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 1966))) <> 66)
     =#
 
 
@@ -2741,30 +2725,30 @@ On the next stage, the query object is converted to a SQL syntax tree.
     │ ID(:person) |>
     │ AS(:person_1) |>
     │ FROM() |>
-    │ WHERE(OP("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
+    │ WHERE(FUN("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
     │ SELECT(ID(:person_1) |> ID(:person_id), ID(:person_1) |> ID(:location_id)) |>
     │ AS(:person_2) |>
     │ FROM() |>
     │ JOIN(ID(:location) |>
     │      AS(:location_1) |>
     │      FROM() |>
-    │      WHERE(OP("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
+    │      WHERE(FUN("==", ID(:location_1) |> ID(:state), LIT("IL"))) |>
     │      SELECT(ID(:location_1) |> ID(:location_id)) |>
     │      AS(:location_2),
-    │      OP("=",
-    │         ID(:person_2) |> ID(:location_id),
-    │         ID(:location_2) |> ID(:location_id))) |>
+    │      FUN("==",
+    │          ID(:person_2) |> ID(:location_id),
+    │          ID(:location_2) |> ID(:location_id))) |>
     │ JOIN(ID(:visit_occurrence) |>
     │      AS(:visit_occurrence_1) |>
     │      FROM() |>
     │      GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
-    │      SELECT(AGG("MAX", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
+    │      SELECT(AGG("max", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
     │             AS(:max),
     │             ID(:visit_occurrence_1) |> ID(:person_id)) |>
     │      AS(:visit_group_1),
-    │      OP("=",
-    │         ID(:person_2) |> ID(:person_id),
-    │         ID(:visit_group_1) |> ID(:person_id)),
+    │      FUN("==",
+    │          ID(:person_2) |> ID(:person_id),
+    │          ID(:visit_group_1) |> ID(:person_id)),
     │      left = true) |>
     │ SELECT(ID(:person_2) |> ID(:person_id),
     │        ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date))
@@ -2796,7 +2780,7 @@ Finally, the SQL tree is serialized into SQL.
     │ ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
     │ LEFT JOIN (
     │   SELECT
-    │     MAX("visit_occurrence_1"."visit_start_date") AS "max",
+    │     max("visit_occurrence_1"."visit_start_date") AS "max",
     │     "visit_occurrence_1"."person_id"
     │   FROM "visit_occurrence" AS "visit_occurrence_1"
     │   GROUP BY "visit_occurrence_1"."person_id"

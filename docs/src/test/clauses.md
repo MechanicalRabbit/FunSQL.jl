@@ -1,9 +1,9 @@
 # SQL Clauses
 
     using FunSQL:
-        AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, KW,
-        LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT, UNION, VALUES,
-        VAR, WHERE, WINDOW, WITH, pack, render
+        AGG, AS, ASC, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, LIMIT, LIT,
+        NOTE, ORDER, PARTITION, SELECT, SORT, UNION, VALUES, VAR, WHERE,
+        WINDOW, WITH, pack, render
 
 The syntactic structure of a SQL query is represented as a tree of `SQLClause`
 objects.  Different types of clauses are created by specialized constructors
@@ -142,8 +142,8 @@ Rendering of a SQL parameter depends on the chosen dialect.
 Function `pack()` converts named parameters to a positional form.
 
     c = FROM(:person) |>
-        WHERE(OP("OR", OP("=", :gender_concept_id, VAR(:GENDER)),
-                       OP("=", :gender_source_concept_id, VAR(:GENDER)))) |>
+        WHERE(FUN(:or, FUN("=", :gender_concept_id, VAR(:GENDER)),
+                       FUN("=", :gender_source_concept_id, VAR(:GENDER)))) |>
         SELECT(:person_id)
 
     sql = render(c, dialect = :sqlite)
@@ -180,91 +180,320 @@ duplicate parameter values.
     #-> Any[8532, 8532]
 
 
-## SQL Functions
+## SQL Functions and Operators
 
 An application of a SQL function is created with `FUN()` constructor.
 
-    c = FUN("CONCAT", :city, ", ", :state)
-    #-> FUN("CONCAT", …)
+    c = FUN(:concat, :city, ", ", :state)
+    #-> FUN("concat", …)
 
     display(c)
-    #-> FUN("CONCAT", ID(:city), LIT(", "), ID(:state))
+    #-> FUN("concat", ID(:city), LIT(", "), ID(:state))
 
     print(render(c))
-    #-> CONCAT("city", ', ', "state")
+    #-> concat("city", ', ', "state")
 
-A function with special separators can be constructed using `KW()` clause.
+    c = FUN(:now)
+    #-> FUN("now")
 
-    c = FUN("SUBSTRING", :zip, KW("FROM", 1), KW("FOR", 3))
-    #-> FUN("SUBSTRING", …)
+    print(render(c))
+    #-> now()
 
-    display(c)
-    #-> FUN("SUBSTRING", ID(:zip), LIT(1) |> KW(:FROM), LIT(3) |> KW(:FOR))
+A name that contains only symbol characters is considered an operator.
+
+    c = FUN("||", :city, ", ", :state)
+    #-> FUN("||", …)
+
+    print(render(c))
+    #-> ("city" || ', ' || "state")
+
+To create an operator containing alphabetical characters, add a leading or a
+trailing space to its name.
+
+    c = FUN(" IS DISTINCT FROM ", :zip, missing)
+
+    print(render(c))
+    #-> ("zip" IS DISTINCT FROM NULL)
+
+    c = FUN(" COLLATE \"C\"", :zip)
+
+    print(render(c))
+    #-> ("zip" COLLATE "C")
+
+    c = FUN("DATE ", "2000-01-01")
+
+    print(render(c))
+    #-> (DATE '2000-01-01')
+
+    c = FUN("CURRENT_TIME ")
+
+    print(render(c))
+    #-> CURRENT_TIME
+
+To create a SQL expression with irregular syntax, supply `FUN()` with a
+*template* string.
+
+    c = FUN("SUBSTRING(? FROM ? FOR ?)", :zip, 1, 3)
 
     print(render(c))
     #-> SUBSTRING("zip" FROM 1 FOR 3)
 
-Functions without arguments are permitted.
-
-    c = FUN("NOW")
-    #-> FUN("NOW")
+    c = FUN("?::date", "2000-01-01")
 
     print(render(c))
-    #-> NOW()
+    #-> ('2000-01-01'::date)
+
+Write `??` to  use `?` in an operator name or a template.
+
+    c = FUN("??-", "(1,0)", "(0,0)")
+
+    print(render(c))
+    #-> ('(1,0)' ?- '(0,0)')
+
+    c = FUN("'(?,?)'::point ??| '(?,?)'::point", 0, 1, 0, 0)
+
+    print(render(c))
+    #-> ('(0,1)'::point ?| '(0,0)'::point)
+
+Some functions and operators have specialized serializers.
+
+    c = FUN(:and)
+
+    print(render(c))
+    #-> TRUE
+
+    c = FUN(:and, true)
+
+    print(render(c))
+    #-> TRUE
+
+    c = FUN(:and, true, false)
+
+    print(render(c))
+    #-> (TRUE AND FALSE)
+
+    c = FUN(:or)
+
+    print(render(c))
+    #-> FALSE
+
+    c = FUN(:or, true)
+
+    print(render(c))
+    #-> TRUE
+
+    c = FUN(:or, true, false)
+
+    print(render(c))
+    #-> (TRUE OR FALSE)
+
+    c = FUN(:not, true)
+
+    print(render(c))
+    #-> (NOT TRUE)
+
+    c = FUN(:in, :zip)
+
+    print(render(c))
+    #-> FALSE
+
+    c = FUN(:in, :zip, "60614", "60615")
+
+    print(render(c))
+    #-> ("zip" IN ('60614', '60615'))
+
+    c = SELECT(FUN(:in, "60615", FROM(:location) |> SELECT(:zip)))
+
+    print(render(c))
+    #=>
+    SELECT ('60615' IN (
+      SELECT "zip"
+      FROM "location"
+    ))
+    =#
+
+    c = FUN(:not_in, :zip)
+
+    print(render(c))
+    #-> TRUE
+
+    c = FUN(:not_in, :zip, "60614", "60615")
+
+    print(render(c))
+    #-> ("zip" NOT IN ('60614', '60615'))
+
+    c = SELECT(FUN(:not_in, "60615", FROM(:location) |> SELECT(:zip)))
+
+    print(render(c))
+    #=>
+    SELECT ('60615' NOT IN (
+      SELECT "zip"
+      FROM "location"
+    ))
+    =#
+
+    c = SELECT(FUN(:exists, FROM(:location) |>
+                            WHERE(FUN("=", :zip, "60615")) |>
+                            SELECT(missing)))
+
+    print(render(c))
+    #=>
+    SELECT (EXISTS (
+      SELECT NULL
+      FROM "location"
+      WHERE ("zip" = '60615')
+    ))
+    =#
+
+    c = SELECT(FUN(:not_exists, FROM(:location) |>
+                                WHERE(FUN("=", :zip, "60615")) |>
+                                SELECT(missing)))
+
+    print(render(c))
+    #=>
+    SELECT (NOT EXISTS (
+      SELECT NULL
+      FROM "location"
+      WHERE ("zip" = '60615')
+    ))
+    =#
+
+    c = FUN(:is_null, :zip)
+
+    print(render(c))
+    #-> ("zip" IS NULL)
+
+    c = FUN(:is_not_null, :zip)
+
+    print(render(c))
+    #-> ("zip" IS NOT NULL)
+
+    c = FUN(:like, :zip, "606%")
+
+    print(render(c))
+    #-> ("zip" LIKE '606%')
+
+    c = FUN(:not_like, :zip, "606%")
+
+    print(render(c))
+    #-> ("zip" NOT LIKE '606%')
+
+    c = FUN(:(==), :zip, "60615")
+
+    print(render(c))
+    #-> ("zip" = '60615')
+
+    c = FUN(:(!=), :zip, "60615")
+
+    print(render(c))
+    #-> ("zip" <> '60615')
+
+    c = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer")
+
+    print(render(c))
+    #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' END)
+
+    c = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer", "millenial")
+
+    print(render(c))
+    #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' ELSE 'millenial' END)
+
+    c = FUN(:cast, "2020-01-01", "DATE")
+
+    print(render(c))
+    #-> CAST('2020-01-01' AS DATE)
+
+    c = FUN(:extract, "YEAR", c)
+
+    print(render(c))
+    #-> EXTRACT(YEAR FROM CAST('2020-01-01' AS DATE))
+
+    c = FUN(:between, :year_of_birth, 1950, 2000)
+
+    print(render(c))
+    #-> ("year_of_birth" BETWEEN 1950 AND 2000)
+
+    c = FUN(:not_between, :year_of_birth, 1950, 2000)
+
+    print(render(c))
+    #-> ("year_of_birth" NOT BETWEEN 1950 AND 2000)
+
+    c = FUN(:current_date)
+
+    print(render(c))
+    #-> CURRENT_DATE
+
+    c = FUN(:current_timestamp)
+
+    print(render(c))
+    #-> CURRENT_TIMESTAMP
 
 
 ## Aggregate Functions
 
 Aggregate SQL functions have a specialized `AGG()` constructor.
 
-    c = AGG("COUNT", *)
-    #-> AGG("COUNT", …)
+    c = AGG(:max, :year_of_birth)
+    #-> AGG("max", …)
 
     display(c)
-    #-> AGG("COUNT", OP("*"))
+    #-> AGG("max", ID(:year_of_birth))
 
     print(render(c))
-    #-> COUNT(*)
+    #-> max("year_of_birth")
 
-Aggregate functions accept the `DISTINCT` modifier.
+Some well-known aggregate functions with irregular syntax are supported.
 
-    c = AGG("COUNT", distinct = true, :year_of_birth)
+    c = AGG(:count)
+    #-> AGG("count")
 
     display(c)
-    #-> AGG("COUNT", distinct = true, ID(:year_of_birth))
+    #-> AGG("count")
 
     print(render(c))
-    #-> COUNT(DISTINCT "year_of_birth")
+    #-> count(*)
+
+    c = AGG(:count_distinct, :zip)
+
+    print(render(c))
+    #-> count(DISTINCT "zip")
+
+Otherwise, a template name can be used.
+
+    c = AGG("string_agg(DISTINCT ?, ',' ORDER BY ?)", :zip, :zip)
+
+    print(render(c))
+    #-> string_agg(DISTINCT "zip", ',' ORDER BY "zip")
 
 An aggregate function may have a `FILTER` modifier.
 
-    c = AGG("COUNT", *, filter = OP(">", :year_of_birth, 1970))
+    c = AGG(:count, filter = FUN(">", :year_of_birth, 1970))
 
     display(c)
-    #-> AGG("COUNT", OP("*"), filter = OP(">", ID(:year_of_birth), LIT(1970)))
+    #-> AGG("count", filter = FUN(">", ID(:year_of_birth), LIT(1970)))
 
     print(render(c))
-    #-> (COUNT(*) FILTER (WHERE ("year_of_birth" > 1970)))
+    #-> (count(*) FILTER (WHERE ("year_of_birth" > 1970)))
 
 A window function can be created by adding an `OVER` modifier.
 
     c = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]) |>
-        AGG("ROW_NUMBER")
+        AGG("row_number")
 
     display(c)
     #=>
-    AGG("ROW_NUMBER",
+    AGG("row_number",
         over = PARTITION(ID(:year_of_birth),
                          order_by = [ID(:month_of_birth), ID(:day_of_birth)]))
     =#
 
     print(render(c))
-    #-> (ROW_NUMBER() OVER (PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth"))
+    #-> (row_number() OVER (PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth"))
 
-    c = AGG("ROW_NUMBER", over = :w)
+    c = AGG("row_number", over = :w)
 
     print(render(c))
-    #-> (ROW_NUMBER() OVER ("w"))
+    #-> (row_number() OVER ("w"))
 
 The `PARTITION` clause may contain a frame specification including the frame
 mode, frame endpoints, and frame exclusion.
@@ -311,63 +540,6 @@ mode, frame endpoints, and frame exclusion.
 
     print(render(c))
     #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE TIES
-
-
-## SQL Operators
-
-An application of a SQL operator is created with `OP()` constructor.
-
-    c = OP("NOT", OP("=", :zip, "60614"))
-    #-> OP("NOT", …)
-
-    display(c)
-    #-> OP("NOT", OP("=", ID(:zip), LIT("60614")))
-
-    print(render(c))
-    #-> (NOT ("zip" = '60614'))
-
-An operator without arguments can be constructed, if necessary.
-
-    c = OP("CURRENT_TIMESTAMP")
-    #-> OP("CURRENT_TIMESTAMP")
-
-    print(render(c))
-    #-> CURRENT_TIMESTAMP
-
-A composite operator can be constructed with the help of `KW()` clause.
-
-    c = OP("BETWEEN", :year_of_birth, 2000, KW(:AND, 2020))
-
-    print(render(c))
-    #-> ("year_of_birth" BETWEEN 2000 AND 2020)
-
-
-## `CASE` Expression
-
-A `CASE` expression is created with `CASE()` constructor.
-
-    c = CASE(OP("<", :year_of_birth, 1970), "boomer")
-    #-> CASE(…)
-
-    display(c)
-    #-> CASE(OP("<", ID(:year_of_birth), LIT(1970)), LIT("boomer"))
-
-    print(render(c))
-    #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' END)
-
-The arguments of `CASE` form an interleaving sequence of conditions and the
-corresponding values.  When `CASE` has an odd number of arguments, the last
-argument provides the default value.
-
-    c = CASE(OP("<", :year_of_birth, 1970), "boomer", "millenial")
-
-    print(render(c))
-    #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' ELSE 'millenial' END)
-
-An invalid `CASE` expression can be constructed.
-
-    c = CASE(args = [])
-    #-> CASE(args = [])
 
 
 ## `AS` Clause
@@ -504,11 +676,11 @@ Rendering a nested `SELECT` clause adds parentheses around it.
 
 A `WHERE` clause is created with `WHERE()` constructor.
 
-    c = FROM(:person) |> WHERE(OP(">", :year_of_birth, 2000))
+    c = FROM(:person) |> WHERE(FUN(">", :year_of_birth, 2000))
     #-> (…) |> WHERE(…)
 
     display(c)
-    #-> ID(:person) |> FROM() |> WHERE(OP(">", ID(:year_of_birth), LIT(2000)))
+    #-> ID(:person) |> FROM() |> WHERE(FUN(">", ID(:year_of_birth), LIT(2000)))
 
     print(render(c |> SELECT(:person_id)))
     #=>
@@ -655,7 +827,7 @@ It is possible to specify the limit with ties.
 A `JOIN` clause is created with `JOIN()` constructor.
 
     c = FROM(:p => :person) |>
-        JOIN(:l => :location, OP("=", (:p, :location_id), (:l, :location_id)), left = true)
+        JOIN(:l => :location, FUN("=", (:p, :location_id), (:l, :location_id)), left = true)
     #-> (…) |> JOIN(…)
 
     display(c)
@@ -664,7 +836,7 @@ A `JOIN` clause is created with `JOIN()` constructor.
     AS(:p) |>
     FROM() |>
     JOIN(ID(:location) |> AS(:l),
-         OP("=", ID(:p) |> ID(:location_id), ID(:l) |> ID(:location_id)),
+         FUN("=", ID(:p) |> ID(:location_id), ID(:l) |> ID(:location_id)),
          left = true)
     =#
 
@@ -681,7 +853,7 @@ Different types of `JOIN` are supported.
 
     c = FROM(:p => :person) |>
         JOIN(:op => :observation_period,
-             on = OP("=", (:p, :person_id), (:op, :person_id)))
+             on = FUN("=", (:p, :person_id), (:op, :person_id)))
 
     display(c)
     #=>
@@ -689,7 +861,7 @@ Different types of `JOIN` are supported.
     AS(:p) |>
     FROM() |>
     JOIN(ID(:observation_period) |> AS(:op),
-         OP("=", ID(:p) |> ID(:person_id), ID(:op) |> ID(:person_id)))
+         FUN("=", ID(:p) |> ID(:person_id), ID(:op) |> ID(:person_id)))
     =#
 
     print(render(c |> SELECT((:p, :person_id), (:op, :observation_period_start_date))))
@@ -703,7 +875,7 @@ Different types of `JOIN` are supported.
 
     c = FROM(:l => :location) |>
         JOIN(:cs => :care_site,
-             on = OP("=", (:l, :location_id), (:cs, :location_id)),
+             on = FUN("=", (:l, :location_id), (:cs, :location_id)),
              right = true)
 
     display(c)
@@ -712,7 +884,7 @@ Different types of `JOIN` are supported.
     AS(:l) |>
     FROM() |>
     JOIN(ID(:care_site) |> AS(:cs),
-         OP("=", ID(:l) |> ID(:location_id), ID(:cs) |> ID(:location_id)),
+         FUN("=", ID(:l) |> ID(:location_id), ID(:cs) |> ID(:location_id)),
          right = true)
     =#
 
@@ -727,7 +899,7 @@ Different types of `JOIN` are supported.
 
     c = FROM(:p => :person) |>
         JOIN(:pr => :provider,
-             on = OP("=", (:p, :provider_id), (:pr, :provider_id)),
+             on = FUN("=", (:p, :provider_id), (:pr, :provider_id)),
              left = true,
              right = true)
 
@@ -737,7 +909,7 @@ Different types of `JOIN` are supported.
     AS(:p) |>
     FROM() |>
     JOIN(ID(:provider) |> AS(:pr),
-         OP("=", ID(:p) |> ID(:provider_id), ID(:pr) |> ID(:provider_id)),
+         FUN("=", ID(:p) |> ID(:provider_id), ID(:pr) |> ID(:provider_id)),
          left = true,
          right = true)
     =#
@@ -770,7 +942,7 @@ A `JOIN LATERAL` clause can be created.
 
     c = FROM(:p => :person) |>
         JOIN(:vo => FROM(:vo => :visit_occurrence) |>
-                    WHERE(OP("=", (:p, :person_id), (:vo, :person_id))) |>
+                    WHERE(FUN("=", (:p, :person_id), (:vo, :person_id))) |>
                     ORDER((:vo, :visit_start_date) |> DESC()) |>
                     LIMIT(1) |>
                     SELECT((:vo, :visit_start_date)),
@@ -786,7 +958,7 @@ A `JOIN LATERAL` clause can be created.
     JOIN(ID(:visit_occurrence) |>
          AS(:vo) |>
          FROM() |>
-         WHERE(OP("=", ID(:p) |> ID(:person_id), ID(:vo) |> ID(:person_id))) |>
+         WHERE(FUN("=", ID(:p) |> ID(:person_id), ID(:vo) |> ID(:person_id))) |>
          ORDER(ID(:vo) |> ID(:visit_start_date) |> DESC()) |>
          LIMIT(1) |>
          SELECT(ID(:vo) |> ID(:visit_start_date)) |>
@@ -822,11 +994,11 @@ A `GROUP BY` clause is created with `GROUP` constructor.
     display(c)
     #-> ID(:person) |> FROM() |> GROUP(ID(:year_of_birth))
 
-    print(render(c |> SELECT(:year_of_birth, AGG("COUNT", *))))
+    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
     #=>
     SELECT
       "year_of_birth",
-      COUNT(*)
+      count(*)
     FROM "person"
     GROUP BY "year_of_birth"
     =#
@@ -837,9 +1009,9 @@ rendered.
     c = FROM(:person) |> GROUP()
     #-> (…) |> GROUP()
 
-    print(render(c |> SELECT(AGG("COUNT", *))))
+    print(render(c |> SELECT(AGG(:count))))
     #=>
-    SELECT COUNT(*)
+    SELECT count(*)
     FROM "person"
     =#
 
@@ -850,7 +1022,7 @@ A `HAVING` clause is created with `HAVING()` constructor.
 
     c = FROM(:person) |>
         GROUP(:year_of_birth) |>
-        HAVING(OP(">", AGG("COUNT", *), 10))
+        HAVING(FUN(">", AGG(:count), 10))
     #-> (…) |> HAVING(…)
 
     display(c)
@@ -858,7 +1030,7 @@ A `HAVING` clause is created with `HAVING()` constructor.
     ID(:person) |>
     FROM() |>
     GROUP(ID(:year_of_birth)) |>
-    HAVING(OP(">", AGG("COUNT", OP("*")), LIT(10)))
+    HAVING(FUN(">", AGG("count"), LIT(10)))
     =#
 
     print(render(c |> SELECT(:person_id)))
@@ -866,7 +1038,7 @@ A `HAVING` clause is created with `HAVING()` constructor.
     SELECT "person_id"
     FROM "person"
     GROUP BY "year_of_birth"
-    HAVING (COUNT(*) > 10)
+    HAVING (count(*) > 10)
     =#
 
 
@@ -990,7 +1162,7 @@ Rendering a nested `UNION` clause adds parentheses around it.
               SELECT(:person_id, :date => :observation_date)) |>
         FROM() |>
         AS(:union) |>
-        WHERE(OP(">", ID(:date), Date(2000))) |>
+        WHERE(FUN(">", ID(:date), Date(2000))) |>
         SELECT(ID(:person_id))
 
     print(render(c))
@@ -1064,7 +1236,7 @@ When `VALUES` is nested in a `FROM` clause, it is wrapped in parentheses.
     c = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)]) |>
         AS(:values, columns = [:name, :year]) |>
         FROM() |>
-        SELECT(OP("*"))
+        SELECT(FUN("*"))
 
     print(render(c))
     #=>
@@ -1132,7 +1304,7 @@ The `AS` clause that defines a common table expression is created using the
 
     cte1 =
         FROM(:concept) |>
-        WHERE(OP("=", :concept_id, 320128)) |>
+        WHERE(FUN("=", :concept_id, 320128)) |>
         SELECT(:concept_id, :concept_name) |>
         AS(:essential_hypertension)
     #-> (…) |> AS(:essential_hypertension)
@@ -1143,10 +1315,10 @@ The `AS` clause that defines a common table expression is created using the
         UNION(all = true,
               FROM(:eh => :essential_hypertension_with_descendants) |>
               JOIN(:cr => :concept_relationship,
-                   OP("=", (:eh, :concept_id), (:cr, :concept_id_1))) |>
+                   FUN("=", (:eh, :concept_id), (:cr, :concept_id_1))) |>
               JOIN(:c => :concept,
-                   OP("=", (:cr, :concept_id_2), (:c, :concept_id))) |>
-              WHERE(OP("=", (:cr, :relationship_id), "Subsumes")) |>
+                   FUN("=", (:cr, :concept_id_2), (:c, :concept_id))) |>
+              WHERE(FUN("=", (:cr, :relationship_id), "Subsumes")) |>
               SELECT((:c, :concept_id), (:c, :concept_name))) |>
         AS(:essential_hypertension_with_descendants,
             columns = [:concept_id, :concept_name])
@@ -1163,11 +1335,11 @@ The `WITH` clause is created using the `WITH()` constructor.
     #=>
     ID(:essential_hypertension_with_descendants) |>
     FROM() |>
-    SELECT(OP("*")) |>
+    SELECT(FUN("*")) |>
     WITH(recursive = true,
          ID(:concept) |>
          FROM() |>
-         WHERE(OP("=", ID(:concept_id), LIT(320128))) |>
+         WHERE(FUN("=", ID(:concept_id), LIT(320128))) |>
          SELECT(ID(:concept_id), ID(:concept_name)) |>
          AS(:essential_hypertension),
          ID(:essential_hypertension) |>
@@ -1178,14 +1350,14 @@ The `WITH` clause is created using the `WITH()` constructor.
                AS(:eh) |>
                FROM() |>
                JOIN(ID(:concept_relationship) |> AS(:cr),
-                    OP("=",
-                       ID(:eh) |> ID(:concept_id),
-                       ID(:cr) |> ID(:concept_id_1))) |>
+                    FUN("=",
+                        ID(:eh) |> ID(:concept_id),
+                        ID(:cr) |> ID(:concept_id_1))) |>
                JOIN(ID(:concept) |> AS(:c),
-                    OP("=",
-                       ID(:cr) |> ID(:concept_id_2),
-                       ID(:c) |> ID(:concept_id))) |>
-               WHERE(OP("=", ID(:cr) |> ID(:relationship_id), LIT("Subsumes"))) |>
+                    FUN("=",
+                        ID(:cr) |> ID(:concept_id_2),
+                        ID(:c) |> ID(:concept_id))) |>
+               WHERE(FUN("=", ID(:cr) |> ID(:relationship_id), LIT("Subsumes"))) |>
                SELECT(ID(:c) |> ID(:concept_id), ID(:c) |> ID(:concept_name))) |>
          AS(:essential_hypertension_with_descendants,
             columns = [:concept_id, :concept_name]))
@@ -1222,7 +1394,7 @@ The `MATERIALIZED` annotation can be added using `NOTE`.
 
     cte =
         FROM(:condition_occurrence) |>
-        WHERE(OP("=", :condition_concept_id, 320128)) |>
+        WHERE(FUN("=", :condition_concept_id, 320128)) |>
         SELECT(:person_id) |>
         NOTE("MATERIALIZED") |>
         AS(:essential_hypertension_occurrence)
@@ -1232,7 +1404,7 @@ The `MATERIALIZED` annotation can be added using `NOTE`.
     #=>
     ID(:condition_occurrence) |>
     FROM() |>
-    WHERE(OP("=", ID(:condition_concept_id), LIT(320128))) |>
+    WHERE(FUN("=", ID(:condition_concept_id), LIT(320128))) |>
     SELECT(ID(:person_id)) |>
     NOTE("MATERIALIZED") |>
     AS(:essential_hypertension_occurrence)

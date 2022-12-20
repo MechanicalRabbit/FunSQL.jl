@@ -688,12 +688,12 @@ generate a SQL query that fails to execute:
 
     render(conn, q) |> print
     #=>
-    SELECT FROBNICATE("person_1"."year_of_birth") AS "frobnicate"
+    SELECT frobnicate("person_1"."year_of_birth") AS "frobnicate"
     FROM "person" AS "person_1"
     =#
 
     DBInterface.execute(conn, q)
-    #-> ERROR: SQLite.SQLiteException("no such function: FROBNICATE")
+    #-> ERROR: SQLite.SQLiteException("no such function: frobnicate")
 
 On the other hand, FunSQL will correctly serialize many SQL functions and
 operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
@@ -733,7 +733,7 @@ group.
     #=>
     SELECT
       "person_1"."year_of_birth",
-      COUNT(*) AS "count"
+      count(*) AS "count"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
     =#
@@ -763,7 +763,7 @@ achieve the same effect.
 
     render(conn, q) |> print
     #=>
-    SELECT AVG("person_1"."year_of_birth") AS "avg"
+    SELECT avg("person_1"."year_of_birth") AS "avg"
     FROM "person" AS "person_1"
     =#
 
@@ -827,7 +827,7 @@ clause.
     SELECT "visit_occurrence_1"."person_id"
     FROM "visit_occurrence" AS "visit_occurrence_1"
     GROUP BY "visit_occurrence_1"."person_id"
-    HAVING (MAX("visit_occurrence_1"."visit_end_date") >= DATE('now', '-1 year'))
+    HAVING (max("visit_occurrence_1"."visit_end_date") >= date('now', '-1 year'))
     =#
 
 When the output of `Group` is blocked by an `As` node, we need to traverse it
@@ -849,7 +849,7 @@ with `Get` in order to use an aggregate function.
     FROM "person" AS "person_1"
     LEFT JOIN (
       SELECT
-        MAX("visit_occurrence_1"."visit_start_date") AS "max",
+        max("visit_occurrence_1"."visit_start_date") AS "max",
         "visit_occurrence_1"."person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
@@ -894,7 +894,7 @@ rows prior to the current row.
       "visit_occurrence_1"."person_id",
       "visit_occurrence_1"."visit_start_date",
       "visit_occurrence_1"."visit_end_date",
-      (JULIANDAY("visit_occurrence_1"."visit_start_date") - JULIANDAY((MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS "gap"
+      (julianday("visit_occurrence_1"."visit_start_date") - julianday((max("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS "gap"
     FROM "visit_occurrence" AS "visit_occurrence_1"
     =#
 
@@ -996,7 +996,7 @@ It is easy to assemble an inner query with FunSQL:
       "person_1"."year_of_birth"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" = (
-      SELECT MIN("person_2"."year_of_birth") AS "min"
+      SELECT min("person_2"."year_of_birth") AS "min"
       FROM "person" AS "person_2"
     ))
     =#

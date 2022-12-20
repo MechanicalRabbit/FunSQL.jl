@@ -25,12 +25,12 @@ A `WITH` clause.
 
 ```jldoctest
 julia> c = FROM(:person) |>
-           WHERE(OP("IN", :person_id,
+           WHERE(FUN(:in, :person_id,
                           FROM(:essential_hypertension) |>
                           SELECT(:person_id))) |>
            SELECT(:person_id, :year_of_birth) |>
            WITH(FROM(:condition_occurrence) |>
-                WHERE(OP("=", :condition_concept_id, 320128)) |>
+                WHERE(FUN("=", :condition_concept_id, 320128)) |>
                 SELECT(:person_id) |>
                 AS(:essential_hypertension));
 
@@ -52,18 +52,18 @@ WHERE ("person_id" IN (
 
 ```jldoctest
 julia> c = FROM(:essential_hypertension) |>
-           SELECT(OP("*")) |>
+           SELECT(*) |>
            WITH(recursive = true,
                 FROM(:concept) |>
-                WHERE(OP("=", :concept_id, 320128)) |>
+                WHERE(FUN("=", :concept_id, 320128)) |>
                 SELECT(:concept_id, :concept_name) |>
                 UNION(all = true,
                       FROM(:eh => :essential_hypertension) |>
                       JOIN(:cr => :concept_relationship,
-                           OP("=", (:eh, :concept_id), (:cr, :concept_id_1))) |>
+                           FUN("=", (:eh, :concept_id), (:cr, :concept_id_1))) |>
                       JOIN(:c => :concept,
-                           OP("=", (:cr, :concept_id_2), (:c, :concept_id))) |>
-                      WHERE(OP("=", (:cr, :relationship_id), "Subsumes")) |>
+                           FUN("=", (:cr, :concept_id_2), (:c, :concept_id))) |>
+                      WHERE(FUN("=", (:cr, :relationship_id), "Subsumes")) |>
                       SELECT((:c, :concept_id), (:c, :concept_name))) |>
                 AS(:essential_hypertension, columns = [:concept_id, :concept_name]));
 

@@ -46,7 +46,7 @@ julia> q = From(:person) |>
 julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."person_id",
-  (NOW() - "person_1"."birth_datetime") AS "age"
+  (now() - "person_1"."birth_datetime") AS "age"
 FROM "person" AS "person_1"
 ```
 """

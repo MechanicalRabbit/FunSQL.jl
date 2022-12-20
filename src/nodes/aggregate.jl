@@ -3,30 +3,28 @@
 mutable struct AggregateNode <: AbstractSQLNode
     over::Union{SQLNode, Nothing}
     name::Symbol
-    distinct::Bool
     args::Vector{SQLNode}
     filter::Union{SQLNode, Nothing}
 
     AggregateNode(;
                   over = nothing,
                   name::Union{Symbol, AbstractString},
-                  distinct = false,
                   args = SQLNode[],
                   filter = nothing) =
-        new(over, Symbol(name), distinct, args, filter)
+        new(over, Symbol(name), args, filter)
 end
 
-AggregateNode(name; over = nothing, distinct = false, args = SQLNode[], filter = nothing) =
-    AggregateNode(over = over, name = name, distinct = distinct, args = args, filter = filter)
+AggregateNode(name; over = nothing, args = SQLNode[], filter = nothing) =
+    AggregateNode(over = over, name = name, args = args, filter = filter)
 
-AggregateNode(name, args...; over = nothing, distinct = false, filter = nothing) =
-    AggregateNode(over = over, name = name, distinct = distinct, args = SQLNode[args...], filter = filter)
+AggregateNode(name, args...; over = nothing, filter = nothing) =
+    AggregateNode(over = over, name = name, args = SQLNode[args...], filter = filter)
 
 """
-    Agg(; over = nothing, name, distinct = false, args = [], filter = nothing)
-    Agg(name; over = nothing, distinct = false, args = [], filter = nothing)
-    Agg(name, args...; over = nothing, distinct = false, filter = nothing)
-    Agg.name(args...; over = nothing, distinct = false, filter = nothing)
+    Agg(; over = nothing, name, args = [], filter = nothing)
+    Agg(name; over = nothing, args = [], filter = nothing)
+    Agg(name, args...; over = nothing, filter = nothing)
+    Agg.name(args...; over = nothing, filter = nothing)
 
 An application of an aggregate function.
 
@@ -49,7 +47,7 @@ julia> q = From(:person) |>
 julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."year_of_birth",
-  COUNT(*) AS "count"
+  count(*) AS "count"
 FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
@@ -61,10 +59,10 @@ julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
 julia> q = From(:location) |>
            Group() |>
-           Select(Agg.count(distinct = true, Get.state));
+           Select(Agg.count_distinct(Get.state));
 
 julia> print(render(q, tables = [location]))
-SELECT COUNT(DISTINCT "location_1"."state") AS "count"
+SELECT count(DISTINCT "location_1"."state") AS "count_distinct"
 FROM "location" AS "location_1"
 ```
 
@@ -91,7 +89,7 @@ SELECT
 FROM "person" AS "person_1"
 LEFT JOIN (
   SELECT
-    MAX("visit_occurrence_1"."visit_start_date") AS "max",
+    max("visit_occurrence_1"."visit_start_date") AS "max",
     "visit_occurrence_1"."person_id"
   FROM "visit_occurrence" AS "visit_occurrence_1"
   GROUP BY "visit_occurrence_1"."person_id"
@@ -115,7 +113,7 @@ julia> print(render(q, tables = [visit_occurrence]))
 SELECT
   "visit_occurrence_1"."person_id",
   "visit_occurrence_1"."visit_start_date",
-  ("visit_occurrence_1"."visit_start_date" - (LAG("visit_occurrence_1"."visit_start_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date"))) AS "gap"
+  ("visit_occurrence_1"."visit_start_date" - (lag("visit_occurrence_1"."visit_start_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date"))) AS "gap"
 FROM "visit_occurrence" AS "visit_occurrence_1"
 ```
 """
@@ -129,9 +127,6 @@ function PrettyPrinting.quoteof(n::AggregateNode, ctx::QuoteContext)
     ex = Expr(:call,
               Expr(:., nameof(Agg),
                    QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))))
-    if n.distinct
-        push!(ex.args, Expr(:kw, :distinct, n.distinct))
-    end
     append!(ex.args, quoteof(n.args, ctx))
     if n.filter !== nothing
         push!(ex.args, Expr(:kw, :filter, quoteof(n.filter, ctx)))
@@ -143,12 +138,11 @@ function PrettyPrinting.quoteof(n::AggregateNode, ctx::QuoteContext)
 end
 
 label(n::AggregateNode) =
-    n.name
+    Meta.isidentifier(n.name) ? n.name : :_
 
 rebase(n::AggregateNode, n′) =
     AggregateNode(over = rebase(n.over, n′),
                   name = n.name,
-                  distinct = n.distinct,
                   args = n.args,
                   filter = n.filter)
 
@@ -169,9 +163,9 @@ Base.getproperty(::typeof(Agg), name::Symbol) =
 Base.getproperty(::typeof(Agg), name::AbstractString) =
     AggClosure(Symbol(name))
 
-(f::AggClosure)(args...; over = nothing, distinct = false, filter = nothing) =
-    Agg(over = over, name = f.name, distinct = distinct, args = SQLNode[args...], filter = filter)
+(f::AggClosure)(args...; over = nothing, filter = nothing) =
+    Agg(over = over, name = f.name, args = SQLNode[args...], filter = filter)
 
-(f::AggClosure)(; over = nothing, distinct = false, args = SQLNode[], filter = nothing) =
-    Agg(over = over, name = f.name, distinct = distinct, args = args, filter = filter)
+(f::AggClosure)(; over = nothing, args = SQLNode[], filter = nothing) =
+    Agg(over = over, name = f.name, args = args, filter = filter)
 

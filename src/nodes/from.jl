@@ -148,8 +148,8 @@ julia> q = From(df) |>
 
 julia> print(render(q))
 SELECT
-  MIN("values_1"."year") AS "min",
-  MAX("values_1"."year") AS "max"
+  min("values_1"."year") AS "min",
+  max("values_1"."year") AS "max"
 FROM (
   VALUES
     (1974),

@@ -24,12 +24,12 @@ A `GROUP BY` clause.
 ```jldoctest
 julia> c = FROM(:person) |>
            GROUP(:year_of_birth) |>
-           SELECT(:year_of_birth, AGG("COUNT", OP("*")));
+           SELECT(:year_of_birth, AGG(:count));
 
 julia> print(render(c))
 SELECT
   "year_of_birth",
-  COUNT(*)
+  count(*)
 FROM "person"
 GROUP BY "year_of_birth"
 ```

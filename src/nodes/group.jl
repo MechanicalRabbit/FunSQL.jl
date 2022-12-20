@@ -48,7 +48,7 @@ julia> q = From(:person) |>
            Select(Agg.count());
 
 julia> print(render(q, tables = [person]))
-SELECT COUNT(*) AS "count"
+SELECT count(*) AS "count"
 FROM "person" AS "person_1"
 ```
 
@@ -64,7 +64,7 @@ julia> q = From(:person) |>
 julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."year_of_birth",
-  COUNT(*) AS "count"
+  count(*) AS "count"
 FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```

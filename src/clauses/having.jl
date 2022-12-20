@@ -24,14 +24,14 @@ A `HAVING` clause.
 ```jldoctest
 julia> c = FROM(:person) |>
            GROUP(:year_of_birth) |>
-           HAVING(OP(">", AGG("COUNT", OP("*")), 10)) |>
+           HAVING(FUN(">", AGG(:count), 10)) |>
            SELECT(:person_id);
 
 julia> print(render(c))
 SELECT "person_id"
 FROM "person"
 GROUP BY "year_of_birth"
-HAVING (COUNT(*) > 10)
+HAVING (count(*) > 10)
 ```
 """
 HAVING(args...; kws...) =

@@ -543,7 +543,7 @@ end
 function annotate_scalar(n::AggregateNode, ctx)
     args′ = annotate_scalar(n.args, ctx)
     filter′ = annotate_scalar(n.filter, ctx)
-    n′ = Agg(name = n.name, distinct = n.distinct, args = args′, filter = filter′)
+    n′ = Agg(name = n.name, args = args′, filter = filter′)
     rebind(n.over, n′, ctx)
 end
 
