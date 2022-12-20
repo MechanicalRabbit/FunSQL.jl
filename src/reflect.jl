@@ -2,26 +2,26 @@
 
 const default_reflect_clause =
     FROM(:c => (:information_schema, :columns)) |>
-    WHERE(OP("=", (:c, :table_schema), VAR(:schema))) |>
+    WHERE(FUN("=", (:c, :table_schema), VAR(:schema))) |>
     ORDER((:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
     SELECT(:schema => (:c, :table_schema),
            :name => (:c, :table_name),
            :column => (:c, :column_name))
 const mysql_reflect_clause =
     FROM(:c => (:information_schema, :columns)) |>
-    WHERE(OP("=", (:c, :table_schema), FUN(:COALESCE, VAR(:schema), FUN(:DATABASE)))) |>
+    WHERE(FUN("=", (:c, :table_schema), FUN(:coalesce, VAR(:schema), FUN("DATABASE ")))) |>
     ORDER((:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
     SELECT(:schema => (:c, :table_schema),
            :name => (:c, :table_name),
            :column => (:c, :column_name))
 const postgresql_reflect_clause =
     FROM(:n => (:pg_catalog, :pg_namespace)) |>
-    JOIN(:c => (:pg_catalog, :pg_class), on = OP("=", (:n, :oid), (:c, :relnamespace))) |>
-    JOIN(:a => (:pg_catalog, :pg_attribute), on = OP("=", (:c, :oid), (:a, :attrelid))) |>
-    WHERE(OP(:AND, OP("=", (:n, :nspname), FUN(:COALESCE, VAR(:schema), "public")),
-                   OP(:IN, (:c, :relkind), FUN("", "r", "v")),
-                   OP(">", (:a, :attnum), 0),
-                   OP(:NOT, (:a, :attisdropped)))) |>
+    JOIN(:c => (:pg_catalog, :pg_class), on = FUN("=", (:n, :oid), (:c, :relnamespace))) |>
+    JOIN(:a => (:pg_catalog, :pg_attribute), on = FUN("=", (:c, :oid), (:a, :attrelid))) |>
+    WHERE(FUN(:and, FUN("=", (:n, :nspname), FUN(:coalesce, VAR(:schema), "public")),
+                    FUN(:in, (:c, :relkind), "r", "v"),
+                    FUN(">", (:a, :attnum), 0),
+                    FUN(:not, (:a, :attisdropped)))) |>
     ORDER((:n, :nspname), (:c, :relname), (:a, :attnum)) |>
     SELECT(:schema => (:n, :nspname),
            :name => (:c, :relname),
@@ -30,18 +30,18 @@ const redshift_reflect_clause = postgresql_reflect_clause
 const sqlite_reflect_clause =
     FROM(:sm => :sqlite_master) |>
     JOIN(:pti => FUN(:pragma_table_info, (:sm, :name)), on = true) |>
-    WHERE(OP(:AND, OP(:IN, (:sm, :type), FUN("", "table", "view")),
-                   OP("NOT LIKE", (:sm, :name), "sqlite_%"))) |>
+    WHERE(FUN(:and, FUN(:in, (:sm, :type), "table", "view"),
+                    FUN(:not_like, (:sm, :name), "sqlite_%"))) |>
     ORDER((:sm, :name), (:pti, :cid)) |>
     SELECT(:schema => missing,
            :name => (:sm, :name),
            :column => (:pti, :name))
 const sqlserver_reflect_clause =
     FROM(:s => (:sys, :schemas)) |>
-    JOIN(:o => (:sys, :objects), on = OP("=", (:s, :schema_id), (:o, :schema_id))) |>
-    JOIN(:c => (:sys, :columns), on = OP("=", (:o, :object_id), (:c, :object_id))) |>
-    WHERE(OP(:AND, OP("=", (:s, :name), FUN(:COALESCE, VAR(:schema), "dbo")),
-                   OP(:IN, (:o, :type), FUN("", "U", "V")))) |>
+    JOIN(:o => (:sys, :objects), on = FUN("=", (:s, :schema_id), (:o, :schema_id))) |>
+    JOIN(:c => (:sys, :columns), on = FUN("=", (:o, :object_id), (:c, :object_id))) |>
+    WHERE(FUN(:and, FUN("=", (:s, :name), FUN(:coalesce, VAR(:schema), "dbo")),
+                    FUN(:in, (:o, :type), "U", "V"))) |>
     ORDER((:s, :name), (:o, :name), (:c, :column_id)) |>
     SELECT(:schema => (:s, :name),
            :name => (:o, :name),

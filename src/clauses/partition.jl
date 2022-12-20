@@ -104,12 +104,12 @@ A window definition clause.
 ```jldoctest
 julia> c = FROM(:person) |>
            SELECT(:person_id,
-                  AGG("ROW_NUMBER", over = PARTITION(:year_of_birth)));
+                  AGG(:row_number, over = PARTITION(:year_of_birth)));
 
 julia> print(render(c))
 SELECT
   "person_id",
-  (ROW_NUMBER() OVER (PARTITION BY "year_of_birth"))
+  (row_number() OVER (PARTITION BY "year_of_birth"))
 FROM "person"
 ```
 
@@ -117,12 +117,12 @@ FROM "person"
 julia> c = FROM(:person) |>
            WINDOW(:w1 => PARTITION(:year_of_birth),
                   :w2 => :w1 |> PARTITION(order_by = [:month_of_birth, :day_of_birth])) |>
-           SELECT(:person_id, AGG("ROW_NUMBER", over = :w2));
+           SELECT(:person_id, AGG(:row_number, over = :w2));
 
 julia> print(render(c))
 SELECT
   "person_id",
-  (ROW_NUMBER() OVER ("w2"))
+  (row_number() OVER ("w2"))
 FROM "person"
 WINDOW
   "w1" AS (PARTITION BY "year_of_birth"),
@@ -133,15 +133,15 @@ WINDOW
 julia> c = FROM(:person) |>
            GROUP(:year_of_birth) |>
            SELECT(:year_of_birth,
-                  AGG("AVG",
-                      AGG("COUNT", OP("*")),
+                  AGG(:avg,
+                      AGG(:count),
                       over = PARTITION(order_by = [:year_of_birth],
                                        frame = (mode = :range, start = -1, finish = 1))));
 
 julia> print(render(c))
 SELECT
   "year_of_birth",
-  (AVG(COUNT(*)) OVER (ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
+  (avg(count(*)) OVER (ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
 FROM "person"
 GROUP BY "year_of_birth"
 ```

@@ -21,23 +21,39 @@ FunctionClause(name, args...) =
     FUN(name; args = [])
     FUN(name, args...)
 
-An invocation of a SQL function.
+An invocation of a SQL function or a SQL operator.
 
 # Examples
 
 ```jldoctest
-julia> c = FUN(:EXTRACT, OP(:YEAR), KW(:FROM, FUN(:NOW)));
+julia> c = FUN(:concat, :city, ", ", :state);
 
 julia> print(render(c))
-EXTRACT(YEAR FROM NOW())
+concat("city", ', ', "state")
+```
+
+```jldoctest
+julia> c = FUN("||", :city, ", ", :state);
+
+julia> print(render(c))
+("city" || ', ' || "state")
+```
+
+```jldoctest
+julia> c = FUN("SUBSTRING(? FROM ? FOR ?)", :zip, 1, 3);
+
+julia> print(render(c))
+SUBSTRING("zip" FROM 1 FOR 3)
 ```
 """
 FUN(args...; kws...) =
     FunctionClause(args...; kws...) |> SQLClause
+
+Base.convert(::Type{AbstractSQLClause}, ::typeof(*)) =
+    FunctionClause(:*)
 
 dissect(scr::Symbol, ::typeof(FUN), pats::Vector{Any}) =
     dissect(scr, FunctionClause, pats)
 
 PrettyPrinting.quoteof(c::FunctionClause, ctx::QuoteContext) =
     Expr(:call, nameof(FUN), string(c.name), quoteof(c.args, ctx)...)
-

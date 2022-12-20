@@ -229,7 +229,7 @@ To calculate an aggregate value for the whole dataset, we apply a
 
     render(conn, q) |> print
     #=>
-    SELECT COUNT(*) AS "count"
+    SELECT count(*) AS "count"
     FROM "person" AS "person_1"
     =#
 
@@ -306,9 +306,9 @@ FunSQL by using array comprehension to build the `CASE` expression.
     #=>
     SELECT
       "person_2"."age_group",
-      COUNT(*) AS "count"
+      count(*) AS "count"
     FROM (
-      SELECT (CASE WHEN ((STRFTIME('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group"
+      SELECT (CASE WHEN ((strftime('%Y', '2020-01-01') - "person_1"."year_of_birth") < 5) THEN '0 - 4' … ELSE '≥ 100' END) AS "age_group"
       FROM "person" AS "person_1"
     ) AS "person_2"
     GROUP BY "person_2"."age_group"
@@ -956,7 +956,7 @@ Now we have all the components to construct the final query:
       SELECT
         "condition_occurrence_2"."person_id",
         "condition_occurrence_2"."condition_start_date",
-        (LAG(DATE("condition_occurrence_2"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_2"."person_id" ORDER BY "condition_occurrence_2"."condition_start_date")) AS "boundary"
+        (lag(date("condition_occurrence_2"."condition_start_date", '180 days')) OVER (PARTITION BY "condition_occurrence_2"."person_id" ORDER BY "condition_occurrence_2"."condition_start_date")) AS "boundary"
       FROM (
         SELECT
           "condition_occurrence_1"."person_id",
@@ -1013,12 +1013,12 @@ transformations.
     #=>
     SELECT
       "visit_occurrence_3"."person_id",
-      MIN("visit_occurrence_3"."visit_start_date") AS "start_date",
-      MAX("visit_occurrence_3"."visit_end_date") AS "end_date"
+      min("visit_occurrence_3"."visit_start_date") AS "start_date",
+      max("visit_occurrence_3"."visit_end_date") AS "end_date"
     FROM (
       SELECT
         "visit_occurrence_2"."person_id",
-        (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period",
+        (sum("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period",
         "visit_occurrence_2"."visit_start_date",
         "visit_occurrence_2"."visit_end_date"
       FROM (
@@ -1026,7 +1026,7 @@ transformations.
           "visit_occurrence_1"."person_id",
           "visit_occurrence_1"."visit_start_date",
           "visit_occurrence_1"."visit_end_date",
-          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new"
+          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (max("visit_occurrence_1"."visit_end_date") OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"
@@ -1075,12 +1075,12 @@ one year gap between them.*
     #=>
     SELECT
       "visit_occurrence_3"."person_id",
-      MIN("visit_occurrence_3"."visit_start_date") AS "start_date",
-      DATE(MAX(DATE("visit_occurrence_3"."visit_end_date", '365 days')), '-365 days') AS "end_date"
+      min("visit_occurrence_3"."visit_start_date") AS "start_date",
+      date(max(date("visit_occurrence_3"."visit_end_date", '365 days')), '-365 days') AS "end_date"
     FROM (
       SELECT
         "visit_occurrence_2"."person_id",
-        (SUM("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period",
+        (sum("visit_occurrence_2"."new") OVER (PARTITION BY "visit_occurrence_2"."person_id" ORDER BY "visit_occurrence_2"."visit_start_date", (- "visit_occurrence_2"."new") ROWS UNBOUNDED PRECEDING)) AS "period",
         "visit_occurrence_2"."visit_start_date",
         "visit_occurrence_2"."visit_end_date"
       FROM (
@@ -1088,7 +1088,7 @@ one year gap between them.*
           "visit_occurrence_1"."person_id",
           "visit_occurrence_1"."visit_start_date",
           "visit_occurrence_1"."visit_end_date",
-          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (MAX(DATE("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new"
+          (CASE WHEN ("visit_occurrence_1"."visit_start_date" <= (max(date("visit_occurrence_1"."visit_end_date", '365 days')) OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS "new"
         FROM "visit_occurrence" AS "visit_occurrence_1"
       ) AS "visit_occurrence_2"
     ) AS "visit_occurrence_3"

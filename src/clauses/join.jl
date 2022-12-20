@@ -36,7 +36,7 @@ A `JOIN` clause.
 ```jldoctest
 julia> c = FROM(:p => :person) |>
            JOIN(:l => :location,
-                on = OP("=", (:p, :location_id), (:l, :location_id)),
+                on = FUN("=", (:p, :location_id), (:l, :location_id)),
                 left = true) |>
            SELECT((:p, :person_id), (:l, :state));
 

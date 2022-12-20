@@ -23,7 +23,7 @@ A `WHERE` clause.
 
 ```jldoctest
 julia> c = FROM(:location) |>
-           WHERE(OP("=", :zip, "60614")) |>
+           WHERE(FUN("=", :zip, "60614")) |>
            SELECT(:location_id);
 
 julia> print(render(c))

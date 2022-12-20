@@ -208,22 +208,10 @@ translate(ns::Vector{SQLNode}, ctx) =
 translate(::Nothing, ctx) =
     nothing
 
-translate(n::AggregateNode, ctx) =
-    translate(Val(n.name), n, ctx)
-
-translate(@nospecialize(name::Val{N}), n::AggregateNode, ctx) where {N} =
-    translate_default(n, ctx)
-
-function translate_default(n::AggregateNode, ctx)
+function translate(n::AggregateNode, ctx)
     args = translate(n.args, ctx)
     filter = translate(n.filter, ctx)
-    AGG(uppercase(string(n.name)), distinct = n.distinct, args = args, filter = filter)
-end
-
-function translate(::Val{:count}, n::AggregateNode, ctx)
-    args = !isempty(n.args) ? translate(n.args, ctx) : [OP("*")]
-    filter = translate(n.filter, ctx)
-    AGG(:COUNT, distinct = n.distinct, args = args, filter = filter)
+    AGG(n.name, args = args, filter = filter)
 end
 
 translate(n::Union{AsNode, HighlightNode}, ctx) =
@@ -243,120 +231,46 @@ function translate(n::BoxNode, ctx)
     complete(base)
 end
 
-translate(n::FunctionNode, ctx) =
-    translate(Val(n.name), n, ctx)
-
-translate(@nospecialize(name::Val{N}), n::FunctionNode, ctx) where {N} =
-    translate_default(n, ctx)
-
-function translate_default(n::FunctionNode, ctx)
+function translate(n::FunctionNode, ctx)
     args = translate(n.args, ctx)
-    if Base.isidentifier(n.name)
-        FUN(uppercase(string(n.name)), args = args)
-    else
-        OP(n.name, args = args)
-    end
-end
-
-for (name, op) in (:not => :NOT,
-                   :like => :LIKE,
-                   :exists => :EXISTS,
-                   :(==) => Symbol("="),
-                   :(!=) => Symbol("<>"))
-    @eval begin
-        translate(::Val{$(QuoteNode(name))}, n::FunctionNode, ctx) =
-            OP($(QuoteNode(op)),
-               args = SQLClause[translate(arg, ctx) for arg in n.args])
-    end
-end
-
-for (name, op, default) in ((:and, :AND, true), (:or, :OR, false))
-    @eval begin
-        function translate(::Val{$(QuoteNode(name))}, n::FunctionNode, ctx)
-            args = translate(n.args, ctx)
-            if isempty(args)
-                LIT($default)
-            elseif length(args) == 1
-                args[1]
-            elseif length(args) == 2 && @dissect(args[1], LIT(val = val)) && val == $default
-                args[2]
-            elseif @dissect(args[1], OP(name = name, args = args′)) && name === $(QuoteNode(op))
-                OP($(QuoteNode(op)), args = SQLClause[args′..., args[2:end]...])
+    if n.name === :and
+        args′ = SQLClause[]
+        for arg in args
+            if @dissect(arg, LIT(val = true))
+            elseif @dissect(arg, FUN(name = :and, args = args′′))
+                append!(args′, args′′)
             else
-                OP($(QuoteNode(op)), args = args)
+                push!(args′, arg)
             end
         end
-    end
-end
-
-for (name, op, default) in (("in", "IN", false), ("not in", "NOT IN", true))
-    @eval begin
-        function translate(::Val{Symbol($name)}, n::FunctionNode, ctx)
-            if length(n.args) <= 1
-                LIT($default)
+        args = args′
+        if isempty(args)
+            return LIT(true)
+        elseif length(args) == 1
+            return args[1]
+        end
+    elseif n.name === :or
+        args′ = SQLClause[]
+        for arg in args
+            if @dissect(arg, LIT(val = false))
+            elseif @dissect(arg, FUN(name = :or, args = args′′))
+                append!(args′, args′′)
             else
-                args = translate(n.args, ctx)
-                if length(args) == 2 && @dissect(args[2], SELECT() || UNION())
-                    OP($op, args = args)
-                else
-                    OP($op, args[1], FUN("", args = args[2:end]))
-                end
+                push!(args′, arg)
             end
         end
-    end
-end
-
-translate(::Val{Symbol("is null")}, n::FunctionNode, ctx) =
-    OP(:IS, SQLClause[translate(arg, ctx) for arg in n.args]..., missing)
-
-translate(::Val{Symbol("is not null")}, n::FunctionNode, ctx) =
-    OP("IS NOT", SQLClause[translate(arg, ctx) for arg in n.args]..., missing)
-
-translate(::Val{:case}, n::FunctionNode, ctx) =
-    CASE(args = SQLClause[translate(arg, ctx) for arg in n.args])
-
-function translate(::Val{:cast}, n::FunctionNode, ctx)
-    args = translate(n.args, ctx)
-    if length(args) == 2 && @dissect(args[2], LIT(val = t)) && t isa AbstractString
-        FUN(:CAST, args[1], KW(:AS, OP(t)))
-    else
-        FUN(:CAST, args = args)
-    end
-end
-
-function translate(::Val{:extract}, n::FunctionNode, ctx)
-    args = translate(n.args, ctx)
-    if length(args) == 2 && @dissect(args[1], LIT(val = f)) && f isa AbstractString
-        FUN(:EXTRACT, OP(f), KW(:FROM, args[2]))
-    else
-        FUN(:EXTRACT, args = args)
-    end
-end
-
-for (name, op) in (("between", "BETWEEN"), ("not between", "NOT BETWEEN"))
-    @eval begin
-        function translate(::Val{Symbol($name)}, n::FunctionNode, ctx)
-            if length(n.args) == 3
-                args = SQLClause[translate(arg, ctx) for arg in n.args]
-                OP($op, args[1], args[2], args[3] |> KW(:AND))
-            else
-                translate_default(n, ctx)
-            end
+        args = args′
+        if isempty(args)
+            return LIT(false)
+        elseif length(args) == 1
+            return args[1]
+        end
+    elseif n.name === :not
+        if length(args) == 1 && @dissect(args[1], LIT(val = val)) && val isa Bool
+            return LIT(!val)
         end
     end
-end
-
-for (name, op) in (("current_date", "CURRENT_DATE"),
-                   ("current_timestamp", "CURRENT_TIMESTAMP"))
-    @eval begin
-        function translate(::Val{Symbol($name)}, n::FunctionNode, ctx)
-            if isempty(n.args)
-                OP($op)
-            else
-                translate_default(n, ctx)
-            end
-        end
-    end
+    FUN(n.name, args = args)
 end
 
 translate(n::LiteralNode, ctx) =
@@ -956,16 +870,16 @@ function assemble(n::SelectNode, refs, ctx)
 end
 
 function merge_conditions(c1, c2)
-    if @dissect(c1, OP(name = :AND, args = args1))
-        if @dissect(c2, OP(name = :AND, args = args2))
-            return OP(:AND, args1..., args2...)
+    if @dissect(c1, FUN(name = :and, args = args1))
+        if @dissect(c2, FUN(name = :and, args = args2))
+            return FUN(:and, args1..., args2...)
         else
-            return OP(:AND, args1..., c2)
+            return FUN(:and, args1..., c2)
         end
-    elseif @dissect(c2, OP(name = :AND, args = args2))
-        return OP(:AND, c1, args2...)
+    elseif @dissect(c2, FUN(name = :and, args = args2))
+        return FUN(:and, c1, args2...)
     else
-        return OP(:AND, c1, c2)
+        return FUN(:and, c1, c2)
     end
 end
 
@@ -975,7 +889,7 @@ function assemble(n::WhereNode, refs, ctx)
        @dissect(base.clause, GROUP(by = by)) && !isempty(by)
         subs = make_subs(base, nothing)
         condition = translate(n.condition, ctx, subs)
-        if @dissect(condition, LIT(val = val)) && val === true
+        if @dissect(condition, LIT(val = true))
             return base
         end
         if @dissect(base.clause, tail |> WHERE(condition = tail_condition))
@@ -994,7 +908,7 @@ function assemble(n::WhereNode, refs, ctx)
         tail = FROM(AS(over = complete(base), name = base_alias))
         subs = make_subs(base, base_alias)
         condition = translate(n.condition, ctx, subs)
-        if @dissect(condition, LIT(val = val)) && val === true
+        if @dissect(condition, LIT(val = true))
             return base
         end
         c = WHERE(over = tail, condition = condition)

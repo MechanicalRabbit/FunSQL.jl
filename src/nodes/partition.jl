@@ -46,7 +46,7 @@ julia> q = From(:visit_occurrence) |>
 
 julia> print(render(q, tables = [visit_occurrence]))
 SELECT
-  (ROW_NUMBER() OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number",
+  (row_number() OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number",
   "visit_occurrence_1"."visit_occurrence_id"
 FROM "visit_occurrence" AS "visit_occurrence_1"
 ```
@@ -65,7 +65,7 @@ julia> q = From(:person) |>
 julia> print(render(q, tables = [person]))
 SELECT
   "person_1"."year_of_birth",
-  (AVG(COUNT(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
+  (avg(count(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
 FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```

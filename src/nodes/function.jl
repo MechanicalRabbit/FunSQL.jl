@@ -85,7 +85,7 @@ PrettyPrinting.quoteof(n::FunctionNode, ctx::QuoteContext) =
          quoteof(n.args, ctx)...)
 
 label(n::FunctionNode) =
-    n.name
+    Meta.isidentifier(n.name) ? n.name : :_
 
 
 # Notation for making function nodes.

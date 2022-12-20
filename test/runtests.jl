@@ -26,9 +26,9 @@ if isempty(ARGS)
                 Agg, Append, As, Asc, Bind, Define, Desc, From, Fun, Get,
                 Group, Highlight, Iterate, Join, LeftJoin, Limit, Order,
                 Partition, Select, Sort, Var, Where, With, WithExternal,
-                AGG, AS, ASC, CASE, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN,
-                KW, LIMIT, LIT, NOTE, OP, ORDER, PARTITION, SELECT, SORT,
-                UNION, VALUES, VAR, WHERE, WINDOW, WITH,
+                AGG, AS, ASC, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, LIMIT,
+                LIT, NOTE, ORDER, PARTITION, SELECT, SORT, UNION, VALUES, VAR,
+                WHERE, WINDOW, WITH,
                 render
             using Dates
             using DataFrames: DataFrame
