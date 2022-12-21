@@ -70,7 +70,7 @@ same interface.  Stripped of its syntactic shell, the process of assembling the
 query can be visualized as a diagram of five processing nodes connected in a
 pipeline:
 
-![100 oldest male patients](two-kinds-where-order-limit.drawio.svg)
+![100 oldest male patients](100-oldest-male-patients.drawio.svg)
 
 It is precisely the fact that the query is progressively assembled using
 atomic, independent components that lets us call this interface
@@ -82,7 +82,7 @@ is a difference, even if it is not reflected in notation.  To demonstrate this,
 let us rearrange this pipeline, moving the `Order` and the `Limit` nodes in
 front of `Where`.
 
-![100 oldest male patients ⟹ Males among 100 oldest patients](two-kinds-order-limit-where.drawio.svg)
+![100 oldest male patients ⟹ Males among 100 oldest patients](males-among-100-oldest-patients.drawio.svg)
 
 How does this rearrangement affect the output of the query?  Perhaps
 unexpectedly, the answer depends on the library.  With FunSQL, as well as
@@ -108,14 +108,14 @@ can these libraries act so differently while sharing the same interface?  To
 answer this question, we need to focus on what is only implicitly present on
 the pipeline diagram: the information that is processed by the pipeline nodes.
 
-!["Where" node](two-kinds-where.drawio.svg)
+!["Where" node](where-node.drawio.svg)
 
 A node with one incoming and one outgoing arrow symbolizes a processing unit
 that takes the input data, transforms it, and emits the output data.  While the
 character of the data is not revealed, it is tempting to assume it to be the
 tabular data extracted from the database.
 
-!["Where" node acting on data](two-kinds-where-on-data.drawio.svg)
+!["Where" node acting on data](where-node-acting-on-data.drawio.svg)
 
 But this can't be right, at least not literally, because a SQL query builder
 cannot read the data in the database.  Instead, the query builder generates a
@@ -202,13 +202,13 @@ end
 Individual slots of this structure are populated by the corresponding pipeline
 nodes.
 
-!["Where" node acting on the syntax tree](two-kinds-where-on-syntax.drawio.svg)
+!["Where" node acting on the syntax tree](where-node-acting-on-syntax-tree.drawio.svg)
 
 This explains why the pipeline is insensitive to the order of the nodes.
 Indeed, as long as the content of the slots stays the same, it makes no
 difference in what order the slots are populated.
 
-![Pipeline is insensitive to the order of the nodes](two-kinds-insensitivity.drawio.svg)
+![Pipeline is insensitive to the order of the nodes](pipeline-insensitive-to-node-order.drawio.svg)
 
 This method of incrementally constructing a composite structure is known as the
 [*builder pattern*](https://en.wikipedia.org/wiki/Builder_pattern).  We can

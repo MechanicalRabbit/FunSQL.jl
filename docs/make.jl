@@ -17,12 +17,12 @@ makedocs(
     format = Documenter.HTML(prettyurls=(get(ENV, "CI", nothing) == "true")),
     pages = [
         "Home" => "index.md",
-        "guide.md",
-        "reference.md",
-        "examples.md",
+        "guide/index.md",
+        "reference/index.md",
+        "examples/index.md",
         "test/index.md",
         "Articles" => [
-          "two-kinds.md",
+          "two-kinds-of-sql-query-builders/index.md",
         ],
     ],
     modules = [FunSQL],
