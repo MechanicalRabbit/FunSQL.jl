@@ -710,6 +710,29 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
     FROM "person" AS "person_1"
     =#
 
+When the name of the `Fun` node contains one or more `?` symbols, this name
+serves as a template of a SQL expression.  When the node is rendered, the `?`
+symbols are substituted with the node arguments.
+
+    q = From(:person) |>
+        Select(Fun."CAST(? AS TEXT)"(Get.year_of_birth))
+
+    render(conn, q) |> print
+    #=>
+    SELECT CAST("person_1"."year_of_birth" AS TEXT) AS "_"
+    FROM "person" AS "person_1"
+    =#
+
+To decide how to render a `Fun` node, FunSQL checks the node name:
+
+1) If the name has a specialized implementation of `FunSQL.serialize!()`, this
+   implementation is used for rendering the node.
+2) If the name contains one or more placeholders (`?`), the node is rendered
+   as a template.
+3) If the name contains only symbol characters, or if the name starts or ends
+   with a space, the node is rendered as an operator.
+4) Otherwise, the node is rendered is a function.
+
 
 ## `Group` and Aggregate Functions
 
