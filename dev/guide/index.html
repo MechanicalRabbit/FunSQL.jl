@@ -291,19 +291,26 @@ Get.year_of_birth .&gt;= 1930</code></pre><p>We should note that FunSQL does not
 
 render(conn, q) |&gt; print
 #=&gt;
-SELECT FROBNICATE(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;frobnicate&quot;
+SELECT frobnicate(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;frobnicate&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#
 
 DBInterface.execute(conn, q)
-#-&gt; ERROR: SQLite.SQLiteException(&quot;no such function: FROBNICATE&quot;)</code></pre><p>On the other hand, FunSQL will correctly serialize many SQL functions and operators that have irregular syntax including <code>AND</code>, <code>OR</code>, <code>NOT</code>, <code>IN</code>, <code>EXISTS</code>, <code>CASE</code>, and others.</p><p><em>Show the demographic cohort of each patient.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+#-&gt; ERROR: SQLite.SQLiteException(&quot;no such function: frobnicate&quot;)</code></pre><p>On the other hand, FunSQL will correctly serialize many SQL functions and operators that have irregular syntax including <code>AND</code>, <code>OR</code>, <code>NOT</code>, <code>IN</code>, <code>EXISTS</code>, <code>CASE</code>, and others.</p><p><em>Show the demographic cohort of each patient.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     Select(Fun.case(Get.year_of_birth .&lt;= 1960, &quot;boomer&quot;, &quot;millenial&quot;))
 
 render(conn, q) |&gt; print
 #=&gt;
 SELECT (CASE WHEN (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1960) THEN &#39;boomer&#39; ELSE &#39;millenial&#39; END) AS &quot;case&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-=#</code></pre><h2 id="Group-and-Aggregate-Functions"><a class="docs-heading-anchor" href="#Group-and-Aggregate-Functions"><code>Group</code> and Aggregate Functions</a><a id="Group-and-Aggregate-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Group-and-Aggregate-Functions" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> and aggregate functions are used for summarizing data to report totals, averages and so on.  We start by applying the <code>Group</code> node to partition the input rows into disjoint groups.  Then, for each group, we can calculate summary values using aggregate functions.  In FunSQL, aggregate functions are created using the <a href="../reference/#FunSQL.Agg-Tuple"><code>Agg</code></a> node.  In the following example, we use the aggregate function <code>Agg.count</code>, which simply counts the number of rows in each group.</p><p><em>Show the number of patients by the year of birth.</em></p><pre><code class="language-julia hljs">using FunSQL: Agg, Group
+=#</code></pre><p>When the name of the <code>Fun</code> node contains one or more <code>?</code> symbols, this name serves as a template of a SQL expression.  When the node is rendered, the <code>?</code> symbols are substituted with the node arguments.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Select(Fun.&quot;CAST(? AS TEXT)&quot;(Get.year_of_birth))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT CAST(&quot;person_1&quot;.&quot;year_of_birth&quot; AS TEXT) AS &quot;_&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>To decide how to render a <code>Fun</code> node, FunSQL checks the node name:</p><ol><li>If the name has a specialized implementation of <code>FunSQL.serialize!()</code>, this implementation is used for rendering the node.</li><li>If the name contains one or more placeholders (<code>?</code>), the node is rendered as a template.</li><li>If the name contains only symbol characters, or if the name starts or ends with a space, the node is rendered as an operator.</li><li>Otherwise, the node is rendered is a function.</li></ol><h2 id="Group-and-Aggregate-Functions"><a class="docs-heading-anchor" href="#Group-and-Aggregate-Functions"><code>Group</code> and Aggregate Functions</a><a id="Group-and-Aggregate-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Group-and-Aggregate-Functions" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> and aggregate functions are used for summarizing data to report totals, averages and so on.  We start by applying the <code>Group</code> node to partition the input rows into disjoint groups.  Then, for each group, we can calculate summary values using aggregate functions.  In FunSQL, aggregate functions are created using the <a href="../reference/#FunSQL.Agg-Tuple"><code>Agg</code></a> node.  In the following example, we use the aggregate function <code>Agg.count</code>, which simply counts the number of rows in each group.</p><p><em>Show the number of patients by the year of birth.</em></p><pre><code class="language-julia hljs">using FunSQL: Agg, Group
 
 q = From(:person) |&gt;
     Group(Get.year_of_birth) |&gt;
@@ -313,7 +320,7 @@ render(conn, q) |&gt; print
 #=&gt;
 SELECT
   &quot;person_1&quot;.&quot;year_of_birth&quot;,
-  COUNT(*) AS &quot;count&quot;
+  count(*) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#
@@ -334,7 +341,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
 
 render(conn, q) |&gt; print
 #=&gt;
-SELECT AVG(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;avg&quot;
+SELECT avg(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;avg&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#
 
@@ -373,7 +380,7 @@ render(conn, q) |&gt; print
 SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
-HAVING (MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) &gt;= DATE(&#39;now&#39;, &#39;-1 year&#39;))
+HAVING (max(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) &gt;= date(&#39;now&#39;, &#39;-1 year&#39;))
 =#</code></pre><p>When the output of <code>Group</code> is blocked by an <code>As</code> node, we need to traverse it with <code>Get</code> in order to use an aggregate function.</p><p><em>For each patient, show the date of their latest visit to a doctor.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     LeftJoin(:visit_group =&gt; From(:visit_occurrence) |&gt; Group(Get.person_id),
              on = Get.person_id .== Get.visit_group.person_id) |&gt;
@@ -388,7 +395,7 @@ SELECT
 FROM &quot;person&quot; AS &quot;person_1&quot;
 LEFT JOIN (
   SELECT
-    MAX(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;,
+    max(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;,
     &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
@@ -410,7 +417,7 @@ SELECT
   &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
   &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
   &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
-  (JULIANDAY(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) - JULIANDAY((MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS &quot;gap&quot;
+  (julianday(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) - julianday((max(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS &quot;gap&quot;
 FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 =#
 
@@ -475,7 +482,7 @@ SELECT
   &quot;person_1&quot;.&quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = (
-  SELECT MIN(&quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;min&quot;
+  SELECT min(&quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;min&quot;
   FROM &quot;person&quot; AS &quot;person_2&quot;
 ))
 =#
@@ -728,4 +735,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
    6 │     444406  Acute subendocardial infarction    Condition  SNOMED
                                                                3 columns omitted
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 15 December 2022 17:04">Thursday 15 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 21 December 2022 13:08">Wednesday 21 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

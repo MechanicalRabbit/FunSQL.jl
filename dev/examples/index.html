@@ -115,7 +115,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
 
 render(conn, q) |&gt; print
 #=&gt;
-SELECT COUNT(*) AS &quot;count&quot;
+SELECT count(*) AS &quot;count&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#
 
@@ -170,9 +170,9 @@ render(conn, q) |&gt; print
 #=&gt;
 SELECT
   &quot;person_2&quot;.&quot;age_group&quot;,
-  COUNT(*) AS &quot;count&quot;
+  count(*) AS &quot;count&quot;
 FROM (
-  SELECT (CASE WHEN ((STRFTIME(&#39;%Y&#39;, &#39;2020-01-01&#39;) - &quot;person_1&quot;.&quot;year_of_birth&quot;) &lt; 5) THEN &#39;0 - 4&#39; … ELSE &#39;≥ 100&#39; END) AS &quot;age_group&quot;
+  SELECT (CASE WHEN ((strftime(&#39;%Y&#39;, &#39;2020-01-01&#39;) - &quot;person_1&quot;.&quot;year_of_birth&quot;) &lt; 5) THEN &#39;0 - 4&#39; … ELSE &#39;≥ 100&#39; END) AS &quot;age_group&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
 ) AS &quot;person_2&quot;
 GROUP BY &quot;person_2&quot;.&quot;age_group&quot;
@@ -686,7 +686,7 @@ FROM (
   SELECT
     &quot;condition_occurrence_2&quot;.&quot;person_id&quot;,
     &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;,
-    (LAG(DATE(&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;, &#39;180 days&#39;)) OVER (PARTITION BY &quot;condition_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;)) AS &quot;boundary&quot;
+    (lag(date(&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;, &#39;180 days&#39;)) OVER (PARTITION BY &quot;condition_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;)) AS &quot;boundary&quot;
   FROM (
     SELECT
       &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
@@ -726,12 +726,12 @@ render(conn, q) |&gt; print
 #=&gt;
 SELECT
   &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
-  MIN(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
-  MAX(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;) AS &quot;end_date&quot;
+  min(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  max(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;) AS &quot;end_date&quot;
 FROM (
   SELECT
     &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
-    (SUM(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
+    (sum(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
     &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
     &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
   FROM (
@@ -739,7 +739,7 @@ FROM (
       &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
       &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
       &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
-      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (MAX(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;
+      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (max(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;
     FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   ) AS &quot;visit_occurrence_2&quot;
 ) AS &quot;visit_occurrence_3&quot;
@@ -783,12 +783,12 @@ render(conn, q) |&gt; print
 #=&gt;
 SELECT
   &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
-  MIN(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
-  DATE(MAX(DATE(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)), &#39;-365 days&#39;) AS &quot;end_date&quot;
+  min(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  date(max(date(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)), &#39;-365 days&#39;) AS &quot;end_date&quot;
 FROM (
   SELECT
     &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
-    (SUM(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
+    (sum(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
     &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
     &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
   FROM (
@@ -796,7 +796,7 @@ FROM (
       &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
       &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
       &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
-      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (MAX(DATE(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;
+      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (max(date(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;
     FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   ) AS &quot;visit_occurrence_2&quot;
 ) AS &quot;visit_occurrence_3&quot;
@@ -823,4 +823,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
   10 │     95538  2009-03-30  2009-09-02
   11 │    107680  2009-06-07  2009-07-30
   12 │    110862  2008-09-07  2010-06-07
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 15 December 2022 17:04">Thursday 15 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 21 December 2022 13:08">Wednesday 21 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
