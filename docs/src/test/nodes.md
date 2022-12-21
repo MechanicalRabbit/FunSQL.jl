@@ -646,12 +646,66 @@ A vector of arguments could be passed directly.
     Fun.">"(args = SQLNode[Get.year_of_birth, 2000])
     #-> Fun.:(">")(…)
 
-In a `SELECT` clause, operator calls get an alias from their name.
+In a `SELECT` clause, the function name becomes the column alias.
 
-    print(render(From(person) |> Select(e)))
+    q = From(location) |>
+        Select(Fun.coalesce(Get.city, "N/A"))
+
+    print(render(q))
     #=>
-    SELECT ("person_1"."year_of_birth" > 2000) AS "_"
-    FROM "person" AS "person_1"
+    SELECT coalesce("location_1"."city", 'N/A') AS "coalesce"
+    FROM "location" AS "location_1"
+    =#
+
+But only when the name is a valid identifier.
+
+    q = From(location) |>
+        Select(Fun."||"(Get.city, ", ", Get.state))
+
+    print(render(q))
+    #=>
+    SELECT ("location_1"."city" || ', ' || "location_1"."state") AS "_"
+    FROM "location" AS "location_1"
+    =#
+
+The function name containing `?` serves as a template.
+
+    q = From(location) |>
+        Select(Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city, 1, 1))
+
+    print(render(q))
+    #=>
+    SELECT SUBSTRING("location_1"."city" FROM 1 FOR 1) AS "_"
+    FROM "location" AS "location_1"
+    =#
+
+The number of arguments to a function must coincide with the number of
+placeholders in the template.
+
+    Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city)
+    #=>
+    ERROR: FunSQL.InvalidArityError: `SUBSTRING(? FROM ? FOR ?)` expects 3 arguments, got 1 in:
+    Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city)
+    =#
+
+Some common functions also validate the number of arguments.
+
+    Fun.case()
+    #=>
+    ERROR: FunSQL.InvalidArityError: `case` expects at least 2 arguments, got 0 in:
+    Fun.case()
+    =#
+
+    Fun.is_null(Get.city, Get.state)
+    #=>
+    ERROR: FunSQL.InvalidArityError: `is_null` expects 1 argument, got 2 in:
+    Fun.is_null(Get.city, Get.state)
+    =#
+
+    Fun.count(Get.city, Get.state)
+    #=>
+    ERROR: FunSQL.InvalidArityError: `count` expects from 0 to 1 argument, got 2 in:
+    Fun.count(Get.city, Get.state)
     =#
 
 A function invocation may include a nested query.
@@ -692,22 +746,6 @@ A function invocation may include a nested query.
         ("concept_1"."vocabulary_id" = 'Gender') AND
         ("concept_1"."concept_code" = 'F')
     ))
-    =#
-
-FunSQL can properly represents many SQL functions and operators with irregular
-syntax.
-
-    q = From(person) |>
-        Where(Fun.and(Fun."is null"(Get.birth_datetime), Fun."is not null"(Get.year_of_birth))) |>
-        Select(:year_of_birth => Fun.cast(Fun.extract("YEAR", Get.birth_datetime), "INT"))
-
-    print(render(q))
-    #=>
-    SELECT CAST(EXTRACT(YEAR FROM "person_1"."birth_datetime") AS INT) AS "year_of_birth"
-    FROM "person" AS "person_1"
-    WHERE
-      ("person_1"."birth_datetime" IS NULL) AND
-      ("person_1"."year_of_birth" IS NOT NULL)
     =#
 
 FunSQL can simplify logical expressions.

@@ -262,6 +262,46 @@ function Base.showerror(io::IO, err::DuplicateLabelError)
 end
 
 """
+Unexpected number of arguments.
+"""
+struct InvalidArityError <: FunSQLError
+    name::Symbol
+    expected::Union{Int, UnitRange{Int}}
+    actual::Int
+    path::Vector{SQLNode}
+
+    InvalidArityError(name, expected, actual; path = SQLNode[]) =
+        new(name, expected, actual, path)
+end
+
+function Base.showerror(io::IO, err::InvalidArityError)
+    print(io, "FunSQL.InvalidArityError: `", err.name, "` expects")
+    expected = err.expected
+    if expected isa Int
+        plural = expected != 1
+        print(io, " at least ", expected, " argument", plural ? "s" : "")
+    else
+        plural = last(expected) != 1
+        if length(expected) == 1
+            print(io, " ", first(expected), " argument", plural ? "s" : "")
+        else
+            print(io, " from ", first(expected), " to ", last(expected),
+                  " argument", plural ? "s" : "")
+        end
+    end
+    print(io, ", got ", err.actual)
+    showpath(io, err.path)
+end
+
+function checkarity!(n)
+    expected = arity(n.name)
+    actual = length(n.args)
+    if !(expected isa Int ? actual >= expected : actual in expected)
+        throw(InvalidArityError(n.name, expected, actual, path = SQLNode[n]))
+    end
+end
+
+"""
 A scalar operation where a tabular operation is expected.
 """
 struct IllFormedError <: FunSQLError
@@ -392,4 +432,3 @@ include("nodes/variable.jl")
 include("nodes/where.jl")
 include("nodes/with.jl")
 include("nodes/with_external.jl")
-

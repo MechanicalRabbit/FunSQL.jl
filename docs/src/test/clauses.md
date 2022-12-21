@@ -71,6 +71,20 @@ literals when they are used in the context of a SQL clause.
       '2000-01-01'
     =#
 
+Some values may render differently depending on the dialect.
+
+    c = LIT(false)
+
+    print(render(c, dialect = :sqlserver))
+    #-> (1 = 0)
+
+A quote character in a string literal is represented by a pair of quotes.
+
+    c = LIT("O'Hare")
+
+    print(render(c))
+    #-> 'O''Hare'
+
 
 ## SQL Identifiers
 
@@ -90,7 +104,14 @@ Serialization of an identifier depends on the SQL dialect.
     print(render(c, dialect = :sqlserver))
     #-> [person]
 
-A quoted identifier is created using the chain operator.
+A quote character in an identifier is properly escaped.
+
+    c = ID("year of \"birth\"")
+
+    print(render(c))
+    #-> "year of ""birth"""
+
+A qualified identifier is created using the chain operator.
 
     c = ID(:person) |> ID(:year_of_birth)
     #-> (…) |> ID(:year_of_birth)
@@ -199,10 +220,16 @@ An application of a SQL function is created with `FUN()` constructor.
     print(render(c))
     #-> now()
 
+`FUN()` with an empty name generates a comma-separated list of values.
+
+    c = FUN("", "60614", "60615")
+
+    print(render(c))
+    #-> ('60614', '60615')
+
 A name that contains only symbol characters is considered an operator.
 
     c = FUN("||", :city, ", ", :state)
-    #-> FUN("||", …)
 
     print(render(c))
     #-> ("city" || ', ' || "state")
@@ -211,6 +238,11 @@ To create an operator containing alphabetical characters, add a leading or a
 trailing space to its name.
 
     c = FUN(" IS DISTINCT FROM ", :zip, missing)
+
+    print(render(c))
+    #-> ("zip" IS DISTINCT FROM NULL)
+
+    c = FUN(" IS DISTINCT FROM", :zip, missing)
 
     print(render(c))
     #-> ("zip" IS DISTINCT FROM NULL)
@@ -226,6 +258,11 @@ trailing space to its name.
     #-> (DATE '2000-01-01')
 
     c = FUN("CURRENT_TIME ")
+
+    print(render(c))
+    #-> CURRENT_TIME
+
+    c = FUN(" CURRENT_TIME")
 
     print(render(c))
     #-> CURRENT_TIME

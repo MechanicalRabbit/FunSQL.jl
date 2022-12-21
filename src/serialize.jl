@@ -102,11 +102,10 @@ function serialize_lines!(cs::AbstractVector{SQLClause}, ctx; sep = nothing)
             if !first
                 if sep === nothing
                     print(ctx, ',')
-                    newline(ctx)
                 else
                     print(ctx, ' ', sep)
-                    newline(ctx)
                 end
+                newline(ctx)
             else
                 first = false
             end
@@ -153,63 +152,29 @@ macro serialize!(tmpl, args, ctx)
     end
     if isempty(placeholders)
         if starts_with_space || ends_with_space
-            tmpl = strip(tmpl)
+            tmpl = string(strip(tmpl))
         end
         if '?' in tmpl
             tmpl = replace(tmpl, "??" => '?')
         end
         if isempty(tmpl)
             # Comma-separated list of arguments.
-            return quote
-                print($ctx, '(')
-                serialize!(args, ctx)
-                print($ctx, ')')
-            end
+            return :(serialize_function!("", $args, $ctx))
         elseif contains_only_symbols || starts_with_space || ends_with_space
             # An operator.
             if starts_with_space && !ends_with_space
-                return quote
-                    if isempty($args)
-                        print($ctx, $tmpl)
-                    elseif length($args) == 1
-                        print($ctx, '(')
-                        serialize!($args[1], $ctx)
-                        print($ctx, ' ', $tmpl, ')')
-                    else
-                        print($ctx, '(')
-                        serialize!($args, $ctx, sep = $tmpl)
-                        print($ctx, ')')
-                    end
-                end
+                return :(serialize_postfix_operator!($tmpl, $args, $ctx))
             else
-                return quote
-                    if isempty($args)
-                        print($ctx, $tmpl)
-                    elseif length($args) == 1
-                        print($ctx, '(', $tmpl, ' ')
-                        serialize!($args[1], $ctx)
-                        print($ctx, ')')
-                    else
-                        print($ctx, '(')
-                        serialize!($args, $ctx, sep = $tmpl)
-                        print($ctx, ')')
-                    end
-                end
+                return :(serialize_operator!($tmpl, $args, $ctx))
             end
         else
             # A function.
-            return quote
-                print($ctx, $tmpl, '(')
-                serialize!($args, $ctx)
-                print($ctx, ')')
-            end
+            return :(serialize_function!($tmpl, $args, $ctx))
         end
     else
         # A template with placeholders.
-        exs = Expr[]
-        if !ends_with_paren
-            push!(exs, :(print($ctx, '(')))
-        end
+        chunks = String[]
+        push!(placeholders, lastindex(tmpl) + 1)
         i = 0
         for k in eachindex(placeholders)
             j = placeholders[k]
@@ -217,34 +182,90 @@ macro serialize!(tmpl, args, ctx)
             if '?' in chunk
                 chunk = replace(chunk, "??" => '?')
             end
-            if !isempty(chunk)
-                push!(exs, :(print($ctx, $chunk)))
+            if !ends_with_paren
+                if k == 1
+                    chunk = "(" * chunk
+                elseif k == lastindex(placeholders)
+                    chunk = chunk * ")"
+                end
             end
-            push!(exs, quote
-                      if length($args) >= $k
-                          serialize!($args[$k], $ctx)
-                      end
-                  end)
+            push!(chunks, chunk)
             i = j
         end
-        chunk = tmpl[i+1:end]
-        if '?' in chunk
-            chunk = replace(chunk, "??" => '?')
-        end
-        if !isempty(chunk)
-            push!(exs, :(print($ctx, $chunk)))
-        end
-        if !ends_with_paren
-            push!(exs, :(print($ctx, ')')))
-        end
-        return quote
-            $(exs...)
+        return :(serialize_template!($(tuple(chunks...)), $args, $ctx))
+    end
+end
+
+function serialize_operator!(op::String, args::Vector{SQLClause}, ctx)
+    if isempty(args)
+        print(ctx, op)
+    elseif length(args) == 1
+        print(ctx, '(', op, ' ')
+        serialize!(args[1], ctx)
+        print(ctx, ')')
+    else
+        print(ctx, '(')
+        serialize!(args, ctx, sep = op)
+        print(ctx, ')')
+    end
+end
+
+function serialize_postfix_operator!(op::String, args::Vector{SQLClause}, ctx)
+    if isempty(args)
+        print(ctx, op)
+    elseif length(args) == 1
+        print(ctx, '(')
+        serialize!(args[1], ctx)
+        print(ctx, ' ', op, ')')
+    else
+        print(ctx, '(')
+        serialize!(args, ctx, sep = op)
+        print(ctx, ')')
+    end
+end
+
+function serialize_function!(name::String, args::Vector{SQLClause}, ctx)
+    print(ctx, name, '(')
+    serialize!(args, ctx)
+    print(ctx, ')')
+end
+
+function serialize_template!(@nospecialize(chunks::Tuple{Vararg{String}}), args::Vector{SQLClause}, ctx)
+    for k = 1:lastindex(chunks)-1
+        print(ctx, chunks[k])
+        if k <= length(args)
+            serialize!(args[k], ctx)
         end
     end
+    print(ctx, chunks[end])
 end
 
 @generated serialize!(::Val{N}, args::Vector{SQLClause}, ctx) where {N} =
     :(@serialize! $(string(N)) args ctx)
+
+arity(name::Symbol) =
+    arity(Val(name))
+
+@generated function arity(::Val{N}) where {N}
+    tmpl = string(N)
+    arity = 0
+    maybe_literal_qmark = false
+    next = iterate(tmpl)
+    while next !== nothing
+        ch, i′ = next
+        if ch == '?' && maybe_literal_qmark
+            arity -= 1
+            maybe_literal_qmark = false
+        elseif ch == '?'
+            arity += 1
+            maybe_literal_qmark = true
+        else
+            maybe_literal_qmark = false
+        end
+        next = iterate(tmpl, i′)
+    end
+    arity > 0 ? :($arity:$arity) : 0
+end
 
 for (name, op, default) in ((:and, "AND", true),
                             (:or, "OR", false))
@@ -260,6 +281,8 @@ for (name, op, default) in ((:and, "AND", true),
                 print(ctx, ')')
             end
         end
+
+        arity(::Val{$(QuoteNode(name))}) = 0
     end
 end
 
@@ -283,6 +306,8 @@ for (name, op, default) in ((:in, "IN", false),
                 print(ctx, ')')
             end
         end
+
+        arity(::Val{$(QuoteNode(name))}) = 1
     end
 end
 
@@ -292,14 +317,22 @@ serialize!(::Val{Symbol("not in")}, args::Vector{SQLClause}, ctx) =
 serialize!(::Val{:not}, args::Vector{SQLClause}, ctx) =
     @serialize! "NOT " args ctx
 
+arity(::Val{:not}) = 1:1
+
 serialize!(::Val{:exists}, args::Vector{SQLClause}, ctx) =
     @serialize! "EXISTS " args ctx
+
+arity(::Val{:exists}) = 1:1
 
 serialize!(::Val{:not_exists}, args::Vector{SQLClause}, ctx) =
     @serialize! "NOT EXISTS " args ctx
 
+arity(::Val{:not_exists}) = 1:1
+
 serialize!(::Val{:is_null}, args::Vector{SQLClause}, ctx) =
     @serialize! " IS NULL" args ctx
+
+arity(::Val{:is_null}) = 1:1
 
 serialize!(::Val{Symbol("is null")}, args::Vector{SQLClause}, ctx) =
     serialize!(Val(:is_null), args, ctx)
@@ -307,20 +340,30 @@ serialize!(::Val{Symbol("is null")}, args::Vector{SQLClause}, ctx) =
 serialize!(::Val{:is_not_null}, args::Vector{SQLClause}, ctx) =
     @serialize! " IS NOT NULL" args ctx
 
+arity(::Val{:is_not_null}) = 1:1
+
 serialize!(::Val{Symbol("is not null")}, args::Vector{SQLClause}, ctx) =
     serialize!(Val(:is_not_null), args, ctx)
 
 serialize!(::Val{:like}, args::Vector{SQLClause}, ctx) =
     @serialize! " LIKE " args ctx
 
+arity(::Val{:like}) = 2:2
+
 serialize!(::Val{:not_like}, args::Vector{SQLClause}, ctx) =
     @serialize! " NOT LIKE " args ctx
+
+arity(::Val{:not_like}) = 2:2
 
 serialize!(::Val{:(==)}, args::Vector{SQLClause}, ctx) =
     @serialize! "=" args ctx
 
+arity(::Val{:(==)}) = 2:2
+
 serialize!(::Val{:(!=)}, args::Vector{SQLClause}, ctx) =
     @serialize! "<>" args ctx
+
+arity(::Val{:(!=)}) = 2:2
 
 function serialize!(::Val{:count}, args::Vector{SQLClause}, ctx)
     print(ctx, "count(")
@@ -332,6 +375,8 @@ function serialize!(::Val{:count}, args::Vector{SQLClause}, ctx)
     print(ctx, ")")
 end
 
+arity(::Val{:count}) = 0:1
+
 function serialize!(::Val{:count_distinct}, args::Vector{SQLClause}, ctx)
     print(ctx, "count(DISTINCT ")
     if isempty(args)
@@ -341,6 +386,8 @@ function serialize!(::Val{:count_distinct}, args::Vector{SQLClause}, ctx)
     end
     print(ctx, ")")
 end
+
+arity(::Val{:count_distinct}) = 0:1
 
 function serialize!(::Val{:cast}, args::Vector{SQLClause}, ctx)
     if length(args) == 2 && @dissect(args[2], LIT(val = t)) && t isa AbstractString
@@ -352,6 +399,8 @@ function serialize!(::Val{:cast}, args::Vector{SQLClause}, ctx)
     end
 end
 
+arity(::Val{:cast}) = 2:2
+
 function serialize!(::Val{:extract}, args::Vector{SQLClause}, ctx)
     if length(args) == 2 && @dissect(args[1], LIT(val = f)) && f isa AbstractString
         print(ctx, "EXTRACT(", f, " FROM ")
@@ -361,6 +410,8 @@ function serialize!(::Val{:extract}, args::Vector{SQLClause}, ctx)
         @serialize! "extract" args ctx
     end
 end
+
+arity(::Val{:extract}) = 2:2
 
 for (name, op) in ((:between, " BETWEEN "),
                    (:not_between, " NOT BETWEEN "))
@@ -378,6 +429,8 @@ for (name, op) in ((:between, " BETWEEN "),
                 @serialize! $(string(name)) args ctx
             end
         end
+
+        arity(::Val{$(QuoteNode(name))}) = 3:3
     end
 end
 
@@ -396,6 +449,8 @@ for (name, op) in ((:current_date, "CURRENT_DATE"),
                 print(ctx, ')')
             end
         end
+
+        arity(::Val{$(QuoteNode(name))}) = 0
     end
 end
 
@@ -412,6 +467,8 @@ function serialize!(::Val{:case}, args::Vector{SQLClause}, ctx)
     end
     print(ctx, " END)")
 end
+
+arity(::Val{:case}) = 2
 
 function serialize!(c::AggregateClause, ctx)
     if c.filter !== nothing || c.over !== nothing
@@ -900,4 +957,3 @@ function serialize!(c::WithClause, ctx)
         serialize!(c.over, ctx)
     end
 end
-
