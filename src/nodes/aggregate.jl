@@ -6,12 +6,15 @@ mutable struct AggregateNode <: AbstractSQLNode
     args::Vector{SQLNode}
     filter::Union{SQLNode, Nothing}
 
-    AggregateNode(;
-                  over = nothing,
-                  name::Union{Symbol, AbstractString},
-                  args = SQLNode[],
-                  filter = nothing) =
-        new(over, Symbol(name), args, filter)
+    function AggregateNode(;
+                           over = nothing,
+                           name::Union{Symbol, AbstractString},
+                           args = SQLNode[],
+                           filter = nothing)
+        n = new(over, Symbol(name), args, filter)
+        checkarity!(n)
+        n
+    end
 end
 
 AggregateNode(name; over = nothing, args = SQLNode[], filter = nothing) =

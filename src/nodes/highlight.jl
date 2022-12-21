@@ -25,6 +25,9 @@ function PrettyPrinting.tile(w::EscWrapper)
     lt
 end
 
+PrettyPrinting.tile_expr_or_repr(w::EscWrapper, pr = -1) =
+    PrettyPrinting.tile(w)
+
 mutable struct HighlightNode <: AbstractSQLNode
     over::Union{SQLNode, Nothing}
     color::Symbol
