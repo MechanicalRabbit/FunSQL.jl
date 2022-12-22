@@ -104,7 +104,7 @@ PrettyPrinting.quoteof(n::HandleBoundNode, ctx::QuoteContext) =
     Expr(:call, nameof(NameBound), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :handle, n.handle))
 
 # A generic From node is specialized to FromNothing, FromTable,
-# FromReference, FromSelf, or FromValues.
+# FromReference, FromSelf, FromValues, or FromFunction.
 mutable struct FromNothingNode <: TabularNode
 end
 
@@ -174,6 +174,25 @@ FromValues(args...; kws...) =
 
 PrettyPrinting.quoteof(n::FromValuesNode, ctx::QuoteContext) =
     Expr(:call, nameof(FromValues), Expr(:kw, :columns, quoteof(n.columns, ctx)))
+
+mutable struct FromFunctionNode <: TabularNode
+    over::SQLNode
+    columns::Vector{Symbol}
+    with_ordinality::Bool
+
+    FromFunctionNode(; over, columns, with_ordinality) =
+        new(over, columns, with_ordinality)
+end
+
+FromFunction(args...; kws...) =
+    FromFunctionNode(args...; kws...) |> SQLNode
+
+PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
+    Expr(:call,
+         nameof(FromFunction),
+         Expr(:kw, :over, quoteof(n.over, ctx)),
+         Expr(:kw, :columns, quoteof(n.columns, ctx)),
+         Expr(:kw, :with_ordinality, n.with_ordinality))
 
 # Annotated Bind node.
 mutable struct IntBindNode <: AbstractSQLNode
@@ -599,7 +618,7 @@ function annotate(n::FromNode, ctx)
                                      path = get_path(ctx)))
             end
         end
-    elseif source isa Self
+    elseif source isa SelfSource
         knot_node = ctx.knot_node
         if knot_node !== nothing
             FromSelf(over = knot_node.box)
@@ -607,8 +626,12 @@ function annotate(n::FromNode, ctx)
             throw(ReferenceError(REFERENCE_ERROR_TYPE.INVALID_SELF_REFERENCE,
                                  path = get_path(ctx)))
         end
-    elseif source isa NamedTuple
-        FromValues(columns = source)
+    elseif source isa ValuesSource
+        FromValues(columns = source.columns)
+    elseif source isa FunctionSource
+        FromFunction(over = annotate_scalar(source.node, ctx),
+                     columns = source.columns,
+                     with_ordinality = source.with_ordinality)
     else
         FromNothing()
     end
@@ -796,6 +819,15 @@ end
 resolve(n::FromNothingNode, ctx) =
     EMPTY_BOX
 
+function resolve(n::FromFunctionNode, ctx)
+    fields = FieldTypeMap()
+    for f in n.columns
+        fields[f] = ScalarType()
+    end
+    row = RowType(fields)
+    BoxType(label(n.over), row)
+end
+
 function resolve(n::FromReferenceNode, ctx)
     t = box_type(n.over)
     ft = get(t.row.fields, n.name, nothing)
@@ -898,7 +930,7 @@ end
 gather!(refs::Vector{SQLNode}, ::Union{AbstractSQLNode, Nothing}) =
     nothing
 
-gather!(refs::Vector{SQLNode}, n::Union{AsNode, BoxNode, HighlightNode, SortNode}) =
+gather!(refs::Vector{SQLNode}, n::Union{AsNode, BoxNode, FromFunctionNode, HighlightNode, SortNode}) =
     gather!(refs, n.over)
 
 function gather!(refs::Vector{SQLNode}, n::IntBindNode)
@@ -1094,7 +1126,7 @@ function link!(n::DefineNode, refs::Vector{SQLNode}, ctx)
     append!(box.refs, imm_refs)
 end
 
-link!(::Union{FromNothingNode, FromTableNode, FromValuesNode}, ::Vector{SQLNode}, ctx) =
+link!(::Union{FromFunctionNode, FromNothingNode, FromTableNode, FromValuesNode}, ::Vector{SQLNode}, ctx) =
     nothing
 
 function link!(n::FromReferenceNode, refs::Vector{SQLNode}, ctx)

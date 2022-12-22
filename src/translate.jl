@@ -458,6 +458,35 @@ function assemble(n::DefineNode, refs, ctx)
     Assemblage(c, cols = cols, repl = repl)
 end
 
+function assemble(n::FromFunctionNode, refs, ctx)
+    seen = Set{Symbol}()
+    column_set = Set(n.columns)
+    for ref in refs
+        @dissect(ref, nothing |> Get(name = name)) && name in column_set || error()
+        if !(name in seen)
+            push!(seen, name)
+        end
+    end
+    over = translate(n.over, ctx)
+    if n.with_ordinality
+        over = over |> NOTE("WITH ORDINALITY", postfix = true)
+    end
+    alias = allocate_alias(ctx, label(n.over))
+    c = FROM(AS(over = over, name = alias, columns = n.columns))
+    cols = OrderedDict{Symbol, SQLClause}()
+    for col in n.columns
+        col in seen || continue
+        cols[col] = ID(over = alias, name = col)
+    end
+    repl = Dict{SQLNode, Symbol}()
+    for ref in refs
+        if @dissect(ref, nothing |> Get(name = name))
+            repl[ref] = name
+        end
+    end
+    Assemblage(c, cols = cols, repl = repl)
+end
+
 assemble(::FromNothingNode, refs, ctx) =
     assemble(nothing, refs, ctx)
 
@@ -683,11 +712,13 @@ function assemble(n::IntJoinNode, refs, ctx)
     else
         right = assemble(n.joinee, ctx)
     end
-    if @dissect(right.clause, (joinee := nothing |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
-       @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM())
+    if @dissect(right.clause, (joinee := (nothing || nothing |> ID()) |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
+       @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM()) ||
+       @dissect(right.clause, (joinee := (FUN() || FUN() |> NOTE()) |> AS(name = right_alias)) |> FROM())
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end
+        lateral = false
     else
         right_alias = allocate_alias(ctx, n.joinee)
         joinee = AS(over = complete(right), name = right_alias)
