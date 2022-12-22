@@ -1,32 +1,51 @@
 # From node.
 
-struct Self
+struct SelfSource
 end
 
-_from_source(source::Union{SQLTable, Symbol, Self, Nothing}) =
+struct ValuesSource
+    columns::NamedTuple
+end
+
+struct FunctionSource
+    node::SQLNode
+    columns::Vector{Symbol}
+    with_ordinality::Bool
+end
+
+_from_source(source::Union{SQLTable, Symbol, SelfSource, ValuesSource, Nothing}) =
     source
 
 _from_source(source::AbstractString) =
     Symbol(source)
 
 _from_source(::typeof(^)) =
-    Self()
+    SelfSource()
+
+_from_source(node::AbstractSQLNode;
+             columns::AbstractVector{<:Union{Symbol, AbstractString}},
+             with_ordinality::Bool = false) =
+    FunctionSource(node,
+                   !isa(columns, Vector{Symbol}) ?
+                       Symbol[Symbol(col) for col in columns] :
+                       columns,
+                   with_ordinality)
 
 function _from_source(source)
     columns = Tables.columntable(source)
     length(columns) > 0 || throw(DomainError(source, "a table with at least one column is expected"))
-    columns
+    ValuesSource(columns)
 end
 
 mutable struct FromNode <: TabularNode
-    source::Union{SQLTable, Symbol, Self, NamedTuple, Nothing}
+    source::Union{SQLTable, Symbol, SelfSource, ValuesSource, FunctionSource, Nothing}
 
-    FromNode(; source) =
-        new(_from_source(source))
+    FromNode(; source, kws...) =
+        new(_from_source(source; kws...))
 end
 
-FromNode(source) =
-    FromNode(source = source)
+FromNode(source; kws...) =
+    FromNode(source = source; kws...)
 
 """
     From(; source)
@@ -37,8 +56,11 @@ FromNode(source) =
 The parameter `source` could be one of:
 * a [`SQLTable`](@ref) object;
 * a `Symbol` value;
-* a `Self()` or `^`;
+* a `^` object;
 * a `DataFrame` or any Tables.jl-compatible dataset;
+* A `SQLNode` representing a table-valued function.  In this case, `From`
+  takes a keyword parameter `columns` with a list of output columns and an
+  optional flag `with_ordinality`.
 * `nothing`.
 When `source` is a symbol, it can refer to either a table in
 [`SQLCatalog`](@ref) or an intermediate dataset defined with the [`With`](@ref)
@@ -50,9 +72,8 @@ SELECT ...
 FROM \$source
 ```
 
-`From(Self())` (which can be abbreviated as `From(^)`) must be a component of
-of [`Iterate`](@ref).  In the context of [`Iterate`](@ref), it refers to the
-output of the previous iteration.
+`From(^)` must be a component of of [`Iterate`](@ref).  In the context of
+ [`Iterate`](@ref), it refers to the output of the previous iteration.
 
 `From(::DataFrame)` is translated to a `VALUES` clause.
 
@@ -177,10 +198,17 @@ function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
         Expr(:call, nameof(From), tex)
     elseif source isa Symbol
         Expr(:call, nameof(From), QuoteNode(source))
-    elseif source isa Self
+    elseif source isa SelfSource
         Expr(:call, nameof(From), :^)
-    elseif source isa NamedTuple
-        Expr(:call, nameof(From), quoteof(source, ctx))
+    elseif source isa ValuesSource
+        Expr(:call, nameof(From), quoteof(source.columns, ctx))
+    elseif source isa FunctionSource
+        ex = Expr(:call, nameof(From), quoteof(source.node, ctx),
+                  Expr(:kw, :columns, quoteof(source.columns, ctx)))
+        if source.with_ordinality
+            push!(ex.args, Expr(:kw, :with_ordinality, source.with_ordinality))
+        end
+        ex
     else
         Expr(:call, nameof(From), source)
     end
@@ -192,10 +220,11 @@ function label(n::FromNode)
         source.name
     elseif source isa Symbol
         source
-    elseif source isa NamedTuple
+    elseif source isa ValuesSource
         :values
+    elseif source isa FunctionSource
+        label(source.node)
     else
         :_
     end
 end
-
