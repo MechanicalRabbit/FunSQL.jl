@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Nodes · FunSQL.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../guide/">Usage Guide</a></li><li><a class="tocitem" href="../../reference/">API Reference</a></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../">Test Suite</a></li><li><span class="tocitem">Articles</span><ul><li><a class="tocitem" href="../../two-kinds-of-sql-query-builders/">Two Kinds of SQL Query Builders</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Nodes</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Nodes</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/nodes.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Nodes"><a class="docs-heading-anchor" href="#SQL-Nodes">SQL Nodes</a><a id="SQL-Nodes-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Nodes" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
-    Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
-    Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
+    Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, FunSQL, From,
+    Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
     Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
     WithExternal, ID, render</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia hljs">const concept =
     SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code])
@@ -1060,6 +1060,44 @@ WHERE FALSE
 #=&gt;
 ERROR: DomainError with 0×0 DataFrame:
 a table with at least one column is expected
+=#</code></pre><p><code>From</code> can accept a table-valued function.  Since the output type of the function is not known to FunSQL, you must manually specify the names of the output columns.</p><pre><code class="language-julia hljs">q = From(Fun.generate_series(0, 100, 10), columns = [:value])
+#-&gt; From(…, columns = [:value])
+
+display(q)
+#-&gt; From(Fun.generate_series(Lit(0), Lit(100), Lit(10)), columns = [:value])
+
+print(render(q))
+#=&gt;
+SELECT &quot;generate_series_1&quot;.&quot;value&quot;
+FROM generate_series(0, 100, 10) AS &quot;generate_series_1&quot; (&quot;value&quot;)
+=#</code></pre><p>A flag <code>with_ordinality</code> adds an extra column that enumerates the output rows.</p><pre><code class="language-julia hljs">q = From(Fun.generate_series(0, 100, 10),
+         with_ordinality = true,
+         columns = [:value, :index])
+#-&gt; From(…, columns = [:value, :index], with_ordinality = true)
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;generate_series_1&quot;.&quot;value&quot;,
+  &quot;generate_series_1&quot;.&quot;index&quot;
+FROM generate_series(0, 100, 10) WITH ORDINALITY AS &quot;generate_series_1&quot; (&quot;value&quot;, &quot;index&quot;)
+=#</code></pre><p>When <code>From</code> with a tabular function is attached to the right branch of a <code>Join</code> node, the function may use data from the left branch of <code>Join</code>, even without being wrapped in a <code>Bind</code> node.</p><pre><code class="language-julia hljs">q = From(Fun.regexp_split_to_table(&quot;(10,20)-(30,40)-(50,60)&quot;, &quot;-&quot;),
+         with_ordinality = true,
+         columns = [:point, :index]) |&gt;
+    CrossJoin(From(Fun.regexp_matches(Get.point, &quot;(\\d+),(\\d+)&quot;),
+                   columns = [:captures])) |&gt;
+    Select(Get.index,
+           :x =&gt; Fun.&quot;CAST(?[1] AS INTEGER)&quot;(Get.captures),
+           :y =&gt; Fun.&quot;CAST(?[2] AS INTEGER)&quot;(Get.captures))
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;regexp_split_to_table_1&quot;.&quot;index&quot;,
+  CAST(&quot;regexp_matches_1&quot;.&quot;captures&quot;[1] AS INTEGER) AS &quot;x&quot;,
+  CAST(&quot;regexp_matches_1&quot;.&quot;captures&quot;[2] AS INTEGER) AS &quot;y&quot;
+FROM regexp_split_to_table(&#39;(10,20)-(30,40)-(50,60)&#39;, &#39;-&#39;) WITH ORDINALITY AS &quot;regexp_split_to_table_1&quot; (&quot;point&quot;, &quot;index&quot;)
+CROSS JOIN regexp_matches(&quot;regexp_split_to_table_1&quot;.&quot;point&quot;, &#39;(\d+),(\d+)&#39;) AS &quot;regexp_matches_1&quot; (&quot;captures&quot;)
 =#</code></pre><p><code>From(nothing)</code> will generate a <em>unit</em> dataset with one row.</p><pre><code class="language-julia hljs">q = From(nothing)
 
 display(q)
@@ -2219,4 +2257,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 21 December 2022 15:31">Wednesday 21 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Saturday 24 December 2022 01:54">Saturday 24 December 2022</span>. Using Julia version 1.8.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
