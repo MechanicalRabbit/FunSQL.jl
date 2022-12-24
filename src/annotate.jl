@@ -191,7 +191,7 @@ PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
     Expr(:call,
          nameof(FromFunction),
          Expr(:kw, :over, quoteof(n.over, ctx)),
-         Expr(:kw, :columns, quoteof(n.columns, ctx)),
+         Expr(:kw, :columns, [QuoteNode(col) for col in n.columns]...),
          Expr(:kw, :with_ordinality, n.with_ordinality))
 
 # Annotated Bind node.
