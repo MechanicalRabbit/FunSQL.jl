@@ -1,8 +1,8 @@
 # SQL Nodes
 
     using FunSQL:
-        Agg, Append, As, Asc, Bind, Define, Desc, Fun, FunSQL, From, Get,
-        Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
+        Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, FunSQL, From,
+        Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
         Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
         WithExternal, ID, render
 
@@ -1391,6 +1391,60 @@ The source table must have at least one column.
     #=>
     ERROR: DomainError with 0×0 DataFrame:
     a table with at least one column is expected
+    =#
+
+`From` can accept a table-valued function.  Since the output type of the
+function is not known to FunSQL, you must manually specify the names of
+the output columns.
+
+    q = From(Fun.generate_series(0, 100, 10), columns = [:value])
+    #-> From(…, columns = [:value])
+
+    display(q)
+    #-> From(Fun.generate_series(Lit(0), Lit(100), Lit(10)), columns = [:value])
+
+    print(render(q))
+    #=>
+    SELECT "generate_series_1"."value"
+    FROM generate_series(0, 100, 10) AS "generate_series_1" ("value")
+    =#
+
+A flag `with_ordinality` adds an extra column that enumerates the output rows.
+
+    q = From(Fun.generate_series(0, 100, 10),
+             with_ordinality = true,
+             columns = [:value, :index])
+    #-> From(…, columns = [:value, :index], with_ordinality = true)
+
+    print(render(q))
+    #=>
+    SELECT
+      "generate_series_1"."value",
+      "generate_series_1"."index"
+    FROM generate_series(0, 100, 10) WITH ORDINALITY AS "generate_series_1" ("value", "index")
+    =#
+
+When `From` with a tabular function is attached to the right branch of
+a `Join` node, the function may use data from the left branch of `Join`,
+even without being wrapped in a `Bind` node.
+
+    q = From(Fun.regexp_split_to_table("(10,20)-(30,40)-(50,60)", "-"),
+             with_ordinality = true,
+             columns = [:point, :index]) |>
+        CrossJoin(From(Fun.regexp_matches(Get.point, "(\\d+),(\\d+)"),
+                       columns = [:captures])) |>
+        Select(Get.index,
+               :x => Fun."CAST(?[1] AS INTEGER)"(Get.captures),
+               :y => Fun."CAST(?[2] AS INTEGER)"(Get.captures))
+
+    print(render(q))
+    #=>
+    SELECT
+      "regexp_split_to_table_1"."index",
+      CAST("regexp_matches_1"."captures"[1] AS INTEGER) AS "x",
+      CAST("regexp_matches_1"."captures"[2] AS INTEGER) AS "y"
+    FROM regexp_split_to_table('(10,20)-(30,40)-(50,60)', '-') WITH ORDINALITY AS "regexp_split_to_table_1" ("point", "index")
+    CROSS JOIN regexp_matches("regexp_split_to_table_1"."point", '(\d+),(\d+)') AS "regexp_matches_1" ("captures")
     =#
 
 `From(nothing)` will generate a *unit* dataset with one row.

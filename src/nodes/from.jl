@@ -49,7 +49,11 @@ FromNode(source; kws...) =
 
 """
     From(; source)
-    From(source)
+    From(tbl::SQLTable)
+    From(name::Symbol)
+    From(df)
+    From(f::SQLNode; columns::Vector{Symbol}, with_ordinality::Bool = false)
+    From(::Nothing)
 
 `From` outputs the content of a database table.
 
@@ -59,8 +63,9 @@ The parameter `source` could be one of:
 * a `^` object;
 * a `DataFrame` or any Tables.jl-compatible dataset;
 * A `SQLNode` representing a table-valued function.  In this case, `From`
-  takes a keyword parameter `columns` with a list of output columns and an
-  optional flag `with_ordinality`.
+  also requires a keyword parameter `columns` with a list of output columns.
+  An optional flag `with_ordinality` adds an extra column that enumerates
+  the output row.
 * `nothing`.
 When `source` is a symbol, it can refer to either a table in
 [`SQLCatalog`](@ref) or an intermediate dataset defined with the [`With`](@ref)
@@ -178,6 +183,22 @@ FROM (
     (2021)
 ) AS "values_1" ("year")
 ```
+
+Parse comma-separated numbers.
+
+```jldoctest
+julia> q = From(Fun.regexp_matches("2,3,5,7,11", "(\\\\d+)", "g"),
+                with_ordinality = true,
+                columns = [:captures, :index]) |>
+           Select(Get.index,
+                  :value => Fun."CAST(?[1] AS INTEGER)"(Get.captures));
+
+julia> print(render(q, dialect = :postgresql))
+SELECT
+  "regexp_matches_1"."index",
+  CAST("regexp_matches_1"."captures"[1] AS INTEGER) AS "value"
+FROM regexp_matches('2,3,5,7,11', '(\\d+)', 'g') WITH ORDINALITY AS "regexp_matches_1" ("captures", "index")
+```
 """
 From(args...; kws...) =
     FromNode(args...; kws...) |> SQLNode
@@ -204,7 +225,7 @@ function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
         Expr(:call, nameof(From), quoteof(source.columns, ctx))
     elseif source isa FunctionSource
         ex = Expr(:call, nameof(From), quoteof(source.node, ctx),
-                  Expr(:kw, :columns, quoteof(source.columns, ctx)))
+                  Expr(:kw, :columns, Expr(:vect, [QuoteNode(col) for col in source.columns]...)))
         if source.with_ordinality
             push!(ex.args, Expr(:kw, :with_ordinality, source.with_ordinality))
         end
