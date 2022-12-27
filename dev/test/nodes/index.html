@@ -26,7 +26,7 @@ const observation =
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))),
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
     q3 = q2 |&gt; Select(Get.person_id)
     q3
 end
@@ -37,7 +37,7 @@ display(q[])
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))),
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
     q3 = q2 |&gt; Select(Get.person_id)
     q3[]
 end
@@ -183,7 +183,7 @@ ERROR: FunSQL.ReferenceError: `person_id` is ambiguous in:
 let person = SQLTable(:person, …),
     q1 = From(person),
     q2 = From(person),
-    q3 = q1 |&gt; Join(q2, Lit(true)),
+    q3 = q1 |&gt; Join(q2, true),
     q4 = q3 |&gt; Select(Get.person_id)
     q4
 end
@@ -223,7 +223,7 @@ let person = SQLTable(:person, …),
     location = SQLTable(:location, …),
     q1 = From(person),
     q2 = From(location),
-    q3 = q2 |&gt; Where(Fun.&quot;&gt;=&quot;(q1.year_of_birth, Lit(1950))),
+    q3 = q2 |&gt; Where(Fun.&quot;&gt;=&quot;(q1.year_of_birth, 1950)),
     q4 = q1 |&gt;
          Join(q3 |&gt; As(:location),
               Fun.&quot;=&quot;(Get.location_id, Get.location.location_id))
@@ -400,7 +400,7 @@ display(q0(1))
 let visit_occurrence = SQLTable(:visit_occurrence, …),
     q1 = From(visit_occurrence),
     q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.person_id, Var.PERSON_ID))
-    q2 |&gt; Bind(Lit(1) |&gt; As(:PERSON_ID))
+    q2 |&gt; Bind(1 |&gt; As(:PERSON_ID))
 end
 =#
 
@@ -459,7 +459,7 @@ WHERE (EXISTS (
 #-&gt; Bind(args = [])</code></pre><p><code>Bind</code> requires that all variables have a unique name.</p><pre><code class="language-julia hljs">Bind(:PERSON_ID =&gt; 1, :PERSON_ID =&gt; 2)
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: PERSON_ID is used more than once in:
-Bind(Lit(1) |&gt; As(:PERSON_ID), Lit(2) |&gt; As(:PERSON_ID))
+Bind(1 |&gt; As(:PERSON_ID), 2 |&gt; As(:PERSON_ID))
 =#</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;
 #-&gt; Fun.:(&quot;&gt;&quot;)
 
@@ -467,16 +467,13 @@ e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)
 
 display(e)
-#-&gt; Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))</code></pre><p>Alternatively, <code>Fun</code> nodes are created by broadcasting.  Common Julia operators are replaced with their SQL equivalents.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
+#-&gt; Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)</code></pre><p>Alternatively, <code>Fun</code> nodes are created by broadcasting.  Common Julia operators are replaced with their SQL equivalents.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
 e = Get.location.state .== &quot;IL&quot; .|| Get.location.zip .!= &quot;60615&quot;
 #-&gt; Fun.or(…)
 
 #? VERSION &gt;= v&quot;1.7&quot;
 display(e)
-#=&gt;
-Fun.or(Fun.&quot;=&quot;(Get.location.state, Lit(&quot;IL&quot;)),
-       Fun.&quot;&lt;&gt;&quot;(Get.location.zip, Lit(&quot;60615&quot;)))
-=#
+#-&gt; Fun.or(Fun.&quot;=&quot;(Get.location.state, &quot;IL&quot;), Fun.&quot;&lt;&gt;&quot;(Get.location.zip, &quot;60615&quot;))
 
 #? VERSION &gt;= v&quot;1.7&quot;
 e = .!(e .&amp;&amp; Get.year_of_birth .&gt; 1950 .&amp;&amp; Get.year_of_birth .&lt; 1990)
@@ -485,10 +482,10 @@ e = .!(e .&amp;&amp; Get.year_of_birth .&gt; 1950 .&amp;&amp; Get.year_of_birth 
 #? VERSION &gt;= v&quot;1.7&quot;
 display(e)
 #=&gt;
-Fun.not(Fun.and(Fun.or(Fun.&quot;=&quot;(Get.location.state, Lit(&quot;IL&quot;)),
-                       Fun.&quot;&lt;&gt;&quot;(Get.location.zip, Lit(&quot;60615&quot;))),
-                Fun.and(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(1950)),
-                        Fun.&quot;&lt;&quot;(Get.year_of_birth, Lit(1990)))))
+Fun.not(Fun.and(Fun.or(Fun.&quot;=&quot;(Get.location.state, &quot;IL&quot;),
+                       Fun.&quot;&lt;&gt;&quot;(Get.location.zip, &quot;60615&quot;)),
+                Fun.and(Fun.&quot;&gt;&quot;(Get.year_of_birth, 1950),
+                        Fun.&quot;&lt;&quot;(Get.year_of_birth, 1990))))
 =#</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;(args = SQLNode[Get.year_of_birth, 2000])
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)</code></pre><p>In a <code>SELECT</code> clause, the function name becomes the column alias.</p><pre><code class="language-julia hljs">q = From(location) |&gt;
     Select(Fun.coalesce(Get.city, &quot;N/A&quot;))
@@ -817,12 +814,12 @@ FROM &quot;observation&quot; AS &quot;observation_1&quot;
 
 display(q)
 #=&gt;
-let q1 = Define(Lit(1) |&gt; As(:n), Lit(1) |&gt; As(:f)),
+let q1 = Define(1 |&gt; As(:n), 1 |&gt; As(:f)),
     q2 = From(^),
     q3 = q2 |&gt;
-         Define(Fun.&quot;+&quot;(Get.n, Lit(1)) |&gt; As(:n),
-                Fun.&quot;*&quot;(Get.f, Fun.&quot;+&quot;(Get.n, Lit(1))) |&gt; As(:f)),
-    q4 = q3 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, Lit(10))),
+         Define(Fun.&quot;+&quot;(Get.n, 1) |&gt; As(:n),
+                Fun.&quot;*&quot;(Get.f, Fun.&quot;+&quot;(Get.n, 1)) |&gt; As(:f)),
+    q4 = q3 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, 10)),
     q5 = q1 |&gt; Iterate(q4)
     q5
 end
@@ -931,7 +928,7 @@ FROM &quot;__1&quot; AS &quot;__4&quot;
 #-&gt; (…) |&gt; As(:integer)
 
 display(e)
-#-&gt; Lit(42) |&gt; As(:integer)
+#-&gt; 42 |&gt; As(:integer)
 
 print(render(Select(e)))
 #=&gt;
@@ -1001,7 +998,7 @@ display(q)
 #=&gt;
 let empty = SQLTable(:empty, …),
     q1 = From(empty),
-    q2 = q1 |&gt; Where(Lit(false)),
+    q2 = q1 |&gt; Where(false),
     q3 = q2 |&gt; Select(args = [])
     q3
 end
@@ -1086,7 +1083,7 @@ a table with at least one column is expected
 #-&gt; From(…, columns = [:value])
 
 display(q)
-#-&gt; From(Fun.generate_series(Lit(0), Lit(100), Lit(10)), columns = [:value])
+#-&gt; From(Fun.generate_series(0, 100, 10), columns = [:value])
 
 print(render(q))
 #=&gt;
@@ -1138,7 +1135,7 @@ display(q)
 let person = SQLTable(:person, …),
     q1 = From(:male),
     q2 = From(person),
-    q3 = q2 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, Lit(8507))),
+    q3 = q2 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)),
     q4 = q1 |&gt; With(q3 |&gt; As(:male))
     q4
 end
@@ -1458,7 +1455,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 #-&gt; Agg.count(filter = (…))
 
 display(e)
-#-&gt; Agg.count(filter = Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(1950)))
+#-&gt; Agg.count(filter = Fun.&quot;&gt;&quot;(Get.year_of_birth, 1950))
 
 q = From(person) |&gt; Group() |&gt; Select(e)
 
@@ -1501,7 +1498,7 @@ let person = SQLTable(:person, …),
     q8 = q6 |&gt; Group(q7),
     q9 = q5 |&gt; Join(q8, Fun.&quot;=&quot;(q1.person_id, q8.person_id), left = true),
     q10 = q9 |&gt;
-          Select(q1.person_id, Fun.coalesce(Agg.count(), Lit(0)) |&gt; As(:count))
+          Select(q1.person_id, Fun.coalesce(Agg.count(), 0) |&gt; As(:count))
     q10
 end
 =#</code></pre><p>It is still possible to use an aggregate in the context of a Join when the corresponding <code>Group</code> could be determined unambiguously.</p><pre><code class="language-julia hljs">qₚ = From(person)
@@ -2020,7 +2017,7 @@ display(q)
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000)))
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000))
     q2
 end
 =#
@@ -2105,7 +2102,7 @@ HAVING
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))),
+    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
     q3 = q2 |&gt; Select(Get.person_id)
     q3
 end
@@ -2279,4 +2276,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 27 December 2022 20:48">Tuesday 27 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 27 December 2022 21:32">Tuesday 27 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
