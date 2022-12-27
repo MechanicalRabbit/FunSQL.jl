@@ -467,19 +467,28 @@ e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)
 
 display(e)
-#-&gt; Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))</code></pre><p>Alternatively, <code>Fun</code> nodes are created by broadcasting.  Common Julia operators are replaced with their SQL equivalents.</p><pre><code class="language-julia hljs">e = Get.state .== &quot;IL&quot; .|| Get.zip .!= &quot;60615&quot;
+#-&gt; Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(2000))</code></pre><p>Alternatively, <code>Fun</code> nodes are created by broadcasting.  Common Julia operators are replaced with their SQL equivalents.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
+e = Get.location.state .== &quot;IL&quot; .|| Get.location.zip .!= &quot;60615&quot;
 #-&gt; Fun.or(…)
 
-display(e)
-#-&gt; Fun.or(Fun.&quot;=&quot;(Get.state, Lit(&quot;IL&quot;)), Fun.&quot;&lt;&gt;&quot;(Get.zip, Lit(&quot;60615&quot;)))
-
-e = .!(Get.year_of_birth .&gt; 1950 .&amp;&amp; Get.year_of_birth .&lt; 1990)
-#-&gt; Fun.not(…)
-
+#? VERSION &gt;= v&quot;1.7&quot;
 display(e)
 #=&gt;
-Fun.not(Fun.and(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(1950)),
-                Fun.&quot;&lt;&quot;(Get.year_of_birth, Lit(1990))))
+Fun.or(Fun.&quot;=&quot;(Get.location.state, Lit(&quot;IL&quot;)),
+       Fun.&quot;&lt;&gt;&quot;(Get.location.zip, Lit(&quot;60615&quot;)))
+=#
+
+#? VERSION &gt;= v&quot;1.7&quot;
+e = .!(e .&amp;&amp; Get.year_of_birth .&gt; 1950 .&amp;&amp; Get.year_of_birth .&lt; 1990)
+#-&gt; Fun.not(…)
+
+#? VERSION &gt;= v&quot;1.7&quot;
+display(e)
+#=&gt;
+Fun.not(Fun.and(Fun.or(Fun.&quot;=&quot;(Get.location.state, Lit(&quot;IL&quot;)),
+                       Fun.&quot;&lt;&gt;&quot;(Get.location.zip, Lit(&quot;60615&quot;))),
+                Fun.and(Fun.&quot;&gt;&quot;(Get.year_of_birth, Lit(1950)),
+                        Fun.&quot;&lt;&quot;(Get.year_of_birth, Lit(1990)))))
 =#</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;(args = SQLNode[Get.year_of_birth, 2000])
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)</code></pre><p>In a <code>SELECT</code> clause, the function name becomes the column alias.</p><pre><code class="language-julia hljs">q = From(location) |&gt;
     Select(Fun.coalesce(Get.city, &quot;N/A&quot;))
@@ -2270,4 +2279,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 27 December 2022 20:05">Tuesday 27 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 27 December 2022 20:48">Tuesday 27 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
