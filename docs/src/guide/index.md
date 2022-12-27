@@ -673,11 +673,14 @@ also has several equivalent forms:
     Fun."between"(Get.year_of_birth, 1930, 1940)
     Fun("between", Get.year_of_birth, 1930, 1940)
 
-Certain SQL operators, notably comparison operators, can be represented using
-Julia broadcasting notation:
+Certain SQL operators, notably logical and comparison operators, can be
+represented using Julia broadcasting notation:
 
     Fun.">="(Get.year_of_birth, 1930)
     Get.year_of_birth .>= 1930
+
+    Fun.and(Fun."="(Get.city, "CHICAGO"), Fun."="(Get.state, "IL"))
+    Get.city .== "CHICAGO" .&& Get.state .== "IL"
 
 We should note that FunSQL does not verify if a SQL function or an operator is
 used correctly or even whether it exists or not.  In such a case, FunSQL will
@@ -710,6 +713,22 @@ operators that have irregular syntax including `AND`, `OR`, `NOT`, `IN`,
     FROM "person" AS "person_1"
     =#
 
+Since FunSQL recognizes `||` as a logical *or* operator, it conflicts with
+those SQL dialects that use `||` for string concatenation.  Other SQL dialects
+use function `concat` for this purpose.  In FunSQL, always use `Fun.concat`,
+which will pick correct serialization depending on the target SQL dialect.
+
+*Show city, state.*
+
+    q = From(:location) |>
+        Select(Fun.concat(Get.city, ", ", Get.state))
+
+    render(conn, q) |> print
+    #=>
+    SELECT ("location_1"."city" || ', ' || "location_1"."state") AS "concat"
+    FROM "location" AS "location_1"
+    =#
+
 When the name of the `Fun` node contains one or more `?` symbols, this name
 serves as a template of a SQL expression.  When the node is rendered, the `?`
 symbols are substituted with the node arguments.
@@ -731,7 +750,7 @@ To decide how to render a `Fun` node, FunSQL checks the node name:
    as a template.
 3) If the name contains only symbol characters, or if the name starts or ends
    with a space, the node is rendered as an operator.
-4) Otherwise, the node is rendered is a function.
+4) Otherwise, the node is rendered as a function.
 
 
 ## `Group` and Aggregate Functions

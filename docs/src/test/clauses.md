@@ -423,16 +423,6 @@ Some functions and operators have specialized serializers.
     print(render(c))
     #-> ("zip" NOT LIKE '606%')
 
-    c = FUN(:(==), :zip, "60615")
-
-    print(render(c))
-    #-> ("zip" = '60615')
-
-    c = FUN(:(!=), :zip, "60615")
-
-    print(render(c))
-    #-> ("zip" <> '60615')
-
     c = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer")
 
     print(render(c))

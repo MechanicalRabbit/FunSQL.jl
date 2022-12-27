@@ -319,7 +319,7 @@ A node-bound reference that is bound to an unrelated node will cause an error.
         q3 = q2 |> Where(Fun.">="(q1.year_of_birth, Lit(1950))),
         q4 = q1 |>
              Join(q3 |> As(:location),
-                  Fun."=="(Get.location_id, Get.location.location_id))
+                  Fun."="(Get.location_id, Get.location.location_id))
         q4
     end
     =#
@@ -339,7 +339,7 @@ an error.
         q1 = From(person),
         q2 = q1 |>
              Join(q1 |> As(:another),
-                  Fun."!="(Get.person_id, Get.another.person_id)),
+                  Fun."<>"(Get.person_id, Get.another.person_id)),
         q3 = q2 |> Select(q1.person_id)
         q3
     end
@@ -547,7 +547,7 @@ Query variables could be bound using the `Bind` constructor.
     #=>
     let visit_occurrence = SQLTable(:visit_occurrence, …),
         q1 = From(visit_occurrence),
-        q2 = q1 |> Where(Fun."=="(Get.person_id, Var.PERSON_ID))
+        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
         q2 |> Bind(Lit(1) |> As(:PERSON_ID))
     end
     =#
@@ -641,6 +641,24 @@ A function or an operator invocation is created with the `Fun` constructor.
     display(e)
     #-> Fun.">"(Get.year_of_birth, Lit(2000))
 
+Alternatively, `Fun` nodes are created by broadcasting.  Common Julia operators
+are replaced with their SQL equivalents.
+
+    e = Get.state .== "IL" .|| Get.zip .!= "60615"
+    #-> Fun.or(…)
+
+    display(e)
+    #-> Fun.or(Fun."="(Get.state, Lit("IL")), Fun."<>"(Get.zip, Lit("60615")))
+
+    e = .!(Get.year_of_birth .> 1950 .&& Get.year_of_birth .< 1990)
+    #-> Fun.not(…)
+
+    display(e)
+    #=>
+    Fun.not(Fun.and(Fun.">"(Get.year_of_birth, Lit(1950)),
+                    Fun."<"(Get.year_of_birth, Lit(1990))))
+    =#
+
 A vector of arguments could be passed directly.
 
     Fun.">"(args = SQLNode[Get.year_of_birth, 2000])
@@ -657,10 +675,11 @@ In a `SELECT` clause, the function name becomes the column alias.
     FROM "location" AS "location_1"
     =#
 
-But only when the name is a valid identifier.
+When the name contains only symbol characters, or when it starts or ends
+with a space character, it is interpreted as an operator.
 
     q = From(location) |>
-        Select(Fun."||"(Get.city, ", ", Get.state))
+        Select(Fun." || "(Get.city, ", ", Get.state))
 
     print(render(q))
     #=>
@@ -1474,7 +1493,7 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     let person = SQLTable(:person, …),
         q1 = From(:male),
         q2 = From(person),
-        q3 = q2 |> Where(Fun."=="(Get.gender_concept_id, Lit(8507))),
+        q3 = q2 |> Where(Fun."="(Get.gender_concept_id, Lit(8507))),
         q4 = q1 |> With(q3 |> As(:male))
         q4
     end
@@ -1924,11 +1943,11 @@ unambiguously.
         q2 = From(visit_occurrence),
         q3 = Get.person_id,
         q4 = q2 |> Group(q3),
-        q5 = q1 |> Join(q4, Fun."=="(q1.person_id, q4.person_id), left = true),
+        q5 = q1 |> Join(q4, Fun."="(q1.person_id, q4.person_id), left = true),
         q6 = From(measurement),
         q7 = Get.person_id,
         q8 = q6 |> Group(q7),
-        q9 = q5 |> Join(q8, Fun."=="(q1.person_id, q8.person_id), left = true),
+        q9 = q5 |> Join(q8, Fun."="(q1.person_id, q8.person_id), left = true),
         q10 = q9 |>
               Select(q1.person_id, Fun.coalesce(Agg.count(), Lit(0)) |> As(:count))
         q10
@@ -2110,7 +2129,7 @@ nested subqueries.
         q2 = From(location),
         q3 = q1 |>
              Join(q2 |> As(:location),
-                  Fun."=="(Get.location_id, Get.location.location_id),
+                  Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
         q3
     end
@@ -2140,7 +2159,7 @@ nested subqueries.
         q2 = From(location),
         q3 = q1 |>
              Join(q2 |> As(:location),
-                  Fun."=="(Get.location_id, Get.location.location_id),
+                  Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
         q3
     end
@@ -2250,7 +2269,7 @@ its right branch.
         q2 = From(location),
         q3 = q1 |>
              Join(q2 |> As(:location),
-                  Fun."=="(Get.location_id, Get.location.location_id),
+                  Fun."="(Get.location_id, Get.location.location_id),
                   left = true,
                   optional = true)
         q3
@@ -2824,10 +2843,10 @@ On the next stage, the query object is converted to a SQL syntax tree.
     │ JOIN(ID(:location) |>
     │      AS(:location_1) |>
     │      FROM() |>
-    │      WHERE(FUN("==", ID(:location_1) |> ID(:state), LIT("IL"))) |>
+    │      WHERE(FUN("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
     │      SELECT(ID(:location_1) |> ID(:location_id)) |>
     │      AS(:location_2),
-    │      FUN("==",
+    │      FUN("=",
     │          ID(:person_2) |> ID(:location_id),
     │          ID(:location_2) |> ID(:location_id))) |>
     │ JOIN(ID(:visit_occurrence) |>
@@ -2838,7 +2857,7 @@ On the next stage, the query object is converted to a SQL syntax tree.
     │             AS(:max),
     │             ID(:visit_occurrence_1) |> ID(:person_id)) |>
     │      AS(:visit_group_1),
-    │      FUN("==",
+    │      FUN("=",
     │          ID(:person_2) |> ID(:person_id),
     │          ID(:visit_group_1) |> ID(:person_id)),
     │      left = true) |>

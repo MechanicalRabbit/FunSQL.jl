@@ -355,16 +355,6 @@ serialize!(::Val{:not_like}, args::Vector{SQLClause}, ctx) =
 
 arity(::Val{:not_like}) = 2:2
 
-serialize!(::Val{:(==)}, args::Vector{SQLClause}, ctx) =
-    @serialize! "=" args ctx
-
-arity(::Val{:(==)}) = 2:2
-
-serialize!(::Val{:(!=)}, args::Vector{SQLClause}, ctx) =
-    @serialize! "<>" args ctx
-
-arity(::Val{:(!=)}) = 2:2
-
 function serialize!(::Val{:count}, args::Vector{SQLClause}, ctx)
     print(ctx, "count(")
     if isempty(args)

@@ -33,10 +33,19 @@ please review these notes.
           IterationStep())
   ```
 
+* Function nodes with names `Fun."&&"`, `Fun."||"`, and `Fun."!"` are now
+  serialized as logical operators `AND`, `OR`, and `NOT`.  Broadcasting
+  notation `p .&& q`, `p .|| q`, `.!p` is also supported.
+
+  FunSQL interpretation of `||` conflicts with SQL dialects that use `||`
+  to represent string concatenation.  Other dialects use function `concat`.
+  In FunSQL, always use `Fun.concat`, which will pick correct serialization
+  depending on the target dialect.
+
 * Rendering of `Fun` nodes can now be customized by overriding the method
   `serialize!()`, which is dispatched on the node name.  The following names
-  have customized serialization: `==`, `!=`, `and`, `between`, `case`,
-  `cast`, `current_date`, `current_timestamp`, `exists`, `extract`, `in`,
+  have customized serialization: `and`, `between`, `case`, `cast`, `concat`,
+  `current_date`, `current_timestamp`, `exists`, `extract`, `in`,
   `is_not_null`, `is_null`, `like`, `not`, `not_between`, `not_exists`,
   `not_in`, `not_like`, `or`.
 
