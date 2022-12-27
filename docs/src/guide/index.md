@@ -680,6 +680,7 @@ represented using Julia broadcasting notation:
     Get.year_of_birth .>= 1930
 
     Fun.and(Fun."="(Get.city, "CHICAGO"), Fun."="(Get.state, "IL"))
+    #? VERSION >= v"1.7"
     Get.city .== "CHICAGO" .&& Get.state .== "IL"
 
 We should note that FunSQL does not verify if a SQL function or an operator is

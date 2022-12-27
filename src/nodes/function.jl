@@ -208,6 +208,14 @@ Base.broadcastable(n::AbstractSQLNode) =
 Base.Broadcast.instantiate(bc::Base.Broadcast.Broadcasted{FunStyle}) =
     bc
 
+Base.copy(bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    Fun(nameof(bc.f), args = SQLNode[bc.args...])
+
+Base.convert(::Type{AbstractSQLNode}, bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    FunctionNode(nameof(bc.f), args = SQLNode[bc.args...])
+
+# Broadcasting over && and ||.
+
 module DUMMY_CONNECTIVES
 
 function var"&&" end
@@ -215,18 +223,14 @@ function var"||" end
 
 end
 
-Base.Broadcast.broadcasted(::Base.Broadcast.AndAnd,
-                           arg1::Base.Broadcast.Broadcasted{FunStyle},
-                           arg2::Base.Broadcast.Broadcasted{FunStyle}) =
-    Base.Broadcast.broadcasted(DUMMY_CONNECTIVES.var"&&", arg1, arg2)
+if VERSION >= v"1.7"
+    Base.Broadcast.broadcasted(::Base.Broadcast.AndAnd,
+                               arg1::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode},
+                               arg2::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode}) =
+        Base.Broadcast.broadcasted(DUMMY_CONNECTIVES.var"&&", arg1, arg2)
 
-Base.Broadcast.broadcasted(::Base.Broadcast.OrOr,
-                           arg1::Base.Broadcast.Broadcasted{FunStyle},
-                           arg2::Base.Broadcast.Broadcasted{FunStyle}) =
-    Base.Broadcast.broadcasted(DUMMY_CONNECTIVES.var"||", arg1, arg2)
-
-Base.copy(bc::Base.Broadcast.Broadcasted{FunStyle}) =
-    Fun(nameof(bc.f), args = SQLNode[bc.args...])
-
-Base.convert(::Type{AbstractSQLNode}, bc::Base.Broadcast.Broadcasted{FunStyle}) =
-    FunctionNode(nameof(bc.f), args = SQLNode[bc.args...])
+    Base.Broadcast.broadcasted(::Base.Broadcast.OrOr,
+                               arg1::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode},
+                               arg2::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode}) =
+        Base.Broadcast.broadcasted(DUMMY_CONNECTIVES.var"||", arg1, arg2)
+end

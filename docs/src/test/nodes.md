@@ -644,19 +644,28 @@ A function or an operator invocation is created with the `Fun` constructor.
 Alternatively, `Fun` nodes are created by broadcasting.  Common Julia operators
 are replaced with their SQL equivalents.
 
-    e = Get.state .== "IL" .|| Get.zip .!= "60615"
+    #? VERSION >= v"1.7"
+    e = Get.location.state .== "IL" .|| Get.location.zip .!= "60615"
     #-> Fun.or(…)
 
-    display(e)
-    #-> Fun.or(Fun."="(Get.state, Lit("IL")), Fun."<>"(Get.zip, Lit("60615")))
-
-    e = .!(Get.year_of_birth .> 1950 .&& Get.year_of_birth .< 1990)
-    #-> Fun.not(…)
-
+    #? VERSION >= v"1.7"
     display(e)
     #=>
-    Fun.not(Fun.and(Fun.">"(Get.year_of_birth, Lit(1950)),
-                    Fun."<"(Get.year_of_birth, Lit(1990))))
+    Fun.or(Fun."="(Get.location.state, Lit("IL")),
+           Fun."<>"(Get.location.zip, Lit("60615")))
+    =#
+
+    #? VERSION >= v"1.7"
+    e = .!(e .&& Get.year_of_birth .> 1950 .&& Get.year_of_birth .< 1990)
+    #-> Fun.not(…)
+
+    #? VERSION >= v"1.7"
+    display(e)
+    #=>
+    Fun.not(Fun.and(Fun.or(Fun."="(Get.location.state, Lit("IL")),
+                           Fun."<>"(Get.location.zip, Lit("60615"))),
+                    Fun.and(Fun.">"(Get.year_of_birth, Lit(1950)),
+                            Fun."<"(Get.year_of_birth, Lit(1990)))))
     =#
 
 A vector of arguments could be passed directly.
