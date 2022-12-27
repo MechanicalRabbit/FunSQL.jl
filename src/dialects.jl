@@ -76,82 +76,87 @@ julia> postgresql_dialect = SQLDialect(:postgresql)
 SQLDialect(:postgresql)
 
 julia> postgresql_odbc_dialect = SQLDialect(:postgresql,
-                                            variable_style = :positional,
-                                            variable_prefix = '?')
-SQLDialect(:postgresql, variable_style = :POSITIONAL, variable_prefix = '?')
+                                            variable_prefix = '?',
+                                            variable_style = :positional)
+SQLDialect(:postgresql, variable_prefix = '?', variable_style = :POSITIONAL)
 ```
 """
 struct SQLDialect
     name::Symbol
-    variable_style::VariableStyle
-    variable_prefix::Char
-    identifier_quotes::Tuple{Char, Char}
-    has_boolean_literals::Bool
-    limit_style::LimitStyle
-    has_recursive_annotation::Bool
+    concat_operator::Union{Symbol, Nothing}
     has_as_columns::Bool
-    values_row_constructor::Union{Symbol, Nothing}
-    values_column_prefix::Union{Symbol, Nothing}
+    has_boolean_literals::Bool
+    has_recursive_annotation::Bool
+    identifier_quotes::Tuple{Char, Char}
+    limit_style::LimitStyle
     values_column_index::Int
+    values_column_prefix::Union{Symbol, Nothing}
+    values_row_constructor::Union{Symbol, Nothing}
+    variable_prefix::Char
+    variable_style::VariableStyle
 
     SQLDialect(;
                name = :default,
-               variable_style = VARIABLE_STYLE.NAMED,
-               variable_prefix = ':',
-               identifier_quotes = ('"', '"'),
-               has_boolean_literals = true,
-               limit_style = LIMIT_STYLE.ANSI,
-               has_recursive_annotation = true,
+               concat_operator = nothing,
                has_as_columns = true,
-               values_row_constructor = nothing,
+               has_boolean_literals = true,
+               has_recursive_annotation = true,
+               identifier_quotes = ('"', '"'),
+               limit_style = LIMIT_STYLE.ANSI,
+               values_column_index = 1,
                values_column_prefix = :column,
-               values_column_index = 1) =
+               values_row_constructor = nothing,
+               variable_prefix = ':',
+               variable_style = VARIABLE_STYLE.NAMED) =
         new(name,
-            variable_style,
-            variable_prefix,
-            identifier_quotes,
-            has_boolean_literals,
-            limit_style,
-            has_recursive_annotation,
+            concat_operator,
             has_as_columns,
-            values_row_constructor,
+            has_boolean_literals,
+            has_recursive_annotation,
+            identifier_quotes,
+            limit_style,
+            values_column_index,
             values_column_prefix,
-            values_column_index)
+            values_row_constructor,
+            variable_prefix,
+            variable_style)
 end
 
 const default_dialect =
     SQLDialect()
 const mysql_dialect =
     SQLDialect(name = :mysql,
-               variable_style = VARIABLE_STYLE.POSITIONAL,
-               variable_prefix = '?',
                identifier_quotes = ('`', '`'),
                limit_style = LIMIT_STYLE.MYSQL,
-               values_row_constructor = :ROW,
+               values_column_index = 0,
                values_column_prefix = :column_,
-               values_column_index = 0)
+               values_row_constructor = :ROW,
+               variable_prefix = '?',
+               variable_style = VARIABLE_STYLE.POSITIONAL)
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
-               variable_style = VARIABLE_STYLE.NUMBERED,
-               variable_prefix = '$')
+               variable_prefix = '$',
+               variable_style = VARIABLE_STYLE.NUMBERED)
 const redshift_dialect =
     SQLDialect(name = :redshift,
-               variable_style = VARIABLE_STYLE.NUMBERED,
-               variable_prefix = '$')
+               concat_operator = Symbol("||"),
+               variable_prefix = '$',
+               variable_style = VARIABLE_STYLE.NUMBERED)
 const sqlite_dialect =
     SQLDialect(name = :sqlite,
-               variable_style = VARIABLE_STYLE.NUMBERED,
-               variable_prefix = '?',
+               concat_operator = Symbol("||"),
+               has_as_columns = false,
                limit_style = LIMIT_STYLE.SQLITE,
-               has_as_columns = false)
+               variable_prefix = '?',
+               variable_style = VARIABLE_STYLE.NUMBERED)
 const sqlserver_dialect =
     SQLDialect(name = :sqlserver,
-               variable_style = VARIABLE_STYLE.POSITIONAL,
-               variable_prefix = '?',
-               identifier_quotes = ('[', ']'),
                has_boolean_literals = false,
                has_recursive_annotation = false,
-               values_column_prefix = nothing)
+               identifier_quotes = ('[', ']'),
+               values_column_prefix = nothing,
+               variable_prefix = '?',
+               variable_style = VARIABLE_STYLE.POSITIONAL)
 const standard_dialects = [
     mysql_dialect,
     postgresql_dialect,

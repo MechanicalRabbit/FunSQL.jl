@@ -212,12 +212,12 @@ The desired dialect can be specified by name.
 If necessary, the dialect can be customized.
 
     postgresql_odbc_dialect = SQLDialect(:postgresql,
-                                         variable_style = :positional,
-                                         variable_prefix = '?')
+                                         variable_prefix = '?',
+                                         variable_style = :positional)
     #-> SQLDialect(:postgresql, …)
 
     display(postgresql_odbc_dialect)
-    #-> SQLDialect(:postgresql, variable_style = :POSITIONAL, variable_prefix = '?')
+    #-> SQLDialect(:postgresql, variable_prefix = '?', variable_style = :POSITIONAL)
 
 The default dialect does not correspond to any particular database server.
 

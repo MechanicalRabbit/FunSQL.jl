@@ -401,6 +401,17 @@ end
 
 arity(::Val{:cast}) = 2:2
 
+function serialize!(::Val{:concat}, args::Vector{SQLClause}, ctx)
+    concat_operator = ctx.dialect.concat_operator
+    if concat_operator !== nothing
+        serialize_operator!(string(concat_operator), args, ctx)
+    else
+        serialize_function!("concat", args, ctx)
+    end
+end
+
+arity(::Val{:concat}) = 2
+
 function serialize!(::Val{:extract}, args::Vector{SQLClause}, ctx)
     if length(args) == 2 && @dissect(args[1], LIT(val = f)) && f isa AbstractString
         print(ctx, "EXTRACT(", f, " FROM ")

@@ -40,30 +40,29 @@ parentheses, unless it already ends with `)`.
 Certain names have a customized translation in order to generate common SQL
 functions and operators with irregular syntax:
 
-| `Fun` node                        | SQL syntax                            |
-|:--------------------------------- |:--------------------------------------|
-| `x .== y`, `Fun."=="(x, y)`       | `x = y`                               |
-| `x .!= y`, `Fun."!="(x, y)`       | `x <> y`                              |
-| `Fun.and(p₁, p₂, …)`              | `p₁ AND p₂ AND …`                     |
-| `Fun.between(x, y, z)`            | `x BETWEEN y AND z`                   |
-| `Fun.case(p, x, …)`               | `CASE WHEN p THEN x … END`            |
-| `Fun.cast(x, "TYPE")`             | `CAST(x AS TYPE)`                     |
-| `Fun.current_date()`              | `CURRENT_DATE`                        |
-| `Fun.current_timestamp()`         | `CURRENT_TIMESTAMP`                   |
-| `Fun.exists(q)`                   | `EXISTS q`                            |
-| `Fun.extract("FIELD", x)`         | `EXTRACT(FIELD FROM x)`               |
-| `Fun.in(x, q)`                    | `x IN q`                              |
-| `Fun.in(x, y₁, y₂, …)`            | `x IN (y₁, y₂, …)`                    |
-| `Fun.is_not_null(x)`              | `x IS NOT NULL`                       |
-| `Fun.is_null(x)`                  | `x IS NULL`                           |
-| `Fun.like(x, y)`                  | `x LIKE y`                            |
-| `Fun.not(p)`                      | `NOT p`                               |
-| `Fun.not_between(x, y, z)`        | `x NOT BETWEEN y AND z`               |
-| `Fun.not_exists(q)`               | `NOT EXISTS q`                        |
-| `Fun.not_in(x, q)`                | `x NOT IN q`                          |
-| `Fun.not_in(x, y₁, y₂, …)`        | `x NOT IN (y₁, y₂, …)`                |
-| `Fun.not_like(x, y)`              | `x NOT LIKE y`                        |
-| `Fun.or(p₁, p₂, …)`               | `p₁ OR p₂ OR …`                       |
+| `Fun` node                    | SQL syntax                                |
+|:----------------------------- |:------------------------------------------|
+| `Fun.and(p₁, p₂, …)`          | `p₁ AND p₂ AND …`                         |
+| `Fun.between(x, y, z)`        | `x BETWEEN y AND z`                       |
+| `Fun.case(p, x, …)`           | `CASE WHEN p THEN x … END`                |
+| `Fun.cast(x, "TYPE")`         | `CAST(x AS TYPE)`                         |
+| `Fun.concat(s₁, s₂, …)`       | dialect-specific, e.g., `(s₁ || s₂ || …)` |
+| `Fun.current_date()`          | `CURRENT_DATE`                            |
+| `Fun.current_timestamp()`     | `CURRENT_TIMESTAMP`                       |
+| `Fun.exists(q)`               | `EXISTS q`                                |
+| `Fun.extract("FIELD", x)`     | `EXTRACT(FIELD FROM x)`                   |
+| `Fun.in(x, q)`                | `x IN q`                                  |
+| `Fun.in(x, y₁, y₂, …)`        | `x IN (y₁, y₂, …)`                        |
+| `Fun.is_not_null(x)`          | `x IS NOT NULL`                           |
+| `Fun.is_null(x)`              | `x IS NULL`                               |
+| `Fun.like(x, y)`              | `x LIKE y`                                |
+| `Fun.not(p)`                  | `NOT p`                                   |
+| `Fun.not_between(x, y, z)`    | `x NOT BETWEEN y AND z`                   |
+| `Fun.not_exists(q)`           | `NOT EXISTS q`                            |
+| `Fun.not_in(x, q)`            | `x NOT IN q`                              |
+| `Fun.not_in(x, y₁, y₂, …)`    | `x NOT IN (y₁, y₂, …)`                    |
+| `Fun.not_like(x, y)`          | `x NOT LIKE y`                            |
+| `Fun.or(p₁, p₂, …)`           | `p₁ OR p₂ OR …`                           |
 
 # Examples
 

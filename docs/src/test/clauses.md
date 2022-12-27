@@ -329,6 +329,14 @@ Some functions and operators have specialized serializers.
     print(render(c))
     #-> (NOT TRUE)
 
+    c = FUN(:concat, :city, ", ", :state)
+
+    print(render(c))
+    #-> concat("city", ', ', "state")
+
+    print(render(c, dialect = :sqlite))
+    #-> ("city" || ', ' || "state")
+
     c = FUN(:in, :zip)
 
     print(render(c))
