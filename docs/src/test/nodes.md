@@ -41,7 +41,7 @@ Displaying a `SQLNode` object shows how it was constructed.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000))),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
         q3 = q2 |> Select(Get.person_id)
         q3
     end
@@ -57,7 +57,7 @@ indexing operator.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000))),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
         q3 = q2 |> Select(Get.person_id)
         q3[]
     end
@@ -267,7 +267,7 @@ unambiguously.
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = From(person),
-        q3 = q1 |> Join(q2, Lit(true)),
+        q3 = q1 |> Join(q2, true),
         q4 = q3 |> Select(Get.person_id)
         q4
     end
@@ -316,7 +316,7 @@ A node-bound reference that is bound to an unrelated node will cause an error.
         location = SQLTable(:location, …),
         q1 = From(person),
         q2 = From(location),
-        q3 = q2 |> Where(Fun.">="(q1.year_of_birth, Lit(1950))),
+        q3 = q2 |> Where(Fun.">="(q1.year_of_birth, 1950)),
         q4 = q1 |>
              Join(q3 |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id))
@@ -548,7 +548,7 @@ Query variables could be bound using the `Bind` constructor.
     let visit_occurrence = SQLTable(:visit_occurrence, …),
         q1 = From(visit_occurrence),
         q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
-        q2 |> Bind(Lit(1) |> As(:PERSON_ID))
+        q2 |> Bind(1 |> As(:PERSON_ID))
     end
     =#
 
@@ -624,7 +624,7 @@ An empty `Bind` can be created.
     Bind(:PERSON_ID => 1, :PERSON_ID => 2)
     #=>
     ERROR: FunSQL.DuplicateLabelError: PERSON_ID is used more than once in:
-    Bind(Lit(1) |> As(:PERSON_ID), Lit(2) |> As(:PERSON_ID))
+    Bind(1 |> As(:PERSON_ID), 2 |> As(:PERSON_ID))
     =#
 
 
@@ -639,7 +639,7 @@ A function or an operator invocation is created with the `Fun` constructor.
     #-> Fun.:(">")(…)
 
     display(e)
-    #-> Fun.">"(Get.year_of_birth, Lit(2000))
+    #-> Fun.">"(Get.year_of_birth, 2000)
 
 Alternatively, `Fun` nodes are created by broadcasting.  Common Julia operators
 are replaced with their SQL equivalents.
@@ -650,10 +650,7 @@ are replaced with their SQL equivalents.
 
     #? VERSION >= v"1.7"
     display(e)
-    #=>
-    Fun.or(Fun."="(Get.location.state, Lit("IL")),
-           Fun."<>"(Get.location.zip, Lit("60615")))
-    =#
+    #-> Fun.or(Fun."="(Get.location.state, "IL"), Fun."<>"(Get.location.zip, "60615"))
 
     #? VERSION >= v"1.7"
     e = .!(e .&& Get.year_of_birth .> 1950 .&& Get.year_of_birth .< 1990)
@@ -662,10 +659,10 @@ are replaced with their SQL equivalents.
     #? VERSION >= v"1.7"
     display(e)
     #=>
-    Fun.not(Fun.and(Fun.or(Fun."="(Get.location.state, Lit("IL")),
-                           Fun."<>"(Get.location.zip, Lit("60615"))),
-                    Fun.and(Fun.">"(Get.year_of_birth, Lit(1950)),
-                            Fun."<"(Get.year_of_birth, Lit(1990)))))
+    Fun.not(Fun.and(Fun.or(Fun."="(Get.location.state, "IL"),
+                           Fun."<>"(Get.location.zip, "60615")),
+                    Fun.and(Fun.">"(Get.year_of_birth, 1950),
+                            Fun."<"(Get.year_of_birth, 1990))))
     =#
 
 A vector of arguments could be passed directly.
@@ -1067,12 +1064,12 @@ We could use `Iterate` and `From(^)` to create a factorial table.
 
     display(q)
     #=>
-    let q1 = Define(Lit(1) |> As(:n), Lit(1) |> As(:f)),
+    let q1 = Define(1 |> As(:n), 1 |> As(:f)),
         q2 = From(^),
         q3 = q2 |>
-             Define(Fun."+"(Get.n, Lit(1)) |> As(:n),
-                    Fun."*"(Get.f, Fun."+"(Get.n, Lit(1))) |> As(:f)),
-        q4 = q3 |> Where(Fun."<="(Get.n, Lit(10))),
+             Define(Fun."+"(Get.n, 1) |> As(:n),
+                    Fun."*"(Get.f, Fun."+"(Get.n, 1)) |> As(:f)),
+        q4 = q3 |> Where(Fun."<="(Get.n, 10)),
         q5 = q1 |> Iterate(q4)
         q5
     end
@@ -1205,7 +1202,7 @@ An alias to an expression can be added with the `As` constructor.
     #-> (…) |> As(:integer)
 
     display(e)
-    #-> Lit(42) |> As(:integer)
+    #-> 42 |> As(:integer)
 
     print(render(Select(e)))
     #=>
@@ -1313,7 +1310,7 @@ has no columns.
     #=>
     let empty = SQLTable(:empty, …),
         q1 = From(empty),
-        q2 = q1 |> Where(Lit(false)),
+        q2 = q1 |> Where(false),
         q3 = q2 |> Select(args = [])
         q3
     end
@@ -1429,7 +1426,7 @@ the output columns.
     #-> From(…, columns = [:value])
 
     display(q)
-    #-> From(Fun.generate_series(Lit(0), Lit(100), Lit(10)), columns = [:value])
+    #-> From(Fun.generate_series(0, 100, 10), columns = [:value])
 
     print(render(q))
     #=>
@@ -1502,7 +1499,7 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     let person = SQLTable(:person, …),
         q1 = From(:male),
         q2 = From(person),
-        q3 = q2 |> Where(Fun."="(Get.gender_concept_id, Lit(8507))),
+        q3 = q2 |> Where(Fun."="(Get.gender_concept_id, 8507)),
         q4 = q1 |> With(q3 |> As(:male))
         q4
     end
@@ -1906,7 +1903,7 @@ Aggregate expressions can be applied to a filtered portion of a partition.
     #-> Agg.count(filter = (…))
 
     display(e)
-    #-> Agg.count(filter = Fun.">"(Get.year_of_birth, Lit(1950)))
+    #-> Agg.count(filter = Fun.">"(Get.year_of_birth, 1950))
 
     q = From(person) |> Group() |> Select(e)
 
@@ -1958,7 +1955,7 @@ unambiguously.
         q8 = q6 |> Group(q7),
         q9 = q5 |> Join(q8, Fun."="(q1.person_id, q8.person_id), left = true),
         q10 = q9 |>
-              Select(q1.person_id, Fun.coalesce(Agg.count(), Lit(0)) |> As(:count))
+              Select(q1.person_id, Fun.coalesce(Agg.count(), 0) |> As(:count))
         q10
     end
     =#
@@ -2588,7 +2585,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000)))
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000))
         q2
     end
     =#
@@ -2693,7 +2690,7 @@ highlighted.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, Lit(2000))),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
         q3 = q2 |> Select(Get.person_id)
         q3
     end

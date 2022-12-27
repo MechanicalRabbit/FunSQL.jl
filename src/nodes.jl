@@ -203,11 +203,11 @@ function PrettyPrinting.quoteof(n::SQLNode;
             n in nodes_toplevel || continue
             qidx += 1
             name = Symbol('q', qidx)
-            def = quoteof(n, ctx, true)
+            def = quoteof(n, ctx, true, true)
             push!(defs, Expr(:(=), name, def))
         end
     end
-    ex = quoteof(n, ctx)
+    ex = quoteof(n, ctx, true, false)
     if unwrap
         ex = Expr(:ref, ex)
     end
@@ -220,12 +220,14 @@ end
 PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
     quoteof(convert(SQLNode, n), limit = limit, unwrap = true)
 
-PrettyPrinting.quoteof(n::SQLNode, ctx::QuoteContext, full::Bool = false) =
+PrettyPrinting.quoteof(n::SQLNode, ctx::QuoteContext, top::Bool = false, full::Bool = false) =
     if !ctx.limit
         !full || return quoteof(n[], ctx)
         var = get(ctx.vars, n, nothing)
         if var !== nothing
             var
+        elseif !top && (local over = n[]; over isa LiteralNode) && (local val = over.val; val isa SQLLiteralType)
+            quoteof(val)
         else
             quoteof(n[], ctx)
         end

@@ -164,6 +164,8 @@ please review these notes.
 
 * Article *Two Kinds of SQL Query Builders* is added to documentation.
 
+* Where possible, pretty-printing replaces `Lit` nodes with their values.
+
 
 ## v0.10.2
 
