@@ -1,6 +1,161 @@
 # Release Notes
 
 
+## v0.11.0
+
+This release introduces some backward-incompatible changes.  Before upgrading,
+please review these notes.
+
+* The `Iterate()` node, which is used for assembling recursive queries, has
+  been simplified.  In the previous version, the argument of `Iterate()` must
+  explicitly refer to the output of the previous iteration:
+
+  ```julia
+  Base() |>
+  Iterate(From(:iteration) |>
+          IterationStep() |>
+          As(:iteration))
+  ```
+
+  In v0.11.0, this query is written as:
+
+  ```julia
+  Base() |>
+  Iterate(IterationStep())
+  ```
+
+  Alternatively, the output of the previous iteration can be fetched with the
+  `From(^)` node:
+
+  ```julia
+  Base() |>
+  Iterate(From(^) |>
+          IterationStep())
+  ```
+
+* Rendering of `Fun` nodes can now be customized by overriding the method
+  `serialize!()`, which is dispatched on the node name.  The following names
+  have customized serialization: `==`, `!=`, `and`, `between`, `case`,
+  `cast`, `current_date`, `current_timestamp`, `exists`, `extract`, `in`,
+  `is_not_null`, `is_null`, `like`, `not`, `not_between`, `not_exists`,
+  `not_in`, `not_like`, `or`.
+
+* Introduce template notation for representing irregular SQL syntax.
+  For example, `Fun."SUBSTRING(? FROM ? FOR ?)"(Get.zip, 1, 3)` generates
+  `SUBSTRING("location_1"."zip" FROM 1 to 3)`.
+
+  In general, the name of a `Fun` node is interpreted as a function name,
+  an operator name, or a template string:
+
+  1. If the name has a custom `serialize!()` method, it is used for rendering
+     the node.  Example: `Fun.in(Get.zip, "60614", "60615")`.
+
+  2. If the name contains a placeholder character `?`, it is interpreted as
+     a template.  Placeholders are replaced with the arguments of the `Fun`
+     node.  Use `??` to represent a literal `?` character.  The generated SQL
+     is wrapped in parentheses unless the template ends with `)`.
+
+  3. If the name contains only symbol characters, or if the name starts or
+     ends with a space, it is interpreted as an operator name.  Examples:
+     `Fun."-"(2020, Get.year_of_birth)`, `Fun." ILIKE "(Get.city, "Ch%")`,
+     `Fun." COLLATE \"C\""(Get.state)`, `Fun."CURRENT_TIME "()`.
+
+  4. Otherwise, the name is interpreted as a function name.  The function
+     arguments are separated by a comma and wrapped in parentheses.  Examples:
+     `Fun.now()`, `Fun.coalesce(Get.city, "N/A")`.
+
+* `Agg` nodes also support `serialize!()` and template notation.  Custom
+  serialization is provided for `Agg.count()` and `Agg.count_distinct(arg)`.
+
+* Remove `distinct` flag from `Agg` nodes.  To represent `COUNT(DISTINCT …)`,
+  use `Agg.count_distinct(…)`.  Otherwise, use template notation, e.g.,
+  `Agg."string_agg(DISTINCT ?, ? ORDER BY ?)"(Get.state, ",", Get.state)`.
+
+* Function names are no longer automatically converted to upper case.
+
+* Remove ability to customize translation of `Fun` nodes to clause tree
+  by overriding the `translate()` method.
+
+* Remove clauses `OP`, `KW`, `CASE`, which were previously used for expressing
+  operators and irregular syntax.
+
+* Add support for table-valued functions.  Such functions return tabular data
+  and must appear in a `FROM` clause.  Example:
+
+  ```julia
+  From(Fun.regexp_matches("2,3,5,7,11", "(\\d+)", "g"),
+       columns = [:captures]) |>
+  Select(Fun."CAST(?[1] AS INTEGER)"(Get.captures))
+  ```
+
+  ```sql
+  SELECT CAST("regexp_matches_1"."captures"[1] AS INTEGER) AS "_"
+  FROM regexp_matches('2,3,5,7,11', '(\d+)', 'g') AS "regexp_matches_1" ("captures")
+  ```
+
+* To prevent duplicating SQL expressions, `Define()` and `Group()` may create
+  an additional subquery (#11).  Take, for example:
+
+  ```julia
+  From(:person) |>
+  Define(:age => 2020 .- Get.year_of_birth) |>
+  Where(Get.age .>= 16) |>
+  Select(Get.person_id, Get.age)
+  ```
+
+  In the previous version, the definition of `age` is replicated in both
+  `SELECT` and `WHERE` clauses:
+
+  ```sql
+  SELECT
+    "person_1"."person_id",
+    (2020 - "person_1"."year_of_birth") AS "age"
+  FROM "person" AS "person_1"
+  WHERE ((2020 - "person_1"."year_of_birth") >= 16)
+  ```
+
+  In v0.11.0, `age` is evaluated once in a nested subquery:
+
+  ```sql
+  SELECT
+    "person_2"."person_id",
+    "person_2"."age"
+  FROM (
+    SELECT
+      "person_1"."person_id",
+      (2020 - "person_1"."year_of_birth") AS "age"
+    FROM "person" AS "person_1"
+  ) AS "person_2"
+  WHERE ("person_2"."age" >= 16)
+  ```
+
+* Similarly, aggregate expressions used in `Bind()` are evaluated in a separate
+  subquery (#12).
+
+* Fix a bug where FunSQL fails to generate a correct `SELECT DISTINCT` query
+  when key columns of `Group()` are not used by the following nodes.  For
+  example, the following query pipeline would fail to render SQL:
+
+```julia
+  From(:person) |>
+  Group(Get.year_of_birth) |>
+  Group() |>
+  Select(Agg.count())
+  ```
+
+  Now it correctly renders:
+
+  ```sql
+  SELECT count(*) AS "count"
+  FROM (
+    SELECT DISTINCT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+  ) AS "person_2"
+  ```
+
+* Article *Two Kinds of SQL Query Builders* is added to documentation.
+
+
 ## v0.10.2
 
 * Generate aliases for CTE tables (fixes #33).
@@ -145,4 +300,3 @@
 
 - Initial release.
 - `From`, `Select`, and `Where` are implemented.
-
