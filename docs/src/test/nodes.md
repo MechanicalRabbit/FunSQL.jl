@@ -486,7 +486,7 @@ a simple reference.
     Define(:age => Fun.now() .- Get.birth_datetime,
            :age => Fun.current_timestamp() .- Get.birth_datetime)
     #=>
-    ERROR: FunSQL.DuplicateLabelError: age is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `age` is used more than once in:
     Define(Fun."-"(Fun.now(), Get.birth_datetime) |> As(:age),
            Fun."-"(Fun.current_timestamp(), Get.birth_datetime) |> As(:age))
     =#
@@ -623,7 +623,7 @@ An empty `Bind` can be created.
 
     Bind(:PERSON_ID => 1, :PERSON_ID => 2)
     #=>
-    ERROR: FunSQL.DuplicateLabelError: PERSON_ID is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `PERSON_ID` is used more than once in:
     Bind(1 |> As(:PERSON_ID), 2 |> As(:PERSON_ID))
     =#
 
@@ -1609,7 +1609,7 @@ Datasets defined by `With` must have a unique label.
     With(:p => From(person),
          :p => From(person))
     #=>
-    ERROR: FunSQL.DuplicateLabelError: p is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = From(person),
@@ -1670,7 +1670,7 @@ Datasets defined by `WithExternal` must have a unique label.
     WithExternal(:p => From(person),
                  :p => From(person))
     #=>
-    ERROR: FunSQL.DuplicateLabelError: p is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = From(person),
@@ -1852,7 +1852,7 @@ downstream.
     q = From(person) |>
         Group(Get.person_id, Get.person_id)
     #=>
-    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
     Group(Get.person_id, Get.person_id)
     =#
 
@@ -2568,7 +2568,7 @@ creates a complete subquery.
     q = From(person) |>
         Select(Get.person_id, Get.person_id)
     #=>
-    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
     Select(Get.person_id, Get.person_id)
     =#
 

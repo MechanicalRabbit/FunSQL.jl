@@ -259,7 +259,7 @@ struct DuplicateLabelError <: FunSQLError
 end
 
 function Base.showerror(io::IO, err::DuplicateLabelError)
-    print(io, "FunSQL.DuplicateLabelError: $(err.name) is used more than once")
+    print(io, "FunSQL.DuplicateLabelError: `", err.name, "` is used more than once")
     showpath(io, err.path)
 end
 

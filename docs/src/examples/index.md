@@ -450,7 +450,7 @@ however we must ensure that all column names are unique.
         Select(Get.(person_table.columns)...,
                Get.(visit_occurrence_table.columns, over = Get.visit)...)
     #=>
-    ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+    ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
     ⋮
     =#
 
