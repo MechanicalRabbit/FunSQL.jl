@@ -628,7 +628,7 @@ An empty `Bind` can be created.
     =#
 
 
-## Functions and Operations
+## Functions and Operators
 
 A function or an operator invocation is created with the `Fun` constructor.
 
@@ -862,7 +862,38 @@ FunSQL can simplify logical expressions.
       ⋮
       "person_1"."location_id"
     FROM "person" AS "person_1"
-    WHERE (("person_1"."year_of_birth" > 1950) OR ("person_1"."year_of_birth" < 1960))
+    WHERE
+      ("person_1"."year_of_birth" > 1950) OR
+      ("person_1"."year_of_birth" < 1960)
+    =#
+
+    #? VERSION >= v"1.7"
+    q = From(person) |>
+        Where(Get.year_of_birth .> 1950 .|| Get.year_of_birth .< 1960 .|| Get.year_of_birth .!= 1955)
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE
+      ("person_1"."year_of_birth" > 1950) OR
+      ("person_1"."year_of_birth" < 1960) OR
+      ("person_1"."year_of_birth" <> 1955)
+    =#
+
+    q = From(person) |>
+        Where(Fun.not(false))
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
     =#
 
 
@@ -2676,6 +2707,21 @@ Several `Where` operations in a row are collapsed in a single `WHERE` clause.
       ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 2000))) < 100) AND
       ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 1933))) <> 33) AND
       ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 1966))) <> 66)
+    =#
+
+    q = From(person) |>
+        Group(Get.gender_concept_id) |>
+        Where(Fun.or(Agg.count(filter = Get.year_of_birth .== 2010) .> 10,
+                     Agg.count(filter = Get.year_of_birth .== 2000) .< 100))
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."gender_concept_id"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."gender_concept_id"
+    HAVING
+      ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 2010))) > 10) OR
+      ((count(*) FILTER (WHERE ("person_1"."year_of_birth" = 2000))) < 100)
     =#
 
 

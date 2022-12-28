@@ -22,7 +22,7 @@ makedocs(
         "examples/index.md",
         "test/index.md",
         "Articles" => [
-          "two-kinds-of-sql-query-builders/index.md",
+            "two-kinds-of-sql-query-builders/index.md",
         ],
     ],
     modules = [FunSQL],

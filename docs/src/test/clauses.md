@@ -173,7 +173,9 @@ Function `pack()` converts named parameters to a positional form.
     #=>
     SELECT "person_id"
     FROM "person"
-    WHERE (("gender_concept_id" = ?1) OR ("gender_source_concept_id" = ?1))
+    WHERE
+      ("gender_concept_id" = ?1) OR
+      ("gender_source_concept_id" = ?1)
     =#
 
     pack(sql, (GENDER = 8532,))
@@ -194,7 +196,9 @@ duplicate parameter values.
     #=>
     SELECT `person_id`
     FROM `person`
-    WHERE ((`gender_concept_id` = ?) OR (`gender_source_concept_id` = ?))
+    WHERE
+      (`gender_concept_id` = ?) OR
+      (`gender_source_concept_id` = ?)
     =#
 
     pack(sql, (GENDER = 8532,))
@@ -457,6 +461,11 @@ Some functions and operators have specialized serializers.
 
     print(render(c))
     #-> CURRENT_DATE
+
+    c = FUN(:current_date, 1)
+
+    print(render(c))
+    #-> CURRENT_DATE(1)
 
     c = FUN(:current_timestamp)
 
@@ -1134,7 +1143,7 @@ It is possible to specify ascending or descending order of the sort column.
 Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
 
     c = FROM(:person) |>
-        ORDER(:year_of_birth |> SORT(:desc, nulls = :first),
+        ORDER(:year_of_birth |> SORT(:desc, nulls = :last),
               :person_id |> SORT(:asc)) |>
         SELECT(:person_id)
 
@@ -1143,7 +1152,7 @@ Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
     SELECT "person_id"
     FROM "person"
     ORDER BY
-      "year_of_birth" DESC NULLS FIRST,
+      "year_of_birth" DESC NULLS LAST,
       "person_id" ASC
     =#
 

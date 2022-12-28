@@ -536,6 +536,8 @@ function serialize!(c::HavingClause, ctx)
     print(ctx, "HAVING")
     if @dissect(c.condition, FUN(name = :and, args = args)) && length(args) >= 2
         serialize_lines!(args, ctx, sep = "AND")
+    elseif @dissect(c.condition, FUN(name = :or, args = args)) && length(args) >= 2
+        serialize_lines!(args, ctx, sep = "OR")
     else
         print(ctx, ' ')
         serialize!(c.condition, ctx)
@@ -897,6 +899,8 @@ function serialize!(c::WhereClause, ctx)
     print(ctx, "WHERE")
     if @dissect(c.condition, FUN(name = :and, args = args)) && length(args) >= 2
         serialize_lines!(args, ctx, sep = "AND")
+    elseif @dissect(c.condition, FUN(name = :or, args = args)) && length(args) >= 2
+        serialize_lines!(args, ctx, sep = "OR")
     else
         print(ctx, ' ')
         serialize!(c.condition, ctx)

@@ -190,7 +190,7 @@ PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
     Expr(:call,
          nameof(FromFunction),
          Expr(:kw, :over, quoteof(n.over, ctx)),
-         Expr(:kw, :columns, [QuoteNode(col) for col in n.columns]...))
+         Expr(:kw, :columns, Expr(:vect, [QuoteNode(col) for col in n.columns]...)))
 
 # Annotated Bind node.
 mutable struct IntBindNode <: AbstractSQLNode
@@ -1269,4 +1269,3 @@ function link!(n::WhereNode, refs::Vector{SQLNode}, ctx)
     begin_imm_refs!(box)
     gather_and_validate!(box.refs, n.condition, box.type, ctx)
 end
-

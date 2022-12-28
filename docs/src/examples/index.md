@@ -974,7 +974,9 @@ Now we have all the components to construct the final query:
           ("condition_occurrence_2"."condition_start_date" BETWEEN "visit_occurrence_1"."visit_start_date" AND "visit_occurrence_1"."visit_end_date")
       ))
     ) AS "condition_occurrence_3"
-    WHERE (("condition_occurrence_3"."boundary" IS NULL) OR ("condition_occurrence_3"."boundary" < "condition_occurrence_3"."condition_start_date"))
+    WHERE
+      ("condition_occurrence_3"."boundary" IS NULL) OR
+      ("condition_occurrence_3"."boundary" < "condition_occurrence_3"."condition_start_date")
     =#
 
 
