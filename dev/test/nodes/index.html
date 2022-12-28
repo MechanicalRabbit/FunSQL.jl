@@ -357,7 +357,7 @@ FROM (
 Define(:age =&gt; Fun.now() .- Get.birth_datetime,
        :age =&gt; Fun.current_timestamp() .- Get.birth_datetime)
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: age is used more than once in:
+ERROR: FunSQL.DuplicateLabelError: `age` is used more than once in:
 Define(Fun.&quot;-&quot;(Fun.now(), Get.birth_datetime) |&gt; As(:age),
        Fun.&quot;-&quot;(Fun.current_timestamp(), Get.birth_datetime) |&gt; As(:age))
 =#</code></pre><h2 id="Variables"><a class="docs-heading-anchor" href="#Variables">Variables</a><a id="Variables-1"></a><a class="docs-heading-anchor-permalink" href="#Variables" title="Permalink"></a></h2><p>A query variable is created with the <code>Var</code> constructor.</p><pre><code class="language-julia hljs">e = Var(:YEAR)
@@ -458,7 +458,7 @@ WHERE (EXISTS (
 =#</code></pre><p>An empty <code>Bind</code> can be created.</p><pre><code class="language-julia hljs">Bind(args = [])
 #-&gt; Bind(args = [])</code></pre><p><code>Bind</code> requires that all variables have a unique name.</p><pre><code class="language-julia hljs">Bind(:PERSON_ID =&gt; 1, :PERSON_ID =&gt; 2)
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: PERSON_ID is used more than once in:
+ERROR: FunSQL.DuplicateLabelError: `PERSON_ID` is used more than once in:
 Bind(1 |&gt; As(:PERSON_ID), 2 |&gt; As(:PERSON_ID))
 =#</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;
 #-&gt; Fun.:(&quot;&gt;&quot;)
@@ -1089,34 +1089,37 @@ print(render(q))
 #=&gt;
 SELECT &quot;generate_series_1&quot;.&quot;value&quot;
 FROM generate_series(0, 100, 10) AS &quot;generate_series_1&quot; (&quot;value&quot;)
-=#</code></pre><p>A flag <code>with_ordinality</code> adds an extra column that enumerates the output rows.</p><pre><code class="language-julia hljs">q = From(Fun.generate_series(0, 100, 10),
-         with_ordinality = true,
+=#</code></pre><p><code>WITH ORDINALITY</code> annotation adds an extra column that enumerates the output rows.</p><pre><code class="language-julia hljs">q = From(Fun.&quot;? WITH ORDINALITY&quot;(Fun.generate_series(0, 100, 10)),
          columns = [:value, :index])
-#-&gt; From(…, columns = [:value, :index], with_ordinality = true)
 
 print(render(q))
 #=&gt;
 SELECT
-  &quot;generate_series_1&quot;.&quot;value&quot;,
-  &quot;generate_series_1&quot;.&quot;index&quot;
-FROM generate_series(0, 100, 10) WITH ORDINALITY AS &quot;generate_series_1&quot; (&quot;value&quot;, &quot;index&quot;)
+  &quot;__1&quot;.&quot;value&quot;,
+  &quot;__1&quot;.&quot;index&quot;
+FROM generate_series(0, 100, 10) WITH ORDINALITY AS &quot;__1&quot; (&quot;value&quot;, &quot;index&quot;)
 =#</code></pre><p>When <code>From</code> with a tabular function is attached to the right branch of a <code>Join</code> node, the function may use data from the left branch of <code>Join</code>, even without being wrapped in a <code>Bind</code> node.</p><pre><code class="language-julia hljs">q = From(Fun.regexp_split_to_table(&quot;(10,20)-(30,40)-(50,60)&quot;, &quot;-&quot;),
-         with_ordinality = true,
-         columns = [:point, :index]) |&gt;
+         columns = [:point]) |&gt;
     CrossJoin(From(Fun.regexp_matches(Get.point, &quot;(\\d+),(\\d+)&quot;),
                    columns = [:captures])) |&gt;
-    Select(Get.index,
-           :x =&gt; Fun.&quot;CAST(?[1] AS INTEGER)&quot;(Get.captures),
+    Select(:x =&gt; Fun.&quot;CAST(?[1] AS INTEGER)&quot;(Get.captures),
            :y =&gt; Fun.&quot;CAST(?[2] AS INTEGER)&quot;(Get.captures))
 
 print(render(q))
 #=&gt;
 SELECT
-  &quot;regexp_split_to_table_1&quot;.&quot;index&quot;,
   CAST(&quot;regexp_matches_1&quot;.&quot;captures&quot;[1] AS INTEGER) AS &quot;x&quot;,
   CAST(&quot;regexp_matches_1&quot;.&quot;captures&quot;[2] AS INTEGER) AS &quot;y&quot;
-FROM regexp_split_to_table(&#39;(10,20)-(30,40)-(50,60)&#39;, &#39;-&#39;) WITH ORDINALITY AS &quot;regexp_split_to_table_1&quot; (&quot;point&quot;, &quot;index&quot;)
+FROM regexp_split_to_table(&#39;(10,20)-(30,40)-(50,60)&#39;, &#39;-&#39;) AS &quot;regexp_split_to_table_1&quot; (&quot;point&quot;)
 CROSS JOIN regexp_matches(&quot;regexp_split_to_table_1&quot;.&quot;point&quot;, &#39;(\d+),(\d+)&#39;) AS &quot;regexp_matches_1&quot; (&quot;captures&quot;)
+=#</code></pre><p>All the columns of a tabular function must have distinct names.</p><pre><code class="language-julia hljs">From(Fun.&quot;? WITH ORDINALITY&quot;(Fun.generate_series(0, 100, 10)),
+     columns = [:index, :index])
+#=&gt;
+ERROR: FunSQL.DuplicateLabelError: `index` is used more than once in:
+let q1 = From(Fun.&quot;? WITH ORDINALITY&quot;(Fun.generate_series(0, 100, 10)),
+              columns = [:index, :index])
+    q1
+end
 =#</code></pre><p><code>From(nothing)</code> will generate a <em>unit</em> dataset with one row.</p><pre><code class="language-julia hljs">q = From(nothing)
 
 display(q)
@@ -1229,7 +1232,7 @@ end
 With(:p =&gt; From(person),
      :p =&gt; From(person))
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: p is used more than once in:
+ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
 let person = SQLTable(:person, …),
     q1 = From(person),
     q2 = From(person),
@@ -1277,7 +1280,7 @@ FROM &quot;tmp&quot;.&quot;male&quot; AS &quot;male_1&quot;
 WithExternal(:p =&gt; From(person),
              :p =&gt; From(person))
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: p is used more than once in:
+ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
 let person = SQLTable(:person, …),
     q1 = From(person),
     q2 = From(person),
@@ -1416,7 +1419,7 @@ FROM (
 =#</code></pre><p><code>Group</code> requires all keys to have unique aliases.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.person_id, Get.person_id)
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
 Group(Get.person_id, Get.person_id)
 =#</code></pre><p><code>Group</code> ensures that each aggregate expression gets a unique alias.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Join(:visit_group =&gt; From(visit_occurrence) |&gt;
@@ -2007,7 +2010,7 @@ WHERE (&quot;person_2&quot;.&quot;year_of_birth&quot; &gt; 2000)
 =#</code></pre><p><code>Select</code> requires all columns in the list to have unique aliases.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Select(Get.person_id, Get.person_id)
 #=&gt;
-ERROR: FunSQL.DuplicateLabelError: person_id is used more than once in:
+ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
 Select(Get.person_id, Get.person_id)
 =#</code></pre><h2 id="Where"><a class="docs-heading-anchor" href="#Where"><code>Where</code></a><a id="Where-1"></a><a class="docs-heading-anchor-permalink" href="#Where" title="Permalink"></a></h2><p>The <code>Where</code> constructor creates a subquery that filters by the given condition.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000))
@@ -2276,4 +2279,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Tuesday 27 December 2022 21:32">Tuesday 27 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 28 December 2022 13:30">Wednesday 28 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
