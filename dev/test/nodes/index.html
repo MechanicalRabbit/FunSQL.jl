@@ -460,7 +460,7 @@ WHERE (EXISTS (
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: `PERSON_ID` is used more than once in:
 Bind(1 |&gt; As(:PERSON_ID), 2 |&gt; As(:PERSON_ID))
-=#</code></pre><h2 id="Functions-and-Operations"><a class="docs-heading-anchor" href="#Functions-and-Operations">Functions and Operations</a><a id="Functions-and-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operations" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;
+=#</code></pre><h2 id="Functions-and-Operators"><a class="docs-heading-anchor" href="#Functions-and-Operators">Functions and Operators</a><a id="Functions-and-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#Functions-and-Operators" title="Permalink"></a></h2><p>A function or an operator invocation is created with the <code>Fun</code> constructor.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;
 #-&gt; Fun.:(&quot;&gt;&quot;)
 
 e = Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)
@@ -651,7 +651,37 @@ SELECT
   ⋮
   &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
-WHERE ((&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950) OR (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 1960))
+WHERE
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950) OR
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 1960)
+=#
+
+q = From(person) |&gt;
+    Where(Get.year_of_birth .&gt; 1950 .|| Get.year_of_birth .&lt; 1960 .|| Get.year_of_birth .!= 1955)
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950) OR
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; 1960) OR
+  (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 1955)
+=#
+
+q = From(person) |&gt;
+    Where(Fun.not(false))
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><h2 id="Append"><a class="docs-heading-anchor" href="#Append"><code>Append</code></a><a id="Append-1"></a><a class="docs-heading-anchor-permalink" href="#Append" title="Permalink"></a></h2><p>The <code>Append</code> constructor creates a subquery that concatenates the output of multiple queries.</p><pre><code class="language-julia hljs">q = From(measurement) |&gt;
     Define(:date =&gt; Get.measurement_date) |&gt;
     Append(From(observation) |&gt;
@@ -2095,6 +2125,21 @@ HAVING
   ((count(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = 2000))) &lt; 100) AND
   ((count(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = 1933))) &lt;&gt; 33) AND
   ((count(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = 1966))) &lt;&gt; 66)
+=#
+
+q = From(person) |&gt;
+    Group(Get.gender_concept_id) |&gt;
+    Where(Fun.or(Agg.count(filter = Get.year_of_birth .== 2010) .&gt; 10,
+                 Agg.count(filter = Get.year_of_birth .== 2000) .&lt; 100))
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;gender_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY &quot;person_1&quot;.&quot;gender_concept_id&quot;
+HAVING
+  ((count(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = 2010))) &gt; 10) OR
+  ((count(*) FILTER (WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = 2000))) &lt; 100)
 =#</code></pre><h2 id="Highlighting"><a class="docs-heading-anchor" href="#Highlighting">Highlighting</a><a id="Highlighting-1"></a><a class="docs-heading-anchor-permalink" href="#Highlighting" title="Permalink"></a></h2><p>To highlight a node on the output, wrap it with <code>Highlight</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Highlight(:underline) |&gt;
     Where(Fun.&quot;&gt;&quot;(Get.year_of_birth |&gt; Highlight(:bold), 2000) |&gt;
@@ -2279,4 +2324,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 28 December 2022 13:30">Wednesday 28 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 28 December 2022 14:55">Wednesday 28 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
