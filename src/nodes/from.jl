@@ -13,7 +13,7 @@ struct FunctionSource
     with_ordinality::Bool
 end
 
-_from_source(source::Union{SQLTable, Symbol, SelfSource, ValuesSource, Nothing}) =
+_from_source(source::Union{SQLTable, Symbol, SelfSource, FunctionSource, ValuesSource, Nothing}) =
     source
 
 _from_source(source::AbstractString) =
@@ -22,14 +22,24 @@ _from_source(source::AbstractString) =
 _from_source(::typeof(^)) =
     SelfSource()
 
-_from_source(node::AbstractSQLNode;
-             columns::AbstractVector{<:Union{Symbol, AbstractString}},
-             with_ordinality::Bool = false) =
-    FunctionSource(node,
-                   !isa(columns, Vector{Symbol}) ?
-                       Symbol[Symbol(col) for col in columns] :
-                       columns,
-                   with_ordinality)
+function _from_source(node::AbstractSQLNode;
+                      columns::AbstractVector{<:Union{Symbol, AbstractString}},
+                      with_ordinality::Bool = false)
+    source = FunctionSource(node,
+                            !isa(columns, Vector{Symbol}) ?
+                                Symbol[Symbol(col) for col in columns] :
+                                columns,
+                            with_ordinality)
+    seen = Set{Symbol}()
+    for col in source.columns
+        if col in seen
+            err = DuplicateLabelError(col, path = [From(source)])
+            throw(err)
+        end
+        push!(seen, col)
+    end
+    source
+end
 
 function _from_source(source)
     columns = Tables.columntable(source)

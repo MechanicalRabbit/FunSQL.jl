@@ -1472,6 +1472,20 @@ even without being wrapped in a `Bind` node.
     CROSS JOIN regexp_matches("regexp_split_to_table_1"."point", '(\d+),(\d+)') AS "regexp_matches_1" ("captures")
     =#
 
+All the columns of a tabular function must have distinct names.
+
+    From(Fun.generate_series(0, 100, 10),
+         with_ordinality = true,
+         columns = [:index, :index])
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: `index` is used more than once in:
+    let q1 = From(Fun.generate_series(0, 100, 10),
+                  columns = [:index, :index],
+                  with_ordinality = true)
+        q1
+    end
+    =#
+
 `From(nothing)` will generate a *unit* dataset with one row.
 
     q = From(nothing)
