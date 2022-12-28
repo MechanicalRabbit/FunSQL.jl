@@ -52,8 +52,8 @@ the `Fun` node is translated to a SQL operator.
 
 If `name` contains one or more `?` characters, it serves as a template of
 a SQL expression where `?` symbols are replaced with the given arguments.
-Use `??` to represent a literal `?` mark.  The expression is wrapped in
-parentheses, unless it already ends with `)`.
+Use `??` to represent a literal `?` mark.  Wrap the template in parentheses
+if this is necessary to make the SQL expression unambiguous.
 
 Certain names have a customized translation in order to generate common SQL
 functions and operators with irregular syntax:

@@ -278,7 +278,7 @@ To create a SQL expression with irregular syntax, supply `FUN()` with a
     c = FUN("?::date", "2000-01-01")
 
     print(render(c))
-    #-> ('2000-01-01'::date)
+    #-> '2000-01-01'::date
 
 Write `??` to  use `?` in an operator name or a template.
 
@@ -287,7 +287,7 @@ Write `??` to  use `?` in an operator name or a template.
     print(render(c))
     #-> ('(1,0)' ?- '(0,0)')
 
-    c = FUN("'(?,?)'::point ??| '(?,?)'::point", 0, 1, 0, 0)
+    c = FUN("('(?,?)'::point ??| '(?,?)'::point)", 0, 1, 0, 0)
 
     print(render(c))
     #-> ('(0,1)'::point ?| '(0,0)'::point)

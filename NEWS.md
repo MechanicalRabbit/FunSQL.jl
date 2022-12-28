@@ -61,8 +61,8 @@ please review these notes.
 
   2. If the name contains a placeholder character `?`, it is interpreted as
      a template.  Placeholders are replaced with the arguments of the `Fun`
-     node.  Use `??` to represent a literal `?` character.  The generated SQL
-     is wrapped in parentheses unless the template ends with `)`.
+     node.  Use `??` to represent a literal `?` character.  Wrap the template
+     in parentheses if this is necessary to make the syntax unambiguous.
 
   3. If the name contains only symbol characters, or if the name starts or
      ends with a space, it is interpreted as an operator name.  Examples:

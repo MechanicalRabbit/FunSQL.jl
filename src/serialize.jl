@@ -122,7 +122,6 @@ macro serialize!(tmpl, args, ctx)
     contains_only_symbols = true
     starts_with_space = false
     ends_with_space = false
-    ends_with_paren = false
     placeholders = Int[]
     maybe_literal_qmark = false
     next = iterate(tmpl)
@@ -135,7 +134,6 @@ macro serialize!(tmpl, args, ctx)
                    '<', '=', '>', '?', '@', '\\', '^', '|', '~')
         starts_with_space = starts_with_space || i == 1 && ch == ' '
         ends_with_space = ch == ' '
-        ends_with_paren = ch == ')'
         if ch == '?' && maybe_literal_qmark
             pop!(placeholders)
             maybe_literal_qmark = false
@@ -146,7 +144,6 @@ macro serialize!(tmpl, args, ctx)
             maybe_literal_qmark = false
         end
         ends_with_space = ch == ' '
-        ends_with_paren = ch == ')'
         next = iterate(tmpl, i′)
         i = i′
     end
@@ -181,13 +178,6 @@ macro serialize!(tmpl, args, ctx)
             chunk = tmpl[i+1:j-1]
             if '?' in chunk
                 chunk = replace(chunk, "??" => '?')
-            end
-            if !ends_with_paren
-                if k == 1
-                    chunk = "(" * chunk
-                elseif k == lastindex(placeholders)
-                    chunk = chunk * ")"
-                end
             end
             push!(chunks, chunk)
             i = j
