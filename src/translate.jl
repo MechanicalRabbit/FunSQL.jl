@@ -468,9 +468,6 @@ function assemble(n::FromFunctionNode, refs, ctx)
         end
     end
     over = translate(n.over, ctx)
-    if n.with_ordinality
-        over = over |> NOTE("WITH ORDINALITY", postfix = true)
-    end
     alias = allocate_alias(ctx, label(n.over))
     c = FROM(AS(over = over, name = alias, columns = n.columns))
     cols = OrderedDict{Symbol, SQLClause}()
@@ -714,7 +711,7 @@ function assemble(n::IntJoinNode, refs, ctx)
     end
     if @dissect(right.clause, (joinee := (nothing || nothing |> ID()) |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
        @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM()) ||
-       @dissect(right.clause, (joinee := (FUN() || FUN() |> NOTE()) |> AS(name = right_alias)) |> FROM())
+       @dissect(right.clause, (joinee := FUN() |> AS(name = right_alias)) |> FROM())
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end

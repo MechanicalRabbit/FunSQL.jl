@@ -178,10 +178,9 @@ PrettyPrinting.quoteof(n::FromValuesNode, ctx::QuoteContext) =
 mutable struct FromFunctionNode <: TabularNode
     over::SQLNode
     columns::Vector{Symbol}
-    with_ordinality::Bool
 
-    FromFunctionNode(; over, columns, with_ordinality) =
-        new(over, columns, with_ordinality)
+    FromFunctionNode(; over, columns) =
+        new(over, columns)
 end
 
 FromFunction(args...; kws...) =
@@ -191,8 +190,7 @@ PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
     Expr(:call,
          nameof(FromFunction),
          Expr(:kw, :over, quoteof(n.over, ctx)),
-         Expr(:kw, :columns, [QuoteNode(col) for col in n.columns]...),
-         Expr(:kw, :with_ordinality, n.with_ordinality))
+         Expr(:kw, :columns, [QuoteNode(col) for col in n.columns]...))
 
 # Annotated Bind node.
 mutable struct IntBindNode <: AbstractSQLNode
@@ -630,8 +628,7 @@ function annotate(n::FromNode, ctx)
         FromValues(columns = source.columns)
     elseif source isa FunctionSource
         FromFunction(over = annotate_scalar(source.node, ctx),
-                     columns = source.columns,
-                     with_ordinality = source.with_ordinality)
+                     columns = source.columns)
     else
         FromNothing()
     end

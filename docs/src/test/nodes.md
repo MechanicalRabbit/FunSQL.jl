@@ -1434,19 +1434,18 @@ the output columns.
     FROM generate_series(0, 100, 10) AS "generate_series_1" ("value")
     =#
 
-A flag `with_ordinality` adds an extra column that enumerates the output rows.
+`WITH ORDINALITY` annotation adds an extra column that enumerates the output
+rows.
 
-    q = From(Fun.generate_series(0, 100, 10),
-             with_ordinality = true,
+    q = From(Fun."? WITH ORDINALITY"(Fun.generate_series(0, 100, 10)),
              columns = [:value, :index])
-    #-> From(…, columns = [:value, :index], with_ordinality = true)
 
     print(render(q))
     #=>
     SELECT
-      "generate_series_1"."value",
-      "generate_series_1"."index"
-    FROM generate_series(0, 100, 10) WITH ORDINALITY AS "generate_series_1" ("value", "index")
+      "__1"."value",
+      "__1"."index"
+    FROM generate_series(0, 100, 10) WITH ORDINALITY AS "__1" ("value", "index")
     =#
 
 When `From` with a tabular function is attached to the right branch of
@@ -1454,34 +1453,29 @@ a `Join` node, the function may use data from the left branch of `Join`,
 even without being wrapped in a `Bind` node.
 
     q = From(Fun.regexp_split_to_table("(10,20)-(30,40)-(50,60)", "-"),
-             with_ordinality = true,
-             columns = [:point, :index]) |>
+             columns = [:point]) |>
         CrossJoin(From(Fun.regexp_matches(Get.point, "(\\d+),(\\d+)"),
                        columns = [:captures])) |>
-        Select(Get.index,
-               :x => Fun."CAST(?[1] AS INTEGER)"(Get.captures),
+        Select(:x => Fun."CAST(?[1] AS INTEGER)"(Get.captures),
                :y => Fun."CAST(?[2] AS INTEGER)"(Get.captures))
 
     print(render(q))
     #=>
     SELECT
-      "regexp_split_to_table_1"."index",
       CAST("regexp_matches_1"."captures"[1] AS INTEGER) AS "x",
       CAST("regexp_matches_1"."captures"[2] AS INTEGER) AS "y"
-    FROM regexp_split_to_table('(10,20)-(30,40)-(50,60)', '-') WITH ORDINALITY AS "regexp_split_to_table_1" ("point", "index")
+    FROM regexp_split_to_table('(10,20)-(30,40)-(50,60)', '-') AS "regexp_split_to_table_1" ("point")
     CROSS JOIN regexp_matches("regexp_split_to_table_1"."point", '(\d+),(\d+)') AS "regexp_matches_1" ("captures")
     =#
 
 All the columns of a tabular function must have distinct names.
 
-    From(Fun.generate_series(0, 100, 10),
-         with_ordinality = true,
+    From(Fun."? WITH ORDINALITY"(Fun.generate_series(0, 100, 10)),
          columns = [:index, :index])
     #=>
     ERROR: FunSQL.DuplicateLabelError: `index` is used more than once in:
-    let q1 = From(Fun.generate_series(0, 100, 10),
-                  columns = [:index, :index],
-                  with_ordinality = true)
+    let q1 = From(Fun."? WITH ORDINALITY"(Fun.generate_series(0, 100, 10)),
+                  columns = [:index, :index])
         q1
     end
     =#
