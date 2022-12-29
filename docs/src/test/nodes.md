@@ -1670,7 +1670,7 @@ It is an error for `From` to refer to an undefined dataset.
     =#
 
 A variant of `With` called `WithExternal` can be used to prepare a definition
-for a `CREATE TABLE AS` or `SELECT INFO` statement.
+for a `CREATE TABLE AS` or `SELECT INTO` statement.
 
     with_external_handler((tbl, def)) =
         println("CREATE TEMP TABLE ",
@@ -1924,18 +1924,6 @@ downstream.
     ) AS "visit_group_1" ON ("person_1"."person_id" = "visit_group_1"."person_id")
     =#
 
-Aggregate expressions can be applied to distinct values of the partition.
-
-    q = From(person) |>
-        Group() |>
-        Select(Agg.count_distinct(Get.year_of_birth))
-
-    print(render(q))
-    #=>
-    SELECT count(DISTINCT "person_1"."year_of_birth") AS "count_distinct"
-    FROM "person" AS "person_1"
-    =#
-
 Aggregate expressions can be applied to a filtered portion of a partition.
 
     e = Agg.count(filter = Get.year_of_birth .> 1950)
@@ -2157,8 +2145,7 @@ example which calculates non-overlapping visits.
 
 ## `Join`
 
-The `Join` constructor creates a subquery that combines the rows of two
-nested subqueries.
+The `Join` constructor creates a subquery that correlates two nested subqueries.
 
     q = From(person) |>
         Join(:location => From(location),
@@ -2639,7 +2626,7 @@ The `Where` constructor creates a subquery that filters by the given condition.
     WHERE ("person_1"."year_of_birth" > 2000)
     =#
 
-Several `Where` operations in a row are collapsed in a single `WHERE` clause.
+Several `Where` operations in a row are collapsed to a single `WHERE` clause.
 
     q = From(person) |>
         Where(Fun.">"(Get.year_of_birth, 2000)) |>

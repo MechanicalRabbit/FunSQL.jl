@@ -58,6 +58,7 @@ FromNode(source; kws...) =
     From(; source)
     From(tbl::SQLTable)
     From(name::Symbol)
+    From(^)
     From(df)
     From(f::SQLNode; columns::Vector{Symbol})
     From(::Nothing)
@@ -83,7 +84,7 @@ SELECT ...
 FROM \$source
 ```
 
-`From(^)` must be a component of of [`Iterate`](@ref).  In the context of
+`From(^)` must be a component of [`Iterate`](@ref).  In the context of
  [`Iterate`](@ref), it refers to the output of the previous iteration.
 
 `From(::DataFrame)` is translated to a `VALUES` clause.

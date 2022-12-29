@@ -64,7 +64,7 @@ functions and operators with irregular syntax:
 | `Fun.between(x, y, z)`        | `x BETWEEN y AND z`                       |
 | `Fun.case(p, x, …)`           | `CASE WHEN p THEN x … END`                |
 | `Fun.cast(x, "TYPE")`         | `CAST(x AS TYPE)`                         |
-| `Fun.concat(s₁, s₂, …)`       | dialect-specific, e.g., `(s₁ || s₂ || …)` |
+| `Fun.concat(s₁, s₂, …)`       | dialect-specific, e.g., `(s₁ \\|\\| s₂ \\|\\| …)` |
 | `Fun.current_date()`          | `CURRENT_DATE`                            |
 | `Fun.current_timestamp()`     | `CURRENT_TIMESTAMP`                       |
 | `Fun.exists(q)`               | `EXISTS q`                                |

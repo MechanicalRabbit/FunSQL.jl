@@ -11,8 +11,8 @@ FunSQL does not export any symbols by default.  The following statement imports
 all available query constructors and the function [`render`](@ref).
 
     using FunSQL:
-        FunSQL, Agg, Append, As, Asc, Bind, Define, Desc, Fun, From, Get,
-        Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
+        FunSQL, Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From,
+        Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
         Partition, Select, Sort, Var, Where, With, WithExternal, render
 
 
@@ -592,7 +592,7 @@ Finally, we add operations on a concept set for adding or removing concepts.
     ExcludingConcepts(exclude) =
         LeftJoin(:exclude => exclude,
                  Get.concept_id .== Get.exclude.concept_id) |>
-        Where(Fun."is null"(Get.exclude.concept_id))
+        Where(Fun.is_null(Get.exclude.concept_id))
 
     q = SNOMED("22298006") |>       # Myocardial infarction
         WithSubtypes() |>
@@ -848,7 +848,7 @@ previous event.  For this purpose, we build a filtering pipeline:
     FilterByGap(date, gap) =
         Partition(Get.person_id, order_by = [date]) |>
         Define(:boundary => Agg.lag(Fun.date(date, gap))) |>
-        Where(Fun.or(Fun."is null"(Get.boundary),
+        Where(Fun.or(Fun.is_null(Get.boundary),
                      Get.boundary .< date))
 
 To verify that this pipeline operates correctly, we could apply it

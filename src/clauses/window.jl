@@ -25,12 +25,12 @@ A `WINDOW` clause.
 julia> c = FROM(:person) |>
            WINDOW(:w1 => PARTITION(:year_of_birth),
                   :w2 => :w1 |> PARTITION(order_by = [:month_of_birth, :day_of_birth])) |>
-           SELECT(:person_id, AGG("ROW_NUMBER", over = :w2));
+           SELECT(:person_id, AGG("row_number", over = :w2));
 
 julia> print(render(c))
 SELECT
   "person_id",
-  (ROW_NUMBER() OVER ("w2"))
+  (row_number() OVER ("w2"))
 FROM "person"
 WINDOW
   "w1" AS (PARTITION BY "year_of_birth"),

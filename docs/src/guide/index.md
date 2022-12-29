@@ -1059,7 +1059,7 @@ It is easy to assemble an inner query with FunSQL:
          Select(Get.person_id)
 
     qₒ = From(:person) |>
-         Where(Fun."not in"(Get.person_id, qᵢ))
+         Where(Fun.not_in(Get.person_id, qᵢ))
 
     render(conn, qₒ) |> print
     #=>

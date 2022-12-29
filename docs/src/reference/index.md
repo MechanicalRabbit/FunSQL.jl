@@ -266,14 +266,6 @@ Pages = ["clauses/as.jl"]
 ```
 
 
-## `CASE`
-
-```@autodocs
-Modules = [FunSQL]
-Pages = ["clauses/case.jl"]
-```
-
-
 ## `FROM`
 
 ```@autodocs
@@ -322,14 +314,6 @@ Pages = ["clauses/join.jl"]
 ```
 
 
-## `KW`
-
-```@autodocs
-Modules = [FunSQL]
-Pages = ["clauses/keyword.jl"]
-```
-
-
 ## `LIMIT`
 
 ```@autodocs
@@ -351,14 +335,6 @@ Pages = ["clauses/literal.jl"]
 ```@autodocs
 Modules = [FunSQL]
 Pages = ["clauses/note.jl"]
-```
-
-
-## `OP`
-
-```@autodocs
-Modules = [FunSQL]
-Pages = ["clauses/operator.jl"]
 ```
 
 

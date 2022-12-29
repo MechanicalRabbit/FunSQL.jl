@@ -1314,11 +1314,11 @@ A `WINDOW` clause is created with `WINDOW()` constructor.
            AS(:w2))
     =#
 
-    print(render(c |> SELECT(:w1 |> AGG("ROW_NUMBER"), :w2 |> AGG("ROW_NUMBER"))))
+    print(render(c |> SELECT(:w1 |> AGG("row_number"), :w2 |> AGG("row_number"))))
     #=>
     SELECT
-      (ROW_NUMBER() OVER ("w1")),
-      (ROW_NUMBER() OVER ("w2"))
+      (row_number() OVER ("w1")),
+      (row_number() OVER ("w2"))
     FROM "person"
     WINDOW
       "w1" AS (PARTITION BY "gender_concept_id"),
@@ -1334,9 +1334,9 @@ it is not rendered.
     display(c)
     #-> ID(:person) |> FROM() |> WINDOW(args = [])
 
-    print(render(c |> SELECT(AGG("ROW_NUMBER", over = PARTITION()))))
+    print(render(c |> SELECT(AGG("row_number", over = PARTITION()))))
     #=>
-    SELECT (ROW_NUMBER() OVER ())
+    SELECT (row_number() OVER ())
     FROM "person"
     =#
 

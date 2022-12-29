@@ -69,7 +69,7 @@ FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
 
-*Distinct states among all available locations.*
+*Distinct states across all available locations.*
 
 ```jldoctest
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
