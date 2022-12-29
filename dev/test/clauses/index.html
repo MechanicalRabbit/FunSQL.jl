@@ -985,11 +985,11 @@ WINDOW(PARTITION(ID(:gender_concept_id)) |&gt; AS(:w1),
        AS(:w2))
 =#
 
-print(render(c |&gt; SELECT(:w1 |&gt; AGG(&quot;ROW_NUMBER&quot;), :w2 |&gt; AGG(&quot;ROW_NUMBER&quot;))))
+print(render(c |&gt; SELECT(:w1 |&gt; AGG(&quot;row_number&quot;), :w2 |&gt; AGG(&quot;row_number&quot;))))
 #=&gt;
 SELECT
-  (ROW_NUMBER() OVER (&quot;w1&quot;)),
-  (ROW_NUMBER() OVER (&quot;w2&quot;))
+  (row_number() OVER (&quot;w1&quot;)),
+  (row_number() OVER (&quot;w2&quot;))
 FROM &quot;person&quot;
 WINDOW
   &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;),
@@ -1000,9 +1000,9 @@ WINDOW
 display(c)
 #-&gt; ID(:person) |&gt; FROM() |&gt; WINDOW(args = [])
 
-print(render(c |&gt; SELECT(AGG(&quot;ROW_NUMBER&quot;, over = PARTITION()))))
+print(render(c |&gt; SELECT(AGG(&quot;row_number&quot;, over = PARTITION()))))
 #=&gt;
-SELECT (ROW_NUMBER() OVER ())
+SELECT (row_number() OVER ())
 FROM &quot;person&quot;
 =#</code></pre><h2 id="WITH-Clause-and-Common-Table-Expressions"><a class="docs-heading-anchor" href="#WITH-Clause-and-Common-Table-Expressions"><code>WITH</code> Clause and Common Table Expressions</a><a id="WITH-Clause-and-Common-Table-Expressions-1"></a><a class="docs-heading-anchor-permalink" href="#WITH-Clause-and-Common-Table-Expressions" title="Permalink"></a></h2><p>The <code>AS</code> clause that defines a common table expression is created using the <code>AS</code> constructor.</p><pre><code class="language-julia hljs">cte1 =
     FROM(:concept) |&gt;
@@ -1122,4 +1122,4 @@ print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 28 December 2022 15:21">Wednesday 28 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 29 December 2022 16:11">Thursday 29 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

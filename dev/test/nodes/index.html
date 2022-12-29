@@ -1278,7 +1278,7 @@ ERROR: FunSQL.ReferenceError: cannot find `p` in:
 let q1 = From(:p)
     q1
 end
-=#</code></pre><p>A variant of <code>With</code> called <code>WithExternal</code> can be used to prepare a definition for a <code>CREATE TABLE AS</code> or <code>SELECT INFO</code> statement.</p><pre><code class="language-julia hljs">with_external_handler((tbl, def)) =
+=#</code></pre><p>A variant of <code>With</code> called <code>WithExternal</code> can be used to prepare a definition for a <code>CREATE TABLE AS</code> or <code>SELECT INTO</code> statement.</p><pre><code class="language-julia hljs">with_external_handler((tbl, def)) =
     println(&quot;CREATE TEMP TABLE &quot;,
             render(ID(over = tbl.schema, name = tbl.name)),
             &quot; (&quot;, join([render(ID(c)) for c in tbl.columns], &quot;, &quot;), &quot;) AS\n&quot;,
@@ -1477,14 +1477,6 @@ JOIN (
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
-=#</code></pre><p>Aggregate expressions can be applied to distinct values of the partition.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
-    Group() |&gt;
-    Select(Agg.count_distinct(Get.year_of_birth))
-
-print(render(q))
-#=&gt;
-SELECT count(DISTINCT &quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;count_distinct&quot;
-FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>Aggregate expressions can be applied to a filtered portion of a partition.</p><pre><code class="language-julia hljs">e = Agg.count(filter = Get.year_of_birth .&gt; 1950)
 #-&gt; Agg.count(filter = (…))
 
@@ -1663,7 +1655,7 @@ FROM (
 GROUP BY
   &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
   &quot;visit_occurrence_3&quot;.&quot;group&quot;
-=#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <code>Join</code> constructor creates a subquery that combines the rows of two nested subqueries.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+=#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <code>Join</code> constructor creates a subquery that correlates two nested subqueries.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Join(:location =&gt; From(location),
          on = Get.location_id .== Get.location.location_id,
          left = true)
@@ -2064,7 +2056,7 @@ SELECT
   &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
-=#</code></pre><p>Several <code>Where</code> operations in a row are collapsed in a single <code>WHERE</code> clause.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+=#</code></pre><p>Several <code>Where</code> operations in a row are collapsed to a single <code>WHERE</code> clause.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)) |&gt;
     Where(Fun.&quot;&lt;&quot;(Get.year_of_birth, 2020)) |&gt;
     Where(Fun.&quot;&lt;&gt;&quot;(Get.year_of_birth, 2010))
@@ -2325,4 +2317,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 28 December 2022 15:21">Wednesday 28 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 29 December 2022 16:11">Thursday 29 December 2022</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
