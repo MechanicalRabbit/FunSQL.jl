@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Usage Guide · FunSQL.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Usage Guide</a><ul class="internal"><li><a class="tocitem" href="#Test-Database"><span>Test Database</span></a></li><li><a class="tocitem" href="#Using-FunSQL"><span>Using FunSQL</span></a></li><li><a class="tocitem" href="#Why-FunSQL?"><span>Why FunSQL?</span></a></li><li><a class="tocitem" href="#Tabular-Operations"><span>Tabular Operations</span></a></li><li><a class="tocitem" href="#From,-Select,-and-Define"><span><code>From</code>, <code>Select</code>, and <code>Define</code></span></a></li><li><a class="tocitem" href="#Join"><span><code>Join</code></span></a></li><li><a class="tocitem" href="#Scalar-Operations"><span>Scalar Operations</span></a></li><li><a class="tocitem" href="#Lit:-SQL-Literals"><span><code>Lit</code>: SQL Literals</span></a></li><li><a class="tocitem" href="#Get:-Column-References"><span><code>Get</code>: Column References</span></a></li><li><a class="tocitem" href="#Fun:-SQL-Functions-and-Operators"><span><code>Fun</code>: SQL Functions and Operators</span></a></li><li><a class="tocitem" href="#Group-and-Aggregate-Functions"><span><code>Group</code> and Aggregate Functions</span></a></li><li><a class="tocitem" href="#Partition-and-Window-Functions"><span><code>Partition</code> and Window Functions</span></a></li><li><a class="tocitem" href="#Query-Parameters"><span>Query Parameters</span></a></li><li><a class="tocitem" href="#Correlated-Queries"><span>Correlated Queries</span></a></li><li><a class="tocitem" href="#Order-and-Limit"><span><code>Order</code> and <code>Limit</code></span></a></li><li><a class="tocitem" href="#Append-and-Iterate"><span><code>Append</code> and <code>Iterate</code></span></a></li></ul></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li><a class="tocitem" href="../test/">Test Suite</a></li><li><span class="tocitem">Articles</span><ul><li><a class="tocitem" href="../two-kinds-of-sql-query-builders/">Two Kinds of SQL Query Builders</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Usage Guide</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Usage Guide</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/guide/index.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Usage-Guide"><a class="docs-heading-anchor" href="#Usage-Guide">Usage Guide</a><a id="Usage-Guide-1"></a><a class="docs-heading-anchor-permalink" href="#Usage-Guide" title="Permalink"></a></h1><p>This guide will teach you how to assemble SQL queries using FunSQL.</p><h2 id="Test-Database"><a class="docs-heading-anchor" href="#Test-Database">Test Database</a><a id="Test-Database-1"></a><a class="docs-heading-anchor-permalink" href="#Test-Database" title="Permalink"></a></h2><p>To demonstrate database queries, we need a test database.  The database we use in this guide is a tiny 10 person sample of simulated patient data extracted from a much larger <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>. For a database engine, we picked <a href="https://www.sqlite.org/">SQLite</a>.  Using SQLite in a guide is convenient because it does not require a database server to run and allows us to distribute the whole database as a single file.  FunSQL supports SQLite and many other database engines.  The techniques discussed here are not specific to SQLite and once you learn them, you will be able to apply them to any SQL database.</p><p>The data in the test database is stored in the format of the <a href="https://ohdsi.github.io/TheBookOfOhdsi/CommonDataModel.html">OMOP Common Data Model</a>, an open source database schema for observational healthcare data.  In this guide, we will only use a small fragment of the Common Data Model.</p><p><img src="omop-common-data-model.drawio.svg" alt="Fragment of the OMOP Common Data Model"/></p><p>The patient data, including basic demographic information, is stored in the table <code>person</code>.  Patient addresses are stored in a separate table <code>location</code>, linked to <code>person</code> by the key column <code>location_id</code>.</p><p>The bulk of patient data consists of clinical events: visits to healthcare providers, recorded observations, diagnosed conditions, prescribed medications, etc.  In this guide we only use two types of events, visits and conditions.</p><p>The specific type of the event (e.g., <em>Inpatient</em> visit or <em>Essential hypertension</em> condition) is indicated using a <em>concept id</em> column, which refers to the <code>concept</code> table.  Different concepts may be related to each other.  For instance, <em>Essential hypertension</em> <strong>is a</strong> <em>Hypertensive disorder</em>, which itself <strong>is a</strong> <em>Disorder of cardiovascular system</em>.  Concept relationships are recorded in the corresponding table.</p><p>If you wish to follow along with the guide and run the examples, download the <a href="https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite">database file</a>:</p><pre><code class="language-julia hljs">DATABASE = download(&quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;)</code></pre><p>All examples in this guide are tested on each update using the <a href="https://github.com/MechanicalRabbit/NarrativeTest.jl">NarrativeTest</a> package. To avoid downloading the database file all the time, we registered the download URL as an <a href="../Artifacts.toml">artifact</a> and use <a href="http://pkgdocs.julialang.org/v1/artifacts/"><code>Pkg.Artifacts</code></a> API to fetch it:</p><pre><code class="language-julia hljs">using Pkg.Artifacts, LazyArtifacts
+
+DATABASE = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)
+#-&gt; ⋮</code></pre><h2 id="Using-FunSQL"><a class="docs-heading-anchor" href="#Using-FunSQL">Using FunSQL</a><a id="Using-FunSQL-1"></a><a class="docs-heading-anchor-permalink" href="#Using-FunSQL" title="Permalink"></a></h2><p>To interact with an SQLite database from Julia code, we need to install the <a href="https://github.com/JuliaDatabases/SQLite.jl">SQLite</a> package:</p><pre><code class="language-julia hljs">using Pkg
+
+Pkg.add(&quot;SQLite&quot;)</code></pre><p>With the package installed, we can open a database connection:</p><pre><code class="language-julia hljs">using FunSQL
+using SQLite
+
+conn = DBInterface.connect(FunSQL.DB{SQLite.DB}, DATABASE)</code></pre><p>This call to <a href="../reference/#DBInterface.connect-Union{Tuple{RawConnType}, Tuple{Type{FunSQL.SQLConnection{RawConnType}}, Vararg{Any}}} where RawConnType"><code>DBInterface.connect</code></a> creates a connection to the SQLite database, retrieves the catalog of available database tables, and returns a FunSQL connection object.</p><p>Some applications open many connections to the same database.  For instance, a web application may open a new database connection on every incoming HTTP request.  In this case, it may be worth to have all these connections to share the same database catalog.  The application can start with loading the catalog using using <a href="../reference/#FunSQL.reflect-Tuple{Any}"><code>reflect</code></a>:</p><pre><code class="language-julia hljs">using FunSQL: reflect
+
+catalog = reflect(DBInterface.connect(SQLite.DB, DATABASE))</code></pre><p>Then whenever a new connection is created, this catalog object could be reused:</p><pre><code class="language-julia hljs">conn = FunSQL.DB(DBInterface.connect(SQLite.DB, DATABASE),
+                 catalog = catalog)</code></pre><div class="admonition is-warning"><header class="admonition-header">Warning</header><div class="admonition-body"><p>Some database drivers, including the PostgreSQL client library <a href="https://github.com/invenia/LibPQ.jl">LibPQ.jl</a>, do not support DBInterface.  For instructions on how to enable DBInterface for LibPQ, see <a href="../examples/#Database-connection-with-LibPQ.jl">this example</a>.</p></div></div><p>Using the connection object, we can execute FunSQL queries.  For example, the following query outputs the content of the table <code>person</code>:</p><pre><code class="language-julia hljs">using FunSQL: From
+
+q = From(:person)</code></pre><p>This query could be executed with <a href="../reference/#DBInterface.execute-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}, Any}"><code>DBInterface.execute</code></a>:</p><pre><code class="language-julia hljs">res = DBInterface.execute(conn, q)</code></pre><p>To display the result of a query, it is convenient to convert it to a <a href="https://github.com/JuliaData/DataFrames.jl">DataFrame</a> object:</p><pre><code class="language-julia hljs">using DataFrames
+
+DataFrame(res)
+#=&gt;
+10×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │      1780               8532           1940               2             ⋯
+   2 │     30091               8532           1932               8
+   3 │     37455               8532           1913               7
+   4 │     42383               8507           1922               2
+   5 │     69985               8532           1956               7             ⋯
+   6 │     72120               8507           1937              10
+   7 │     82328               8532           1957               9
+   8 │     95538               8507           1923              11
+   9 │    107680               8532           1963              12             ⋯
+  10 │    110862               8507           1911               4
+                                                              14 columns omitted
+=#</code></pre><p>Instead of executing the query directly, we can <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a> it to generate the corresponding SQL statement:</p><pre><code class="language-julia hljs">using FunSQL: render
+
+sql = render(conn, q)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;time_of_birth&quot;,
+  &quot;person_1&quot;.&quot;race_concept_id&quot;,
+  &quot;person_1&quot;.&quot;ethnicity_concept_id&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  &quot;person_1&quot;.&quot;provider_id&quot;,
+  &quot;person_1&quot;.&quot;care_site_id&quot;,
+  &quot;person_1&quot;.&quot;person_source_value&quot;,
+  &quot;person_1&quot;.&quot;gender_source_value&quot;,
+  &quot;person_1&quot;.&quot;gender_source_concept_id&quot;,
+  &quot;person_1&quot;.&quot;race_source_value&quot;,
+  &quot;person_1&quot;.&quot;race_source_concept_id&quot;,
+  &quot;person_1&quot;.&quot;ethnicity_source_value&quot;,
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>In fact, we do not need a database connection if all we want is to generate a SQL query.  For this purpose, we only need a <a href="../reference/#FunSQL.SQLCatalog"><code>SQLCatalog</code></a> object that describes the structure of the database tables and the target SQL dialect:</p><pre><code class="language-julia hljs">using FunSQL: SQLCatalog, SQLTable
+
+catalog = SQLCatalog(SQLTable(:person, columns = [:person_id, :year_of_birth]),
+                     dialect = :sqlite)
+
+sql = render(catalog, q)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><h2 id="Why-FunSQL?"><a class="docs-heading-anchor" href="#Why-FunSQL?">Why FunSQL?</a><a id="Why-FunSQL?-1"></a><a class="docs-heading-anchor-permalink" href="#Why-FunSQL?" title="Permalink"></a></h2><p>Let us clarify the purpose of FunSQL.  Consider a problem:</p><p><em>Find all patients born between 1930 and 1940 and living in Illinois, and for each patient show their current age (by the end of 2020).</em></p><p>The answer can be obtained with the following SQL query:</p><pre><code class="language-sql hljs">SELECT p.person_id, 2020 - p.year_of_birth AS age
+FROM person p
+JOIN location l ON (p.location_id = l.location_id)
+WHERE (p.year_of_birth BETWEEN 1930 AND 1940) AND (l.state = &#39;IL&#39;)</code></pre><p>The simplest way to incorporate this query into Julia code is to embed it as a string literal:</p><pre><code class="language-julia hljs">sql = &quot;&quot;&quot;
+SELECT p.person_id, 2020 - p.year_of_birth AS age
+FROM person p
+JOIN location l ON (p.location_id = l.location_id)
+WHERE (p.year_of_birth BETWEEN 1930 AND 1940) AND (l.state = &#39;IL&#39;)
+&quot;&quot;&quot;
+
+DBInterface.execute(conn, sql) |&gt; DataFrame
+#=&gt;
+1×2 DataFrame
+ Row │ person_id  age
+     │ Int64      Int64
+─────┼──────────────────
+   1 │     72120     83
+=#</code></pre><p>With FunSQL, instead of embedding the SQL query directly into Julia code, we construct a <em>query object</em>:</p><pre><code class="language-julia hljs">using FunSQL: As, From, Fun, Get, Join, Select, Where
+
+q = From(:person) |&gt;
+    Where(Fun.between(Get.year_of_birth, 1930, 1940)) |&gt;
+    Join(From(:location) |&gt; Where(Get.state .== &quot;IL&quot;) |&gt; As(:location),
+         on = Get.location_id .== Get.location.location_id) |&gt;
+    Select(Get.person_id, :age =&gt; 2020 .- Get.year_of_birth)</code></pre><p>The value of <code>q</code> is a composite object of type <a href="../reference/#FunSQL.SQLNode"><code>SQLNode</code></a>.  &quot;Composite&quot; means that <code>q</code> is assembled from components (also of type <code>SQLNode</code>), which themselves are either atomic or assembled from smaller components.  Different kinds of components are created by <code>SQLNode</code> constructors such as <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a>, <a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a>, <a href="../reference/#FunSQL.Fun-Tuple"><code>Fun</code></a>, <a href="../reference/#FunSQL.Get-Tuple"><code>Get</code></a>, etc.</p><p>We use the same <code>DBInterface.execute</code> method to serialize the query object as a SQL statement and immediately execute it:</p><pre><code class="language-julia hljs">DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×2 DataFrame
+ Row │ person_id  age
+     │ Int64      Int64
+─────┼──────────────────
+   1 │     72120     83
+=#</code></pre><p>Why, instead of embedding a complete SQL query, we prefer to generate it through a query object?  To justify this extra step, consider that in a real Julia program, any query is likely going to be parameterized:</p><p><em>Find all patients born between <code>$start_year</code> and <code>$end_year</code> and living in <code>$states</code>, and for each patient show the <code>$output_columns</code>.</em></p><p>If this is the case, the SQL query cannot be prepared in advance and must be assembled on the fly.  While it is possible to assemble a SQL query from string fragments, it is tedious, error-prone and definitely not fun.  FunSQL provides a more robust and effective approach: build the query as a composite data structure.</p><p>Here is how this parameterized query may be constructed with FunSQL:</p><pre><code class="language-julia hljs">function FindPatients(; start_year = nothing,
+                        end_year = nothing,
+                        states = String[])
+    q = From(:person) |&gt;
+        Where(BirthRange(start_year, end_year))
+    if !isempty(states)
+        q = q |&gt;
+            Join(:location =&gt; From(:location) |&gt;
+                              Where(Fun.in(Get.state, states...)),
+                 on = Get.location_id .== Get.location.location_id)
+    end
+    q
+end
+
+function BirthRange(start_year, end_year)
+    p = true
+    if start_year !== nothing
+        p = Fun.and(p, Get.year_of_birth .&gt;= start_year)
+    end
+    if end_year !== nothing
+        p = Fun.and(p, Get.year_of_birth .&lt;= end_year)
+    end
+    p
+end</code></pre><p>The function <code>FindPatients</code> effectively becomes a new <code>SQLNode</code> constructor, which can be used directly or as a component of a larger query.</p><p><em>Show all patient data.</em></p><pre><code class="language-julia hljs">q = FindPatients()
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+10×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │      1780               8532           1940               2             ⋯
+   2 │     30091               8532           1932               8
+   3 │     37455               8532           1913               7
+   4 │     42383               8507           1922               2
+   5 │     69985               8532           1956               7             ⋯
+   6 │     72120               8507           1937              10
+   7 │     82328               8532           1957               9
+   8 │     95538               8507           1923              11
+   9 │    107680               8532           1963              12             ⋯
+  10 │    110862               8507           1911               4
+                                                              14 columns omitted
+=#</code></pre><p><em>Show all patients born in or after 1930.</em></p><pre><code class="language-julia hljs">q = FindPatients(start_year = 1930) |&gt;
+    Select(Get.person_id)
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×1 DataFrame
+ Row │ person_id
+     │ Int64
+─────┼───────────
+   1 │      1780
+   2 │     30091
+   3 │     69985
+   4 │     72120
+   5 │     82328
+   6 │    107680
+=#</code></pre><p><em>Find all patients born between 1930 and 1940 and living in Illinois, and for each patient show their current age.</em></p><pre><code class="language-julia hljs">q = FindPatients(start_year = 1930, end_year = 1940, states = [&quot;IL&quot;]) |&gt;
+    Select(Get.person_id, :age =&gt; 2020 .- Get.year_of_birth)
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×2 DataFrame
+ Row │ person_id  age
+     │ Int64      Int64
+─────┼──────────────────
+   1 │     72120     83
+=#</code></pre><h2 id="Tabular-Operations"><a class="docs-heading-anchor" href="#Tabular-Operations">Tabular Operations</a><a id="Tabular-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Tabular-Operations" title="Permalink"></a></h2><p>Recall the query from the <a href="#Why-FunSQL?">previous section</a>:</p><p><em>Find all patients born between 1930 and 1940 and living in Illinois, and for each patient show their current age.</em></p><pre><code class="language-julia hljs">From(:person) |&gt;
+Where(Fun.between(Get.year_of_birth, 1930, 1940)) |&gt;
+Join(From(:location) |&gt; Where(Get.state .== &quot;IL&quot;) |&gt; As(:location),
+     on = Get.location_id .== Get.location.location_id) |&gt;
+Select(Get.person_id, :age =&gt; 2020 .- Get.year_of_birth)</code></pre><p>At the outer level, this query is constructed from tabular operations <code>From</code>, <code>Where</code>, <code>Join</code>, and <code>Select</code> arranged in a pipeline by the pipe (<code>|&gt;</code>) operator.  In SQL, a <em>tabular operation</em> takes a certain number of input datasets and produces an output dataset.  It is helpful to visualize a tabular operation as a node with a certain number of input arrows and one output arrow.</p><p><img src="from-where-select-join-nodes.drawio.svg" alt="From, Where, Select, and Join nodes"/></p><p>Then the whole query can be visualized as a pipeline diagram.  Each arrow in this diagram represents a dataset, and each node represents an elementary data processing operation.</p><p><img src="person-by-birth-year-range-and-state.drawio.svg" alt="Query pipeline"/></p><p>The following tabular operations are available in FunSQL.</p><table><tr><th style="text-align: left">Constructor</th><th style="text-align: left">Function</th></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Append-Tuple"><code>Append</code></a></td><td style="text-align: left">concatenate datasets</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a></td><td style="text-align: left">wrap all columns in a nested record</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Define-Tuple"><code>Define</code></a></td><td style="text-align: left">add an output column</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.From-Tuple"><code>From</code></a></td><td style="text-align: left">produce the content of a database table</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a></td><td style="text-align: left">partition the dataset into disjoint groups</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a></td><td style="text-align: left">iterate a query</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a></td><td style="text-align: left">correlate two datasets</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a></td><td style="text-align: left">truncate the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a></td><td style="text-align: left">sort the dataset</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Partition-Tuple"><code>Partition</code></a></td><td style="text-align: left">relate dataset rows to each other</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a></td><td style="text-align: left">specify output columns</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a></td><td style="text-align: left">filter the dataset by the given condition</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.With-Tuple"><code>With</code></a></td><td style="text-align: left">assign a name to a temporary dataset</td></tr></table><h2 id="From,-Select,-and-Define"><a class="docs-heading-anchor" href="#From,-Select,-and-Define"><code>From</code>, <code>Select</code>, and <code>Define</code></a><a id="From,-Select,-and-Define-1"></a><a class="docs-heading-anchor-permalink" href="#From,-Select,-and-Define" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node outputs the content of a database table.  The constructor takes one argument, the name of the table.</p><p>As opposed to SQL, FunSQL does not demand that all queries have an explicit <code>Select</code>.  The following query will produce all columns of the table:</p><p><em>Show all patients.</em></p><pre><code class="language-julia hljs">using FunSQL: From
+
+q = From(:person)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>The <code>From</code> node also accepts a <code>DataFrame</code> or any argument supporting the <a href="https://github.com/JuliaData/Tables.jl"><code>Tables.jl</code></a> interface, which is very convenient when you need to correlate database content with external data. Keep in mind that <code>From</code> serializes a <code>DataFrame</code> argument as a part of the query, so for a large <code>DataFrame</code> it is better to load it into the database and query it as a regular table.</p><pre><code class="language-julia hljs">df = DataFrame(person_id = [&quot;SQL&quot;, &quot;Julia&quot;, &quot;FunSQL&quot;],
+               year_of_birth = [1974, 2012, 2021])
+
+q = From(df)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;values_1&quot;.&quot;column1&quot; AS &quot;person_id&quot;,
+  &quot;values_1&quot;.&quot;column2&quot; AS &quot;year_of_birth&quot;
+FROM (
+  VALUES
+    (&#39;SQL&#39;, 1974),
+    (&#39;Julia&#39;, 2012),
+    (&#39;FunSQL&#39;, 2021)
+) AS &quot;values_1&quot;
+=#</code></pre><p>It is possible for a query not to have a <code>From</code> node:</p><p><em>Show the current date and time.</em></p><pre><code class="language-julia hljs">using FunSQL: Select
+
+q = Select(Fun.current_timestamp())
+
+sql = render(q)
+
+print(sql)
+#-&gt; SELECT CURRENT_TIMESTAMP AS &quot;current_timestamp&quot;</code></pre><p>In this query, the <code>Select</code> node is not connected to any source of data.  In such a case, it is supplied with a <em>unit dataset</em> containing one row and no columns.  Hence this query will generate one row of output.</p><p>The same effect could be achieved with <code>From(nothing)</code>:</p><pre><code class="language-julia hljs">q = From(nothing) |&gt;
+    Select(Fun.current_timestamp())
+
+sql = render(q)
+
+print(sql)
+#-&gt; SELECT CURRENT_TIMESTAMP AS &quot;current_timestamp&quot;</code></pre><p>The <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node is used to specify the output columns.  The name of the column is either derived from the expression or set explicitly with <a href="../reference/#FunSQL.As-Tuple"><code>As</code></a> (or the shorthand <code>=&gt;</code>).</p><p><em>For each patient, show their ID and the current age.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Select(Get.person_id,
+           :age =&gt; 2020 .- Get.year_of_birth)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  (2020 - &quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>To add a new column while preserving existing output columns, we use the <a href="../reference/#FunSQL.Define-Tuple"><code>Define</code></a> node.</p><p><em>Show the patient data together with their current age.</em></p><pre><code class="language-julia hljs">using FunSQL: Define
+
+q = From(:person) |&gt;
+    Define(:age =&gt; 2020 .- Get.year_of_birth)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;,
+  (2020 - &quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;age&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>Define</code> could also be used to replace an existing column.</p><p><em>Hide the day of birth of patients born before 1930.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Define(:day_of_birth =&gt; Fun.case(Get.year_of_birth .&gt;= 1930,
+                                     Get.day_of_birth,
+                                     missing))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  (CASE WHEN (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930) THEN &quot;person_1&quot;.&quot;day_of_birth&quot; ELSE NULL END) AS &quot;day_of_birth&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a> node correlates the rows of two input datasets. Predominantly, <code>Join</code> is used for looking up table records by key.  In the following example, <code>Join</code> associates each <code>person</code> record with their <code>location</code> using the key column <code>location_id</code> that uniquely identifies a <code>location</code> record.</p><p><em>Show all patients together with their state of residence.</em></p><pre><code class="language-julia hljs">From(:person) |&gt;
+Join(:location =&gt; From(:location),
+     Get.location_id .== Get.location.location_id,
+     left = true) |&gt;
+Select(Get.person_id, Get.location.state)</code></pre><p>The modifier <code>left = true</code> tells <code>Join</code> that it must output <em>all</em> <code>person</code> records including those without the corresponding <code>location</code>.  Since this is a very common requirement, FunSQL provides an alias:</p><pre><code class="language-julia hljs">using FunSQL: LeftJoin
+
+From(:person) |&gt;
+LeftJoin(:location =&gt; From(:location),
+         Get.location_id .== Get.location.location_id) |&gt;
+Select(Get.person_id, Get.location.state)</code></pre><p>Since <code>Join</code> needs two input datasets, it must be attached to two input pipelines.  The first pipeline is attached using the <code>|&gt;</code> operator and the second one is provided as an argument to the <code>Join</code> constructor. Alternatively, both input pipelines can be specified as keyword arguments:</p><pre><code class="language-julia hljs">Join(over = From(:person),
+     joinee = :location =&gt; From(:location),
+     on = Get.location_id .== Get.location.location_id,
+     left = true) |&gt;
+Select(Get.person_id, Get.location.state)</code></pre><p>The output of <code>Join</code> combines columns of both input datasets, which will cause ambiguity if both datasets have a column with the same name.  Such is the case in the previous example since both tables, <code>person</code> and <code>location</code>, have a column called <code>location_id</code>.  To disambiguate them, we can place all columns of one of the datasets into a nested record.  This is the action of the arrow (<code>=&gt;</code>) operator or its full form, the <code>As</code> node:</p><pre><code class="language-julia hljs">using FunSQL: As
+
+From(:person) |&gt;
+LeftJoin(From(:location) |&gt; As(:location),
+         on = Get.location_id .== Get.location.location_id) |&gt;
+Select(Get.person_id, Get.location.state)</code></pre><p>Alternatively, we could use <em>bound column references</em>, which are described in a <a href="../reference/#Get">later section</a>.</p><h2 id="Scalar-Operations"><a class="docs-heading-anchor" href="#Scalar-Operations">Scalar Operations</a><a id="Scalar-Operations-1"></a><a class="docs-heading-anchor-permalink" href="#Scalar-Operations" title="Permalink"></a></h2><p>Many tabular operations including <code>Join</code>, <code>Select</code> and <code>Where</code> are parameterized with scalar operations.  A <em>scalar operation</em> acts on an individual row of a dataset and produces a scalar value.  Scalar operations are assembled from literal values, column references, and applications of SQL functions and operators.  Below is a list of scalar operations available in FunSQL.</p><table><tr><th style="text-align: left">Constructor</th><th style="text-align: left">Function</th></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Agg-Tuple"><code>Agg</code></a></td><td style="text-align: left">apply an aggregate function</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a></td><td style="text-align: left">assign a column alias</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Bind-Tuple"><code>Bind</code></a></td><td style="text-align: left">create a correlated subquery</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Fun-Tuple"><code>Fun</code></a></td><td style="text-align: left">apply a scalar function or a scalar operator</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Get-Tuple"><code>Get</code></a></td><td style="text-align: left">produce the value of a column</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Lit-Tuple"><code>Lit</code></a></td><td style="text-align: left">produce a constant value</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Sort-Tuple"><code>Sort</code></a></td><td style="text-align: left">indicate the sort order</td></tr><tr><td style="text-align: left"><a href="../reference/#FunSQL.Var-Tuple"><code>Var</code></a></td><td style="text-align: left">produce the value of a query parameter</td></tr></table><h2 id="Lit:-SQL-Literals"><a class="docs-heading-anchor" href="#Lit:-SQL-Literals"><code>Lit</code>: SQL Literals</a><a id="Lit:-SQL-Literals-1"></a><a class="docs-heading-anchor-permalink" href="#Lit:-SQL-Literals" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.Lit-Tuple"><code>Lit</code></a> node creates a literal value, although we could usually omit the constructor:</p><pre><code class="language-julia hljs">using FunSQL: Lit
+
+Select(Lit(42))
+Select(42)</code></pre><p>The SQL value <code>NULL</code> is represented by the Julia constant <code>missing</code>:</p><pre><code class="language-julia hljs">q = Select(missing)
+
+render(conn, q) |&gt; print
+#-&gt; SELECT NULL AS &quot;_&quot;</code></pre><h2 id="Get:-Column-References"><a class="docs-heading-anchor" href="#Get:-Column-References"><code>Get</code>: Column References</a><a id="Get:-Column-References-1"></a><a class="docs-heading-anchor-permalink" href="#Get:-Column-References" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.Get-Tuple"><code>Get</code></a> node creates a column reference.  The <code>Get</code> constructor admits several equivalent forms:</p><pre><code class="language-julia hljs">Get.year_of_birth
+Get(:year_of_birth)
+Get.&quot;year_of_birth&quot;
+Get(&quot;year_of_birth&quot;)</code></pre><p>Such column references are resolved at the place of use against the input dataset.  As we mentioned earlier, sometimes column references cannot be resolved unambiguously.  To alleviate this problem, we can bind the column reference to the node that produces it:</p><p><em>Show all patients with their state of residence.</em></p><pre><code class="language-julia hljs">qₚ = From(:person)
+qₗ = From(:location)
+q = qₚ |&gt;
+    LeftJoin(qₗ, on = qₚ.location_id .== qₗ.location_id) |&gt;
+    Select(qₚ.person_id, qₗ.state)</code></pre><p>The notation <code>qₚ.location_id</code> and <code>qₗ.location_id</code> is a syntax sugar for</p><pre><code class="language-julia hljs">Get(:location_id, over = qₚ)
+Get(:location_id, over = qₗ)</code></pre><h2 id="Fun:-SQL-Functions-and-Operators"><a class="docs-heading-anchor" href="#Fun:-SQL-Functions-and-Operators"><code>Fun</code>: SQL Functions and Operators</a><a id="Fun:-SQL-Functions-and-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#Fun:-SQL-Functions-and-Operators" title="Permalink"></a></h2><p>SQL functions and operators are represented using the <a href="../reference/#FunSQL.Fun-Tuple"><code>Fun</code></a> node, which also has several equivalent forms:</p><pre><code class="language-julia hljs">Fun.between(Get.year_of_birth, 1930, 1940)
+Fun(:between, Get.year_of_birth, 1930, 1940)
+Fun.&quot;between&quot;(Get.year_of_birth, 1930, 1940)
+Fun(&quot;between&quot;, Get.year_of_birth, 1930, 1940)</code></pre><p>Certain SQL operators, notably logical and comparison operators, can be represented using Julia broadcasting notation:</p><pre><code class="language-julia hljs">Fun.&quot;&gt;=&quot;(Get.year_of_birth, 1930)
+Get.year_of_birth .&gt;= 1930
+
+Fun.and(Fun.&quot;=&quot;(Get.city, &quot;CHICAGO&quot;), Fun.&quot;=&quot;(Get.state, &quot;IL&quot;))
+#? VERSION &gt;= v&quot;1.7&quot;
+Get.city .== &quot;CHICAGO&quot; .&amp;&amp; Get.state .== &quot;IL&quot;</code></pre><p>We should note that FunSQL does not verify if a SQL function or an operator is used correctly or even whether it exists or not.  In such a case, FunSQL will generate a SQL query that fails to execute:</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Select(Fun.frobnicate(Get.year_of_birth))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT frobnicate(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;frobnicate&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+DBInterface.execute(conn, q)
+#-&gt; ERROR: SQLite.SQLiteException(&quot;no such function: frobnicate&quot;)</code></pre><p>On the other hand, FunSQL will correctly serialize many SQL functions and operators that have irregular syntax including <code>AND</code>, <code>OR</code>, <code>NOT</code>, <code>IN</code>, <code>EXISTS</code>, <code>CASE</code>, and others.</p><p><em>Show the demographic cohort of each patient.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Select(Fun.case(Get.year_of_birth .&lt;= 1960, &quot;boomer&quot;, &quot;millenial&quot;))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT (CASE WHEN (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;= 1960) THEN &#39;boomer&#39; ELSE &#39;millenial&#39; END) AS &quot;case&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>Since FunSQL recognizes <code>||</code> as a logical <em>or</em> operator, it conflicts with those SQL dialects that use <code>||</code> for string concatenation.  Other SQL dialects use function <code>concat</code> for this purpose.  In FunSQL, always use <code>Fun.concat</code>, which will pick correct serialization depending on the target SQL dialect.</p><p><em>Show city, state.</em></p><pre><code class="language-julia hljs">q = From(:location) |&gt;
+    Select(Fun.concat(Get.city, &quot;, &quot;, Get.state))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT (&quot;location_1&quot;.&quot;city&quot; || &#39;, &#39; || &quot;location_1&quot;.&quot;state&quot;) AS &quot;concat&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;
+=#</code></pre><p>When the name of the <code>Fun</code> node contains one or more <code>?</code> symbols, this name serves as a template of a SQL expression.  When the node is rendered, the <code>?</code> symbols are substituted with the node arguments.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Select(Fun.&quot;CAST(? AS TEXT)&quot;(Get.year_of_birth))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT CAST(&quot;person_1&quot;.&quot;year_of_birth&quot; AS TEXT) AS &quot;_&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>To decide how to render a <code>Fun</code> node, FunSQL checks the node name:</p><ol><li>If the name has a specialized implementation of <code>FunSQL.serialize!()</code>, this implementation is used for rendering the node.</li><li>If the name contains one or more placeholders (<code>?</code>), the node is rendered as a template.</li><li>If the name contains only symbol characters, or if the name starts or ends with a space, the node is rendered as an operator.</li><li>Otherwise, the node is rendered as a function.</li></ol><h2 id="Group-and-Aggregate-Functions"><a class="docs-heading-anchor" href="#Group-and-Aggregate-Functions"><code>Group</code> and Aggregate Functions</a><a id="Group-and-Aggregate-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Group-and-Aggregate-Functions" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> and aggregate functions are used for summarizing data to report totals, averages and so on.  We start by applying the <code>Group</code> node to partition the input rows into disjoint groups.  Then, for each group, we can calculate summary values using aggregate functions.  In FunSQL, aggregate functions are created using the <a href="../reference/#FunSQL.Agg-Tuple"><code>Agg</code></a> node.  In the following example, we use the aggregate function <code>Agg.count</code>, which simply counts the number of rows in each group.</p><p><em>Show the number of patients by the year of birth.</em></p><pre><code class="language-julia hljs">using FunSQL: Agg, Group
+
+q = From(:person) |&gt;
+    Group(Get.year_of_birth) |&gt;
+    Select(Get.year_of_birth, Agg.count())
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+10×2 DataFrame
+ Row │ year_of_birth  count
+     │ Int64          Int64
+─────┼──────────────────────
+   1 │          1911      1
+   2 │          1913      1
+   3 │          1922      1
+⋮
+=#</code></pre><p>To indicate that aggregate functions must be applied to the dataset as a whole, we create a <code>Group</code> node without arguments.  This is the case where FunSQL notation deviates from SQL, where we would omit the <code>GROUP BY</code> clause to achieve the same effect.</p><p><em>Show the average year of birth.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Group() |&gt;
+    Select(Agg.avg(Get.year_of_birth))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT avg(&quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;avg&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×1 DataFrame
+ Row │ avg
+     │ Float64
+─────┼─────────
+   1 │  1935.4
+=#</code></pre><p>In general, the arguments of the <code>Group</code> node form the <em>grouping key</em> so that two rows of the input dataset belongs to the same group when they have the same value of the grouping key.  The output of <code>Group</code> contains all distinct values of the grouping key.</p><p><em>Show the US states that are present in the location records.</em></p><pre><code class="language-julia hljs">q = From(:location) |&gt;
+    Group(Get.state)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT DISTINCT &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+10×1 DataFrame
+ Row │ state
+     │ String
+─────┼────────
+   1 │ MI
+   2 │ WA
+   3 │ FL
+⋮
+=#</code></pre><p>FunSQL has no lexical limitations on the use of aggregate functions.  While in SQL aggregate functions can only be used in the <code>SELECT</code> or <code>HAVING</code> clauses, there is no such restriction in FunSQL: they could be used in any context where an ordinary expression is permitted.  The only requirement is that for each aggregate function, FunSQL can determine the corresponding <code>Group</code> node.  It is convenient to imagine that the output of <code>Group</code> contains the grouped rows, which cannot be observed directly, but whose presence in the output allows us to apply aggregate functions.</p><p>In particular, we use a regular <code>Where</code> node where SQL would require a <code>HAVING</code> clause.</p><p><em>Show patients who saw a doctor within the last year.</em></p><pre><code class="language-julia hljs">q = From(:visit_occurrence) |&gt;
+    Group(Get.person_id) |&gt;
+    Where(Agg.max(Get.visit_end_date) .&gt;= Fun.date(&quot;now&quot;, &quot;-1 year&quot;))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+HAVING (max(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) &gt;= date(&#39;now&#39;, &#39;-1 year&#39;))
+=#</code></pre><p>When the output of <code>Group</code> is blocked by an <code>As</code> node, we need to traverse it with <code>Get</code> in order to use an aggregate function.</p><p><em>For each patient, show the date of their latest visit to a doctor.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    LeftJoin(:visit_group =&gt; From(:visit_occurrence) |&gt; Group(Get.person_id),
+             on = Get.person_id .== Get.visit_group.person_id) |&gt;
+    Select(Get.person_id,
+           Get.visit_group |&gt; Agg.max(Get.visit_start_date))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_group_1&quot;.&quot;max&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+LEFT JOIN (
+  SELECT
+    max(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
+=#</code></pre><h2 id="Partition-and-Window-Functions"><a class="docs-heading-anchor" href="#Partition-and-Window-Functions"><code>Partition</code> and Window Functions</a><a id="Partition-and-Window-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Partition-and-Window-Functions" title="Permalink"></a></h2><p>We can relate each row to other rows in the same dataset using the <a href="../reference/#FunSQL.Partition-Tuple"><code>Partition</code></a> node and <em>window functions</em>.  We start by applying the <code>Partition</code> node to partition the input rows into disjoint groups.  The rows in each group are reordered according to the given sort order.  Unlike <code>Group</code>, which collapses each row group into a single row, the <code>Partition</code> node preserves the original rows, but allows us to relate each row to adjacent rows in the same partition.  In particular, we can apply regular aggregate functions, which calculate the summary value of a subset of rows related to the current row.</p><p>In the following example, the rows <code>visit_occurrence</code> are partitioned per patient and ordered by the starting date of the visit.  The <code>frame</code> clause specifies the subset of rows relative to the current row (the <em>window frame</em>) to be used by aggregate functions.  In this example, the frame contains all rows prior to the current row.</p><p><em>For each visit, show the time passed since the previous visit.</em></p><pre><code class="language-julia hljs">using FunSQL: Partition
+
+q = From(:visit_occurrence) |&gt;
+    Partition(Get.person_id,
+              order_by = [Get.visit_start_date],
+              frame = (mode = :rows, start = -Inf, finish = -1)) |&gt;
+    Select(Get.person_id,
+           Get.visit_start_date,
+           Get.visit_end_date,
+           :gap =&gt; Fun.julianday(Get.visit_start_date) .- Fun.julianday(Agg.max(Get.visit_end_date)))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
+  (julianday(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) - julianday((max(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)))) AS &quot;gap&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+27×4 DataFrame
+ Row │ person_id  visit_start_date  visit_end_date  gap
+     │ Int64      String            String          Float64?
+─────┼────────────────────────────────────────────────────────
+   1 │      1780  2008-04-09        2008-04-13      missing
+   2 │      1780  2008-04-10        2008-04-10           -3.0
+   3 │      1780  2008-11-22        2008-11-22          223.0
+   4 │      1780  2009-05-22        2009-05-22          181.0
+⋮
+=#</code></pre><h2 id="Query-Parameters"><a class="docs-heading-anchor" href="#Query-Parameters">Query Parameters</a><a id="Query-Parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Query-Parameters" title="Permalink"></a></h2><p>A SQL query may include a reference to a <em>query parameter</em>.  When we execute such a query, we must supply the actual values for all parameters used in the query.  This is a restricted form of dynamic query construction directly supported by SQL syntax.</p><p><em>Show all patients born between <code>$start_year</code> and <code>$end_year</code>.</em></p><pre><code class="language-julia hljs">sql = &quot;&quot;&quot;
+SELECT p.person_id
+FROM person p
+WHERE p.year_of_birth BETWEEN ? AND ?
+&quot;&quot;&quot;
+
+DBInterface.execute(conn, sql, (1930, 1940)) |&gt; DataFrame
+#=&gt;
+3×1 DataFrame
+ Row │ person_id
+     │ Int64
+─────┼───────────
+   1 │      1780
+   2 │     30091
+   3 │     72120
+=#</code></pre><p>FunSQL can be used to construct a query with parameters.  Similar to <code>Get</code>, parameter references are created using the <a href="../reference/#FunSQL.Var-Tuple"><code>Var</code></a> node:</p><pre><code class="language-julia hljs">using FunSQL: Var
+
+q = From(:person) |&gt;
+    Where(Fun.between(Get.year_of_birth, Var.START_YEAR, Var.END_YEAR)) |&gt;
+    Select(Get.person_id)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; BETWEEN ?1 AND ?2)
+=#</code></pre><p>While we specified parameters by name, in the generated SQL query the same parameters are numbered.  FunSQL will automatically <a href="../reference/#FunSQL.pack"><code>pack</code></a> named parameters in the order in which they appear in the SQL query.</p><pre><code class="language-julia hljs">DBInterface.execute(conn, q, START_YEAR = 1930, END_YEAR = 1940) |&gt; DataFrame
+#=&gt;
+3×1 DataFrame
+ Row │ person_id
+     │ Int64
+─────┼───────────
+   1 │      1780
+   2 │     30091
+   3 │     72120
+=#</code></pre><h2 id="Correlated-Queries"><a class="docs-heading-anchor" href="#Correlated-Queries">Correlated Queries</a><a id="Correlated-Queries-1"></a><a class="docs-heading-anchor-permalink" href="#Correlated-Queries" title="Permalink"></a></h2><p>An <em>inner query</em> is a SQL query that is included into the <em>outer query</em> as a part of a scalar expression.  An inner query must either produce a single value or be used as an argument of a query operator, such as <code>IN</code> or <code>EXISTS</code>, which transforms the query output to a scalar value.</p><p>It is easy to assemble an inner query with FunSQL:</p><p><em>Find the oldest patients.</em></p><pre><code class="language-julia hljs">qᵢ = From(:person) |&gt;
+     Group() |&gt;
+     Select(Agg.min(Get.year_of_birth))
+
+qₒ = From(:person) |&gt;
+     Where(Get.year_of_birth .== qᵢ) |&gt;
+     Select(Get.person_id, Get.year_of_birth)
+
+render(conn, qₒ) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; = (
+  SELECT min(&quot;person_2&quot;.&quot;year_of_birth&quot;) AS &quot;min&quot;
+  FROM &quot;person&quot; AS &quot;person_2&quot;
+))
+=#
+
+DBInterface.execute(conn, qₒ) |&gt; DataFrame
+#=&gt;
+1×2 DataFrame
+ Row │ person_id  year_of_birth
+     │ Int64      Int64
+─────┼──────────────────────────
+   1 │    110862           1911
+=#</code></pre><p><em>Find patients with no visits to a healthcare provider.</em></p><pre><code class="language-julia hljs">qᵢ = From(:visit_occurrence) |&gt;
+     Select(Get.person_id)
+
+qₒ = From(:person) |&gt;
+     Where(Fun.not_in(Get.person_id, qᵢ))
+
+render(conn, qₒ) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;person_id&quot; NOT IN (
+  SELECT &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+))
+=#
+
+DBInterface.execute(conn, qₒ) |&gt; DataFrame
+#=&gt;
+0×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64?     Int64?             Int64?         Int64?          Int64?     ⋯
+─────┴──────────────────────────────────────────────────────────────────────────
+                                                              14 columns omitted
+=#</code></pre><p>The inner query may depend on the data from the outer query.  Such inner queries are called <em>correlated</em>.  In FunSQL, correlated queries are created using the <a href="../reference/#FunSQL.Bind-Tuple"><code>Bind</code></a> node.  Specifically, in the body of a correlated query we use <a href="#Query-Parameters">query parameters</a> to refer to the external data.  The <code>Bind</code> node, which wrap the correlated query, binds each parameter to an expression evaluated in the context of the outer query.</p><p><em>Find all visits where at least one condition was diagnosed.</em></p><pre><code class="language-julia hljs">using FunSQL: Bind
+
+CorrelatedCondition(person_id, start_date, end_date) =
+    From(:condition_occurrence) |&gt;
+    Where(Fun.and(Get.person_id .== Var.PERSON_ID,
+                  Fun.between(Get.condition_start_date, Var.START_DATE, Var.END_DATE))) |&gt;
+    Bind(:PERSON_ID =&gt; person_id,
+         :START_DATE =&gt; start_date,
+         :END_DATE =&gt; end_date)
+
+q = From(:visit_occurrence) |&gt;
+    Where(Fun.exists(CorrelatedCondition(Get.person_id, Get.visit_start_date, Get.visit_end_date)))
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  ⋮
+  &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+WHERE (EXISTS (
+  SELECT NULL
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+  WHERE
+    (&quot;condition_occurrence_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;) AND
+    (&quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
+))
+=#</code></pre><h2 id="Order-and-Limit"><a class="docs-heading-anchor" href="#Order-and-Limit"><code>Order</code> and <code>Limit</code></a><a id="Order-and-Limit-1"></a><a class="docs-heading-anchor-permalink" href="#Order-and-Limit" title="Permalink"></a></h2><p>The database server emits the output rows in an arbitrary order.  In fact, different runs of the same query may produce rows in a different order.  To specify a particular order of output rows, we use the <a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a> node.</p><p><em>Show patients ordered by the year of birth.</em></p><pre><code class="language-julia hljs">using FunSQL: Order
+
+q = From(:person) |&gt;
+    Order(Get.year_of_birth)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+=#</code></pre><p>The <a href="../reference/#FunSQL.Asc-Tuple{}"><code>Asc</code></a> and the <a href="../reference/#FunSQL.Desc-Tuple{}"><code>Desc</code></a> modifiers specify whether to sort the rows in an ascending or in a descending order.</p><p><em>Show patients ordered by the year of birth in the descending order.</em></p><pre><code class="language-julia hljs">using FunSQL: Desc
+
+q = From(:person) |&gt;
+    Order(Get.year_of_birth |&gt; Desc())
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC
+=#</code></pre><p>The <a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a> node lets us take a slice of the input dataset.  To make the output deterministic, <code>Limit</code> must be applied right after <code>Order</code>.</p><p><em>Show the top three oldest patients.</em></p><pre><code class="language-julia hljs">using FunSQL: Limit
+
+q = From(:person) |&gt;
+    Order(Get.year_of_birth) |&gt;
+    Limit(1:3)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+LIMIT 3
+OFFSET 0
+=#</code></pre><h2 id="Append-and-Iterate"><a class="docs-heading-anchor" href="#Append-and-Iterate"><code>Append</code> and <code>Iterate</code></a><a id="Append-and-Iterate-1"></a><a class="docs-heading-anchor-permalink" href="#Append-and-Iterate" title="Permalink"></a></h2><p>The <a href="../reference/#FunSQL.Append-Tuple"><code>Append</code></a> node concatenates two or more input datasets.  Only the columns that are present in every input dataset will be included to the output.</p><p><em>Show all clinical events (visits and conditions) associated with each patient.</em></p><pre><code class="language-julia hljs">using FunSQL: Append
+
+q = From(:visit_occurrence) |&gt;
+    Define(:type =&gt; &quot;visit&quot;, :date =&gt; Get.visit_start_date) |&gt;
+    Append(From(:condition_occurrence) |&gt;
+           Define(:type =&gt; &quot;condition&quot;, :date =&gt; Get.condition_start_date)) |&gt;
+    Order(Get.person_id, Get.date)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;union_1&quot;.&quot;visit_occurrence_id&quot;,
+  &quot;union_1&quot;.&quot;person_id&quot;,
+  &quot;union_1&quot;.&quot;provider_id&quot;,
+  &quot;union_1&quot;.&quot;type&quot;,
+  &quot;union_1&quot;.&quot;date&quot;
+FROM (
+  SELECT
+    &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;provider_id&quot;,
+    &#39;visit&#39; AS &quot;type&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AS &quot;date&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  UNION ALL
+  SELECT
+    &quot;condition_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+    &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+    &quot;condition_occurrence_1&quot;.&quot;provider_id&quot;,
+    &#39;condition&#39; AS &quot;type&quot;,
+    &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot; AS &quot;date&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+) AS &quot;union_1&quot;
+ORDER BY
+  &quot;union_1&quot;.&quot;person_id&quot;,
+  &quot;union_1&quot;.&quot;date&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+53×5 DataFrame
+ Row │ visit_occurrence_id  person_id  provider_id  type       date
+     │ Int64                Int64      Int64        String     String
+─────┼────────────────────────────────────────────────────────────────────
+   1 │               88179       1780         5247  visit      2008-04-09
+   2 │               88246       1780        61112  visit      2008-04-10
+   3 │               88246       1780        61112  condition  2008-04-10
+   4 │               88214       1780        12674  visit      2008-11-22
+   5 │               88214       1780        12674  condition  2008-11-22
+   6 │               88263       1780        61118  visit      2009-05-22
+   7 │               88263       1780        61118  condition  2009-05-22
+   8 │             1454922      30091        36303  visit      2008-11-12
+  ⋮  │          ⋮               ⋮           ⋮           ⋮          ⋮
+  47 │             5314671     110862         5159  condition  2008-09-07
+  48 │             5314690     110862        31906  visit      2009-06-30
+  49 │             5314690     110862        31906  condition  2009-06-30
+  50 │             5314664     110862        31857  visit      2009-09-30
+  51 │             5314664     110862        31857  condition  2009-09-30
+  52 │             5314696     110862       192777  visit      2010-06-07
+  53 │             5314696     110862       192777  condition  2010-06-07
+                                                           38 rows omitted
+=#</code></pre><p>For a second example, consider the table <code>concept</code>, which contains the vocabulary of medical concepts (such as <em>Myocardial Infarction</em>).  These concepts may be related to each other (<em>Myocardial Infarction</em> has a subtype <em>Acute Myocardial Infarction</em>), and their relationships are stored in the table <code>concept_relationship</code>.  We can encapsulate construction of a query that finds immediate subtypes as the function:</p><pre><code class="language-julia hljs">SubtypesOf(base) =
+    From(:concept) |&gt;
+    Join(From(:concept_relationship) |&gt;
+         Where(Get.relationship_id .== &quot;Is a&quot;),
+         on = Get.concept_id .== Get.concept_id_1) |&gt;
+    Join(:base =&gt; base,
+         on = Get.concept_id_2 .== Get.base.concept_id)</code></pre><p><em>Show the concept &quot;Myocardial Infarction&quot; and its immediate subtypes.</em></p><pre><code class="language-julia hljs">base = From(:concept) |&gt;
+       Where(Get.concept_name .== &quot;Myocardial infarction&quot;)
+
+q = base |&gt; Append(SubtypesOf(base))
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+2×7 DataFrame
+ Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
+     │ Int64       String                       String     String         Stri ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction        Condition  SNOMED         Clin ⋯
+   2 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin
+                                                               3 columns omitted
+=#</code></pre><p>But how can we fetch not just immediate, but all of the subtypes of a concept?</p><p><em>Show the concept &quot;Myocardial Infarction&quot; and all of its subtypes.</em></p><p>A good start is to repeatedly apply <code>SubtypesOf</code> and concatenate all the outputs:</p><pre><code class="language-julia hljs">base |&gt;
+Append(SubtypesOf(base),
+       SubtypesOf(SubtypesOf(base)),
+       SubtypesOf(SubtypesOf(SubtypesOf(base))),
+       SubtypesOf(SubtypesOf(SubtypesOf(SubtypesOf(base)))))</code></pre><p>However we do not know if 4 iterations of <code>SubtypesOf</code> is enough to fully traverse the concept hierarchy.  Ideally, we should continue applying <code>SubtypesOf</code> until the last iteration produces an empty output. This is exactly the action of the <a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a> node.</p><pre><code class="language-julia hljs">using FunSQL: Iterate
+
+q = base |&gt;
+    Iterate(SubtypesOf(From(^)))
+
+render(conn, q) |&gt; print
+#=&gt;
+WITH RECURSIVE &quot;concept_2&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;, &quot;domain_id&quot;, &quot;vocabulary_id&quot;, &quot;concept_class_id&quot;, &quot;standard_concept&quot;, &quot;concept_code&quot;) AS (
+  SELECT
+    &quot;concept_1&quot;.&quot;concept_id&quot;,
+    &quot;concept_1&quot;.&quot;concept_name&quot;,
+    &quot;concept_1&quot;.&quot;domain_id&quot;,
+    &quot;concept_1&quot;.&quot;vocabulary_id&quot;,
+    &quot;concept_1&quot;.&quot;concept_class_id&quot;,
+    &quot;concept_1&quot;.&quot;standard_concept&quot;,
+    &quot;concept_1&quot;.&quot;concept_code&quot;
+  FROM &quot;concept&quot; AS &quot;concept_1&quot;
+  WHERE (&quot;concept_1&quot;.&quot;concept_name&quot; = &#39;Myocardial infarction&#39;)
+  UNION ALL
+  SELECT
+    &quot;concept_3&quot;.&quot;concept_id&quot;,
+    &quot;concept_3&quot;.&quot;concept_name&quot;,
+    &quot;concept_3&quot;.&quot;domain_id&quot;,
+    &quot;concept_3&quot;.&quot;vocabulary_id&quot;,
+    &quot;concept_3&quot;.&quot;concept_class_id&quot;,
+    &quot;concept_3&quot;.&quot;standard_concept&quot;,
+    &quot;concept_3&quot;.&quot;concept_code&quot;
+  FROM &quot;concept&quot; AS &quot;concept_3&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;,
+      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
+    WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_3&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_1&quot;)
+  JOIN &quot;concept_2&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_2&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
+)
+SELECT
+  &quot;concept_5&quot;.&quot;concept_id&quot;,
+  &quot;concept_5&quot;.&quot;concept_name&quot;,
+  &quot;concept_5&quot;.&quot;domain_id&quot;,
+  &quot;concept_5&quot;.&quot;vocabulary_id&quot;,
+  &quot;concept_5&quot;.&quot;concept_class_id&quot;,
+  &quot;concept_5&quot;.&quot;standard_concept&quot;,
+  &quot;concept_5&quot;.&quot;concept_code&quot;
+FROM &quot;concept_2&quot; AS &quot;concept_5&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×7 DataFrame
+ Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+     │ Int64       String                             String     String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+   2 │     312327  Acute myocardial infarction        Condition  SNOMED
+   3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+   4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+   5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+   6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                               3 columns omitted
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Monday 2 January 2023 12:31">Monday 2 January 2023</span>. Using Julia version 1.8.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
