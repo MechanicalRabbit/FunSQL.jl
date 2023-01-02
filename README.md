@@ -21,9 +21,10 @@ FunSQL allows you to build queries incrementally from small independent
 fragments.  This approach is particularly useful for building applications that
 programmatically construct SQL queries.
 
-If you want to learn more about FunSQL, watch the [JuliaCon 2021
-presentation][juliacon2021-url] ([slides][juliacon2021-slides]), explore the
-[Examples][examples-url], or go straight to the [Usage Guide][guide-url].
+If you want to learn more about FunSQL, read about [Two Kinds of SQL Query
+Builders][tkosqb-url], watch the [JuliaCon 2021 presentation][juliacon2021-url]
+([slides][juliacon2021-slides]), explore the [Examples][examples-url], or go
+straight to the [Usage Guide][guide-url].
 
 [![FunSQL | JuliaCon 2021][juliacon2021-img]][juliacon2021-url]
 
@@ -125,3 +126,4 @@ passed around as values, and freely composed together.
 [juliacon2021-slides]: https://github.com/MechanicalRabbit/FunSQL.jl/files/7465997/FunSQL-JuliaCon2021.pdf
 [guide-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/guide/
 [examples-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/examples/
+[tkosqb-url]: https://mechanicalrabbit.github.io/FunSQL.jl/stable/two-kinds-of-sql-query-builders/
