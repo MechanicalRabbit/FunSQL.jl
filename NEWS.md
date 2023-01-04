@@ -145,7 +145,7 @@ please review these notes.
   when key columns of `Group()` are not used by the following nodes.  For
   example, the following query pipeline would fail to render SQL:
 
-```julia
+  ```julia
   From(:person) |>
   Group(Get.year_of_birth) |>
   Group() |>
