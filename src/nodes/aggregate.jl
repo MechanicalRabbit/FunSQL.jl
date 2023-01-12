@@ -126,6 +126,11 @@ Agg(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Agg), pats::Vector{Any}) =
     dissect(scr, AggregateNode, pats)
 
+transliterate(::typeof(Agg), name::Symbol, ctx::TransliterateContext, @nospecialize(args...); filter = nothing) =
+    Agg(name,
+        args = SQLNode[transliterate(SQLNode, arg, ctx) for arg in args],
+        filter = transliterate(Union{SQLNode, Nothing}, filter, ctx))
+
 function PrettyPrinting.quoteof(n::AggregateNode, ctx::QuoteContext)
     ex = Expr(:call,
               Expr(:., nameof(Agg),

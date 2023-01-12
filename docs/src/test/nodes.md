@@ -4,7 +4,7 @@
         Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, FunSQL, From,
         Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
         Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
-        WithExternal, ID, render
+        WithExternal, ID, render, @funsql
 
 We start with specifying the database model.
 
@@ -85,6 +85,86 @@ Ill-formed queries are detected.
     end
     =#
 
+The `@funsql` macro provides alternative notation for specifying FunSQL queries.
+
+    q = @funsql begin
+        from(person)
+        filter(year_of_birth > 2000)
+        select(person_id)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
+        q3 = q2 |> Select(Get.person_id)
+        q3
+    end
+    =#
+
+We can combine `@funsql` notation with regular Julia code.
+
+    q = @funsql $(From(:person)).select(person_id)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Select(Get.person_id)
+        q2
+    end
+    =#
+
+    q = @funsql $(From(:person)[]).select(person_id)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Select(Get.person_id)
+        q2
+    end
+    =#
+
+    q = @funsql from(person).select(; args = $([Get.person_id]))
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Select(Get.person_id)
+        q2
+    end
+    =#
+
+    q = @funsql from(person).select(; args = $(Any[Get.person_id]))
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Select(Get.person_id)
+        q2
+    end
+    =#
+
+An ill-formed `@funsql` query triggers an error.
+
+    @funsql for p in person; end
+    #-> ERROR: invalid @funsql expression: ⋮
+
+    @funsql select(args = nothing)
+    #-> ERROR: invalid @funsql vector expression: `:nothing`
+
+    @funsql asc(nulls = false)
+    #-> ERROR: invalid @funsql symbol expression: `false`
+
+    @funsql limit(1:2:3)
+    #-> ERROR: invalid @funsql range expression: `:(1:2:3)`
+
+    @funsql join(location => from(location),
+                 on = location_id == location.location_id,
+                 left = nothing)
+    #-> ERROR: invalid @funsql expression of type Bool: `:nothing`
+
+    @funsql partition(person_id, frame = (mode = groups, start = finish))
+    #-> ERROR: invalid @funsql frame boundary expression: `:finish`
 
 ## Literals
 
@@ -112,6 +192,23 @@ literals when they are used in the context of a SQL node.
                "integer" => 42,
                "text" => "SQL is fun!",
                "date" => Date(2000))
+
+Such plain literals could also be used in `@funsql` notation.
+
+    q = @funsql select(null => missing,
+                       boolean => true,
+                       integer => 42,
+                       text => "SQL is fun!",
+                       date => $(Date(2000)))
+
+    display(q)
+    #=>
+    Select(missing |> As(:null),
+           true |> As(:boolean),
+           42 |> As(:integer),
+           "SQL is fun!" |> As(:text),
+           Dates.Date("2000-01-01") |> As(:date))
+    =#
 
 
 ## Attributes
@@ -141,6 +238,22 @@ Hierarchical notation is supported.
     #-> Get.p.person_id
 
     Get.p |> Get.person_id
+    #-> Get.p.person_id
+
+A column reference can be created with a `@funsql` macro.
+
+    @funsql person_id
+    #-> Get.person_id
+
+    @funsql p.person_id
+    #-> Get.p.person_id
+
+Use backticks to represent a name that is not a valid identifier.
+
+    @funsql `person_id`
+    #-> Get.person_id
+
+    @funsql `p`.`person_id`
     #-> Get.p.person_id
 
 `Get` can also create bound references.
@@ -404,6 +517,18 @@ attribute.
     WHERE ("person_2"."age" > '16 years')
     =#
 
+A `Define` node can be created using `@funsql` notation.
+
+    q = @funsql from(person).define(age => 2000 - year_of_birth)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Define(Fun."-"(2000, Get.year_of_birth) |> As(:age))
+        q2
+    end
+    =#
+
 `Define` does not create a nested query if the definition is a literal or
 a simple reference.
 
@@ -513,6 +638,11 @@ Alternatively, use shorthand notation.
     Var["YEAR"]
     #-> Var.YEAR
 
+A variable could be created with `@funsql` notation.
+
+    @funsql :YEAR
+    #-> Var.YEAR
+
 Unbound query variables are serialized as query parameters.
 
     q = From(person) |>
@@ -561,6 +691,22 @@ Query variables could be bound using the `Bind` constructor.
       "visit_occurrence_1"."visit_end_date"
     FROM "visit_occurrence" AS "visit_occurrence_1"
     WHERE ("visit_occurrence_1"."person_id" = 1)
+    =#
+
+A `Bind` node can be created with `@funsql` notation.
+
+    q = @funsql begin
+        from(visit_occurrence)
+        filter(person_id == :PERSON_ID)
+        bind(:PERSON_ID => person_id)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:visit_occurrence),
+        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
+        q2 |> Bind(Get.person_id |> As(:PERSON_ID))
+    end
     =#
 
 `Bind` lets us create correlated subqueries.
@@ -669,6 +815,37 @@ A vector of arguments could be passed directly.
 
     Fun.">"(args = SQLNode[Get.year_of_birth, 2000])
     #-> Fun.:(">")(…)
+
+In `@funsql` notation, regular functions and operator calls generate `Fun`
+nodes.
+
+    e = @funsql year_of_birth > 2000
+
+    display(e)
+    #-> Fun.">"(Get.year_of_birth, 2000)
+
+    e = @funsql 1950 < year_of_birth < 1990
+
+    display(e)
+    #-> Fun.and(Fun."<"(1950, Get.year_of_birth), Fun."<"(Get.year_of_birth, 1990))
+
+    e = @funsql location.state != "IL" || location.zip != 60615
+
+    display(e)
+    #-> Fun.or(Fun."<>"(Get.location.state, "IL"), Fun."<>"(Get.location.zip, 60615))
+
+    e = @funsql location.state == "IL" && location.zip == 60615
+
+    display(e)
+    #-> Fun.and(Fun."="(Get.location.state, "IL"), Fun."="(Get.location.zip, 60615))
+
+In `@funsql` notation, use backticks to represent a function name that is not
+a valid identifier.
+
+    e = @funsql `SUBSTRING(? FROM ? FOR ?)`(city, 1, 1)
+
+    display(e)
+    #-> Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city, 1, 1)
 
 In a `SELECT` clause, the function name becomes the column alias.
 
@@ -965,6 +1142,24 @@ multiple queries.
     ) AS "union_1"
     =#
 
+An `Append` node can be created using `@funsql` notation.
+
+    q = @funsql begin
+        from(measurement).define(date => measurement_date)
+        append(from(observation).define(date => observation_data))
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:measurement),
+        q2 = q1 |> Define(Get.measurement_date |> As(:date)),
+        q3 = From(:observation),
+        q4 = q3 |> Define(Get.observation_data |> As(:date)),
+        q5 = q2 |> Append(q4)
+        q5
+    end
+    =#
+
 `Append` will automatically assign unique aliases to the exported columns.
 
     q = From(measurement) |>
@@ -1058,7 +1253,7 @@ nested subqueries.
     GROUP BY "union_1"."date"
     =#
 
-`Append` will aligns the columns of its subqueries.
+`Append` aligns the columns of its subqueries.
 
     q = From(measurement) |>
         Select(Get.person_id, :date => Get.measurement_date) |>
@@ -1156,6 +1351,24 @@ We could use `Iterate` and `From(^)` to create a factorial table.
       "__4"."n",
       "__4"."f"
     FROM "__1" AS "__4"
+    =#
+
+An `Iterate` node can be created using `@funsql` notation.
+
+    q = @funsql begin
+        define(n => 1, f => 1)
+        iterate(define(n => n + 1, f => f * (n + 1)).where(n <= 10))
+    end
+
+    display(q)
+    #=>
+    let q1 = Define(1 |> As(:n), 1 |> As(:f)),
+        q2 = Define(Fun."+"(Get.n, 1) |> As(:n),
+                    Fun."*"(Get.f, Fun."+"(Get.n, 1)) |> As(:f)),
+        q3 = q2 |> Where(Fun."<="(Get.n, 10)),
+        q4 = q1 |> Iterate(q3)
+        q4
+    end
     =#
 
 The `From(^)` node in front of the iterator query can be omitted.
@@ -1267,6 +1480,38 @@ An alias to an expression can be added with the `As` constructor.
     #=>
     SELECT 42 AS "integer"
     =#
+
+`As` node can be created with `@funsql`.
+
+    e = @funsql integer => 42
+
+    display(e)
+    #-> 42 |> As(:integer)
+
+    e = @funsql :integer => 42
+
+    display(e)
+    #-> 42 |> As(:integer)
+
+    e = @funsql `integer` => 42
+
+    display(e)
+    #-> 42 |> As(:integer)
+
+    e = @funsql (42).as(integer)
+
+    display(e)
+    #-> 42 |> As(:integer)
+
+    e = @funsql (42).as(:integer)
+
+    display(e)
+    #-> 42 |> As(:integer)
+
+    e = @funsql (42).as(`integer`)
+
+    display(e)
+    #-> 42 |> As(:integer)
 
 `As` is also used to create an alias for a subquery.
 
@@ -1507,6 +1752,48 @@ rows.
     FROM generate_series(0, 100, 10) WITH ORDINALITY AS "__1" ("value", "index")
     =#
 
+A `From` node can be created with `@funsql` notation.
+
+    q = @funsql from(person)
+
+    display(q)
+    #-> From(:person)
+
+    q = @funsql from(`person`)
+
+    display(q)
+    #-> From(:person)
+
+    q = @funsql from(:person)
+
+    display(q)
+    #-> From(:person)
+
+    q = @funsql from(nothing)
+
+    display(q)
+    #-> From(nothing)
+
+    q = @funsql from(^)
+
+    display(q)
+    #-> From(^)
+
+    q = @funsql from($person)
+
+    display(q)
+    #-> From(SQLTable(:person, …))
+
+    q = @funsql from($df)
+
+    display(q)
+    #-> From((name = ["SQL", …], year = [1974, …]))
+
+    q = @funsql from(generate_series(0, 100, 10), columns = [value])
+
+    display(q)
+    #-> From(Fun.generate_series(0, 100, 10), columns = [:value])
+
 When `From` with a tabular function is attached to the right branch of
 a `Join` node, the function may use data from the left branch of `Join`,
 even without being wrapped in a `Bind` node.
@@ -1654,6 +1941,53 @@ We can create a temporary dataset using `With` and refer to it with `From`.
       ) AS "female_count"
     =#
 
+A `With` node can be created using `@funsql`.
+
+    q = @funsql begin
+        from(male)
+        with(male => from(person).where(gender_concept_id == 8507),
+             materialized = false)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:male),
+        q2 = From(:person),
+        q3 = q2 |> Where(Fun."="(Get.gender_concept_id, 8507)),
+        q4 = q1 |> With(q3 |> As(:male), materialized = false)
+        q4
+    end
+    =#
+
+In `@funsql` notation, `let` statement is converted to a `With` node.
+
+    q = @funsql begin
+        let male = from(person).where(gender_concept_id == 8507),
+            female = from(person).where(gender_concept_id == 8532)
+            select(male_count => from(male).group().select(count[]),
+                   female_count => from(female).group().select(count[]))
+        end
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:male),
+        q2 = q1 |> Group(),
+        q3 = q2 |> Select(Agg.count()),
+        q4 = From(:female),
+        q5 = q4 |> Group(),
+        q6 = q5 |> Select(Agg.count()),
+        q7 = Select(q3 |> As(:male_count), q6 |> As(:female_count)),
+        q8 = From(:person),
+        q9 = q8 |> Where(Fun."="(Get.gender_concept_id, 8532)),
+        q10 = q7 |> With(q9 |> As(:female)),
+        q11 = From(:person),
+        q12 = q11 |> Where(Fun."="(Get.gender_concept_id, 8507)),
+        q13 = q10 |> With(q12 |> As(:male))
+        q13
+    end
+    =#
+
 A dataset defined by `With` must have an explicit label assigned to it.
 
     q = From(:person) |>
@@ -1771,6 +2105,18 @@ by the given keys.
     FROM "person" AS "person_1"
     =#
 
+A `Group` node can be created using `@funsql` notation.
+
+    q = @funsql from(person).group(year_of_birth)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Group(Get.year_of_birth)
+        q2
+    end
+    =#
+
 Partitions created by `Group` are summarized using aggregate expressions.
 
     Agg.count
@@ -1788,6 +2134,38 @@ Partitions created by `Group` are summarized using aggregate expressions.
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
     =#
+
+Aggregate functions can be created with `@funsql`.
+
+    e = @funsql min[year_of_birth]
+
+    display(e)
+    #-> Agg.min(Get.year_of_birth)
+
+    e = @funsql count[filter = year_of_birth > 1950]
+
+    display(e)
+    #-> Agg.count(filter = Fun.">"(Get.year_of_birth, 1950))
+
+    e = @funsql visit_group.count[]
+
+    display(e)
+    #-> Get.visit_group |> Agg.count()
+
+    e = @funsql `count`[]
+
+    display(e)
+    #-> Agg.count()
+
+    e = @funsql visit_group.`count`[]
+
+    display(e)
+    #-> Get.visit_group |> Agg.count()
+
+    e = @funsql `visit_group`.`count`[]
+
+    display(e)
+    #-> Get.visit_group |> Agg.count()
 
 `Group` will create a single instance of an aggregate function even if it is
 used more than once.
@@ -2104,6 +2482,23 @@ given keys.
     FROM "person" AS "person_1"
     =#
 
+A `Partition` node can be created with `@funsql` notation.
+
+    q = @funsql begin
+        from(person)
+        partition(year_of_birth, order_by = [month_of_birth, day_of_birth])
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |>
+             Partition(Get.year_of_birth,
+                       order_by = [Get.month_of_birth, Get.day_of_birth])
+        q2
+    end
+    =#
+
 Calculations across the rows of the partitions are performed by window
 functions.
 
@@ -2157,6 +2552,31 @@ A partition may specify the window frame.
       (avg(count(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
+    =#
+
+A window frame can be specified in `@funsql` notation.
+
+    q = @funsql partition(order_by = [year_of_birth], frame = groups)
+
+    display(q)
+    #-> Partition(order_by = [Get.year_of_birth], frame = :GROUPS)
+
+    q = @funsql partition(order_by = [year_of_birth], frame = (mode = range, start = -1, finish = 1))
+
+    display(q)
+    #=>
+    Partition(order_by = [Get.year_of_birth],
+              frame = (mode = :RANGE, start = -1, finish = 1))
+    =#
+
+    q = @funsql partition(order_by = [year_of_birth], frame = (mode = range, start = -Inf, finish = Inf, exclude = current_row))
+
+    display(q)
+    #=>
+    Partition(
+        order_by = [Get.year_of_birth],
+        frame =
+            (mode = :RANGE, start = -Inf, finish = Inf, exclude = :CURRENT_ROW))
     =#
 
 `Partition` may assign an explicit name to the partition.
@@ -2303,6 +2723,59 @@ The `Join` constructor creates a subquery that correlates two nested subqueries.
              Join(q2 |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
+        q3
+    end
+    =#
+
+Various `Join` nodes can be created with `@funsql` notation.
+
+    q = @funsql begin
+        from(person)
+        join(location => from(location),
+             on = location_id == location.location_id,
+             left = true)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = From(:location),
+        q3 = q1 |>
+             Join(q2 |> As(:location),
+                  Fun."="(Get.location_id, Get.location.location_id),
+                  left = true)
+        q3
+    end
+    =#
+
+    q = @funsql begin
+        from(person)
+        left_join(location => from(location),
+                  location_id == location.location_id)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = From(:location),
+        q3 = q1 |>
+             Join(q2 |> As(:location),
+                  Fun."="(Get.location_id, Get.location.location_id),
+                  left = true)
+        q3
+    end
+    =#
+
+    q = @funsql begin
+        from(person)
+        cross_join(other => from(person))
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = From(:person),
+        q3 = q1 |> Join(q2 |> As(:other), true)
         q3
     end
     =#
@@ -2486,6 +2959,21 @@ The `Order` constructor creates a subquery for sorting the data.
     ORDER BY "person_1"."year_of_birth"
     =#
 
+An `Order` node can be created with `@funsql` notation.
+
+    q = @funsql begin
+        from(person)
+        order(year_of_birth)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Order(Get.year_of_birth)
+        q2
+    end
+    =#
+
 `Order` is often used together with `Limit`.
 
     q = From(person) |>
@@ -2572,6 +3060,38 @@ A generic `Sort` constructor could also be used for this purpose.
     ORDER BY
       "person_1"."year_of_birth" DESC NULLS FIRST,
       "person_1"."person_id" ASC
+    =#
+
+Sort decorations can be created with `@funsql`.
+
+    q = @funsql begin
+        from(person)
+        order(year_of_birth.desc(nulls = first), person_id.asc())
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |>
+             Order(Get.year_of_birth |> Desc(nulls = :NULLS_FIRST),
+                   Get.person_id |> Asc())
+        q2
+    end
+    =#
+
+    q = @funsql begin
+        from(person)
+        order(year_of_birth.sort(desc, nulls = first), person_id.sort(asc))
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |>
+             Order(Get.year_of_birth |> Desc(nulls = :NULLS_FIRST),
+                   Get.person_id |> Asc())
+        q2
+    end
     =#
 
 
@@ -2683,6 +3203,52 @@ Both the offset and the limit can be specified.
     FROM "person" AS "person_1"
     =#
 
+A `Limit` node can be created with `@funsql` notation.
+
+    q = @funsql from(person).order(person_id).limit(10)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Order(Get.person_id),
+        q3 = q2 |> Limit(10)
+        q3
+    end
+    =#
+
+    q = @funsql from(person).order(person_id).limit(100, 10)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Order(Get.person_id),
+        q3 = q2 |> Limit(100, 10)
+        q3
+    end
+    =#
+
+    q = @funsql from(person).order(person_id).limit(101:110)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Order(Get.person_id),
+        q3 = q2 |> Limit(100, 10)
+        q3
+    end
+    =#
+
+    q = @funsql from(person).order(person_id).limit($(101:110))
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Order(Get.person_id),
+        q3 = q2 |> Limit(100, 10)
+        q3
+    end
+    =#
+
 
 ## `Select`
 
@@ -2705,6 +3271,18 @@ The `Select` constructor creates a subquery that fixes the output columns.
     #=>
     SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
+    =#
+
+A `Select` node can be created with `@funsql` notation.
+
+    q = @funsql from(person).select(person_id)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Select(Get.person_id)
+        q2
+    end
     =#
 
 `Select` does not have to be the last subquery in a chain, but it always
@@ -2759,6 +3337,30 @@ The `Where` constructor creates a subquery that filters by the given condition.
       "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
+    =#
+
+A `Where` node can be created with `@funsql` notation.
+
+    q = @funsql from(person).where(year_of_birth > 2000)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000))
+        q2
+    end
+    =#
+
+In `@funsql` notation, `filter` could be used as an alternative to `where`.
+
+    q = @funsql from(person).filter(year_of_birth > 2000)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000))
+        q2
+    end
     =#
 
 Several `Where` operations in a row are collapsed to a single `WHERE` clause.
@@ -2879,6 +3481,17 @@ The `Highlight` node does not otherwise affect processing of the query.
     SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
     WHERE ("person_1"."year_of_birth" > 2000)
+    =#
+
+A `Highlight` node can be created with `@funsql` notation.
+
+    q = @funsql from(person).highlight(red)
+
+    display(q)
+    #=>
+    let q1 = From(:person)
+        q1
+    end
     =#
 
 

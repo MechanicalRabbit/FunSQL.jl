@@ -158,6 +158,9 @@ Fun(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Fun), pats::Vector{Any}) =
     dissect(scr, FunctionNode, pats)
 
+transliterate(::typeof(Fun), name::Symbol, ctx::TransliterateContext, @nospecialize(args...)) =
+    Fun(name, args = [transliterate(SQLNode, arg, ctx) for arg in args])
+
 PrettyPrinting.quoteof(n::FunctionNode, ctx::QuoteContext) =
     Expr(:call,
          Expr(:., nameof(Fun),

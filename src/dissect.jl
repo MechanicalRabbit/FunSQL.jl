@@ -30,6 +30,10 @@ function dissect(scr::Symbol, @nospecialize(pat))
             ex1 = dissect(scr, pat.args[1])
             ex2 = dissect(scr, pat.args[2])
             :($ex2 && $ex1)
+        elseif pat.head === :(::) && nargs == 2
+            ex1 = dissect(scr, pat.args[1])
+            ex2 = :($scr isa $(pat.args[2]))
+            :($ex2 && $ex1)
         elseif pat.head === :&& || pat.head === :||
             Expr(pat.head, Any[dissect(scr, arg) for arg in pat.args]...)
         elseif pat.head === :kw && nargs == 2
@@ -58,3 +62,70 @@ function dissect(scr::Symbol, ::typeof(|>), pats::Vector{Any})
     error("invalid pattern: $(repr(pats))")
 end
 
+function dissect(scr::Symbol, ::Type{Expr}, pats::Vector{Any})
+    !isempty(pats) || error("invalid pattern: $(repr(pats))")
+    exs = Any[:($scr isa Expr)]
+    push!(exs, dissect(:($scr.head), pats[1]))
+    minlen = 0
+    varlen = false
+    for k = 2:lastindex(pats)
+        pat = pats[k]
+        if pat isa Expr && pat.head === :... && length(pat.args) == 1
+            !varlen || error("duplicate vararg pattern: $pat")
+            varlen = true
+        else
+            minlen += 1
+        end
+    end
+    scr_len = gensym(:scr_len)
+    if !varlen
+        push!(exs, :(local $scr_len = length($scr.args); $scr_len == $minlen))
+    else
+        push!(exs, :(local $scr_len = length($scr.args); $scr_len >= $minlen))
+    end
+    seen_vararg = false
+    for k = 2:lastindex(pats)
+        pat = pats[k]
+        l = k - 1
+        r = minlen - l + 1
+        if pat isa Expr && pat.head === :... && length(pat.args) == 1
+            pat = pat.args[1]
+            ex = dissect(:($scr.args[$l : $scr_len - $r]), pat)
+            seen_vararg = true
+        elseif seen_vararg
+            ex = dissect(:($scr.args[$scr_len - $r]), pat)
+        else
+            ex = dissect(:($scr.args[$l]), pat)
+        end
+        push!(exs, ex)
+    end
+    Expr(:&&, exs...)
+end
+
+function dissect(scr::Symbol, ::Type{QuoteNode}, pats::Vector{Any})
+    if length(pats) == 1
+        ex = dissect(:($scr.value), pats[1])
+        return :($scr isa QuoteNode && $ex)
+    end
+    error("invalid pattern: $(repr(pats))")
+end
+
+function dissect(scr::Symbol, ::Type{Cmd}, pats::Vector{Any})
+    if length(pats) == 1
+        scr_ref = gensym(:scr_ref)
+        scr_str = gensym(:scr_str)
+        return quote
+            $scr isa Expr &&
+            $scr.head === :macrocall &&
+            length($scr.args) >= 2 &&
+            (local $scr_ref = $scr.args[1];
+             $scr_ref isa GlobalRef &&
+             $scr_ref.mod === Core &&
+             $scr_ref.name === $(QuoteNode(Symbol("@cmd")))) &&
+            (local $scr_str = $scr.args[end];
+             $scr_str isa String) &&
+            $(dissect(scr_str, pats[1]))
+        end
+    end
+    error("invalid pattern $(repr(pats))")
+end

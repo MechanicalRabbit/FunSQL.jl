@@ -63,6 +63,12 @@ Append(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Append), pats::Vector{Any}) =
     dissect(scr, AppendNode, pats)
 
+transliterate(tag::Val{:append}, ctx::TransliterateContext, @nospecialize(args...)) =
+    transliterate(tag, ctx, args = Expr(:vect, args...))
+
+transliterate(::Val{:append}, ctx::TransliterateContext; args) =
+    Append(args = transliterate(Vector{SQLNode}, args, ctx))
+
 function PrettyPrinting.quoteof(n::AppendNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Append))
     if isempty(n.args)

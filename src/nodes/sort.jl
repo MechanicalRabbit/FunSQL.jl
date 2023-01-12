@@ -65,6 +65,35 @@ Desc(; kws...) =
 dissect(scr::Symbol, ::typeof(Sort), pats::Vector{Any}) =
     dissect(scr, SortNode, pats)
 
+transliterate(tag::Val{:sort}, ctx::TransliterateContext, @nospecialize(value); nulls = nothing) =
+    transliterate(tag, ctx, value = value, nulls = nulls)
+
+transliterate(::Val{:sort}, ctx; value, nulls = nothing) =
+    Sort(value = transliterate(ValueOrder, value, ctx),
+         nulls = transliterate(Union{NullsOrder, Nothing}, nulls, ctx))
+
+transliterate(::Val{:asc}, ctx::TransliterateContext; nulls = nothing) =
+    Asc(nulls = transliterate(Union{NullsOrder, Nothing}, nulls, ctx))
+
+transliterate(::Val{:desc}, ctx::TransliterateContext; nulls = nothing) =
+    Desc(nulls = transliterate(Union{NullsOrder, Nothing}, nulls, ctx))
+
+function transliterate(::Type{ValueOrder}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa ValueOrder
+        ex
+    else
+        convert(ValueOrder, transliterate(Symbol, ex, ctx))
+    end
+end
+
+function transliterate(::Type{NullsOrder}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa NullsOrder
+        ex
+    else
+        convert(NullsOrder, transliterate(Symbol, ex, ctx))
+    end
+end
+
 function PrettyPrinting.quoteof(n::SortNode, ctx::QuoteContext)
     if n.value == VALUE_ORDER.ASC
         ex = Expr(:call, nameof(Asc))

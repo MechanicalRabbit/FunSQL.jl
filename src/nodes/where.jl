@@ -46,6 +46,18 @@ Where(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Where), pats::Vector{Any}) =
     dissect(scr, WhereNode, pats)
 
+transliterate(tag::Val{:where}, ctx::TransliterateContext, @nospecialize(condition)) =
+    transliterate(tag, ctx, condition = condition)
+
+transliterate(::Val{:where}, ctx::TransliterateContext; condition) =
+    Where(condition = transliterate(SQLNode, condition, ctx))
+
+transliterate(tag::Val{:filter}, ctx::TransliterateContext, @nospecialize(condition)) =
+    transliterate(tag, ctx, condition = condition)
+
+transliterate(::Val{:filter}, ctx::TransliterateContext; condition) =
+    Where(condition = transliterate(SQLNode, condition, ctx))
+
 function PrettyPrinting.quoteof(n::WhereNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Where), quoteof(n.condition, ctx))
     if n.over !== nothing
