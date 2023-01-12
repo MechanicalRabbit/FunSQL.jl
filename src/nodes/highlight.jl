@@ -66,6 +66,12 @@ end
 Highlight(args...; kws...) =
     HighlightNode(args...; kws...) |> SQLNode
 
+transliterate(tag::Val{:highlight}, ctx::TransliterateContext, @nospecialize(color)) =
+    transliterate(tag, ctx, color = color)
+
+transliterate(::Val{:highlight}, ctx::TransliterateContext; color) =
+    Highlight(color = transliterate(Symbol, color, ctx))
+
 dissect(scr::Symbol, ::typeof(Highlight), pats::Vector{Any}) =
     dissect(scr, HighlightNode, pats)
 
@@ -88,4 +94,3 @@ label(n::HighlightNode) =
 
 rebase(n::HighlightNode, n′) =
     HighlightNode(over = rebase(n.over, n′), color = n.color)
-

@@ -93,6 +93,12 @@ Bind(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Bind), pats::Vector{Any}) =
     dissect(scr, BindNode, pats)
 
+transliterate(tag::Val{:bind}, ctx::TransliterateContext, @nospecialize(args...)) =
+    transliterate(tag, ctx, args = Expr(:vect, args...))
+
+transliterate(::Val{:bind}, ctx::TransliterateContext; args) =
+    Bind(args = transliterate(Vector{SQLNode}, args, ctx))
+
 function PrettyPrinting.quoteof(n::BindNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Bind))
     if isempty(n.args)
@@ -111,4 +117,3 @@ label(n::BindNode) =
 
 rebase(n::BindNode, n′) =
     BindNode(over = rebase(n.over, n′), args = n.args)
-

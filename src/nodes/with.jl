@@ -73,6 +73,13 @@ With(args...; kws...) =
 dissect(scr::Symbol, ::typeof(With), pats::Vector{Any}) =
     dissect(scr, WithNode, pats)
 
+transliterate(name::Val{:with}, ctx::TransliterateContext, @nospecialize(args...); materialized = nothing) =
+    transliterate(name, ctx, args = Expr(:vect, args...), materialized = materialized)
+
+transliterate(::Val{:with}, ctx::TransliterateContext; args, materialized = nothing) =
+    With(args = transliterate(Vector{SQLNode}, args, ctx),
+         materialized = transliterate(Union{Bool, Nothing}, materialized, ctx))
+
 function PrettyPrinting.quoteof(n::WithNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(With))
     if isempty(n.args)

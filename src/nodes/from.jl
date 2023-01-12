@@ -1,13 +1,16 @@
 # From node.
 
-struct SelfSource
+abstract type AbstractSource
 end
 
-struct ValuesSource
+struct SelfSource <: AbstractSource
+end
+
+struct ValuesSource <: AbstractSource
     columns::NamedTuple
 end
 
-struct FunctionSource
+struct FunctionSource <: AbstractSource
     node::SQLNode
     columns::Vector{Symbol}
 end
@@ -211,6 +214,26 @@ dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
 
 Base.convert(::Type{AbstractSQLNode}, source::SQLTable) =
     FromNode(source)
+
+transliterate(tag::Val{:from}, ctx::TransliterateContext, source; columns = nothing) =
+    transliterate(tag, ctx, source = source, columns = columns)
+
+function transliterate(::Val{:from}, ctx::TransliterateContext; source, columns = nothing)
+    if columns === nothing || columns === :nothing
+        if source === nothing || source === :nothing
+            From(nothing)
+        elseif source === :^
+            From(^)
+        elseif source isa Union{Symbol, QuoteNode, Expr}
+            From(transliterate(Symbol, source, ctx))
+        else
+            From(source)
+        end
+    else
+        From(transliterate(SQLNode, source, ctx),
+             columns = transliterate(Vector{Symbol}, columns, ctx))
+    end
+end
 
 function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
     source = n.source

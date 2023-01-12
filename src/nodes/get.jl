@@ -137,4 +137,3 @@ label(n::GetNode) =
 
 rebase(n::GetNode, n′) =
     GetNode(over = rebase(n.over, n′), name = n.name)
-

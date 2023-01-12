@@ -2,6 +2,8 @@
 
 module FunSQL
 
+export @funsql
+
 using Dates
 using PrettyPrinting: PrettyPrinting, pprint, quoteof, tile_expr, literal
 using OrderedCollections: OrderedDict, OrderedSet

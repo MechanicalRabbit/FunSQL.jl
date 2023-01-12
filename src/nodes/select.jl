@@ -56,6 +56,12 @@ Select(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
     dissect(scr, SelectNode, pats)
 
+transliterate(tag::Val{:select}, ctx::TransliterateContext, @nospecialize(args...)) =
+    transliterate(tag, ctx, args = Expr(:vect, args...))
+
+transliterate(::Val{:select}, ctx::TransliterateContext; args) =
+    Select(args = transliterate(Vector{SQLNode}, args, ctx))
+
 function PrettyPrinting.quoteof(n::SelectNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Select))
     if isempty(n.args)
@@ -74,4 +80,3 @@ label(n::SelectNode) =
 
 rebase(n::SelectNode, n′) =
     SelectNode(over = rebase(n.over, n′), args = n.args, label_map = n.label_map)
-

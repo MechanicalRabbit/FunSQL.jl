@@ -74,6 +74,12 @@ Define(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
     dissect(scr, DefineNode, pats)
 
+transliterate(tag::Val{:define}, ctx::TransliterateContext, @nospecialize(args...)) =
+    transliterate(tag, ctx, args = Expr(:vect, args...))
+
+transliterate(::Val{:define}, ctx::TransliterateContext; args = Expr(:vect)) =
+    Define(args = transliterate(Vector{SQLNode}, args, ctx))
+
 function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Define), quoteof(n.args, ctx)...)
     if n.over !== nothing
@@ -87,4 +93,3 @@ label(n::DefineNode) =
 
 rebase(n::DefineNode, n′) =
     DefineNode(over = rebase(n.over, n′), args = n.args, label_map = n.label_map)
-

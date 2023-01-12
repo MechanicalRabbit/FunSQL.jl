@@ -64,6 +64,21 @@ Limit(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Limit), pats::Vector{Any}) =
     dissect(scr, LimitNode, pats)
 
+transliterate(tag::Val{:limit}, ctx::TransliterateContext, @nospecialize(offset), @nospecialize(limit)) =
+    transliterate(tag, ctx, offset = offset, limit = limit)
+
+function transliterate(tag::Val{:limit}, ctx::TransliterateContext, @nospecialize(limit); offset = nothing)
+    if (limit isa UnitRange || limit isa Expr) && (offset === nothing || offset === :nothing)
+        Limit(transliterate(UnitRange, limit, ctx))
+    else
+        transliterate(tag, ctx, offset = offset, limit = limit)
+    end
+end
+
+transliterate(tag::Val{:limit}, ctx::TransliterateContext; offset = nothing, limit = nothing) =
+    Limit(offset = transliterate(Union{Int, Nothing}, offset, ctx),
+          limit = transliterate(Union{Int, Nothing}, limit, ctx))
+
 function PrettyPrinting.quoteof(n::LimitNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Limit))
     if n.offset !== nothing
@@ -81,4 +96,3 @@ label(n::LimitNode) =
 
 rebase(n::LimitNode, n′) =
     LimitNode(over = rebase(n.over, n′), offset = n.offset, limit = n.limit)
-

@@ -100,6 +100,61 @@ Partition(args...; kws...) =
 dissect(scr::Symbol, ::typeof(Partition), pats::Vector{Any}) =
     dissect(scr, PartitionNode, pats)
 
+transliterate(name::Val{:partition}, ctx::TransliterateContext, @nospecialize(by...); order_by = Expr(:vect), frame = nothing) =
+    transliterate(name, ctx; by = Expr(:vect, by...), order_by = order_by, frame = frame)
+
+transliterate(::Val{:partition}, ctx::TransliterateContext; by = Expr(:vect), order_by = Expr(:vect), frame = nothing) =
+    Partition(by = transliterate(Vector{SQLNode}, by, ctx),
+              order_by = transliterate(Vector{SQLNode}, order_by, ctx),
+              frame = transliterate(Union{PartitionFrame, Nothing}, frame, ctx))
+
+function transliterate(::Type{PartitionFrame}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa PartitionFrame
+        ex
+    elseif @dissect(ex, Expr(:tuple, args...))
+        args, kws = _split_parameters(args)
+        transliterate(PartitionFrame, ctx, args...; kws...)
+    else
+        convert(PartitionFrame, transliterate(Symbol, ex, ctx))
+    end
+end
+
+transliterate(::Type{PartitionFrame}, ctx::TransliterateContext; mode, start = nothing, finish = nothing, exclude = nothing) =
+    PartitionFrame(mode = transliterate(FrameMode, mode, ctx),
+                   start = transliterate(Union{FrameBoundary, Nothing}, start, ctx),
+                   finish = transliterate(Union{FrameBoundary, Nothing}, finish, ctx),
+                   exclude = transliterate(Union{FrameExclusion, Nothing}, exclude, ctx))
+
+function transliterate(::Type{FrameMode}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa FrameMode
+        ex
+    else
+        convert(FrameMode, transliterate(Symbol, ex, ctx))
+    end
+end
+
+function transliterate(::Type{FrameExclusion}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa FrameExclusion
+        ex
+    else
+        convert(FrameExclusion, transliterate(Symbol, ex, ctx))
+    end
+end
+
+abstract type FrameBoundary
+end
+
+function transliterate(::Type{FrameBoundary}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa Number
+        return ex
+    elseif ex === :Inf
+        return Inf
+    elseif @dissect(ex, Expr(:call, :-, :Inf))
+        return -Inf
+    end
+    error("invalid @funsql frame boundary expression: `$(repr(ex))`")
+end
+
 function PrettyPrinting.quoteof(n::PartitionNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Partition), quoteof(n.by, ctx)...)
     if !isempty(n.order_by)

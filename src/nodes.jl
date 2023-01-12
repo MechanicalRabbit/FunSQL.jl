@@ -410,6 +410,199 @@ function populate_label_map!(n, args = n.args, label_map = n.label_map, group_na
 end
 
 
+# The @funsql macro
+
+struct TransliterateContext
+end
+
+macro funsql(q)
+    :(transliterate($(esc(Expr(:quote, q)))))
+end
+
+transliterate(@nospecialize(ex)) =
+    transliterate(SQLNode, ex, TransliterateContext())
+
+function transliterate(::Type{SQLNode}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa SQLNode
+        return ex
+    elseif ex isa AbstractSQLNode
+        return convert(SQLNode, ex)
+    elseif ex isa SQLLiteralType
+        return Lit(ex)
+    elseif ex isa Symbol && ex !== :nothing
+        if ex === :missing
+            return Lit(missing)
+        else
+            return Get(ex)
+        end
+    elseif @dissect(ex, QuoteNode(name::Symbol))
+        # :name
+        return Var(name)
+    elseif ex isa Expr
+        if ex.head === :block || ex.head === :macrocall
+            ex = Expr(ex.head, Any[arg for arg in ex.args if !_is_linenumber(arg)]...)
+        end
+        if @dissect(ex, Cmd(name))
+            # `name`
+            return Get(Symbol(name))
+        elseif @dissect(ex, Expr(:call, Expr(:., over, QuoteNode(name)), args...))
+            # over.name(args...)
+            return (
+                transliterate(SQLNode, over, ctx) |>
+                transliterate(SQLNode, Expr(:call, name, args...), ctx))
+        elseif @dissect(ex, Expr(:macrocall, Expr(:., over, Expr(:quote, ex′)), args...))
+            # over.`name`(args...)
+            return (
+                transliterate(SQLNode, over, ctx) |>
+                transliterate(SQLNode, Expr(:macrocall, ex′, args...), ctx))
+        elseif @dissect(ex, Expr(:ref, Expr(:., over, QuoteNode(name)), args...))
+            # over.name[args...]
+            return (
+                transliterate(SQLNode, over, ctx) |>
+                transliterate(SQLNode, Expr(:ref, name, args...), ctx))
+        elseif @dissect(ex, Expr(:ref, Expr(:macrocall, Expr(:., over, Expr(:quote, ex′)), args′...), args...))
+            # over.`name`[args...]
+            return (
+                transliterate(SQLNode, over, ctx) |>
+                transliterate(SQLNode, Expr(:ref, Expr(:macrocall, ex′, args′...), args...), ctx))
+        elseif @dissect(ex, Expr(:., over, QuoteNode(name)))
+            # over.name
+            return (
+                transliterate(SQLNode, over, ctx) |>
+                transliterate(SQLNode, name, ctx))
+        elseif @dissect(ex, Expr(:call, :(=>), name, arg))
+            # name => arg
+            return (
+                transliterate(SQLNode, arg, ctx) |>
+                As(transliterate(Symbol, name, ctx)))
+        elseif @dissect(ex, Expr(:comparison, arg1, arg2::Symbol, arg3))
+            # Chained comparison.
+            return Fun(arg2,
+                       transliterate(SQLNode, arg1, ctx),
+                       transliterate(SQLNode, arg3, ctx))
+        elseif @dissect(ex, Expr(:comparison, arg1, arg2::Symbol, arg3, args...))
+            # Chained comparison.
+            return Fun(:and,
+                       Fun(arg2,
+                           transliterate(SQLNode, arg1, ctx),
+                           transliterate(SQLNode, arg3, ctx)),
+                       transliterate(SQLNode, Expr(:comparison, arg3, args...), ctx))
+        elseif @dissect(ex, Expr(:(&&), args...))
+            # &&(args...)
+            return Fun(:and, args = [transliterate(SQLNode, arg, ctx) for arg in args])
+        elseif @dissect(ex, Expr(:(||), args...))
+            # ||(args...)
+            return Fun(:or, args = [transliterate(SQLNode, arg, ctx) for arg in args])
+        elseif @dissect(ex, Expr(:call, name::Symbol, args...))
+            # name(args...)
+            args, kws = _split_parameters(args)
+            return transliterate(Val(name), ctx, args...; kws...)
+        elseif @dissect(ex, Expr(:call, Cmd(name), args...))
+            # `name`(args...)
+            args, kws = _split_parameters(args)
+            return transliterate(Fun, Symbol(name), ctx, args...; kws...)
+        elseif @dissect(ex, Expr(:ref, name::Symbol, args...))
+            # name[args...]
+            args, kws = _split_parameters(args)
+            return transliterate(Agg, name, ctx, args...; kws...)
+        elseif @dissect(ex, Expr(:ref, Cmd(name), args...))
+            # `name`[args...]
+            args, kws = _split_parameters(args)
+            return transliterate(Agg, Symbol(name), ctx, args...; kws...)
+        elseif @dissect(ex, Expr(:let, Expr(:(=), name, arg), over))
+            # let name = arg; over; end
+            return (
+                transliterate(SQLNode, over, ctx) |>
+                With(transliterate(SQLNode, arg, ctx) |>
+                     As(transliterate(Symbol, name, ctx))))
+        elseif @dissect(ex, Expr(:let, Expr(:block, arg), over))
+            # let ... end
+            return transliterate(SQLNode, Expr(:let, arg, over), ctx)
+        elseif @dissect(ex, Expr(:let, Expr(:block, args..., arg), over))
+            # let ... end
+            return transliterate(SQLNode, Expr(:let, Expr(:block, args...), Expr(:let, arg, over)), ctx)
+        elseif @dissect(ex, Expr(:block, arg1, args...))
+            # begin; arg1; args...; end
+            n = transliterate(SQLNode, arg1, ctx)
+            for arg in args
+                n = n |> transliterate(SQLNode, arg, ctx)
+            end
+            return n
+        end
+    end
+    error("invalid @funsql expression: `$(repr(ex))`")
+end
+
+function transliterate(::Type{Symbol}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa Symbol
+        return ex
+    elseif @dissect(ex, QuoteNode(name::Symbol))
+        return name
+    elseif @dissect(ex, Cmd(name))
+        return Symbol(name)
+    end
+    error("invalid @funsql symbol expression: `$(repr(ex))`")
+end
+
+function transliterate(::Type{UnitRange}, @nospecialize(ex), ctx::TransliterateContext)
+    if ex isa UnitRange
+        return ex
+    elseif @dissect(ex, Expr(:call, :(:), l, r))
+        return l:r
+    end
+    error("invalid @funsql range expression: `$(repr(ex))`")
+end
+
+function transliterate(::Type{Vector{T}}, @nospecialize(ex), ctx::TransliterateContext) where {T}
+    if ex isa Vector{T}
+        return ex
+    elseif ex isa AbstractVector
+        return convert(Vector{T}, ex)
+    elseif @dissect(ex, Expr(:vect, args...))
+        return T[transliterate(T, arg, ctx) for arg in args]
+    end
+    error("invalid @funsql vector expression: `$(repr(ex))`")
+end
+
+function transliterate(::Type{Union{T, Nothing}}, @nospecialize(ex), ctx::TransliterateContext) where {T}
+    if ex === nothing || ex === :nothing
+        nothing
+    else
+        transliterate(T, ex, ctx)
+    end
+end
+
+function transliterate(::Type{T}, @nospecialize(ex), ctx::TransliterateContext) where {T}
+    if ex isa T
+        return ex
+    end
+    error("invalid @funsql expression of type $T: `$(repr(ex))`")
+end
+
+transliterate(@nospecialize(tag::Val{N}), ctx::TransliterateContext, @nospecialize(args...)) where {N} =
+    transliterate(Fun, N, ctx, args...)
+
+_is_linenumber(@nospecialize ex) =
+    ex isa LineNumberNode || (ex isa Expr && ex.head === :line)
+
+function _split_parameters(exs::Vector{Any})
+    args = Any[]
+    kws = Pair{Symbol, Any}[]
+    for ex in exs
+        if @dissect(ex, Expr(:parameters, exs′...))
+            args′, kws′ = _split_parameters(exs′)
+            append!(args, args′)
+            append!(kws, kws′)
+        elseif @dissect(ex, Expr(:kw || :(=), name::Symbol, ex′))
+            push!(kws, Pair{Symbol, Any}(name, ex′))
+        else
+            push!(args, ex)
+        end
+    end
+    args, kws
+end
+
+
 # Concrete node types.
 
 include("nodes/aggregate.jl")
