@@ -18,6 +18,7 @@ GetNode(name; over = nothing) =
     Get(name; over)
     Get.name        Get."name"      Get[name]       Get["name"]
     over.name       over."name"     over[name]      over["name"]
+    name
 
 A reference to a column of the input dataset.
 
@@ -35,7 +36,7 @@ produces the given column.
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(:person) |>
-           Select(Get.person_id);
+           Select(Get(:person_id));
 
 julia> print(render(q, tables = [person]))
 SELECT "person_1"."person_id"
@@ -90,6 +91,9 @@ Get(args...; kws...) =
 
 dissect(scr::Symbol, ::typeof(Get), pats::Vector{Any}) =
     dissect(scr, GetNode, pats)
+
+Base.convert(::Type{AbstractSQLNode}, name::Symbol) =
+    GetNode(name)
 
 Base.getproperty(::typeof(Get), name::Symbol) =
     Get(name)
