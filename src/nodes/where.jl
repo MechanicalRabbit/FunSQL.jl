@@ -43,20 +43,14 @@ WHERE ("person_1"."year_of_birth" > 2000)
 Where(args...; kws...) =
     WhereNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:where}, args...; kws...) =
+    Where(args...; kws...)
+
+funsql(::Val{:filter}, args...; kws...) =
+    Where(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Where), pats::Vector{Any}) =
     dissect(scr, WhereNode, pats)
-
-transliterate(tag::Val{:where}, ctx::TransliterateContext, @nospecialize(condition)) =
-    transliterate(tag, ctx, condition = condition)
-
-transliterate(::Val{:where}, ctx::TransliterateContext; condition) =
-    Where(condition = transliterate(SQLNode, condition, ctx))
-
-transliterate(tag::Val{:filter}, ctx::TransliterateContext, @nospecialize(condition)) =
-    transliterate(tag, ctx, condition = condition)
-
-transliterate(::Val{:filter}, ctx::TransliterateContext; condition) =
-    Where(condition = transliterate(SQLNode, condition, ctx))
 
 function PrettyPrinting.quoteof(n::WhereNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Where), quoteof(n.condition, ctx))
@@ -71,4 +65,3 @@ label(n::WhereNode) =
 
 rebase(n::WhereNode, n′) =
     WhereNode(over = rebase(n.over, n′), condition = n.condition)
-

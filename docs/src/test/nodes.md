@@ -85,6 +85,9 @@ Ill-formed queries are detected.
     end
     =#
 
+
+## `@funsql`
+
 The `@funsql` macro provides alternative notation for specifying FunSQL queries.
 
     q = @funsql begin
@@ -104,67 +107,38 @@ The `@funsql` macro provides alternative notation for specifying FunSQL queries.
 
 We can combine `@funsql` notation with regular Julia code.
 
-    q = @funsql $(From(:person)).select(person_id)
+    q = @funsql begin
+        from(person)
+        $(Where(Get.year_of_birth .> 2000))
+        select(person_id)
+    end
 
     display(q)
     #=>
     let q1 = From(:person),
-        q2 = q1 |> Select(Get.person_id)
-        q2
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
+        q3 = q2 |> Select(Get.person_id)
+        q3
     end
     =#
 
-    q = @funsql $(From(:person)[]).select(person_id)
+    q = From(:person) |>
+        @funsql(filter(year_of_birth > 2000)) |>
+        Select(Get.person_id)
 
     display(q)
     #=>
     let q1 = From(:person),
-        q2 = q1 |> Select(Get.person_id)
-        q2
-    end
-    =#
-
-    q = @funsql from(person).select(; args = $([Get.person_id]))
-
-    display(q)
-    #=>
-    let q1 = From(:person),
-        q2 = q1 |> Select(Get.person_id)
-        q2
-    end
-    =#
-
-    q = @funsql from(person).select(; args = $(Any[Get.person_id]))
-
-    display(q)
-    #=>
-    let q1 = From(:person),
-        q2 = q1 |> Select(Get.person_id)
-        q2
+        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
+        q3 = q2 |> Select(Get.person_id)
+        q3
     end
     =#
 
 An ill-formed `@funsql` query triggers an error.
 
     @funsql for p in person; end
-    #-> ERROR: invalid @funsql expression: ⋮
-
-    @funsql select(args = nothing)
-    #-> ERROR: invalid @funsql vector expression: `:nothing`
-
-    @funsql asc(nulls = false)
-    #-> ERROR: invalid @funsql symbol expression: `false`
-
-    @funsql limit(1:2:3)
-    #-> ERROR: invalid @funsql range expression: `:(1:2:3)`
-
-    @funsql join(location => from(location),
-                 on = location_id == location.location_id,
-                 left = nothing)
-    #-> ERROR: invalid @funsql expression of type Bool: `:nothing`
-
-    @funsql partition(person_id, frame = (mode = groups, start = finish))
-    #-> ERROR: invalid @funsql frame boundary expression: `:finish`
+    #-> ERROR: LoadError: invalid @funsql expression: ⋮
 
 
 ## Literals
@@ -249,10 +223,13 @@ converted to a reference.
     display(q)
     #-> Select(Get.person_id)
 
-A column reference can be created with a `@funsql` macro.
+`@funsql` macro translates an identifier to a symbol.  In suitable context,
+this symbol will be translated to a column reference.
 
     @funsql person_id
-    #-> Get.person_id
+    #-> :person_id
+
+`@funsql` notation supports hierarchical references.
 
     @funsql p.person_id
     #-> Get.p.person_id
@@ -260,7 +237,7 @@ A column reference can be created with a `@funsql` macro.
 Use backticks to represent a name that is not a valid identifier.
 
     @funsql `person_id`
-    #-> Get.person_id
+    #-> :person_id
 
     @funsql `p`.`person_id`
     #-> Get.p.person_id
@@ -1155,7 +1132,7 @@ An `Append` node can be created using `@funsql` notation.
 
     q = @funsql begin
         from(measurement).define(date => measurement_date)
-        append(from(observation).define(date => observation_data))
+        append(from(observation).define(date => observation_date))
     end
 
     display(q)
@@ -1163,7 +1140,7 @@ An `Append` node can be created using `@funsql` notation.
     let q1 = From(:measurement),
         q2 = q1 |> Define(Get.measurement_date |> As(:date)),
         q3 = From(:observation),
-        q4 = q3 |> Define(Get.observation_data |> As(:date)),
+        q4 = q3 |> Define(Get.observation_date |> As(:date)),
         q5 = q2 |> Append(q4)
         q5
     end
@@ -1492,35 +1469,17 @@ An alias to an expression can be added with the `As` constructor.
 
 `As` node can be created with `@funsql`.
 
-    e = @funsql integer => 42
-
-    display(e)
-    #-> 42 |> As(:integer)
-
-    e = @funsql :integer => 42
-
-    display(e)
-    #-> 42 |> As(:integer)
-
-    e = @funsql `integer` => 42
-
-    display(e)
-    #-> 42 |> As(:integer)
-
     e = @funsql (42).as(integer)
 
     display(e)
     #-> 42 |> As(:integer)
 
-    e = @funsql (42).as(:integer)
+The `=>` shorthand is supported by `@funsql`.
+
+    e = @funsql integer => 42
 
     display(e)
-    #-> 42 |> As(:integer)
-
-    e = @funsql (42).as(`integer`)
-
-    display(e)
-    #-> 42 |> As(:integer)
+    #-> :integer => 42
 
 `As` is also used to create an alias for a subquery.
 
@@ -1764,16 +1723,6 @@ rows.
 A `From` node can be created with `@funsql` notation.
 
     q = @funsql from(person)
-
-    display(q)
-    #-> From(:person)
-
-    q = @funsql from(`person`)
-
-    display(q)
-    #-> From(:person)
-
-    q = @funsql from(:person)
 
     display(q)
     #-> From(:person)
@@ -2578,7 +2527,7 @@ A window frame can be specified in `@funsql` notation.
               frame = (mode = :RANGE, start = -1, finish = 1))
     =#
 
-    q = @funsql partition(order_by = [year_of_birth], frame = (mode = range, start = -Inf, finish = Inf, exclude = current_row))
+    q = @funsql partition(; order_by = [year_of_birth], frame = (mode = range, start = -Inf, finish = Inf, exclude = current_row))
 
     display(q)
     #=>
@@ -3237,17 +3186,6 @@ A `Limit` node can be created with `@funsql` notation.
     =#
 
     q = @funsql from(person).order(person_id).limit(101:110)
-
-    display(q)
-    #=>
-    let q1 = From(:person),
-        q2 = q1 |> Order(Get.person_id),
-        q3 = q2 |> Limit(100, 10)
-        q3
-    end
-    =#
-
-    q = @funsql from(person).order(person_id).limit($(101:110))
 
     display(q)
     #=>

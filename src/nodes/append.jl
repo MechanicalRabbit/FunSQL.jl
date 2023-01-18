@@ -60,14 +60,11 @@ FROM "observation" AS "observation_1"
 Append(args...; kws...) =
     AppendNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:append}, args...; kws...) =
+    Append(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Append), pats::Vector{Any}) =
     dissect(scr, AppendNode, pats)
-
-transliterate(tag::Val{:append}, ctx::TransliterateContext, @nospecialize(args...)) =
-    transliterate(tag, ctx, args = Expr(:vect, args...))
-
-transliterate(::Val{:append}, ctx::TransliterateContext; args) =
-    Append(args = transliterate(Vector{SQLNode}, args, ctx))
 
 function PrettyPrinting.quoteof(n::AppendNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Append))
@@ -92,4 +89,3 @@ end
 
 rebase(n::AppendNode, n′) =
     AppendNode(over = rebase(n.over, n′), args = n.args)
-

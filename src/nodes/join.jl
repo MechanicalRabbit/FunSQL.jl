@@ -84,27 +84,17 @@ An alias for `Join(...; ..., on = true)`.
 CrossJoin(args...; kws...) =
     Join(args...; kws..., on = true)
 
+funsql(::Val{:join}, args...; kws...) =
+    Join(args...; kws...)
+
+funsql(::Val{:left_join}, args...; kws...) =
+    LeftJoin(args...; kws...)
+
+funsql(::Val{:cross_join}, args...; kws...) =
+    CrossJoin(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Join), pats::Vector{Any}) =
     dissect(scr, JoinNode, pats)
-
-transliterate(tag::Val{:join}, ctx::TransliterateContext, @nospecialize(joinee), @nospecialize(on); left = false, right = false, optional = false) =
-    transliterate(tag, ctx, joinee = joinee, on = on, left = left, right = right, optional = optional)
-
-transliterate(tag::Val{:join}, ctx::TransliterateContext, joinee; @nospecialize(on), left = false, right = false, optional = false) =
-    transliterate(tag, ctx; joinee = joinee, on = on, left = left, right = right, optional = optional)
-
-transliterate(tag::Val{:join}, ctx::TransliterateContext; joinee, on, left = false, right = false, optional = false) =
-    Join(joinee = transliterate(SQLNode, joinee, ctx),
-         on = transliterate(SQLNode, on, ctx),
-         left = transliterate(Bool, left, ctx),
-         right = transliterate(Bool, right, ctx),
-         optional = transliterate(Bool, optional, ctx))
-
-transliterate(tag::Val{:left_join}, ctx::TransliterateContext, @nospecialize(args...); kws...) =
-    transliterate(Val(:join), ctx, args...; kws..., left = true)
-
-transliterate(tag::Val{:cross_join}, ctx::TransliterateContext, @nospecialize(args...); kws...) =
-    transliterate(Val(:join), ctx, args...; kws..., on = true)
 
 function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Join))

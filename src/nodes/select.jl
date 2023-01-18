@@ -53,14 +53,11 @@ FROM "person" AS "person_1"
 Select(args...; kws...) =
     SelectNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:select}, args...; kws...) =
+    Select(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
     dissect(scr, SelectNode, pats)
-
-transliterate(tag::Val{:select}, ctx::TransliterateContext, @nospecialize(args...)) =
-    transliterate(tag, ctx, args = Expr(:vect, args...))
-
-transliterate(::Val{:select}, ctx::TransliterateContext; args) =
-    Select(args = transliterate(Vector{SQLNode}, args, ctx))
 
 function PrettyPrinting.quoteof(n::SelectNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Select))

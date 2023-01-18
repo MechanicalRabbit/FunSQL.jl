@@ -15,11 +15,14 @@ struct FunctionSource <: AbstractSource
     columns::Vector{Symbol}
 end
 
-_from_source(source::Union{SQLTable, Symbol, SelfSource, FunctionSource, ValuesSource, Nothing}) =
+_from_source(source::Union{SQLTable, SelfSource, FunctionSource, ValuesSource, Nothing}) =
     source
 
 _from_source(source::AbstractString) =
     Symbol(source)
+
+_from_source(source::Symbol) =
+    source === :^ ? SelfSource() : source
 
 _from_source(::typeof(^)) =
     SelfSource()
@@ -209,31 +212,14 @@ FROM regexp_matches('2,3,5,7,11', '(\\d+)', 'g') AS "regexp_matches_1" ("capture
 From(args...; kws...) =
     FromNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:from}, args...; kws...) =
+    From(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
     dissect(scr, FromNode, pats)
 
 Base.convert(::Type{AbstractSQLNode}, source::SQLTable) =
     FromNode(source)
-
-transliterate(tag::Val{:from}, ctx::TransliterateContext, source; columns = nothing) =
-    transliterate(tag, ctx, source = source, columns = columns)
-
-function transliterate(::Val{:from}, ctx::TransliterateContext; source, columns = nothing)
-    if columns === nothing || columns === :nothing
-        if source === nothing || source === :nothing
-            From(nothing)
-        elseif source === :^
-            From(^)
-        elseif source isa Union{Symbol, QuoteNode, Expr}
-            From(transliterate(Symbol, source, ctx))
-        else
-            From(source)
-        end
-    else
-        From(transliterate(SQLNode, source, ctx),
-             columns = transliterate(Vector{Symbol}, columns, ctx))
-    end
-end
 
 function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
     source = n.source

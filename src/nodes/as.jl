@@ -60,17 +60,14 @@ JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."loc
 As(args...; kws...) =
     AsNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:as}, args...; kws...) =
+    As(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(As), pats::Vector{Any}) =
     dissect(scr, AsNode, pats)
 
 Base.convert(::Type{AbstractSQLNode}, p::Pair{<:Union{Symbol, AbstractString}}) =
     AsNode(name = first(p), over = convert(SQLNode, last(p)))
-
-transliterate(tag::Val{:as}, ctx::TransliterateContext, @nospecialize(name)) =
-    transliterate(tag, ctx, name = name)
-
-transliterate(::Val{:as}, ctx::TransliterateContext; name) =
-    As(name = transliterate(Symbol, name, ctx))
 
 function PrettyPrinting.quoteof(n::AsNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(As), quoteof(n.name))
