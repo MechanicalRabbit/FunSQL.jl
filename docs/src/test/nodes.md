@@ -166,6 +166,7 @@ An ill-formed `@funsql` query triggers an error.
     @funsql partition(person_id, frame = (mode = groups, start = finish))
     #-> ERROR: invalid @funsql frame boundary expression: `:finish`
 
+
 ## Literals
 
 A SQL value is created with `Lit()` constructor.
@@ -239,6 +240,14 @@ Hierarchical notation is supported.
 
     Get.p |> Get.person_id
     #-> Get.p.person_id
+
+In the context where a SQL node is expected, a bare symbol is automatically
+converted to a reference.
+
+    q = Select(:person_id)
+
+    display(q)
+    #-> Select(Get.person_id)
 
 A column reference can be created with a `@funsql` macro.
 
