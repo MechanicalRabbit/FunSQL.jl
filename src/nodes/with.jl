@@ -70,15 +70,11 @@ WHERE ("person_1"."person_id" IN (
 With(args...; kws...) =
     WithNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:with}, args...; kws...) =
+    With(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(With), pats::Vector{Any}) =
     dissect(scr, WithNode, pats)
-
-transliterate(name::Val{:with}, ctx::TransliterateContext, @nospecialize(args...); materialized = nothing) =
-    transliterate(name, ctx, args = Expr(:vect, args...), materialized = materialized)
-
-transliterate(::Val{:with}, ctx::TransliterateContext; args, materialized = nothing) =
-    With(args = transliterate(Vector{SQLNode}, args, ctx),
-         materialized = transliterate(Union{Bool, Nothing}, materialized, ctx))
 
 function PrettyPrinting.quoteof(n::WithNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(With))
@@ -101,4 +97,3 @@ label(n::WithNode) =
 
 rebase(n::WithNode, n′) =
     WithNode(over = rebase(n.over, n′), args = n.args, materialized = n.materialized)
-

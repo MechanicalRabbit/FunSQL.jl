@@ -71,14 +71,11 @@ FROM "person" AS "person_1"
 Define(args...; kws...) =
     DefineNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:define}, args...; kws...) =
+    Define(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
     dissect(scr, DefineNode, pats)
-
-transliterate(tag::Val{:define}, ctx::TransliterateContext, @nospecialize(args...)) =
-    transliterate(tag, ctx, args = Expr(:vect, args...))
-
-transliterate(::Val{:define}, ctx::TransliterateContext; args = Expr(:vect)) =
-    Define(args = transliterate(Vector{SQLNode}, args, ctx))
 
 function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Define), quoteof(n.args, ctx)...)

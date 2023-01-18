@@ -90,14 +90,11 @@ LEFT JOIN LATERAL (
 Bind(args...; kws...) =
     BindNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:bind}, args...; kws...) =
+    Bind(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Bind), pats::Vector{Any}) =
     dissect(scr, BindNode, pats)
-
-transliterate(tag::Val{:bind}, ctx::TransliterateContext, @nospecialize(args...)) =
-    transliterate(tag, ctx, args = Expr(:vect, args...))
-
-transliterate(::Val{:bind}, ctx::TransliterateContext; args) =
-    Bind(args = transliterate(Vector{SQLNode}, args, ctx))
 
 function PrettyPrinting.quoteof(n::BindNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Bind))

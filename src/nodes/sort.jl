@@ -62,37 +62,17 @@ Descending order indicator.
 Desc(; kws...) =
     Sort(VALUE_ORDER.DESC; kws...)
 
+funsql(::Val{:sort}, args...; kws...) =
+    Sort(args...; kws...)
+
+funsql(::Val{:asc}, args...; kws...) =
+    Asc(args...; kws...)
+
+funsql(::Val{:desc}, args...; kws...) =
+    Desc(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Sort), pats::Vector{Any}) =
     dissect(scr, SortNode, pats)
-
-transliterate(tag::Val{:sort}, ctx::TransliterateContext, @nospecialize(value); nulls = nothing) =
-    transliterate(tag, ctx, value = value, nulls = nulls)
-
-transliterate(::Val{:sort}, ctx; value, nulls = nothing) =
-    Sort(value = transliterate(ValueOrder, value, ctx),
-         nulls = transliterate(Union{NullsOrder, Nothing}, nulls, ctx))
-
-transliterate(::Val{:asc}, ctx::TransliterateContext; nulls = nothing) =
-    Asc(nulls = transliterate(Union{NullsOrder, Nothing}, nulls, ctx))
-
-transliterate(::Val{:desc}, ctx::TransliterateContext; nulls = nothing) =
-    Desc(nulls = transliterate(Union{NullsOrder, Nothing}, nulls, ctx))
-
-function transliterate(::Type{ValueOrder}, @nospecialize(ex), ctx::TransliterateContext)
-    if ex isa ValueOrder
-        ex
-    else
-        convert(ValueOrder, transliterate(Symbol, ex, ctx))
-    end
-end
-
-function transliterate(::Type{NullsOrder}, @nospecialize(ex), ctx::TransliterateContext)
-    if ex isa NullsOrder
-        ex
-    else
-        convert(NullsOrder, transliterate(Symbol, ex, ctx))
-    end
-end
 
 function PrettyPrinting.quoteof(n::SortNode, ctx::QuoteContext)
     if n.value == VALUE_ORDER.ASC
@@ -116,4 +96,3 @@ label(n::SortNode) =
 
 rebase(n::SortNode, n′) =
     SortNode(over = rebase(n.over, n′), value = n.value, nulls = n.nulls)
-

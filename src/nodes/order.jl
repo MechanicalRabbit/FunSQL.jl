@@ -47,14 +47,11 @@ ORDER BY "person_1"."year_of_birth"
 Order(args...; kws...) =
     OrderNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:order}, args...; kws...) =
+    Order(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Order), pats::Vector{Any}) =
     dissect(scr, OrderNode, pats)
-
-transliterate(tag::Val{:order}, ctx::TransliterateContext, @nospecialize(by...)) =
-    transliterate(tag, ctx; by = Expr(:vect, by...))
-
-transliterate(::Val{:order}, ctx::TransliterateContext; by) =
-    Order(by = transliterate(Vector{SQLNode}, by, ctx))
 
 function PrettyPrinting.quoteof(n::OrderNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Order))

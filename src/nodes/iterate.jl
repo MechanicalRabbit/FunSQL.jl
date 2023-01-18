@@ -94,14 +94,11 @@ FROM "__1" AS "__3"
 Iterate(args...; kws...) =
     IterateNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:iterate}, args...; kws...) =
+    Iterate(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Iterate), pats::Vector{Any}) =
     dissect(scr, IterateNode, pats)
-
-transliterate(name::Val{:iterate}, ctx::TransliterateContext, @nospecialize(iterator)) =
-    transliterate(name, ctx, iterator = iterator)
-
-transliterate(::Val{:iterate}, ctx::TransliterateContext; iterator) =
-    Iterate(iterator = transliterate(SQLNode, iterator, ctx))
 
 function PrettyPrinting.quoteof(n::IterateNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Iterate))
@@ -121,4 +118,3 @@ label(n::IterateNode) =
 
 rebase(n::IterateNode, n′) =
     IterateNode(over = rebase(n.over, n′), iterator = n.iterator)
-

@@ -56,4 +56,3 @@ PrettyPrinting.quoteof(n::VariableNode, ctx::QuoteContext) =
 
 label(n::VariableNode) =
     n.name
-

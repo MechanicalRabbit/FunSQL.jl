@@ -108,14 +108,11 @@ FROM "location" AS "location_1"
 Group(args...; kws...) =
     GroupNode(args...; kws...) |> SQLNode
 
+funsql(::Val{:group}, args...; kws...) =
+    Group(args...; kws...)
+
 dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
     dissect(scr, GroupNode, pats)
-
-transliterate(name::Val{:group}, ctx::TransliterateContext, @nospecialize(by...)) =
-    transliterate(name, ctx, by = Expr(:vect, by...))
-
-transliterate(::Val{:group}, ctx::TransliterateContext; by = Expr(:vect)) =
-    Group(by = transliterate(Vector{SQLNode}, by, ctx))
 
 function PrettyPrinting.quoteof(n::GroupNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Group), quoteof(n.by, ctx)...)
