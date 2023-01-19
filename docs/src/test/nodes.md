@@ -833,6 +833,69 @@ a valid identifier.
     display(e)
     #-> Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city, 1, 1)
 
+In `@funsql` notation, an `if` statement is converted to a `CASE` expression.
+
+    e = @funsql year_of_birth <= 1964 ? "Boomers" : "Millenials"
+
+    display(e)
+    #-> Fun.case(Fun."<="(Get.year_of_birth, 1964), "Boomers", "Millenials")
+
+    e = @funsql year_of_birth <= 1964 ? "Boomers" :
+                year_of_birth <= 1980 ? "Generation X" : "Millenials"
+
+    display(e)
+    #=>
+    Fun.case(Fun."<="(Get.year_of_birth, 1964),
+             "Boomers",
+             Fun."<="(Get.year_of_birth, 1980),
+             "Generation X",
+             "Millenials")
+    =#
+
+    e = @funsql if year_of_birth <= 1964; "Boomers"; end
+
+    display(e)
+    #-> Fun.case(Fun."<="(Get.year_of_birth, 1964), "Boomers")
+
+    e = @funsql begin
+        if year_of_birth <= 1964
+            "Boomers"
+        elseif year_of_birth <= 1980
+            "Generation X"
+        end
+    end
+
+    display(e)
+    #=>
+    Fun.case(Fun."<="(Get.year_of_birth, 1964),
+             "Boomers",
+             Fun."<="(Get.year_of_birth, 1980),
+             "Generation X")
+    =#
+
+    e = @funsql begin
+        if year_of_birth <= 1964
+            "Boomers"
+        elseif year_of_birth <= 1980
+            "Generation X"
+        elseif year_of_birth <= 1996
+            "Millenials"
+        else
+            "Generation Z"
+        end
+    end
+
+    display(e)
+    #=>
+    Fun.case(Fun."<="(Get.year_of_birth, 1964),
+             "Boomers",
+             Fun."<="(Get.year_of_birth, 1980),
+             "Generation X",
+             Fun."<="(Get.year_of_birth, 1996),
+             "Millenials",
+             "Generation Z")
+    =#
+
 In a `SELECT` clause, the function name becomes the column alias.
 
     q = From(location) |>

@@ -568,6 +568,27 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
                 tr = tr !== nothing ? :(Chain($tr, $tr′)) : tr′
             end
             return tr
+        elseif @dissect(ex, Expr(:if, arg1, arg2))
+            tr1 = transliterate(arg1, ctx)
+            tr2 = transliterate(arg2, ctx)
+            return :(Fun(:case, $tr1, $tr2))
+        elseif @dissect(ex, Expr(:if, arg1, arg2, arg3))
+            trs = Any[transliterate(arg1, ctx),
+                      transliterate(arg2, ctx)]
+            while @dissect(arg3, Expr(:if || :elseif, arg1′, arg2′, arg3′))
+                push!(trs,
+                      transliterate(arg1′, ctx),
+                      transliterate(arg2′, ctx))
+                arg3 = arg3′
+            end
+            if @dissect(arg3, Expr(:if || :elseif, arg1′, arg2′))
+                push!(trs,
+                      transliterate(arg1′, ctx),
+                      transliterate(arg2′, ctx))
+            else
+                push!(trs, transliterate(arg3, ctx))
+            end
+            return :(Fun(:case, $(trs...)))
         end
     end
     error("invalid @funsql expression: `$(repr(ex))`")
