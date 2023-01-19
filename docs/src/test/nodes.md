@@ -135,6 +135,79 @@ We can combine `@funsql` notation with regular Julia code.
     end
     =#
 
+The `@funsql` notation allows us to encapsulate query fragments into query
+functions.
+
+    @funsql adults() = from(person).filter(2020 - year_of_birth >= 16)
+
+    display(@funsql adults())
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Where(Fun.">="(Fun."-"(2020, Get.year_of_birth), 16))
+        q2
+    end
+    =#
+
+Query functions defined with `@funsql` can accept parameters.
+
+    @funsql concept_by_code(v, c) =
+        begin
+            from(concept)
+            filter(vocabulary_id == v && concept_code == c)
+        end
+
+    display(@funsql concept_by_code("SNOMED", "22298006"))
+    #=>
+    let q1 = From(:concept),
+        q2 = q1 |>
+             Where(Fun.and(Fun."="(Get.vocabulary_id, "SNOMED"),
+                           Fun."="(Get.concept_code, "22298006")))
+        q2
+    end
+    =#
+
+Query functions support `...` notation.
+
+    @funsql concept_by_code(v, cs...) =
+        begin
+            from(concept)
+            filter(vocabulary_id == v && in(concept_code, cs...))
+        end
+
+    display(@funsql concept_by_code("Visit", "IP", "ER"))
+    #=>
+    let q1 = From(:concept),
+        q2 = q1 |>
+             Where(Fun.and(Fun."="(Get.vocabulary_id, "Visit"),
+                           Fun.in(Get.concept_code, "IP", "ER")))
+        q2
+    end
+    =#
+
+Query functions support keyword arguments and default values.
+
+    @funsql age(yob = year_of_birth; at = `EXTRACT(YEAR FROM CURRENT_DATE) `()) =
+        (at - yob)
+
+    q = @funsql begin
+        from(person)
+        define(
+            age => age(),
+            age_in_2000 => age(at = 2000))
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |>
+             Define(Fun."-"(Fun."EXTRACT(YEAR FROM CURRENT_DATE) "(),
+                            Get.year_of_birth) |>
+                    As(:age),
+                    Fun."-"(2000, Get.year_of_birth) |> As(:age_in_2000))
+        q2
+    end
+    =#
+
 An ill-formed `@funsql` query triggers an error.
 
     @funsql for p in person; end
