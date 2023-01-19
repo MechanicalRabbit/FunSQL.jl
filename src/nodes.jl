@@ -418,13 +418,14 @@ end
 struct TransliterateContext
     mod::Module
     src::LineNumberNode
+    decl::Bool
     locals::Set{Symbol}
 
-    TransliterateContext(mod::Module, src::LineNumberNode, locals::Set{Symbol} = Set{Symbol}()) =
-        new(mod, src, locals)
+    TransliterateContext(mod::Module, src::LineNumberNode, decl::Bool = false, locals::Set{Symbol} = Set{Symbol}()) =
+        new(mod, src, decl, locals)
 
-    TransliterateContext(ctx::TransliterateContext; src = missing, locals = missing) =
-        new(ctx.mod, coalesce(src, ctx.src), coalesce(locals, ctx.locals))
+    TransliterateContext(ctx::TransliterateContext; src = missing, decl = missing, locals = missing) =
+        new(ctx.mod, coalesce(src, ctx.src), coalesce(decl, ctx.decl), coalesce(locals, ctx.locals))
 end
 
 macro funsql(ex)
@@ -432,16 +433,19 @@ macro funsql(ex)
 end
 
 function transliterate(@nospecialize(ex), ctx::TransliterateContext)
-    if ex isa Union{AbstractSQLNode,  SQLLiteralType, Nothing}
+    if ex isa Union{AbstractSQLNode, SQLLiteralType, Nothing}
         return ex
     elseif ex isa Symbol
-        if ex in ctx.locals
+        if ctx.decl
+            push!(ctx.locals, ex)
             return esc(ex)
-        end
-        if ex in (:Inf, :NaN, :missing, :nothing)
+        elseif ex in ctx.locals
+            return esc(ex)
+        elseif ex in (:Inf, :NaN, :missing, :nothing)
             return GlobalRef(Base, ex)
+        else
+            return QuoteNode(ex)
         end
-        return QuoteNode(ex)
     elseif @dissect(ex, QuoteNode(name::Symbol))
         # :name
         return :(Var($ex))
@@ -449,6 +453,29 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         if @dissect(ex, Expr(:($), arg))
             # $(...)
             return esc(arg)
+        elseif @dissect(ex, Expr(:(=), Expr(:call, name::Symbol, args...), body))
+            # name(args...) = body
+            ctx = TransliterateContext(ctx, decl = true, locals = Set{Symbol}())
+            trs = _transliterate_params(:(::Val{$(QuoteNode(name))}), args, ctx)
+            ctx = TransliterateContext(ctx, decl = false)
+            return Expr(:(=),
+                        :(funsql($(trs...))),
+                        transliterate(body, ctx))
+        elseif @dissect(ex, Expr(:(=), name::Symbol, arg))
+            # name = arg
+            return Expr(:(=), esc(name), transliterate(arg, ctx))
+        elseif @dissect(ex, Expr(:kw, name::Symbol, arg))
+            if ctx.decl
+                push!(ctx.locals, name)
+                ctx = TransliterateContext(ctx, decl = false)
+            end
+            return Expr(:kw, esc(name), transliterate(arg, ctx))
+        elseif @dissect(ex, Expr(:(...), arg))
+            # arg...
+            return Expr(:(...), transliterate(arg, ctx))
+        elseif @dissect(ex, Expr(:parameters, args...))
+            # ; args...
+            return Expr(:parameters, Any[transliterate(arg, ctx) for arg in args]...)
         elseif @dissect(ex, Cmd(name))
             # `name`
             return QuoteNode(Symbol(name))
@@ -535,7 +562,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # `name`[args...]
             trs = _transliterate_params(QuoteNode(Symbol(name)), args, ctx)
             return :(Agg($(trs...)))
-        elseif @dissect(ex, Expr(:let, Expr(:(=), name, arg), over))
+        elseif @dissect(ex, Expr(:let, Expr(:(=), name::Symbol, arg), over))
             # let name = arg; over; end
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(arg, ctx)
@@ -547,17 +574,8 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:let, Expr(:block, args..., arg), over))
             # let ... end
             return transliterate(Expr(:let, Expr(:block, args...), Expr(:let, arg, over)), ctx)
-        elseif @dissect(ex, Expr(:parameters, args...))
-            # ; args...
-            return Expr(:parameters, Any[transliterate(arg, ctx) for arg in args]...)
-        elseif @dissect(ex, Expr(:kw, name, arg))
-            # name = arg
-            return Expr(:kw, name, transliterate(arg, ctx))
-        elseif @dissect(ex, Expr(:(=), name, arg))
-            # name = arg
-            return Expr(:(=), name, transliterate(arg, ctx))
         elseif @dissect(ex, Expr(:block, args...))
-            # begin; arg1; args...; end
+            # begin; args...; end
             tr = nothing
             for arg in args
                 if arg isa LineNumberNode
