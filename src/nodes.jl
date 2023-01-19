@@ -438,14 +438,8 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         if ex in ctx.locals
             return esc(ex)
         end
-        val =
-            try
-                getfield(ctx.mod, ex)
-            catch UndefVarError
-                undef
-            end
-        if val isa Union{AbstractSQLNode, SQLLiteralType, Nothing}
-            return GlobalRef(ctx.mod, ex)
+        if ex in (:Inf, :NaN, :missing, :nothing)
+            return GlobalRef(Base, ex)
         end
         return QuoteNode(ex)
     elseif @dissect(ex, QuoteNode(name::Symbol))
