@@ -208,6 +208,38 @@ Query functions support keyword arguments and default values.
     end
     =#
 
+The `@funsql` macro applied to a constant definition transliterates the value.
+
+    @funsql const ip_or_er_visit_q = concept_by_code("Visit", "IP", "ER")
+
+    display(ip_or_er_visit_q)
+    #=>
+    let q1 = From(:concept),
+        q2 = q1 |>
+             Where(Fun.and(Fun."="(Get.vocabulary_id, "Visit"),
+                           Fun.in(Get.concept_code, "IP", "ER")))
+        q2
+    end
+    =#
+
+A single `@funsql` macro can wrap multiple definitions.
+
+    @funsql begin
+        SNOMED(codes...) = concept_by_code("SNOMED", codes...)
+
+        const myocardial_infarction_q = SNOMED("22298006")
+    end
+
+    display(myocardial_infarction_q)
+    #=>
+    let q1 = From(:concept),
+        q2 = q1 |>
+             Where(Fun.and(Fun."="(Get.vocabulary_id, "SNOMED"),
+                           Fun."="(Get.concept_code, "22298006")))
+        q2
+    end
+    =#
+
 An ill-formed `@funsql` query triggers an error.
 
     @funsql for p in person; end
