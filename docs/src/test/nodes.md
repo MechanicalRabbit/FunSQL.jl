@@ -243,7 +243,14 @@ A single `@funsql` macro can wrap multiple definitions.
 An ill-formed `@funsql` query triggers an error.
 
     @funsql for p in person; end
-    #-> ERROR: LoadError: invalid @funsql expression: ⋮
+    #=>
+    ERROR: LoadError: FunSQL.TransliterationError: ill-formed @funsql notation:
+    quote
+        for p = person
+        end
+    end
+    in expression starting at …
+    =#
 
 
 ## Literals
