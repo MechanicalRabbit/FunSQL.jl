@@ -58,7 +58,7 @@ Pages = ["strings.jl"]
 ```
 
 
-## `AbstractSQLNode`
+## `SQLNode`
 
 ```@autodocs
 Modules = [FunSQL]
@@ -242,7 +242,7 @@ Pages = ["nodes/with_external.jl"]
 ```
 
 
-## `AbstractSQLClause`
+## `SQLClause`
 
 ```@autodocs
 Modules = [FunSQL]

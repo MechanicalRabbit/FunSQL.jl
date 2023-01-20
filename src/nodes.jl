@@ -428,6 +428,9 @@ struct TransliterateContext
         new(ctx.mod, coalesce(src, ctx.src), coalesce(decl, ctx.decl), coalesce(locals, ctx.locals))
 end
 
+"""
+Convenient notation for assembling FunSQL queries.
+"""
 macro funsql(ex)
     transliterate(ex, TransliterateContext(__module__, __source__))
 end
