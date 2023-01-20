@@ -413,7 +413,7 @@ function populate_label_map!(n, args = n.args, label_map = n.label_map, group_na
 end
 
 
-# The @funsql macro
+# The @funsql macro.
 
 struct TransliterateContext
     mod::Module
@@ -459,7 +459,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             trs = _transliterate_params(:(::Val{$(QuoteNode(name))}), args, ctx)
             ctx = TransliterateContext(ctx, decl = false)
             return Expr(:(=),
-                        :(funsql($(trs...))),
+                        :($(GlobalRef(FunSQL, :funsql))($(trs...))),
                         transliterate(body, ctx))
         elseif @dissect(ex, Expr(:(=), name::Symbol, arg))
             # name = arg
@@ -476,6 +476,8 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:parameters, args...))
             # ; args...
             return Expr(:parameters, Any[transliterate(arg, ctx) for arg in args]...)
+        elseif @dissect(ex, Expr(op := :const || :global || :local, arg))
+            return Expr(op, transliterate(arg, ctx))
         elseif @dissect(ex, Cmd(name))
             # `name`
             return QuoteNode(Symbol(name))
@@ -576,16 +578,31 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return transliterate(Expr(:let, Expr(:block, args...), Expr(:let, arg, over)), ctx)
         elseif @dissect(ex, Expr(:block, args...))
             # begin; args...; end
-            tr = nothing
-            for arg in args
-                if arg isa LineNumberNode
-                    ctx = TransliterateContext(ctx, src = arg)
-                    continue
+            if all(arg isa LineNumberNode ||
+                   @dissect(arg, Expr(:(=) || :const || :global || :local, _...))
+                   for arg in args)
+                trs = Any[]
+                for arg in args
+                    if arg isa LineNumberNode
+                        ctx = TransliterateContext(ctx, src = arg)
+                        push!(trs, arg)
+                    else
+                        push!(trs, transliterate(arg, ctx))
+                    end
                 end
-                tr′ = Expr(:block, ctx.src, transliterate(arg, ctx))
-                tr = tr !== nothing ? :(Chain($tr, $tr′)) : tr′
+                return Expr(:block, trs...)
+            else
+                tr = nothing
+                for arg in args
+                    if arg isa LineNumberNode
+                        ctx = TransliterateContext(ctx, src = arg)
+                    else
+                        tr′ = Expr(:block, ctx.src, transliterate(arg, ctx))
+                        tr = tr !== nothing ? :(Chain($tr, $tr′)) : tr′
+                    end
+                end
+                return tr
             end
-            return tr
         elseif @dissect(ex, Expr(:if, arg1, arg2))
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg2, ctx)
