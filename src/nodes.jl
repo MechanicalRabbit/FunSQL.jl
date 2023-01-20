@@ -398,6 +398,19 @@ function highlight(path::Vector{SQLNode}, color = Base.error_color())
     n
 end
 
+"""
+Invalid application of the [`@funsql`](@ref) macro.
+"""
+struct TransliterationError <: FunSQLError
+    expr::Any
+    src::LineNumberNode
+end
+
+function Base.showerror(io::IO, err::TransliterationError)
+    println(io, "FunSQL.TransliterationError: ill-formed @funsql notation:")
+    pprint(io, err.expr)
+end
+
 # Validate uniqueness of labels and cache arg->label map for Select.args and others.
 
 function populate_label_map!(n, args = n.args, label_map = n.label_map, group_name = nothing)
@@ -629,7 +642,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return :(Fun(:case, $(trs...)))
         end
     end
-    error("invalid @funsql expression: `$(repr(ex))`")
+    throw(TransliterationError(ex, ctx.src))
 end
 
 function _transliterate_params(@nospecialize(tag), args, ctx)
