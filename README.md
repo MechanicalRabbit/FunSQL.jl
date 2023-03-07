@@ -9,6 +9,7 @@
 [![Build Status][ci-img]][ci-url]
 [![Code Coverage Status][codecov-img]][codecov-url]
 [![MIT License][license-img]][license-url]
+[![DOI][doi-img]][doi-url]
 
 
 ## Overview
@@ -113,6 +114,8 @@ passed around as values, and freely composed together.
 [docs-dev-url]: https://mechanicalrabbit.github.io/FunSQL.jl/dev/
 [chat-img]: https://img.shields.io/badge/chat-julia--zulip-blue
 [chat-url]: https://julialang.zulipchat.com/#narrow/stream/284102-funsql.2Ejl
+[doi-img]: https://zenodo.org/badge/352933573.svg
+[doi-url]: https://zenodo.org/badge/latestdoi/352933573
 [issues-img]: https://img.shields.io/github/issues/MechanicalRabbit/FunSQL.jl.svg
 [issues-url]: https://github.com/MechanicalRabbit/FunSQL.jl/issues
 [ci-img]: https://github.com/MechanicalRabbit/FunSQL.jl/workflows/CI/badge.svg
