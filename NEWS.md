@@ -1,6 +1,11 @@
 # Release Notes
 
 
+## v0.11.1
+
+No changes since the last release, enable Zenodo integration.
+
+
 ## v0.11.0
 
 This release introduces some backward-incompatible changes.  Before upgrading,
