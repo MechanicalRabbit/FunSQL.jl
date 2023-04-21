@@ -28,6 +28,7 @@ module LIMIT_STYLE
     ANSI
     MYSQL
     SQLITE
+    SQLSERVER
 end
 
 Base.convert(::Type{LimitStyle}, s::Symbol) =
@@ -37,8 +38,10 @@ Base.convert(::Type{LimitStyle}, s::Symbol) =
         MYSQL :
     s in (:sqlite, :SQLITE) ?
         SQLITE :
+    s in (:sqlserver, :SQLSERVER) ?
+        SQLSERVER :
     throw(DomainError(QuoteNode(s),
-                      "expected :ansi, :mysql, or :sqlite"))
+                      "expected :ansi, :mysql, :sqlite, or :sqlserver"))
 
 end
 
@@ -154,6 +157,7 @@ const sqlserver_dialect =
                has_boolean_literals = false,
                has_recursive_annotation = false,
                identifier_quotes = ('[', ']'),
+               limit_style = LIMIT_STYLE.SQLSERVER,
                values_column_prefix = nothing,
                variable_prefix = '?',
                variable_style = VARIABLE_STYLE.POSITIONAL)

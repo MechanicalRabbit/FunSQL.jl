@@ -768,7 +768,6 @@ Non-standard MySQL and SQLite syntax is supported.
     LIMIT 10
     =#
 
-
 Both limit (the number of rows) and offset (number of rows to skip) can
 be specified.
 
@@ -863,6 +862,59 @@ It is possible to specify the limit with ties.
     FROM "person"
     ORDER BY "year_of_birth"
     FETCH FIRST 10 ROWS WITH TIES
+    =#
+
+SQL Server automatically replaces `FETCH` clause with `TOP` when possible.
+
+    c = FROM(:person) |>
+        ORDER(:year_of_birth) |>
+        LIMIT(10) |>
+        SELECT(:person_id)
+
+    print(render(c, dialect = :sqlserver))
+    #=>
+    SELECT TOP 10 [person_id]
+    FROM [person]
+    ORDER BY [year_of_birth]
+    =#
+
+    c = FROM(:person) |>
+        ORDER(:year_of_birth) |>
+        LIMIT(100, 10) |>
+        SELECT(:person_id)
+
+    print(render(c, dialect = :sqlserver))
+    #=>
+    SELECT [person_id]
+    FROM [person]
+    ORDER BY [year_of_birth]
+    OFFSET 100 ROWS
+    FETCH NEXT 10 ROWS ONLY
+    =#
+
+SQL Server prohibits `ORDER BY` without limiting in a nested query, so FunSQL
+automatically adds `OFFSET 0` clause to the query.
+
+    c = FROM(:person) |>
+        ORDER(:year_of_birth) |>
+        SELECT(:person_id, :gender_concept_id) |>
+        AS(:person) |>
+        FROM() |>
+        WHERE(FUN("=", :gender_concept_id, 8507)) |>
+        SELECT(:person_id)
+
+    print(render(c, dialect = :sqlserver))
+    #=>
+    SELECT [person_id]
+    FROM (
+      SELECT
+        [person_id],
+        [gender_concept_id]
+      FROM [person]
+      ORDER BY [year_of_birth]
+      OFFSET 0 ROWS
+    ) AS [person]
+    WHERE ([gender_concept_id] = 8507)
     =#
 
 

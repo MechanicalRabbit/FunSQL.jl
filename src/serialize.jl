@@ -746,11 +746,25 @@ function serialize!(c::SelectClause, ctx)
         newline(ctx)
     end
     ctx.nested = true
-    print(ctx, "SELECT")
+    over = c.over
+    limit = nothing
+    with_ties = false
+    offset_0_rows = false
     top = c.top
     if top !== nothing
-        print(ctx, " TOP ", top.limit)
-        if top.with_ties
+        limit = top.limit
+        with_ties = top.with_ties
+    elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLSERVER
+        if @dissect(over, limit_over |> LIMIT(offset = nothing, limit = limit, with_ties = with_ties))
+            over = limit_over
+        elseif nested && @dissect(over, ORDER())
+            offset_0_rows = true
+        end
+    end
+    print(ctx, "SELECT")
+    if limit !== nothing
+        print(ctx, " TOP ", limit)
+        if with_ties
             print(ctx, " WITH TIES")
         end
     end
@@ -758,9 +772,12 @@ function serialize!(c::SelectClause, ctx)
         print(ctx, " DISTINCT")
     end
     serialize_lines!(c.args, ctx)
-    over = c.over
     if over !== nothing
         serialize!(over, ctx)
+    end
+    if offset_0_rows
+        newline(ctx)
+        print(ctx, "OFFSET 0 ROWS")
     end
     ctx.nested = nested
     if nested
