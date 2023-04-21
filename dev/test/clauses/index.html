@@ -638,6 +638,50 @@ SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 ORDER BY &quot;year_of_birth&quot;
 FETCH FIRST 10 ROWS WITH TIES
+=#</code></pre><p>SQL Server automatically replaces <code>FETCH</code> clause with <code>TOP</code> when possible.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    ORDER(:year_of_birth) |&gt;
+    LIMIT(10) |&gt;
+    SELECT(:person_id)
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT TOP 10 [person_id]
+FROM [person]
+ORDER BY [year_of_birth]
+=#
+
+c = FROM(:person) |&gt;
+    ORDER(:year_of_birth) |&gt;
+    LIMIT(100, 10) |&gt;
+    SELECT(:person_id)
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM [person]
+ORDER BY [year_of_birth]
+OFFSET 100 ROWS
+FETCH NEXT 10 ROWS ONLY
+=#</code></pre><p>SQL Server prohibits <code>ORDER BY</code> without limiting in a nested query, so FunSQL automatically adds <code>OFFSET 0</code> clause to the query.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    ORDER(:year_of_birth) |&gt;
+    SELECT(:person_id, :gender_concept_id) |&gt;
+    AS(:person) |&gt;
+    FROM() |&gt;
+    WHERE(FUN(&quot;=&quot;, :gender_concept_id, 8507)) |&gt;
+    SELECT(:person_id)
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM (
+  SELECT
+    [person_id],
+    [gender_concept_id]
+  FROM [person]
+  ORDER BY [year_of_birth]
+  OFFSET 0 ROWS
+) AS [person]
+WHERE ([gender_concept_id] = 8507)
 =#</code></pre><h2 id="JOIN-Clause"><a class="docs-heading-anchor" href="#JOIN-Clause"><code>JOIN</code> Clause</a><a id="JOIN-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#JOIN-Clause" title="Permalink"></a></h2><p>A <code>JOIN</code> clause is created with <code>JOIN()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt;
     JOIN(:l =&gt; :location, FUN(&quot;=&quot;, (:p, :location_id), (:l, :location_id)), left = true)
 #-&gt; (…) |&gt; JOIN(…)
@@ -1122,4 +1166,4 @@ print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Saturday 1 April 2023 00:28">Saturday 1 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 21 April 2023 13:58">Friday 21 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
