@@ -424,7 +424,7 @@ SELECT
   &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (EXISTS (
-  SELECT NULL
+  SELECT NULL AS &quot;_&quot;
   FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
   WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
 ))
@@ -449,7 +449,7 @@ FROM (
   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 ) AS &quot;visit_occurrence_2&quot;
 WHERE (EXISTS (
-  SELECT NULL
+  SELECT NULL AS &quot;_&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
   WHERE
     (&quot;observation_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_2&quot;.&quot;person_id&quot;) AND
@@ -536,7 +536,7 @@ q = Select(Fun.exists(p))
 print(render(q))
 #=&gt;
 SELECT (EXISTS (
-  SELECT NULL
+  SELECT NULL AS &quot;_&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
   WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1950)
 )) AS &quot;exists&quot;
@@ -827,7 +827,7 @@ FROM (
 #-&gt; Append(args = [])
 
 print(render(q))
-#-&gt; SELECT NULL</code></pre><p>Without an explicit <code>Select</code>, the output of <code>Append</code> includes the common columns of the nested queries.</p><pre><code class="language-julia hljs">q = measurement |&gt;
+#-&gt; SELECT NULL AS &quot;_&quot;</code></pre><p>Without an explicit <code>Select</code>, the output of <code>Append</code> includes the common columns of the nested queries.</p><pre><code class="language-julia hljs">q = measurement |&gt;
     Append(observation)
 
 print(render(q))
@@ -976,7 +976,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 
 print(render(q))
 #=&gt;
-SELECT NULL
+SELECT NULL AS &quot;_&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p><code>As</code> does not block node-bound references.</p><pre><code class="language-julia hljs">q = (qₚ = From(person)) |&gt;
     As(:p) |&gt;
@@ -1037,7 +1037,7 @@ end
 
 print(render(q))
 #=&gt;
-SELECT NULL
+SELECT NULL AS &quot;_&quot;
 FROM &quot;empty&quot; AS &quot;empty_1&quot;
 WHERE FALSE
 =#</code></pre><p>When <code>From</code> takes a Tables-compatible argument, it generates a <code>VALUES</code> query.</p><pre><code class="language-julia hljs">using DataFrames
@@ -1158,7 +1158,7 @@ display(q)
 
 print(render(q))
 #=&gt;
-SELECT NULL
+SELECT NULL AS &quot;_&quot;
 =#</code></pre><h2 id="With-and-WithExternal"><a class="docs-heading-anchor" href="#With-and-WithExternal"><code>With</code> and <code>WithExternal</code></a><a id="With-and-WithExternal-1"></a><a class="docs-heading-anchor-permalink" href="#With-and-WithExternal" title="Permalink"></a></h2><p>We can create a temporary dataset using <code>With</code> and refer to it with <code>From</code>.</p><pre><code class="language-julia hljs">q = From(:male) |&gt;
     With(From(person) |&gt;
          Where(Get.gender_concept_id .== 8507) |&gt;
@@ -1229,12 +1229,12 @@ FROM &quot;male_1&quot; AS &quot;male_2&quot;
 print(render(q))
 #=&gt;
 WITH &quot;male_1&quot; (&quot;_&quot;) AS (
-  SELECT NULL
+  SELECT NULL AS &quot;_&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
   WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; = 8507)
 ),
 &quot;female_1&quot; (&quot;_&quot;) AS (
-  SELECT NULL
+  SELECT NULL AS &quot;_&quot;
   FROM &quot;person&quot; AS &quot;person_2&quot;
   WHERE (&quot;person_2&quot;.&quot;gender_concept_id&quot; = 8532)
 )
@@ -1435,7 +1435,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
     Group()
 
 print(render(q))
-#-&gt; SELECT NULL</code></pre><p>A <code>SELECT DISTINCT</code> query must include all the keys even when they are not used downstream.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+#-&gt; SELECT NULL AS &quot;_&quot;</code></pre><p>A <code>SELECT DISTINCT</code> query must include all the keys even when they are not used downstream.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.year_of_birth) |&gt;
     Group() |&gt;
     Select(Agg.count())
@@ -2317,4 +2317,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Friday 21 April 2023 13:58">Friday 21 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Sunday 23 April 2023 00:44">Sunday 23 April 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
