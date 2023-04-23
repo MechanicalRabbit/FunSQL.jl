@@ -966,7 +966,7 @@ Now we have all the components to construct the final query:
         ORDER BY "condition_occurrence_1"."condition_occurrence_id"
       ) AS "condition_occurrence_2"
       WHERE (EXISTS (
-        SELECT NULL
+        SELECT NULL AS "_"
         FROM "visit_occurrence" AS "visit_occurrence_1"
         JOIN "base_3" AS "base_4" ON ("visit_occurrence_1"."visit_concept_id" = "base_4"."concept_id")
         WHERE

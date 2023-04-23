@@ -1113,7 +1113,7 @@ expression evaluated in the context of the outer query.
       "visit_occurrence_1"."visit_source_concept_id"
     FROM "visit_occurrence" AS "visit_occurrence_1"
     WHERE (EXISTS (
-      SELECT NULL
+      SELECT NULL AS "_"
       FROM "condition_occurrence" AS "condition_occurrence_1"
       WHERE
         ("condition_occurrence_1"."person_id" = "visit_occurrence_1"."person_id") AND

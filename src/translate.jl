@@ -21,7 +21,7 @@ function complete(cols::OrderedDict{Symbol, SQLClause})
         push!(args, col)
     end
     if isempty(args)
-        push!(args, LIT(missing))
+        push!(args, AS(over = LIT(missing), name = :_))
     end
     args
 end

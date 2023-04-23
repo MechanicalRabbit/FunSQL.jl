@@ -576,7 +576,7 @@ Query variables could be bound using the `Bind` constructor.
       "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (EXISTS (
-      SELECT NULL
+      SELECT NULL AS "_"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
     ))
@@ -606,7 +606,7 @@ subquery.
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_occurrence_2"
     WHERE (EXISTS (
-      SELECT NULL
+      SELECT NULL AS "_"
       FROM "observation" AS "observation_1"
       WHERE
         ("observation_1"."person_id" = "visit_occurrence_2"."person_id") AND
@@ -743,7 +743,7 @@ A function invocation may include a nested query.
     print(render(q))
     #=>
     SELECT (EXISTS (
-      SELECT NULL
+      SELECT NULL AS "_"
       FROM "person" AS "person_1"
       WHERE ("person_1"."year_of_birth" > 1950)
     )) AS "exists"
@@ -1063,7 +1063,7 @@ An `Append` without any queries can be created explicitly.
     #-> Append(args = [])
 
     print(render(q))
-    #-> SELECT NULL
+    #-> SELECT NULL AS "_"
 
 Without an explicit `Select`, the output of `Append` includes the common
 columns of the nested queries.
@@ -1258,7 +1258,7 @@ An alias to an expression can be added with the `As` constructor.
 
     print(render(q))
     #=>
-    SELECT NULL
+    SELECT NULL AS "_"
     FROM "person" AS "person_1"
     =#
 
@@ -1349,7 +1349,7 @@ has no columns.
 
     print(render(q))
     #=>
-    SELECT NULL
+    SELECT NULL AS "_"
     FROM "empty" AS "empty_1"
     WHERE FALSE
     =#
@@ -1520,7 +1520,7 @@ All the columns of a tabular function must have distinct names.
 
     print(render(q))
     #=>
-    SELECT NULL
+    SELECT NULL AS "_"
     =#
 
 
@@ -1606,12 +1606,12 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     print(render(q))
     #=>
     WITH "male_1" ("_") AS (
-      SELECT NULL
+      SELECT NULL AS "_"
       FROM "person" AS "person_1"
       WHERE ("person_1"."gender_concept_id" = 8507)
     ),
     "female_1" ("_") AS (
-      SELECT NULL
+      SELECT NULL AS "_"
       FROM "person" AS "person_2"
       WHERE ("person_2"."gender_concept_id" = 8532)
     )
@@ -1867,7 +1867,7 @@ the group key expression.
         Group()
 
     print(render(q))
-    #-> SELECT NULL
+    #-> SELECT NULL AS "_"
 
 A `SELECT DISTINCT` query must include all the keys even when they are not used
 downstream.

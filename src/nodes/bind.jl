@@ -48,7 +48,7 @@ julia> print(render(q, tables = [person, visit_occurrence]))
 SELECT "person_1"."person_id"
 FROM "person" AS "person_1"
 WHERE (EXISTS (
-  SELECT NULL
+  SELECT NULL AS "_"
   FROM "visit_occurrence" AS "visit_occurrence_1"
   WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
 ))
