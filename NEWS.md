@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.11.2
+
+* Fix a number of problems with serializing `Order()` and `Limit()` for
+  MS SQL Server.
+* Add a column alias to the dummy `NULL` when generating zero-column output.
+
 
 ## v0.11.1
 
