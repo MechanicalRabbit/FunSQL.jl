@@ -1725,14 +1725,14 @@ JOIN (
   FROM &quot;location&quot; AS &quot;location_1&quot;
   WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
 ) AS &quot;location_2&quot; ON (&quot;person_2&quot;.&quot;location_id&quot; = &quot;location_2&quot;.&quot;location_id&quot;)
-=#</code></pre><p><code>Join</code> can be applied to correlated subqueries.</p><pre><code class="language-julia hljs">q0(person_id) =
+=#</code></pre><p><code>Join</code> can be applied to correlated subqueries.</p><pre><code class="language-julia hljs">ql(person_id) =
     From(visit_occurrence) |&gt;
     Where(Get.person_id .== Var.PERSON_ID) |&gt;
     Partition(order_by = [Get.visit_start_date]) |&gt;
     Where(Agg.row_number() .== 1) |&gt;
     Bind(:PERSON_ID =&gt; person_id)
 
-print(render(q0(1)))
+print(render(ql(1)))
 #=&gt;
 SELECT
   &quot;visit_occurrence_2&quot;.&quot;visit_occurrence_id&quot;,
@@ -1753,7 +1753,7 @@ WHERE (&quot;visit_occurrence_2&quot;.&quot;row_number&quot; = 1)
 =#
 
 q = From(person) |&gt;
-    Join(:visit =&gt; q0(Get.person_id), on = true) |&gt;
+    Join(:visit =&gt; ql(Get.person_id), on = true) |&gt;
     Select(Get.person_id,
            Get.visit.visit_occurrence_id,
            Get.visit.visit_start_date)
@@ -2317,4 +2317,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 1 May 2023 00:28">Monday 1 May 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 18 May 2023 01:19">Thursday 18 May 2023</span>. Using Julia version 1.9.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

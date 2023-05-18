@@ -547,10 +547,17 @@ print(render(c |&gt; SELECT(:person_id)))
 SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 FETCH FIRST 10 ROWS ONLY
-=#</code></pre><p>Non-standard MySQL and SQLite syntax is supported.</p><pre><code class="language-julia hljs">print(render(c |&gt; SELECT(:person_id), dialect = :mysql))
+=#</code></pre><p>Many SQL dialects represent <code>LIMIT</code> clause with a non-standard syntax.</p><pre><code class="language-julia hljs">print(render(c |&gt; SELECT(:person_id), dialect = :mysql))
 #=&gt;
 SELECT `person_id`
 FROM `person`
+LIMIT 10
+=#
+
+print(render(c |&gt; SELECT(:person_id), dialect = :postgresql))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
 LIMIT 10
 =#
 
@@ -559,6 +566,12 @@ print(render(c |&gt; SELECT(:person_id), dialect = :sqlite))
 SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 LIMIT 10
+=#
+
+print(render(c |&gt; SELECT(:person_id), dialect = :sqlserver))
+#=&gt;
+SELECT TOP 10 [person_id]
+FROM [person]
 =#</code></pre><p>Both limit (the number of rows) and offset (number of rows to skip) can be specified.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; LIMIT(100, 10) |&gt; SELECT(:person_id)
 
 display(c)
@@ -579,12 +592,28 @@ FROM `person`
 LIMIT 100, 10
 =#
 
+print(render(c, dialect = :postgresql))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+LIMIT 10
+OFFSET 100
+=#
+
 print(render(c, dialect = :sqlite))
 #=&gt;
 SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 LIMIT 10
 OFFSET 100
+=#
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM [person]
+OFFSET 100 ROWS
+FETCH NEXT 10 ROWS ONLY
 =#</code></pre><p>Alternatively, both limit and offset can be specified as a unit range.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; LIMIT(101:110)
 
 print(render(c |&gt; SELECT(:person_id)))
@@ -612,12 +641,26 @@ FROM `person`
 LIMIT 100, 18446744073709551615
 =#
 
+print(render(c, dialect = :postgresql))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+OFFSET 100
+=#
+
 print(render(c, dialect = :sqlite))
 #=&gt;
 SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 LIMIT -1
 OFFSET 100
+=#
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM [person]
+OFFSET 100 ROWS
 =#</code></pre><p>It is possible to specify the limit with ties.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
     ORDER(:year_of_birth) |&gt;
     LIMIT(10, with_ties = true) |&gt;
@@ -638,30 +681,6 @@ SELECT &quot;person_id&quot;
 FROM &quot;person&quot;
 ORDER BY &quot;year_of_birth&quot;
 FETCH FIRST 10 ROWS WITH TIES
-=#</code></pre><p>SQL Server automatically replaces <code>FETCH</code> clause with <code>TOP</code> when possible.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
-    ORDER(:year_of_birth) |&gt;
-    LIMIT(10) |&gt;
-    SELECT(:person_id)
-
-print(render(c, dialect = :sqlserver))
-#=&gt;
-SELECT TOP 10 [person_id]
-FROM [person]
-ORDER BY [year_of_birth]
-=#
-
-c = FROM(:person) |&gt;
-    ORDER(:year_of_birth) |&gt;
-    LIMIT(100, 10) |&gt;
-    SELECT(:person_id)
-
-print(render(c, dialect = :sqlserver))
-#=&gt;
-SELECT [person_id]
-FROM [person]
-ORDER BY [year_of_birth]
-OFFSET 100 ROWS
-FETCH NEXT 10 ROWS ONLY
 =#</code></pre><p>SQL Server prohibits <code>ORDER BY</code> without limiting in a nested query, so FunSQL automatically adds <code>OFFSET 0</code> clause to the query.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
     ORDER(:year_of_birth) |&gt;
     SELECT(:person_id, :gender_concept_id) |&gt;
@@ -1166,4 +1185,4 @@ print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Monday 1 May 2023 00:28">Monday 1 May 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 18 May 2023 01:19">Thursday 18 May 2023</span>. Using Julia version 1.9.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
