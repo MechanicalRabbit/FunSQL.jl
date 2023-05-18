@@ -27,6 +27,7 @@ module LIMIT_STYLE
 @enum LimitStyle::UInt8 begin
     ANSI
     MYSQL
+    POSTGRESQL
     SQLITE
     SQLSERVER
 end
@@ -36,12 +37,14 @@ Base.convert(::Type{LimitStyle}, s::Symbol) =
         ANSI :
     s in (:mysql, :MYSQL) ?
         MYSQL :
+    s in (:postgresql, :POSTGRESQL) ?
+        POSTGRESQL :
     s in (:sqlite, :SQLITE) ?
         SQLITE :
     s in (:sqlserver, :SQLSERVER) ?
         SQLSERVER :
     throw(DomainError(QuoteNode(s),
-                      "expected :ansi, :mysql, :sqlite, or :sqlserver"))
+                      "expected :ansi, :mysql, :postgresql, :sqlite, or :sqlserver"))
 
 end
 
@@ -138,11 +141,13 @@ const mysql_dialect =
                variable_style = VARIABLE_STYLE.POSITIONAL)
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
+               limit_style = LIMIT_STYLE.POSTGRESQL,
                variable_prefix = '$',
                variable_style = VARIABLE_STYLE.NUMBERED)
 const redshift_dialect =
     SQLDialect(name = :redshift,
                concat_operator = Symbol("||"),
+               limit_style = LIMIT_STYLE.POSTGRESQL,
                variable_prefix = '$',
                variable_style = VARIABLE_STYLE.NUMBERED)
 const sqlite_dialect =

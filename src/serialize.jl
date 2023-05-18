@@ -596,6 +596,15 @@ function serialize!(c::LimitClause, ctx)
             print(ctx, start, ", ")
         end
         print(ctx, count !== nothing ? count : "18446744073709551615")
+    elseif ctx.dialect.limit_style == LIMIT_STYLE.POSTGRESQL
+        if count !== nothing
+            newline(ctx)
+            print(ctx, "LIMIT ", count)
+        end
+        if start !== nothing
+            newline(ctx)
+            print(ctx, "OFFSET ", start)
+        end
     elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLITE
         newline(ctx)
         print(ctx, "LIMIT ", count !== nothing ? count : -1)
