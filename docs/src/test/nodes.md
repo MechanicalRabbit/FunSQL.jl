@@ -2229,14 +2229,14 @@ Nested subqueries that are combined with `Join` may fail to collapse.
 
 `Join` can be applied to correlated subqueries.
 
-    q0(person_id) =
+    ql(person_id) =
         From(visit_occurrence) |>
         Where(Get.person_id .== Var.PERSON_ID) |>
         Partition(order_by = [Get.visit_start_date]) |>
         Where(Agg.row_number() .== 1) |>
         Bind(:PERSON_ID => person_id)
 
-    print(render(q0(1)))
+    print(render(ql(1)))
     #=>
     SELECT
       "visit_occurrence_2"."visit_occurrence_id",
@@ -2257,7 +2257,7 @@ Nested subqueries that are combined with `Join` may fail to collapse.
     =#
 
     q = From(person) |>
-        Join(:visit => q0(Get.person_id), on = true) |>
+        Join(:visit => ql(Get.person_id), on = true) |>
         Select(Get.person_id,
                Get.visit.visit_occurrence_id,
                Get.visit.visit_start_date)
