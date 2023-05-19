@@ -85,6 +85,11 @@ A quote character in a string literal is represented by a pair of quotes.
     print(render(c))
     #-> 'O''Hare'
 
+Some dialects use backslash to escape quote characters.
+
+    print(render(c, dialect = :spark))
+    #-> 'O\'Hare'
+
 
 ## SQL Identifiers
 

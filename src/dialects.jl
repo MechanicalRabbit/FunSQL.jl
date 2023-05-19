@@ -63,6 +63,7 @@ The following names are recognized:
 * `:mysql`
 * `:postgresql`
 * `:redshift`
+* `:spark`
 * `:sqlite`
 * `:sqlserver`
 
@@ -94,6 +95,7 @@ struct SQLDialect
     has_boolean_literals::Bool
     has_recursive_annotation::Bool
     identifier_quotes::Tuple{Char, Char}
+    is_backslash_literal::Bool
     limit_style::LimitStyle
     values_column_index::Int
     values_column_prefix::Union{Symbol, Nothing}
@@ -108,6 +110,7 @@ struct SQLDialect
                has_boolean_literals = true,
                has_recursive_annotation = true,
                identifier_quotes = ('"', '"'),
+               is_backslash_literal = true,
                limit_style = LIMIT_STYLE.ANSI,
                values_column_index = 1,
                values_column_prefix = :column,
@@ -120,6 +123,7 @@ struct SQLDialect
             has_boolean_literals,
             has_recursive_annotation,
             identifier_quotes,
+            is_backslash_literal,
             limit_style,
             values_column_index,
             values_column_prefix,
@@ -150,6 +154,12 @@ const redshift_dialect =
                limit_style = LIMIT_STYLE.POSTGRESQL,
                variable_prefix = '$',
                variable_style = VARIABLE_STYLE.NUMBERED)
+const spark_dialect =
+    SQLDialect(name = :spark,
+               identifier_quotes = ('`', '`'),
+               limit_style = LIMIT_STYLE.POSTGRESQL,
+               is_backslash_literal = false,
+               values_column_prefix = :col)
 const sqlite_dialect =
     SQLDialect(name = :sqlite,
                concat_operator = Symbol("||"),
@@ -170,6 +180,7 @@ const standard_dialects = [
     mysql_dialect,
     postgresql_dialect,
     redshift_dialect,
+    spark_dialect,
     sqlite_dialect,
     sqlserver_dialect,
     default_dialect]

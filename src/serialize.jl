@@ -59,8 +59,14 @@ serialize!(val::Number, ctx) =
     print(ctx, val)
 
 function serialize!(val::AbstractString, ctx)
-    if '\'' in val
-        val = replace(val, '\'' => "''")
+    if ctx.dialect.is_backslash_literal
+        if '\'' in val
+            val = replace(val, '\'' => "''")
+        end
+    else
+        if '\\' in val || '\'' in val
+            val = replace(replace(val, '\\' => "\\\\"), '\'' => "\\'")
+        end
     end
     print(ctx, '\'', val, '\'')
 end
