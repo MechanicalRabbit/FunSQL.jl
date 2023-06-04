@@ -432,13 +432,12 @@ struct TransliterateContext
     mod::Module
     src::LineNumberNode
     decl::Bool
-    locals::Set{Symbol}
 
-    TransliterateContext(mod::Module, src::LineNumberNode, decl::Bool = false, locals::Set{Symbol} = Set{Symbol}()) =
-        new(mod, src, decl, locals)
+    TransliterateContext(mod::Module, src::LineNumberNode, decl::Bool = false) =
+        new(mod, src, decl)
 
-    TransliterateContext(ctx::TransliterateContext; src = missing, decl = missing, locals = missing) =
-        new(ctx.mod, coalesce(src, ctx.src), coalesce(decl, ctx.decl), coalesce(locals, ctx.locals))
+    TransliterateContext(ctx::TransliterateContext; src = missing, decl = missing) =
+        new(ctx.mod, coalesce(src, ctx.src), coalesce(decl, ctx.decl))
 end
 
 """
@@ -453,9 +452,6 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         return ex
     elseif ex isa Symbol
         if ctx.decl
-            push!(ctx.locals, ex)
-            return esc(ex)
-        elseif ex in ctx.locals
             return esc(ex)
         elseif ex in (:Inf, :NaN, :missing, :nothing)
             return GlobalRef(Base, ex)
@@ -471,7 +467,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return esc(arg)
         elseif @dissect(ex, Expr(:(=), Expr(:call, name::Symbol, args...), body))
             # name(args...) = body
-            ctx = TransliterateContext(ctx, decl = true, locals = Set{Symbol}())
+            ctx = TransliterateContext(ctx, decl = true)
             trs = _transliterate_params(:(::Val{$(QuoteNode(name))}), args, ctx)
             ctx = TransliterateContext(ctx, decl = false)
             return Expr(:(=),
@@ -482,7 +478,6 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return Expr(:(=), esc(name), transliterate(arg, ctx))
         elseif @dissect(ex, Expr(:kw, name::Symbol, arg))
             if ctx.decl
-                push!(ctx.locals, name)
                 ctx = TransliterateContext(ctx, decl = false)
             end
             return Expr(:kw, esc(name), transliterate(arg, ctx))

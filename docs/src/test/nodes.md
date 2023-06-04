@@ -153,7 +153,7 @@ Query functions defined with `@funsql` can accept parameters.
     @funsql concept_by_code(v, c) =
         begin
             from(concept)
-            filter(vocabulary_id == v && concept_code == c)
+            filter(vocabulary_id == $v && concept_code == $c)
         end
 
     display(@funsql concept_by_code("SNOMED", "22298006"))
@@ -171,7 +171,7 @@ Query functions support `...` notation.
     @funsql concept_by_code(v, cs...) =
         begin
             from(concept)
-            filter(vocabulary_id == v && in(concept_code, cs...))
+            filter(vocabulary_id == $v && in(concept_code, $(cs...)))
         end
 
     display(@funsql concept_by_code("Visit", "IP", "ER"))
@@ -187,7 +187,7 @@ Query functions support `...` notation.
 Query functions support keyword arguments and default values.
 
     @funsql age(yob = year_of_birth; at = `EXTRACT(YEAR FROM CURRENT_DATE) `()) =
-        (at - yob)
+        ($at - $yob)
 
     q = @funsql begin
         from(person)
@@ -225,7 +225,7 @@ The `@funsql` macro applied to a constant definition transliterates the value.
 A single `@funsql` macro can wrap multiple definitions.
 
     @funsql begin
-        SNOMED(codes...) = concept_by_code("SNOMED", codes...)
+        SNOMED(codes...) = concept_by_code("SNOMED", $(codes...))
 
         const myocardial_infarction_q = SNOMED("22298006")
     end
