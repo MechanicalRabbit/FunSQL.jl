@@ -565,9 +565,19 @@ function annotate_scalar(n::AggregateNode, ctx)
 end
 
 function annotate(n::AppendNode, ctx)
-    over′ = annotate(n.over, ctx)
+    over = n.over
+    args = n.args
+    if over === nothing && !ctx.over_knot
+        if !isempty(args)
+            over = args[1]
+            args = args[2:end]
+        else
+            over = Where(false)
+        end
+    end
+    over′ = annotate(over, ctx)
     ctx′ = AnnotateContext(ctx, over_knot = false)
-    args′ = annotate(n.args, ctx′)
+    args′ = annotate(args, ctx′)
     Append(over = over′, args = args′)
 end
 

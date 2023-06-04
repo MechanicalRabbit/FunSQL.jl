@@ -939,6 +939,32 @@ multiple queries.
     ) AS "union_1"
     =#
 
+`Append` can also be specified without the `over` node.
+
+    q = Append(From(measurement) |>
+               Define(:date => Get.measurement_date),
+               From(observation) |>
+               Define(:date => Get.observation_date)) |>
+        Select(Get.person_id, Get.date)
+
+    print(render(q))
+    #=>
+    SELECT
+      "union_1"."person_id",
+      "union_1"."date"
+    FROM (
+      SELECT
+        "measurement_1"."person_id",
+        "measurement_1"."measurement_date" AS "date"
+      FROM "measurement" AS "measurement_1"
+      UNION ALL
+      SELECT
+        "observation_1"."person_id",
+        "observation_1"."observation_date" AS "date"
+      FROM "observation" AS "observation_1"
+    ) AS "union_1"
+    =#
+
 `Append` will automatically assign unique aliases to the exported columns.
 
     q = From(measurement) |>
@@ -1063,13 +1089,15 @@ An `Append` without any queries can be created explicitly.
     #-> Append(args = [])
 
     print(render(q))
-    #-> SELECT NULL AS "_"
+    #=>
+    SELECT NULL AS "_"
+    WHERE FALSE
+    =#
 
 Without an explicit `Select`, the output of `Append` includes the common
 columns of the nested queries.
 
-    q = measurement |>
-        Append(observation)
+    q = Append(measurement, observation)
 
     print(render(q))
     #=>
