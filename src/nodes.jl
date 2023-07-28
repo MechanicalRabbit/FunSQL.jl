@@ -476,11 +476,14 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:(=), name::Symbol, arg))
             # name = arg
             return Expr(:(=), esc(name), transliterate(arg, ctx))
-        elseif @dissect(ex, Expr(:kw, name::Symbol, arg))
-            if ctx.decl
-                ctx = TransliterateContext(ctx, decl = false)
-            end
-            return Expr(:kw, esc(name), transliterate(arg, ctx))
+        elseif ctx.decl && @dissect(ex, Expr(:(::), _::Symbol, _))
+            # name::t
+            return esc(ex)
+        elseif @dissect(ex, Expr(:kw, key, arg))
+            # key = arg
+            ctx = TransliterateContext(ctx, decl = true)
+            ctx′ = TransliterateContext(ctx, decl = false)
+            return Expr(:kw, transliterate(key, ctx), transliterate(arg, ctx′))
         elseif @dissect(ex, Expr(:(...), arg))
             # arg...
             return Expr(:(...), transliterate(arg, ctx))

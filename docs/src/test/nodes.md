@@ -208,6 +208,32 @@ Query functions support keyword arguments and default values.
     end
     =#
 
+A parameter of a query function accepts a type declaration.
+
+    @funsql concept(c::String, v::String = "SNOMED") =
+        concept_by_code($v, $c)
+
+    @funsql concept(id::Int) =
+        from(concept).filter(concept_id == $id)
+
+    display(@funsql concept("22298006"))
+    #=>
+    let q1 = From(:concept),
+        q2 = q1 |>
+             Where(Fun.and(Fun."="(Get.vocabulary_id, "SNOMED"),
+                           Fun."="(Get.concept_code, "22298006")))
+        q2
+    end
+    =#
+
+    display(@funsql concept(4329847))
+    #=>
+    let q1 = From(:concept),
+        q2 = q1 |> Where(Fun."="(Get.concept_id, 4329847))
+        q2
+    end
+    =#
+
 The `@funsql` macro applied to a constant definition transliterates the value.
 
     @funsql const ip_or_er_visit_q = concept_by_code("Visit", "IP", "ER")
