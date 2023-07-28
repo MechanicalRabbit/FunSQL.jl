@@ -9,7 +9,7 @@
 We start with specifying the database model.
 
     const concept =
-        SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code])
+        SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code, :concept_name])
 
     const location =
         SQLTable(:location, columns = [:location_id, :city, :state])
@@ -2311,6 +2311,31 @@ Nested subqueries that are combined with `Join` may fail to collapse.
       ) AS "visit_occurrence_2"
       WHERE ("visit_occurrence_2"."row_number" = 1)
     ) AS "visit_1"
+    =#
+
+The `LATERAL` keyword is omitted when the join branch is reduced to a function
+call.
+
+    q = From(concept) |>
+    Join(
+        From(Fun.string_to_table(Get.concept_name, " "), columns = [:word]),
+        on = true) |>
+    Group(Get.word)
+
+    print(render(q))
+    #=>
+    SELECT DISTINCT "string_to_table_1"."word"
+    FROM "concept" AS "concept_1"
+    CROSS JOIN string_to_table("concept_1"."concept_name", ' ') AS "string_to_table_1" ("word")
+    =#
+
+Some database backends require `LATERAL` even in this case.
+
+    print(render(q, dialect = :spark))
+    #=>
+    SELECT DISTINCT `string_to_table_1`.`word`
+    FROM `concept` AS `concept_1`
+    CROSS JOIN LATERAL string_to_table(`concept_1`.`concept_name`, ' ') AS `string_to_table_1` (`word`)
     =#
 
 An optional `Join` is omitted when the output contains no data from

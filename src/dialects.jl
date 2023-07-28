@@ -93,6 +93,7 @@ struct SQLDialect
     concat_operator::Union{Symbol, Nothing}
     has_as_columns::Bool
     has_boolean_literals::Bool
+    has_implicit_lateral::Bool
     has_recursive_annotation::Bool
     identifier_quotes::Tuple{Char, Char}
     is_backslash_literal::Bool
@@ -108,6 +109,7 @@ struct SQLDialect
                concat_operator = nothing,
                has_as_columns = true,
                has_boolean_literals = true,
+               has_implicit_lateral = true,
                has_recursive_annotation = true,
                identifier_quotes = ('"', '"'),
                is_backslash_literal = true,
@@ -121,6 +123,7 @@ struct SQLDialect
             concat_operator,
             has_as_columns,
             has_boolean_literals,
+            has_implicit_lateral,
             has_recursive_annotation,
             identifier_quotes,
             is_backslash_literal,
@@ -156,6 +159,7 @@ const redshift_dialect =
                variable_style = VARIABLE_STYLE.NUMBERED)
 const spark_dialect =
     SQLDialect(name = :spark,
+               has_implicit_lateral = false,
                identifier_quotes = ('`', '`'),
                limit_style = LIMIT_STYLE.POSTGRESQL,
                is_backslash_literal = false,

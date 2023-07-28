@@ -715,7 +715,9 @@ function assemble(n::IntJoinNode, refs, ctx)
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end
-        lateral = false
+        if ctx.dialect.has_implicit_lateral
+            lateral = false
+        end
     else
         right_alias = allocate_alias(ctx, n.joinee)
         joinee = AS(over = complete(right), name = right_alias)
