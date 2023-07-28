@@ -971,6 +971,16 @@ a valid identifier.
     display(e)
     #-> Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city, 1, 1)
 
+    q = @funsql `from`(person).`filter`(year_of_birth <= 1964)
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Where(Fun."<="(Get.year_of_birth, 1964))
+        q2
+    end
+    =#
+
 In `@funsql` notation, an `if` statement is converted to a `CASE` expression.
 
     e = @funsql year_of_birth <= 1964 ? "Boomers" : "Millenials"
