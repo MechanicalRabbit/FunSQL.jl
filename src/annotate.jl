@@ -667,7 +667,7 @@ function annotate(n::GroupNode, ctx)
         mark_origin!(ctx, over′)
     end
     by′ = annotate_scalar(n.by, ctx)
-    Group(over = over′, by = by′, label_map = n.label_map)
+    Group(over = over′, by = by′, name = n.name, label_map = n.label_map)
 end
 
 function annotate(n::HighlightNode, ctx)
@@ -724,7 +724,7 @@ function annotate(n::PartitionNode, ctx)
     over′ = annotate(n.over, ctx)
     by′ = annotate_scalar(n.by, ctx)
     order_by′ = annotate_scalar(n.order_by, ctx)
-    Partition(over = over′, by = by′, order_by = order_by′, frame = n.frame)
+    Partition(over = over′, by = by′, order_by = order_by′, frame = n.frame, name = n.name)
 end
 
 function annotate(n::SelectNode, ctx)
@@ -871,7 +871,12 @@ function resolve(n::GroupNode, ctx)
     for name in keys(n.label_map)
         fields[name] = ScalarType()
     end
-    row = RowType(fields, t.row)
+    if n.name === nothing
+        row = RowType(fields, t.row)
+    else
+        fields[n.name] = RowType(FieldTypeMap(), t.row)
+        row = RowType(fields)
+    end
     BoxType(t.name, row)
 end
 
@@ -908,7 +913,18 @@ end
 
 function resolve(n::PartitionNode, ctx)
     t = box_type(n.over)
-    row = RowType(t.row.fields, t.row)
+    if n.name === nothing
+        row = RowType(t.row.fields, t.row)
+    else
+        fields = FieldTypeMap()
+        for (f, ft) in t.row.fields
+            if f !== n.name
+                fields[f] = ft
+            end
+        end
+        fields[n.name] = RowType(FieldTypeMap(), t.row)
+        row = RowType(fields, t.row.group)
+    end
     BoxType(t.name, row, t.handle_map)
 end
 
@@ -1152,10 +1168,11 @@ function link!(n::GroupNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     begin_imm_refs!(box)
     append!(box.refs, n.by)
-    has_aggregates = any(ref -> @dissect(ref, Agg()), refs)
+    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> NameBound()), refs)
     has_aggregates || return
     for ref in refs
-        if @dissect(ref, nothing |> Agg(args = args, filter = filter))
+        if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> NameBound(name = name)) && name === n.name) ||
+           (@dissect(ref, nothing |> Agg(args = args, filter = filter)) && n.name === nothing)
             gather_and_validate!(box.refs, args, box.type, ctx)
             if filter !== nothing
                 gather_and_validate!(box.refs, filter, box.type, ctx)
@@ -1251,20 +1268,25 @@ end
 function link!(n::PartitionNode, refs::Vector{SQLNode}, ctx)
     box = n.over[]::BoxNode
     imm_refs = SQLNode[]
+    has_aggregates = false
     for ref in refs
-        if @dissect(ref, nothing |> Agg(args = args, filter = filter))
+        if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> NameBound(name = name)) && name === n.name) ||
+           (@dissect(ref, nothing |> Agg(args = args, filter = filter)) && n.name === nothing)
             gather_and_validate!(imm_refs, args, box.type, ctx)
             if filter !== nothing
                 gather_and_validate!(imm_refs, filter, box.type, ctx)
             end
+            has_aggregates = true
         else
             push!(box.refs, ref)
         end
     end
-    gather_and_validate!(imm_refs, n.by, box.type, ctx)
-    gather_and_validate!(imm_refs, n.order_by, box.type, ctx)
-    begin_imm_refs!(box)
-    append!(box.refs, imm_refs)
+    if has_aggregates
+        gather_and_validate!(imm_refs, n.by, box.type, ctx)
+        gather_and_validate!(imm_refs, n.order_by, box.type, ctx)
+        begin_imm_refs!(box)
+        append!(box.refs, imm_refs)
+    end
 end
 
 function link!(n::SelectNode, refs::Vector{SQLNode}, ctx)

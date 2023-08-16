@@ -1914,6 +1914,31 @@ downstream.
     ) AS "person_2"
     =#
 
+`Group` allows specifying the name of a group field.
+
+    q = From(person) |>
+        Group(Get.year_of_birth, name = :person) |>
+        Define(Get.person |> Agg.count())
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.year_of_birth, name = :person),
+        q3 = q2 |> Define(Get.person |> Agg.count())
+        q3
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."year_of_birth",
+      count(*) AS "count"
+    FROM "person" AS "person_1"
+    GROUP BY "person_1"."year_of_birth"
+    =#
+
 `Group` requires all keys to have unique aliases.
 
     q = From(person) |>
@@ -1921,6 +1946,15 @@ downstream.
     #=>
     ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
     Group(Get.person_id, Get.person_id)
+    =#
+
+The name of group field must also be unique.
+
+    q = From(person) |>
+        Group(:group => Get.year_of_birth, name = :group)
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: `group` is used more than once in:
+    Group(Get.year_of_birth |> As(:group), name = :group)
     =#
 
 `Group` ensures that each aggregate expression gets a unique alias.
@@ -2123,6 +2157,48 @@ A partition may specify the window frame.
       (avg(count(*)) OVER (ORDER BY "person_1"."year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS "avg"
     FROM "person" AS "person_1"
     GROUP BY "person_1"."year_of_birth"
+    =#
+
+`Partition` may assign an explicit name to the partition.
+
+    q = From(visit_occurrence) |>
+        Partition(Get.person_id, order_by = [Get.visit_start_date], name = :visit_by_person) |>
+        Select(Get.visit_by_person |> Agg.row_number(), Get.visit_occurrence_id)
+
+    display(q)
+    #=>
+    let visit_occurrence = SQLTable(:visit_occurrence, …),
+        q1 = From(visit_occurrence),
+        q2 = q1 |>
+             Partition(Get.person_id,
+                       order_by = [Get.visit_start_date],
+                       name = :visit_by_person),
+        q3 = q2 |>
+             Select(Get.visit_by_person |> Agg.row_number(),
+                    Get.visit_occurrence_id)
+        q3
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT
+      (row_number() OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number",
+      "visit_occurrence_1"."visit_occurrence_id"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    =#
+
+This name may shadow an existing column.
+
+    q = From(location) |>
+        Partition(Get.location_id, name = :location_id)
+
+    print(render(q))
+    #=>
+    SELECT
+      "location_1"."city",
+      "location_1"."state"
+    FROM "location" AS "location_1"
     =#
 
 It is common to use several `Partition` nodes in a row like in the following

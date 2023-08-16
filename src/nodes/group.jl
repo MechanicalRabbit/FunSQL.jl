@@ -3,31 +3,37 @@
 mutable struct GroupNode <: TabularNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
+    name::Union{Symbol, Nothing}
     label_map::OrderedDict{Symbol, Int}
 
-    function GroupNode(; over = nothing, by = SQLNode[], label_map = nothing)
+    function GroupNode(;
+                       over = nothing,
+                       by = SQLNode[],
+                       name::Union{Symbol, AbstractString, Nothing} = nothing,
+                       label_map = nothing)
         if label_map !== nothing
-            new(over, by, label_map)
+            new(over, by, name !== nothing ? Symbol(name) : nothing, label_map)
         else
-            n = new(over, by, OrderedDict{Symbol, Int}())
-            populate_label_map!(n, n.by, n.label_map)
+            n = new(over, by, name !== nothing ? Symbol(name) : nothing, OrderedDict{Symbol, Int}())
+            populate_label_map!(n, n.by, n.label_map, n.name)
             n
         end
     end
 end
 
-GroupNode(by...; over = nothing) =
-    GroupNode(over = over, by = SQLNode[by...])
+GroupNode(by...; over = nothing, name = nothing) =
+    GroupNode(over = over, by = SQLNode[by...], name = name)
 
 """
-    Group(; over; by = [])
-    Group(by...; over)
+    Group(; over; by = [], name = nothing)
+    Group(by...; over, name = nothing)
 
 The `Group` node summarizes the input dataset.
 
 Specifically, `Group` outputs all unique values of the given grouping key.
 This key partitions the input rows into disjoint groups that are summarized
-by aggregate functions [`Agg`](@ref) applied to the output of `Group`.
+by aggregate functions [`Agg`](@ref) applied to the output of `Group`.  An
+optional parameter `name` specifies the field to hold the group.
 
 The `Group` node is translated to a SQL query with a `GROUP BY` clause:
 ```sql
@@ -69,6 +75,23 @@ FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
 
+The same example using an explicit group name.
+
+```jldoctest
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia> q = From(:person) |>
+           Group(Get.year_of_birth, name = :person) |>
+           Select(Get.year_of_birth, Get.person |> Agg.count());
+
+julia> print(render(q, tables = [person]))
+SELECT
+  "person_1"."year_of_birth",
+  count(*) AS "count"
+FROM "person" AS "person_1"
+GROUP BY "person_1"."year_of_birth"
+```
+
 *Distinct states across all available locations.*
 
 ```jldoctest
@@ -90,6 +113,9 @@ dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(n::GroupNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Group), quoteof(n.by, ctx)...)
+    if n.name !== nothing
+        push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
+    end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
@@ -100,5 +126,4 @@ label(n::GroupNode) =
     label(n.over)
 
 rebase(n::GroupNode, n′) =
-    GroupNode(over = rebase(n.over, n′), by = n.by, label_map = n.label_map)
-
+    GroupNode(over = rebase(n.over, n′), by = n.by, name = n.name, label_map = n.label_map)

@@ -397,10 +397,10 @@ end
 
 # Validate uniqueness of labels and cache arg->label map for Select.args and others.
 
-function populate_label_map!(n, args = n.args, label_map = n.label_map)
+function populate_label_map!(n, args = n.args, label_map = n.label_map, group_name = nothing)
     for (i, arg) in enumerate(args)
         name = label(arg)
-        if name in keys(label_map)
+        if name === group_name || name in keys(label_map)
             err = DuplicateLabelError(name, path = [arg, n])
             throw(err)
         end

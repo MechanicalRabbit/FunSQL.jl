@@ -605,7 +605,7 @@ function assemble(n::FromValuesNode, refs, ctx)
 end
 
 function assemble(n::GroupNode, refs, ctx)
-    has_aggregates = any(ref -> @dissect(ref, Agg()), refs)
+    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> NameBound()), refs)
     if isempty(n.by) && !has_aggregates
         return assemble(nothing, refs, ctx)
     end
@@ -623,8 +623,10 @@ function assemble(n::GroupNode, refs, ctx)
         if @dissect(ref, nothing |> Get(name = name))
             @assert name in keys(n.label_map)
             push!(trns, ref => by[n.label_map[name]])
-        elseif @dissect(ref, nothing |> Agg(name = name))
+        elseif @dissect(ref, nothing |> Agg())
             push!(trns, ref => translate(ref, ctx, subs))
+        elseif @dissect(ref, (over := nothing |> Agg()) |> NameBound())
+            push!(trns, ref => translate(over, ctx, subs))
         end
     end
     if !has_aggregates
@@ -847,7 +849,7 @@ end
 
 function assemble(n::PartitionNode, refs, ctx)
     base = assemble(n.over, ctx)
-    if !any(ref -> @dissect(ref, Agg()), refs)
+    if !any(ref -> @dissect(ref, Agg() || Agg() |> NameBound()), refs)
         return base
     end
     if @dissect(base.clause, tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
@@ -864,8 +866,10 @@ function assemble(n::PartitionNode, refs, ctx)
     partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
-        if @dissect(ref, nothing |> Agg(name = name))
+        if @dissect(ref, nothing |> Agg())
             push!(trns, ref => partition |> translate(ref, ctx′))
+        elseif @dissect(ref, (over := nothing |> Agg()) |> NameBound())
+            push!(trns, ref => partition |> translate(over, ctx′))
         else
             push!(trns, ref => subs[ref])
         end
@@ -978,4 +982,3 @@ function assemble(n::WithExternalNode, refs, ctx)
     end
     assemble(n.over, ctx)
 end
-
