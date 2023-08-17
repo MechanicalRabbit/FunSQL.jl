@@ -1665,31 +1665,37 @@ SELECT
   (avg(count(*)) OVER (ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS &quot;avg&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
-=#</code></pre><p><code>Partition</code> may assign an explicit name to the partition.</p><pre><code class="language-julia hljs">q = From(visit_occurrence) |&gt;
-    Partition(Get.person_id, order_by = [Get.visit_start_date], name = :visit_by_person) |&gt;
-    Select(Get.visit_by_person |&gt; Agg.row_number(), Get.visit_occurrence_id)
+=#</code></pre><p><code>Partition</code> may assign an explicit name to the partition.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Group(Get.gender_concept_id) |&gt;
+    Partition(name = :all) |&gt;
+    Define(:pct =&gt; 100 .* Agg.count() ./ (Get.all |&gt; Agg.sum(Agg.count())))
 
 display(q)
 #=&gt;
-let visit_occurrence = SQLTable(:visit_occurrence, …),
-    q1 = From(visit_occurrence),
-    q2 = q1 |&gt;
-         Partition(Get.person_id,
-                   order_by = [Get.visit_start_date],
-                   name = :visit_by_person),
-    q3 = q2 |&gt;
-         Select(Get.visit_by_person |&gt; Agg.row_number(),
-                Get.visit_occurrence_id)
-    q3
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Group(Get.gender_concept_id),
+    q3 = q2 |&gt; Partition(name = :all),
+    q4 = q3 |&gt;
+         Define(Fun.&quot;/&quot;(Fun.&quot;*&quot;(100, Agg.count()),
+                        Get.all |&gt; Agg.sum(Agg.count())) |&gt;
+                As(:pct))
+    q4
 end
 =#
 
 print(render(q))
 #=&gt;
 SELECT
-  (row_number() OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;,
-  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;
-FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  &quot;person_2&quot;.&quot;gender_concept_id&quot;,
+  ((100 * &quot;person_2&quot;.&quot;count&quot;) / (sum(&quot;person_2&quot;.&quot;count&quot;) OVER ())) AS &quot;pct&quot;
+FROM (
+  SELECT
+    &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+    count(*) AS &quot;count&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  GROUP BY &quot;person_1&quot;.&quot;gender_concept_id&quot;
+) AS &quot;person_2&quot;
 =#</code></pre><p>This name may shadow an existing column.</p><pre><code class="language-julia hljs">q = From(location) |&gt;
     Partition(Get.location_id, name = :location_id)
 
@@ -2417,4 +2423,4 @@ end;
 │   GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │ ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Wednesday 16 August 2023 23:36">Wednesday 16 August 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 17 August 2023 03:25">Thursday 17 August 2023</span>. Using Julia version 1.9.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
