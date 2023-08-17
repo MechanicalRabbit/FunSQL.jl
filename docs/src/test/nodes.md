@@ -2161,31 +2161,37 @@ A partition may specify the window frame.
 
 `Partition` may assign an explicit name to the partition.
 
-    q = From(visit_occurrence) |>
-        Partition(Get.person_id, order_by = [Get.visit_start_date], name = :visit_by_person) |>
-        Select(Get.visit_by_person |> Agg.row_number(), Get.visit_occurrence_id)
+    q = From(person) |>
+        Group(Get.gender_concept_id) |>
+        Partition(name = :all) |>
+        Define(:pct => 100 .* Agg.count() ./ (Get.all |> Agg.sum(Agg.count())))
 
     display(q)
     #=>
-    let visit_occurrence = SQLTable(:visit_occurrence, …),
-        q1 = From(visit_occurrence),
-        q2 = q1 |>
-             Partition(Get.person_id,
-                       order_by = [Get.visit_start_date],
-                       name = :visit_by_person),
-        q3 = q2 |>
-             Select(Get.visit_by_person |> Agg.row_number(),
-                    Get.visit_occurrence_id)
-        q3
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.gender_concept_id),
+        q3 = q2 |> Partition(name = :all),
+        q4 = q3 |>
+             Define(Fun."/"(Fun."*"(100, Agg.count()),
+                            Get.all |> Agg.sum(Agg.count())) |>
+                    As(:pct))
+        q4
     end
     =#
 
     print(render(q))
     #=>
     SELECT
-      (row_number() OVER (PARTITION BY "visit_occurrence_1"."person_id" ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number",
-      "visit_occurrence_1"."visit_occurrence_id"
-    FROM "visit_occurrence" AS "visit_occurrence_1"
+      "person_2"."gender_concept_id",
+      ((100 * "person_2"."count") / (sum("person_2"."count") OVER ())) AS "pct"
+    FROM (
+      SELECT
+        "person_1"."gender_concept_id",
+        count(*) AS "count"
+      FROM "person" AS "person_1"
+      GROUP BY "person_1"."gender_concept_id"
+    ) AS "person_2"
     =#
 
 This name may shadow an existing column.

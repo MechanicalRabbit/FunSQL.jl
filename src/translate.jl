@@ -849,7 +849,15 @@ end
 
 function assemble(n::PartitionNode, refs, ctx)
     base = assemble(n.over, ctx)
-    if !any(ref -> @dissect(ref, Agg() || Agg() |> NameBound()), refs)
+    has_aggregates = false
+    for ref in refs
+        if (@dissect(ref, nothing |> Agg() |> NameBound(name = name)) && name === n.name) ||
+           (@dissect(ref, nothing |> Agg()) && n.name === nothing)
+            has_aggregates = true
+            break
+        end
+    end
+    if !has_aggregates
         return base
     end
     if @dissect(base.clause, tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
@@ -866,9 +874,9 @@ function assemble(n::PartitionNode, refs, ctx)
     partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in refs
-        if @dissect(ref, nothing |> Agg())
+        if @dissect(ref, nothing |> Agg()) && n.name === nothing
             push!(trns, ref => partition |> translate(ref, ctx′))
-        elseif @dissect(ref, (over := nothing |> Agg()) |> NameBound())
+        elseif @dissect(ref, (over := nothing |> Agg()) |> NameBound(name = name)) && name === n.name
             push!(trns, ref => partition |> translate(over, ctx′))
         else
             push!(trns, ref => subs[ref])
