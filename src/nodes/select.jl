@@ -53,8 +53,7 @@ FROM "person" AS "person_1"
 Select(args...; kws...) =
     SelectNode(args...; kws...) |> SQLNode
 
-funsql(::Val{:select}, args...; kws...) =
-    Select(args...; kws...)
+const var"funsql#select" = Select
 
 dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
     dissect(scr, SelectNode, pats)

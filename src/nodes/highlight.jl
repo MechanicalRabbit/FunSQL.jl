@@ -66,8 +66,7 @@ end
 Highlight(args...; kws...) =
     HighlightNode(args...; kws...) |> SQLNode
 
-funsql(::Val{:highlight}, args...; kws...) =
-    Highlight(args...; kws...)
+const var"funsql#highlight" = Highlight
 
 dissect(scr::Symbol, ::typeof(Highlight), pats::Vector{Any}) =
     dissect(scr, HighlightNode, pats)

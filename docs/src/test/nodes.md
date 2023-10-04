@@ -1,10 +1,12 @@
 # SQL Nodes
 
+    using FunSQL
+
     using FunSQL:
-        Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, FunSQL, From,
+        Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From,
         Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
         Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
-        WithExternal, ID, render, @funsql
+        WithExternal, ID, render
 
 We start with specifying the database model.
 
@@ -90,6 +92,18 @@ Ill-formed queries are detected.
 
 The `@funsql` macro provides alternative notation for specifying FunSQL queries.
 
+    var"funsql#<"(args...; kws...) = Fun(:(<), args...; kws...)
+
+    var"funsql#<="(args...; kws...) = Fun(:(<=), args...; kws...)
+
+    var"funsql#>"(args...; kws...) = Fun(:(>), args...; kws...)
+
+    var"funsql#>="(args...; kws...) = Fun(:(>=), args...; kws...)
+
+    var"funsql#=="(args...; kws...) = Fun(:(==), args...; kws...)
+
+    var"funsql#!="(args...; kws...) = Fun(:(!=), args...; kws...)
+
     q = @funsql begin
         from(person)
         filter(year_of_birth > 2000)
@@ -138,6 +152,14 @@ We can combine `@funsql` notation with regular Julia code.
 The `@funsql` notation allows us to encapsulate query fragments into query
 functions.
 
+    var"funsql#+"(args...; kws...) = Fun(:(+), args...; kws...)
+
+    var"funsql#-"(args...; kws...) = Fun(:(-), args...; kws...)
+
+    var"funsql#*"(args...; kws...) = Fun(:(*), args...; kws...)
+
+    var"funsql#/"(args...; kws...) = Fun(:(/), args...; kws...)
+
     @funsql adults() = from(person).filter(2020 - year_of_birth >= 16)
 
     display(@funsql adults())
@@ -168,6 +190,8 @@ Query functions defined with `@funsql` can accept parameters.
 
 Query functions support `...` notation.
 
+    var"funsql#in"(args...; kws...) = Fun(:in, args...; kws...)
+
     @funsql concept_by_code(v, cs...) =
         begin
             from(concept)
@@ -186,7 +210,7 @@ Query functions support `...` notation.
 
 Query functions support keyword arguments and default values.
 
-    @funsql age(yob = year_of_birth; at = `EXTRACT(YEAR FROM CURRENT_DATE) `()) =
+    @funsql age(yob = year_of_birth; at = fun(`EXTRACT(YEAR FROM CURRENT_DATE) `)) =
         ($at - $yob)
 
     q = @funsql begin
@@ -940,13 +964,22 @@ A vector of arguments could be passed directly.
     Fun.">"(args = SQLNode[Get.year_of_birth, 2000])
     #-> Fun.:(">")(…)
 
-In `@funsql` notation, regular functions and operator calls generate `Fun`
-nodes.
+`Fun` nodes can be generated in `@funsql` notation.
 
-    e = @funsql year_of_birth > 2000
+    e = @funsql fun(>, year_of_birth, 2000)
 
     display(e)
     #-> Fun.">"(Get.year_of_birth, 2000)
+
+In order to generate `Fun` nodes using regular function and operator calls,
+we need to declare these functions and operators in advance.
+
+    var"funsql#concat"(args...; kws...) = Fun(:concat, args...; kws...)
+
+    e = @funsql concat(location.city, ", ", location.state)
+
+    display(e)
+    #-> Fun.concat(Get.location.city, ", ", Get.location.state)
 
     e = @funsql 1950 < year_of_birth < 1990
 
@@ -963,10 +996,10 @@ nodes.
     display(e)
     #-> Fun.and(Fun."="(Get.location.state, "IL"), Fun."="(Get.location.zip, 60615))
 
-In `@funsql` notation, use backticks to represent a function name that is not
+In `@funsql` notation, use backticks to represent a name that is not
 a valid identifier.
 
-    e = @funsql `SUBSTRING(? FROM ? FOR ?)`(city, 1, 1)
+    e = @funsql fun(`SUBSTRING(? FROM ? FOR ?)`, city, 1, 1)
 
     display(e)
     #-> Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city, 1, 1)
@@ -1554,7 +1587,7 @@ An `Iterate` node can be created using `@funsql` notation.
 
     q = @funsql begin
         define(n => 1, f => 1)
-        iterate(define(n => n + 1, f => f * (n + 1)).where(n <= 10))
+        iterate(define(n => n + 1, f => f * (n + 1)).filter(n <= 10))
     end
 
     display(q)
@@ -1958,6 +1991,8 @@ A `From` node can be created with `@funsql` notation.
     display(q)
     #-> From((name = ["SQL", …], year = [1974, …]))
 
+    var"funsql#generate_series"(args...; kws...) = Fun(:generate_series, args...; kws...)
+
     q = @funsql from(generate_series(0, 100, 10), columns = [value])
 
     display(q)
@@ -2114,7 +2149,7 @@ A `With` node can be created using `@funsql`.
 
     q = @funsql begin
         from(male)
-        with(male => from(person).where(gender_concept_id == 8507),
+        with(male => from(person).filter(gender_concept_id == 8507),
              materialized = false)
     end
 
@@ -2130,11 +2165,13 @@ A `With` node can be created using `@funsql`.
 
 In `@funsql` notation, `let` statement is converted to a `With` node.
 
+    var"funsql#count"(args...; kws...) = Agg(:count, args...; kws...)
+
     q = @funsql begin
-        let male = from(person).where(gender_concept_id == 8507),
-            female = from(person).where(gender_concept_id == 8532)
-            select(male_count => from(male).group().select(count[]),
-                   female_count => from(female).group().select(count[]))
+        let male = from(person).filter(gender_concept_id == 8507),
+            female = from(person).filter(gender_concept_id == 8532)
+            select(male_count => from(male).group().select(count()),
+                   female_count => from(female).group().select(count()))
         end
     end
 
@@ -2306,32 +2343,34 @@ Partitions created by `Group` are summarized using aggregate expressions.
 
 Aggregate functions can be created with `@funsql`.
 
-    e = @funsql min[year_of_birth]
+    var"funsql#min"(args...; kws...) = Agg(:min, args...; kws...)
+
+    e = @funsql min(year_of_birth)
 
     display(e)
     #-> Agg.min(Get.year_of_birth)
 
-    e = @funsql count[filter = year_of_birth > 1950]
+    e = @funsql count(filter = year_of_birth > 1950)
 
     display(e)
     #-> Agg.count(filter = Fun.">"(Get.year_of_birth, 1950))
 
-    e = @funsql visit_group.count[]
+    e = @funsql visit_group.count()
 
     display(e)
     #-> Get.visit_group |> Agg.count()
 
-    e = @funsql `count`[]
+    e = @funsql `count`()
 
     display(e)
     #-> Agg.count()
 
-    e = @funsql visit_group.`count`[]
+    e = @funsql visit_group.`count`()
 
     display(e)
     #-> Get.visit_group |> Agg.count()
 
-    e = @funsql `visit_group`.`count`[]
+    e = @funsql `visit_group`.`count`()
 
     display(e)
     #-> Get.visit_group |> Agg.count()
@@ -3498,18 +3537,6 @@ The `Where` constructor creates a subquery that filters by the given condition.
     =#
 
 A `Where` node can be created with `@funsql` notation.
-
-    q = @funsql from(person).where(year_of_birth > 2000)
-
-    display(q)
-    #=>
-    let q1 = From(:person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000))
-        q2
-    end
-    =#
-
-In `@funsql` notation, `filter` could be used as an alternative to `where`.
 
     q = @funsql from(person).filter(year_of_birth > 2000)
 

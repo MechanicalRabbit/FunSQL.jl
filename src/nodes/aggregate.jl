@@ -123,6 +123,8 @@ FROM "visit_occurrence" AS "visit_occurrence_1"
 Agg(args...; kws...) =
     AggregateNode(args...; kws...) |> SQLNode
 
+const var"funsql#agg" = Agg
+
 dissect(scr::Symbol, ::typeof(Agg), pats::Vector{Any}) =
     dissect(scr, AggregateNode, pats)
 

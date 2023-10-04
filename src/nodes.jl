@@ -468,10 +468,10 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:(=), Expr(:call, name::Symbol, args...), body))
             # name(args...) = body
             ctx = TransliterateContext(ctx, decl = true)
-            trs = _transliterate_params(:(::Val{$(QuoteNode(name))}), args, ctx)
+            trs = Any[transliterate(arg, ctx) for arg in args]
             ctx = TransliterateContext(ctx, decl = false)
             return Expr(:(=),
-                        :($(GlobalRef(FunSQL, :funsql))($(trs...))),
+                        :($(esc(Symbol("funsql#$name")))($(trs...))),
                         transliterate(body, ctx))
         elseif @dissect(ex, Expr(:(=), name::Symbol, arg))
             # name = arg
@@ -520,21 +520,6 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, arg, args...), ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:ref, Expr(:., over, QuoteNode(name)), args...))
-            # over.name[args...]
-            tr1 = transliterate(over, ctx)
-            tr2 = transliterate(Expr(:ref, name, args...), ctx)
-            return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:ref, Expr(:macrocall, Expr(:., over, Expr(:quote, ex′)), args′...), args...))
-            # over.`name`[args...]
-            tr1 = transliterate(over, ctx)
-            tr2 = transliterate(Expr(:ref, Expr(:macrocall, ex′, args′...), args...), ctx)
-            return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:ref, Expr(:., over, Expr(:quote, arg)), args...))
-            # over.`name`[args...] (Julia ≥ 1.10)
-            tr1 = transliterate(over, ctx)
-            tr2 = transliterate(Expr(:ref, arg, args...), ctx)
-            return :(Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:., over, QuoteNode(name)))
             # over.name
             tr1 = transliterate(over, ctx)
@@ -563,13 +548,13 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # Chained comparison.
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
-            return :(Fun($(QuoteNode(arg2)), $tr1, $tr2))
+            return :($(esc(Symbol("funsql#$arg2")))($tr1, $tr2))
         elseif @dissect(ex, Expr(:comparison, arg1, arg2::Symbol, arg3, args...))
             # Chained comparison.
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
             tr3 = transliterate(Expr(:comparison, arg3, args...), ctx)
-            return :(Fun(:and, Fun($(QuoteNode(arg2)), $tr1, $tr2), $tr3))
+            return :(Fun(:and, $(esc(Symbol("funsql#$arg2")))($tr1, $tr2), $tr3))
         elseif @dissect(ex, Expr(:(&&), args...))
             # &&(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
@@ -584,20 +569,12 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return Expr(:call, op, tr)
         elseif @dissect(ex, Expr(:call, name::Symbol, args...))
             # name(args...)
-            trs = _transliterate_params(:(Val($(QuoteNode(name)))), args, ctx)
-            return :(funsql($(trs...)))
+            trs = Any[transliterate(arg, ctx) for arg in args]
+            return :($(esc(Symbol("funsql#$name")))($(trs...)))
         elseif @dissect(ex, Expr(:call, Cmd(name), args...))
             # `name`(args...)
-            trs = _transliterate_params(:(Val($(QuoteNode(Symbol(name))))), args, ctx)
-            return :(funsql($(trs...)))
-        elseif @dissect(ex, Expr(:ref, name::Symbol, args...))
-            # name[args...]
-            trs = _transliterate_params(QuoteNode(name), args, ctx)
-            return :(Agg($(trs...)))
-        elseif @dissect(ex, Expr(:ref, Cmd(name), args...))
-            # `name`[args...]
-            trs = _transliterate_params(QuoteNode(Symbol(name)), args, ctx)
-            return :(Agg($(trs...)))
+            trs = Any[transliterate(arg, ctx) for arg in args]
+            return :($(esc(Symbol("funsql#$name")))($(trs...)))
         elseif @dissect(ex, Expr(:let, Expr(:(=), name::Symbol, arg), over))
             # let name = arg; over; end
             tr1 = transliterate(over, ctx)
@@ -662,19 +639,6 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
     end
     throw(TransliterationError(ex, ctx.src))
 end
-
-function _transliterate_params(@nospecialize(tag), args, ctx)
-    trs = Any[transliterate(arg, ctx) for arg in args]
-    if !isempty(trs) && @dissect(trs[1], Expr(:parameters, _...))
-        insert!(trs, 2, tag)
-    else
-        pushfirst!(trs, tag)
-    end
-    trs
-end
-
-funsql(@nospecialize(tag::Val{N}), args...; kws...) where {N} =
-    Fun(N, args...; kws...)
 
 
 # Concrete node types.
