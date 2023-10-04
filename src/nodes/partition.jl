@@ -97,8 +97,7 @@ GROUP BY "person_1"."year_of_birth"
 Partition(args...; kws...) =
     PartitionNode(args...; kws...) |> SQLNode
 
-funsql(::Val{:partition}, args...; kws...) =
-    Partition(args...; kws...)
+const var"funsql#partition" = Partition
 
 dissect(scr::Symbol, ::typeof(Partition), pats::Vector{Any}) =
     dissect(scr, PartitionNode, pats)

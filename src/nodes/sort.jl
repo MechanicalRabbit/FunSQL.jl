@@ -62,14 +62,11 @@ Descending order indicator.
 Desc(; kws...) =
     Sort(VALUE_ORDER.DESC; kws...)
 
-funsql(::Val{:sort}, args...; kws...) =
-    Sort(args...; kws...)
+const var"funsql#sort" = Sort
 
-funsql(::Val{:asc}, args...; kws...) =
-    Asc(args...; kws...)
+const var"funsql#asc" = Asc
 
-funsql(::Val{:desc}, args...; kws...) =
-    Desc(args...; kws...)
+const var"funsql#desc" = Desc
 
 dissect(scr::Symbol, ::typeof(Sort), pats::Vector{Any}) =
     dissect(scr, SortNode, pats)

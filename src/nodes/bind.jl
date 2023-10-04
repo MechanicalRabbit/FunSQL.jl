@@ -90,8 +90,7 @@ LEFT JOIN LATERAL (
 Bind(args...; kws...) =
     BindNode(args...; kws...) |> SQLNode
 
-funsql(::Val{:bind}, args...; kws...) =
-    Bind(args...; kws...)
+const var"funsql#bind" = Bind
 
 dissect(scr::Symbol, ::typeof(Bind), pats::Vector{Any}) =
     dissect(scr, BindNode, pats)

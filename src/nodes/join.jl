@@ -84,14 +84,11 @@ An alias for `Join(...; ..., on = true)`.
 CrossJoin(args...; kws...) =
     Join(args...; kws..., on = true)
 
-funsql(::Val{:join}, args...; kws...) =
-    Join(args...; kws...)
+const var"funsql#join" = Join
 
-funsql(::Val{:left_join}, args...; kws...) =
-    LeftJoin(args...; kws...)
+const var"funsql#left_join" = LeftJoin
 
-funsql(::Val{:cross_join}, args...; kws...) =
-    CrossJoin(args...; kws...)
+const var"funsql#cross_join" = CrossJoin
 
 dissect(scr::Symbol, ::typeof(Join), pats::Vector{Any}) =
     dissect(scr, JoinNode, pats)

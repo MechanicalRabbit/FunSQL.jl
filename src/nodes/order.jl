@@ -47,8 +47,7 @@ ORDER BY "person_1"."year_of_birth"
 Order(args...; kws...) =
     OrderNode(args...; kws...) |> SQLNode
 
-funsql(::Val{:order}, args...; kws...) =
-    Order(args...; kws...)
+const var"funsql#order" = Order
 
 dissect(scr::Symbol, ::typeof(Order), pats::Vector{Any}) =
     dissect(scr, OrderNode, pats)

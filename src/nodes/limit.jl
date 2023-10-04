@@ -61,8 +61,7 @@ FETCH FIRST 1 ROW ONLY
 Limit(args...; kws...) =
     LimitNode(args...; kws...) |> SQLNode
 
-funsql(::Val{:limit}, args...; kws...) =
-    Limit(args...; kws...)
+const var"funsql#limit" = Limit
 
 dissect(scr::Symbol, ::typeof(Limit), pats::Vector{Any}) =
     dissect(scr, LimitNode, pats)
