@@ -575,18 +575,6 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # `name`(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :($(esc(Symbol("funsql#$name")))($(trs...)))
-        elseif @dissect(ex, Expr(:let, Expr(:(=), name::Symbol, arg), over))
-            # let name = arg; over; end
-            tr1 = transliterate(over, ctx)
-            tr2 = transliterate(arg, ctx)
-            tr3 = transliterate(name, ctx)
-            return :(Chain($tr1, With(Chain($tr2, As($tr3)))))
-        elseif @dissect(ex, Expr(:let, Expr(:block, arg), over))
-            # let ... end
-            return transliterate(Expr(:let, arg, over), ctx)
-        elseif @dissect(ex, Expr(:let, Expr(:block, args..., arg), over))
-            # let ... end
-            return transliterate(Expr(:let, Expr(:block, args...), Expr(:let, arg, over)), ctx)
         elseif @dissect(ex, Expr(:block, args...))
             # begin; args...; end
             if all(arg isa LineNumberNode ||

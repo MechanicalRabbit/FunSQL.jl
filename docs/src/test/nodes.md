@@ -2163,38 +2163,7 @@ A `With` node can be created using `@funsql`.
     end
     =#
 
-In `@funsql` notation, `let` statement is converted to a `With` node.
-
-    var"funsql#count"(args...; kws...) = Agg(:count, args...; kws...)
-
-    q = @funsql begin
-        let male = from(person).filter(gender_concept_id == 8507),
-            female = from(person).filter(gender_concept_id == 8532)
-            select(male_count => from(male).group().select(count()),
-                   female_count => from(female).group().select(count()))
-        end
-    end
-
-    display(q)
-    #=>
-    let q1 = From(:male),
-        q2 = q1 |> Group(),
-        q3 = q2 |> Select(Agg.count()),
-        q4 = From(:female),
-        q5 = q4 |> Group(),
-        q6 = q5 |> Select(Agg.count()),
-        q7 = Select(q3 |> As(:male_count), q6 |> As(:female_count)),
-        q8 = From(:person),
-        q9 = q8 |> Where(Fun."="(Get.gender_concept_id, 8532)),
-        q10 = q7 |> With(q9 |> As(:female)),
-        q11 = From(:person),
-        q12 = q11 |> Where(Fun."="(Get.gender_concept_id, 8507)),
-        q13 = q10 |> With(q12 |> As(:male))
-        q13
-    end
-    =#
-
-A dataset defined by `With` must have an explicit label assigned to it.
+xA dataset defined by `With` must have an explicit label assigned to it.
 
     q = From(:person) |>
         With(From(person))
@@ -2342,6 +2311,13 @@ Partitions created by `Group` are summarized using aggregate expressions.
     =#
 
 Aggregate functions can be created with `@funsql`.
+
+    e = @funsql agg(min, year_of_birth)
+
+    display(e)
+    #-> Agg.min(Get.year_of_birth)
+
+    var"funsql#count"(args...; kws...) = Agg(:count, args...; kws...)
 
     var"funsql#min"(args...; kws...) = Agg(:min, args...; kws...)
 
