@@ -3,27 +3,31 @@
 mutable struct WithExternalNode <: TabularNode
     over::Union{SQLNode, Nothing}
     args::Vector{SQLNode}
-    schema::Union{Symbol, Nothing}
+    qualifiers::Vector{Symbol}
     handler
     label_map::OrderedDict{Symbol, Int}
 
-    function WithExternalNode(; over = nothing, args, schema = nothing, handler = nothing, label_map = nothing)
+    function WithExternalNode(; over = nothing, args, qualifiers = Symbol[], handler = nothing, label_map = nothing)
         if label_map !== nothing
-            new(over, args, schema, handler, label_map)
+            new(over, args, qualifiers, handler, label_map)
         else
-            n = new(over, args, schema, handler, OrderedDict{Symbol, Int}())
+            qualifiers =
+                !isa(qualifiers, Vector{Symbol}) ?
+                    Symbol[Symbol(ql) for ql in qualifiers] :
+                    qualifiers
+            n = new(over, args, qualifiers, handler, OrderedDict{Symbol, Int}())
             populate_label_map!(n)
             n
         end
     end
 end
 
-WithExternalNode(args...; over = nothing, schema = nothing, handler = nothing) =
-    WithExternalNode(over = over, args = SQLNode[args...], schema = schema, handler = handler)
+WithExternalNode(args...; over = nothing, qualifiers = Symbol[], handler = nothing) =
+    WithExternalNode(over = over, args = SQLNode[args...], qualifiers = qualifiers, handler = handler)
 
 """
-    WithExternal(; over = nothing, args, schema = nothing, handler = nothing)
-    WithExternal(args...; over = nothing, schema = nothing, handler = nothing)
+    WithExternal(; over = nothing, args, qualifiers = [], handler = nothing)
+    WithExternal(args...; over = nothing, qualifiers = [], handler = nothing)
 
 `WithExternal` assigns a name to a temporary dataset.  The dataset content
 can be retrieved within the `over` query using the [`From`](@ref) node.
@@ -83,8 +87,8 @@ function PrettyPrinting.quoteof(n::WithExternalNode, ctx::QuoteContext)
     else
         append!(ex.args, quoteof(n.args, ctx))
     end
-    if n.schema !== nothing
-        push!(ex.args, Expr(:kw, :schema, QuoteNode(n.schema)))
+    if !isempty(n.qualifiers)
+        push!(ex.args, Expr(:kw, :qualifiers, quoteof(n.qualifiers)))
     end
     if n.handler !== nothing
         push!(ex.args, Expr(:kw, :handler, nameof(n.handler)))
@@ -99,5 +103,5 @@ label(n::WithExternalNode) =
     label(n.over)
 
 rebase(n::WithExternalNode, n′) =
-    WithExternalNode(over = rebase(n.over, n′), args = n.args, schema = n.schema, handler = n.handler)
+    WithExternalNode(over = rebase(n.over, n′), args = n.args, qualifiers = n.qualifiers, handler = n.handler)
 

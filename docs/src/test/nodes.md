@@ -1332,7 +1332,7 @@ By default, `From` selects all columns from the table.
 `From` adds the schema qualifier when the table has the schema.
 
     const pg_database =
-        SQLTable(schema = :pg_catalog, :pg_database, columns = [:oid, :datname])
+        SQLTable(qualifiers = [:pg_catalog], :pg_database, columns = [:oid, :datname])
 
     q = From(pg_database)
 
@@ -1702,7 +1702,7 @@ for a `CREATE TABLE AS` or `SELECT INTO` statement.
 
     with_external_handler((tbl, def)) =
         println("CREATE TEMP TABLE ",
-                render(ID(over = tbl.schema, name = tbl.name)),
+                render(ID(tbl.qualifiers, tbl.name)),
                 " (", join([render(ID(c)) for c in tbl.columns], ", "), ") AS\n",
                 render(def), ";\n")
 
@@ -1710,9 +1710,9 @@ for a `CREATE TABLE AS` or `SELECT INTO` statement.
         WithExternal(From(person) |>
                      Where(Get.gender_concept_id .== 8507) |>
                      As(:male),
-                     schema = :tmp,
+                     qualifiers = [:tmp],
                      handler = with_external_handler)
-    #-> (…) |> WithExternal(…, schema = :tmp, handler = with_external_handler)
+    #-> (…) |> WithExternal(…, qualifiers = [:tmp], handler = with_external_handler)
 
     print(render(q))
     #=>

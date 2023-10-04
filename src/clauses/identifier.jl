@@ -13,9 +13,18 @@ end
 IdentifierClause(name; over = nothing) =
     IdentifierClause(over = over, name = name)
 
+function IdentifierClause(qualifiers, name)
+    over = nothing
+    for ql in qualifiers
+        over = IdentifierClause(over = over, name = ql) |> SQLClause
+    end
+    IdentifierClause(over = over, name = name)
+end
+
 """
     ID(; over = nothing, name)
     ID(name; over = nothing)
+    ID(qualifiers, name)
 
 A SQL identifier.  Specify `over` or use the `|>` operator to make a qualified
 identifier.
@@ -34,6 +43,13 @@ julia> c = ID(:p) |> ID(:birth_datetime);
 
 julia> print(render(c))
 "p"."birth_datetime"
+```
+
+```jldoctest
+julia> c = ID([:pg_catalog], :pg_database);
+
+julia> print(render(c))
+"pg_catalog"."pg_database"
 ```
 """
 ID(args...; kws...) =

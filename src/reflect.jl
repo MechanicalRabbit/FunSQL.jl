@@ -95,6 +95,7 @@ end
 
 function tables_from_column_list(rows)
     tables = SQLTable[]
+    qualifiers = Symbol[]
     schema = name = nothing
     columns = Symbol[]
     for (s, n, c) in rows
@@ -105,8 +106,11 @@ function tables_from_column_list(rows)
             push!(columns, c)
         else
             if !isempty(columns)
-                t = SQLTable(schema = schema, name = name, columns = columns)
+                t = SQLTable(qualifiers = qualifiers, name = name, columns = columns)
                 push!(tables, t)
+            end
+            if s !== schema
+                qualifiers = s !== nothing ? [s] : Symbol[]
             end
             schema = s
             name = n
@@ -114,7 +118,7 @@ function tables_from_column_list(rows)
         end
     end
     if !isempty(columns)
-        t = SQLTable(schema = schema, name = name, columns = columns)
+        t = SQLTable(qualifiers = qualifiers, name = name, columns = columns)
         push!(tables, t)
     end
     tables

@@ -768,7 +768,7 @@ function annotate(n::WithExternalNode, ctx)
     end
     ctx′ = AnnotateContext(ctx, with_nodes = with_nodes′)
     over′ = annotate(n.over, ctx′)
-    WithExternal(over = over′, args = args′, schema = n.schema, handler = n.handler, label_map = n.label_map)
+    WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
 end
 
 

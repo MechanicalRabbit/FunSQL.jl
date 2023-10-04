@@ -1,52 +1,57 @@
 # Database structure.
 
 """
-    SQLTable(; schema = nothing, name, columns)
-    SQLTable(name; schema = nothing, columns)
-    SQLTable(name, columns...; schema = nothing)
+    SQLTable(; qualifiers = [], name, columns)
+    SQLTable(name; qualifiers = [], columns)
+    SQLTable(name, columns...; qualifiers = [])
 
 The structure of a SQL table or a table-like entity (`TEMP TABLE`, `VIEW`, etc)
 for use as a reference in assembling SQL queries.
 
 The `SQLTable` constructor expects the table `name`, a vector `columns` of
-column names, and, optionally, the name of the table `schema`.  A name can be
-a `Symbol` or a `String` value.
+column names, and, optionally, a vector containing the name of the table schema
+and other `qualifiers`.  A name can be a `Symbol` or a `String` value.
 
 # Examples
 
 ```jldoctest
-julia> person = SQLTable(schema = "public",
+julia> person = SQLTable(qualifiers = ["public"],
                          name = "person",
                          columns = ["person_id", "year_of_birth"])
-SQLTable(:person, schema = :public, columns = [:person_id, :year_of_birth])
+SQLTable(:person,
+         qualifiers = [:public],
+         columns = [:person_id, :year_of_birth])
 ```
 """
 struct SQLTable
-    schema::Union{Symbol, Nothing}
+    qualifiers::Vector{Symbol}
     name::Symbol
     columns::Vector{Symbol}
     column_set::Set{Symbol}
 
     function SQLTable(;
-                      schema::Union{Symbol, AbstractString, Nothing} = nothing,
+                      qualifiers::AbstractVector{<:Union{Symbol, AbstractString}} = Symbol[],
                       name::Union{Symbol, AbstractString},
                       columns::AbstractVector{<:Union{Symbol, AbstractString}})
-        schema = schema !== nothing ? Symbol(schema) : nothing
+        qualifiers =
+            !isa(qualifiers, Vector{Symbol}) ?
+                Symbol[Symbol(ql) for ql in qualifiers] :
+                qualifiers
         name = Symbol(name)
         columns =
             !isa(columns, Vector{Symbol}) ?
                 Symbol[Symbol(col) for col in columns] :
                 columns
         column_set = Set{Symbol}(columns)
-        new(schema, name, columns, column_set)
+        new(qualifiers, name, columns, column_set)
     end
 end
 
-SQLTable(name; schema = nothing, columns) =
-    SQLTable(schema = schema, name = name, columns = columns)
+SQLTable(name; qualifiers = Symbol[], columns) =
+    SQLTable(qualifiers = qualifiers, name = name, columns = columns)
 
-SQLTable(name, columns...; schema = nothing) =
-    SQLTable(schema = schema, name = name, columns = [columns...])
+SQLTable(name, columns...; qualifiers = Symbol[]) =
+    SQLTable(qualifiers = qualifiers, name = name, columns = [columns...])
 
 Base.show(io::IO, tbl::SQLTable) =
     print(io, quoteof(tbl, limit = true))
@@ -57,8 +62,8 @@ Base.show(io::IO, ::MIME"text/plain", tbl::SQLTable) =
 function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
     ex = Expr(:call, nameof(SQLTable))
     push!(ex.args, quoteof(tbl.name))
-    if tbl.schema !== nothing
-        push!(ex.args, Expr(:kw, :schema, quoteof(tbl.schema)))
+    if !isempty(tbl.qualifiers)
+        push!(ex.args, Expr(:kw, :qualifiers, quoteof(tbl.qualifiers)))
     end
     if !limit
         push!(ex.args, Expr(:kw, :columns, tbl.columns))

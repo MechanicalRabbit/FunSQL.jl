@@ -75,14 +75,14 @@ object.
     using FunSQL: SQLCatalog, SQLTable
 
 A `SQLTable` constructor takes the table name, a vector of column names,
-and, optionally, the name of the table schema.  A name could be provided
-either as a `Symbol` or as a `String` value.
+and, optionally, the name of the table schema and other qualifiers.  A name
+could be provided either as a `Symbol` or as a `String` value.
 
-    location = SQLTable(schema = :public,
+    location = SQLTable(qualifiers = [:public],
                         name = :location,
                         columns = [:location_id, :address_1, :address_2,
                                    :city, :state, :zip])
-    #-> SQLTable(:location, schema = :public, …)
+    #-> SQLTable(:location, qualifiers = [:public], …)
 
     person = SQLTable(name = "person",
                       columns = ["person_id", "year_of_birth", "location_id"])
@@ -103,7 +103,7 @@ the object.
     display(location)
     #=>
     SQLTable(:location,
-             schema = :public,
+             qualifiers = [:public],
              columns = [:location_id, :address_1, :address_2, :city, :state, :zip])
     =#
 
@@ -129,7 +129,7 @@ the target dialect, and the size of the query cache.
         :location =>
             SQLTable(
                 :location,
-                schema = :public,
+                qualifiers = [:public],
                 columns =
                     [:location_id, :address_1, :address_2, :city, :state, :zip]),
         :person => SQLTable(:person,

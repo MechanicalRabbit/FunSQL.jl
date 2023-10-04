@@ -114,12 +114,12 @@ end
 struct CTEAssemblage
     a::Assemblage
     name::Symbol
-    schema::Union{Symbol, Nothing}
+    qualifiers::Vector{Symbol}
     materialized::Union{Bool, Nothing}
     external::Bool
 
-    CTEAssemblage(a; name, schema = nothing, materialized = nothing, external = false) =
-        new(a, name, schema, materialized, external)
+    CTEAssemblage(a; name, qualifiers = Symbol[], materialized = nothing, external = false) =
+        new(a, name, qualifiers, materialized, external)
 end
 
 
@@ -499,7 +499,7 @@ end
 function assemble(n::FromReferenceNode, refs, ctx)
     cte_a = ctx.cte_map[n.over]
     alias = allocate_alias(ctx, n.name)
-    tbl = ID(over = cte_a.schema, name = cte_a.name)
+    tbl = ID(cte_a.qualifiers, cte_a.name)
     c = FROM(AS(over = tbl, name = alias))
     subs = make_subs(unwrap_repl(cte_a.a), alias)
     trns = Pair{SQLNode, SQLClause}[]
@@ -513,7 +513,7 @@ end
 function assemble(n::FromSelfNode, refs, ctx)
     cte_a = ctx.cte_map[n.over]
     alias = allocate_alias(ctx, label(n.over))
-    tbl = ID(over = cte_a.schema, name = cte_a.name)
+    tbl = ID(cte_a.qualifiers, cte_a.name)
     c = FROM(AS(over = tbl, name = alias))
     subs = make_subs(cte_a.a, alias)
     trns = Pair{SQLNode, SQLClause}[]
@@ -533,7 +533,7 @@ function assemble(n::FromTableNode, refs, ctx)
         end
     end
     alias = allocate_alias(ctx, n.table.name)
-    tbl = ID(over = n.table.schema, name = n.table.name)
+    tbl = ID(n.table.qualifiers, n.table.name)
     c = FROM(AS(over = tbl, name = alias))
     cols = OrderedDict{Symbol, SQLClause}()
     for col in n.table.columns
@@ -982,11 +982,11 @@ function assemble(n::WithExternalNode, refs, ctx)
         if isempty(table_columns)
             push!(table_columns, :_)
         end
-        table = SQLTable(name = table_name, schema = n.schema, columns = table_columns)
+        table = SQLTable(name = table_name, qualifiers = n.qualifiers, columns = table_columns)
         if n.handler !== nothing
             n.handler(table => complete(a))
         end
-        ctx.cte_map[arg] = CTEAssemblage(a, name = table.name, schema = table.schema, external = true)
+        ctx.cte_map[arg] = CTEAssemblage(a, name = table.name, qualifiers = table.qualifiers, external = true)
     end
     assemble(n.over, ctx)
 end
