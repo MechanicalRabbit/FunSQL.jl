@@ -720,6 +720,9 @@ function annotate(n::OrderNode, ctx)
     Order(over = over′, by = by′)
 end
 
+annotate(n::OverNode, ctx) =
+    annotate(WithNode(over = n.arg, args = n.over !== nothing ? SQLNode[n.over] : SQLNode[]), ctx)
+
 function annotate(n::PartitionNode, ctx)
     over′ = annotate(n.over, ctx)
     by′ = annotate_scalar(n.by, ctx)
@@ -770,9 +773,6 @@ function annotate(n::WithExternalNode, ctx)
     over′ = annotate(n.over, ctx′)
     WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
 end
-
-annotate(n::WithThisNode, ctx) =
-    annotate(WithNode(over = n.arg, args = n.over !== nothing ? SQLNode[n.over] : SQLNode[]), ctx)
 
 
 # Type resolution.
