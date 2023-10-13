@@ -5,7 +5,7 @@
     using FunSQL:
         Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From,
         Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
-        Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
+        Over, Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
         WithExternal, ID, render
 
 We start with specifying the database model.
@@ -2043,7 +2043,7 @@ All the columns of a tabular function must have distinct names.
     =#
 
 
-## `With` and `WithExternal`
+## `With`, `Over`, and `WithExternal`
 
 We can create a temporary dataset using `With` and refer to it with `From`.
 
@@ -2163,7 +2163,7 @@ A `With` node can be created using `@funsql`.
     end
     =#
 
-xA dataset defined by `With` must have an explicit label assigned to it.
+A dataset defined by `With` must have an explicit label assigned to it.
 
     q = From(:person) |>
         With(From(person))
@@ -2203,6 +2203,60 @@ It is an error for `From` to refer to an undefined dataset.
     ERROR: FunSQL.ReferenceError: cannot find `p` in:
     let q1 = From(:p)
         q1
+    end
+    =#
+
+A variant of `With` called `Over` exchanges the positions of the definition
+and the query that uses it.
+
+    q = From(person) |>
+        Where(Get.gender_concept_id .== 8507) |>
+        As(:male) |>
+        Over(From(:male))
+    #-> (…) |> Over(…)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Where(Fun."="(Get.gender_concept_id, 8507)),
+        q3 = From(:male),
+        q4 = q2 |> As(:male) |> Over(q3)
+        q4
+    end
+    =#
+
+    print(render(q))
+    #=>
+    WITH "male_1" ("person_id", …, "location_id") AS (
+      SELECT
+        "person_1"."person_id",
+        ⋮
+        "person_1"."location_id"
+      FROM "person" AS "person_1"
+      WHERE ("person_1"."gender_concept_id" = 8507)
+    )
+    SELECT
+      "male_2"."person_id",
+      ⋮
+      "male_2"."location_id"
+    FROM "male_1" AS "male_2"
+    =#
+
+An `Over` node can be created using `@funsql`.
+
+    q = @funsql begin
+        male => from(person).filter(gender_concept_id == 8507)
+        over(from(male), materialized = true)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:person),
+        q2 = q1 |> Where(Fun."="(Get.gender_concept_id, 8507)),
+        q3 = From(:male),
+        q4 = q2 |> As(:male) |> Over(q3, materialized = true)
+        q4
     end
     =#
 

@@ -24,7 +24,7 @@ if isempty(ARGS)
                 SQLDialect,
                 SQLTable, SQLCatalog,
                 Agg, Append, As, Asc, Bind, Define, Desc, From, Fun, Get,
-                Group, Highlight, Iterate, Join, LeftJoin, Limit, Order,
+                Group, Highlight, Iterate, Join, LeftJoin, Limit, Order, Over,
                 Partition, Select, Sort, Var, Where, With, WithExternal,
                 AGG, AS, ASC, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, LIMIT,
                 LIT, NOTE, ORDER, PARTITION, SELECT, SORT, UNION, VALUES, VAR,
