@@ -186,6 +186,14 @@ Pages = ["nodes/order.jl"]
 ```
 
 
+## `Over`
+
+```@autodocs
+Modules = [FunSQL]
+Pages = ["nodes/over.jl"]
+```
+
+
 ## `Partition`
 
 ```@autodocs
