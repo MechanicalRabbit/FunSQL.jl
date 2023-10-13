@@ -22,6 +22,7 @@ export
     var"funsql#left_join",
     var"funsql#limit",
     var"funsql#order",
+    var"funsql#over",
     var"funsql#partition",
     var"funsql#select",
     var"funsql#sort",

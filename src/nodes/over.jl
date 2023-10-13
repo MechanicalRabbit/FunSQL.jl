@@ -21,6 +21,8 @@ OverNode(arg; over = nothing, materialized = nothing) =
 Over(args...; kws...) =
     OverNode(args...; kws...) |> SQLNode
 
+const var"funsql#over" = Over
+
 dissect(scr::Symbol, ::typeof(Over), pats::Vector{Any}) =
     dissect(scr, OverNode, pats)
 
