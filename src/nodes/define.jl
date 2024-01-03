@@ -71,7 +71,7 @@ FROM "person" AS "person_1"
 Define(args...; kws...) =
     DefineNode(args...; kws...) |> SQLNode
 
-const var"funsql#define" = Define
+const funsql_define = Define
 
 dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
     dissect(scr, DefineNode, pats)

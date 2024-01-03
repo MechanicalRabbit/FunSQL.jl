@@ -60,7 +60,7 @@ JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."loc
 As(args...; kws...) =
     AsNode(args...; kws...) |> SQLNode
 
-const var"funsql#as" = As
+const funsql_as = As
 
 dissect(scr::Symbol, ::typeof(As), pats::Vector{Any}) =
     dissect(scr, AsNode, pats)

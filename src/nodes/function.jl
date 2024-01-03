@@ -155,7 +155,7 @@ FROM "location" AS "location_1"
 Fun(args...; kws...) =
     FunctionNode(args...; kws...) |> SQLNode
 
-const var"funsql#fun" = Fun
+const funsql_fun = Fun
 
 dissect(scr::Symbol, ::typeof(Fun), pats::Vector{Any}) =
     dissect(scr, FunctionNode, pats)

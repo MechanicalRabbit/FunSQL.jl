@@ -60,7 +60,7 @@ FROM "observation" AS "observation_1"
 Append(args...; kws...) =
     AppendNode(args...; kws...) |> SQLNode
 
-const var"funsql#append" = Append
+const funsql_append = Append
 
 dissect(scr::Symbol, ::typeof(Append), pats::Vector{Any}) =
     dissect(scr, AppendNode, pats)

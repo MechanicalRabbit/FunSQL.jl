@@ -70,7 +70,7 @@ WHERE ("person_1"."person_id" IN (
 With(args...; kws...) =
     WithNode(args...; kws...) |> SQLNode
 
-const var"funsql#with" = With
+const funsql_with = With
 
 dissect(scr::Symbol, ::typeof(With), pats::Vector{Any}) =
     dissect(scr, WithNode, pats)

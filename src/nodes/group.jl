@@ -108,7 +108,7 @@ FROM "location" AS "location_1"
 Group(args...; kws...) =
     GroupNode(args...; kws...) |> SQLNode
 
-const var"funsql#group" = Group
+const funsql_group = Group
 
 dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
     dissect(scr, GroupNode, pats)

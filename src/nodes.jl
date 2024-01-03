@@ -471,7 +471,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             trs = Any[transliterate(arg, ctx) for arg in args]
             ctx = TransliterateContext(ctx, decl = false)
             return Expr(:(=),
-                        :($(esc(Symbol("funsql#$name")))($(trs...))),
+                        :($(esc(Symbol("funsql_$name")))($(trs...))),
                         transliterate(body, ctx))
         elseif @dissect(ex, Expr(:(=), name::Symbol, arg))
             # name = arg
@@ -548,13 +548,13 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # Chained comparison.
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
-            return :($(esc(Symbol("funsql#$arg2")))($tr1, $tr2))
+            return :($(esc(Symbol("funsql_$arg2")))($tr1, $tr2))
         elseif @dissect(ex, Expr(:comparison, arg1, arg2::Symbol, arg3, args...))
             # Chained comparison.
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
             tr3 = transliterate(Expr(:comparison, arg3, args...), ctx)
-            return :(Fun(:and, $(esc(Symbol("funsql#$arg2")))($tr1, $tr2), $tr3))
+            return :(Fun(:and, $(esc(Symbol("funsql_$arg2")))($tr1, $tr2), $tr3))
         elseif @dissect(ex, Expr(:(&&), args...))
             # &&(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
@@ -570,11 +570,11 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:call, name::Symbol, args...))
             # name(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
-            return :($(esc(Symbol("funsql#$name")))($(trs...)))
+            return :($(esc(Symbol("funsql_$name")))($(trs...)))
         elseif @dissect(ex, Expr(:call, Cmd(name), args...))
             # `name`(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
-            return :($(esc(Symbol("funsql#$name")))($(trs...)))
+            return :($(esc(Symbol("funsql_$name")))($(trs...)))
         elseif @dissect(ex, Expr(:block, args...))
             # begin; args...; end
             if all(arg isa LineNumberNode ||

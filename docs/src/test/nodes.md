@@ -3,10 +3,10 @@
     using FunSQL
 
     using FunSQL:
-        Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From,
-        Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
-        Over, Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
-        WithExternal, ID, render
+        Agg, AggClosure, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun,
+        FunClosure, From, Get, Group, Highlight, Iterate, Join, LeftJoin,
+        Limit, Lit, Order, Over, Partition, SQLNode, SQLTable, Select, Sort,
+        Var, Where, With, WithExternal, ID, render
 
 We start with specifying the database model.
 
@@ -92,17 +92,17 @@ Ill-formed queries are detected.
 
 The `@funsql` macro provides alternative notation for specifying FunSQL queries.
 
-    var"funsql#<"(args...; kws...) = Fun(:(<), args...; kws...)
+    var"funsql_<" = FunClosure(:(<))
 
-    var"funsql#<="(args...; kws...) = Fun(:(<=), args...; kws...)
+    var"funsql_<=" = FunClosure(:(<=))
 
-    var"funsql#>"(args...; kws...) = Fun(:(>), args...; kws...)
+    var"funsql_>" = FunClosure(:(>))
 
-    var"funsql#>="(args...; kws...) = Fun(:(>=), args...; kws...)
+    var"funsql_>=" = FunClosure(:(>=))
 
-    var"funsql#=="(args...; kws...) = Fun(:(==), args...; kws...)
+    var"funsql_==" = FunClosure(:(==))
 
-    var"funsql#!="(args...; kws...) = Fun(:(!=), args...; kws...)
+    var"funsql_!=" = FunClosure(:(!=))
 
     q = @funsql begin
         from(person)
@@ -152,13 +152,13 @@ We can combine `@funsql` notation with regular Julia code.
 The `@funsql` notation allows us to encapsulate query fragments into query
 functions.
 
-    var"funsql#+"(args...; kws...) = Fun(:(+), args...; kws...)
+    var"funsql_+" = FunClosure(:(+))
 
-    var"funsql#-"(args...; kws...) = Fun(:(-), args...; kws...)
+    var"funsql_-" = FunClosure(:(-))
 
-    var"funsql#*"(args...; kws...) = Fun(:(*), args...; kws...)
+    var"funsql_*" = FunClosure(:(*))
 
-    var"funsql#/"(args...; kws...) = Fun(:(/), args...; kws...)
+    var"funsql_/" = FunClosure(:(/))
 
     @funsql adults() = from(person).filter(2020 - year_of_birth >= 16)
 
@@ -190,7 +190,7 @@ Query functions defined with `@funsql` can accept parameters.
 
 Query functions support `...` notation.
 
-    var"funsql#in"(args...; kws...) = Fun(:in, args...; kws...)
+    funsql_in = FunClosure(:in)
 
     @funsql concept_by_code(v, cs...) =
         begin
@@ -974,7 +974,7 @@ A vector of arguments could be passed directly.
 In order to generate `Fun` nodes using regular function and operator calls,
 we need to declare these functions and operators in advance.
 
-    var"funsql#concat"(args...; kws...) = Fun(:concat, args...; kws...)
+    funsql_concat = FunClosure(:concat)
 
     e = @funsql concat(location.city, ", ", location.state)
 
@@ -1991,7 +1991,7 @@ A `From` node can be created with `@funsql` notation.
     display(q)
     #-> From((name = ["SQL", …], year = [1974, …]))
 
-    var"funsql#generate_series"(args...; kws...) = Fun(:generate_series, args...; kws...)
+    funsql_generate_series = FunClosure(:generate_series)
 
     q = @funsql from(generate_series(0, 100, 10), columns = [value])
 
@@ -2371,9 +2371,9 @@ Aggregate functions can be created with `@funsql`.
     display(e)
     #-> Agg.min(Get.year_of_birth)
 
-    var"funsql#count"(args...; kws...) = Agg(:count, args...; kws...)
+    funsql_count = AggClosure(:count)
 
-    var"funsql#min"(args...; kws...) = Agg(:min, args...; kws...)
+    funsql_min = AggClosure(:min)
 
     e = @funsql min(year_of_birth)
 

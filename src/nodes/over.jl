@@ -54,7 +54,7 @@ WHERE ("person_1"."person_id" IN (
 Over(args...; kws...) =
     OverNode(args...; kws...) |> SQLNode
 
-const var"funsql#over" = Over
+const funsql_over = Over
 
 dissect(scr::Symbol, ::typeof(Over), pats::Vector{Any}) =
     dissect(scr, OverNode, pats)

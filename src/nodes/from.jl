@@ -212,7 +212,7 @@ FROM regexp_matches('2,3,5,7,11', '(\\d+)', 'g') AS "regexp_matches_1" ("capture
 From(args...; kws...) =
     FromNode(args...; kws...) |> SQLNode
 
-const var"funsql#from" = From
+const funsql_from = From
 
 dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
     dissect(scr, FromNode, pats)

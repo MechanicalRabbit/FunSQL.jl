@@ -43,7 +43,7 @@ WHERE ("person_1"."year_of_birth" > 2000)
 Where(args...; kws...) =
     WhereNode(args...; kws...) |> SQLNode
 
-const var"funsql#filter" = Where
+const funsql_filter = Where
 
 dissect(scr::Symbol, ::typeof(Where), pats::Vector{Any}) =
     dissect(scr, WhereNode, pats)

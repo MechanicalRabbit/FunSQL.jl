@@ -94,7 +94,7 @@ FROM "__1" AS "__3"
 Iterate(args...; kws...) =
     IterateNode(args...; kws...) |> SQLNode
 
-const var"funsql#iterate" = Iterate
+const funsql_iterate = Iterate
 
 dissect(scr::Symbol, ::typeof(Iterate), pats::Vector{Any}) =
     dissect(scr, IterateNode, pats)
