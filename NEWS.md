@@ -1,5 +1,234 @@
 # Release Notes
 
+## v0.12.0
+
+This release introduces some backward-incompatible changes.  Before upgrading,
+please review these notes.
+
+* The `SQLTable` constructor drops the `schema` parameter.  Instead, it now
+  accepts an optional vector of `qualifiers`.
+* Bare `Append(p, q)` now produces `p UNION ALL q`.  Previously, bare
+  `Append(p, q)` would be interpreted as `Select() |> Append(p, q)`.
+* Add Spark dialect.
+* Update nodes `Group()` and `Partition()` to accept an optional parameter
+  `name`, which speficies the field that holds the group data.
+* Add `Over()` node such that `p |> Over(q)` is equivalent to `q |> With(p)`.
+* Add the `@funsql` macro, described below.
+
+### `@funsql`
+
+This release introduces `@funsql` macro, which provides a new, concise notation
+for building FunSQL queries.  Example:
+
+```julia
+using FunSQL
+
+q = @funsql from(person).filter(year_of_birth > 1950).select(person_id)
+```
+
+This is equivalent to the following query:
+
+```julia
+using FunSQL: From, Get, Select, Where
+
+q = From(:person) |> Where(Get.year_of_birth .> 1950) |> Select(Get.person_id)
+```
+
+The `@funsql` notation reduces syntactic noise, making queries prettier and
+faster to write.  Semantically, any query that can be constructed with `@funsql`
+could also be constructed without the macro, and vice versa.  Moreover, these
+two notations could be freely mixed:
+
+```julia
+@funsql from(person).$(Where(Get.year_of_birth .> 1950)).select(person_id)
+
+From(:person) |>
+@funsql(filter(year_of_birth > 1950)) |>
+Select(Get.person_id)
+```
+
+In `@funsql` notation, the chain operator (`|>`) is replaced either with
+period (`.`) or with block syntax:
+
+```julia
+@funsql begin
+    from(person)
+    filter(year_of_birth > 1950)
+    select(person_id)
+end
+```
+
+Names that are not valid identifiers should be wrapped in backticks:
+
+```julia
+@funsql begin
+    from(person)
+    define(`Patient's age` => 2024 - year_of_birth)
+    filter(`Patient's age` >= 16)
+end
+```
+
+Many SQL functions and operators are available out of the box:
+
+```julia
+@funsql from(location).define(city_state => concat(city, ", ", state))
+
+@funsql from(person).filter(year_of_birth < 1900 || year_of_birth > 2024)
+```
+
+Comparison chaining is supported:
+
+```julia
+@funsql from(person).filter(1950 < year_of_birth < 2000)
+```
+
+The `if` statement and the ternary `? :` operator are converted to a `CASE`
+expression:
+
+```julia
+@funsql begin
+    from(person)
+    define(
+        generation =>
+            year_of_birth <= 1964 ? "Baby Boomer" :
+            year_of_birth <= 1980 ? "Generation X" :
+            "Millenial")
+end
+```
+
+A `@funsql` query can invoke any SQL function or even an arbitrary scalar
+SQL expression:
+
+```julia
+@funsql from(location).select(fun(`SUBSTRING(? FROM ? FOR ?)`, zip, 1, 3))
+```
+
+Aggregate and window functions are supported:
+
+```julia
+@funsql begin
+    from(person)
+    group()
+    select(
+        count(),
+        min(year_of_birth),
+        max(year_of_birth, filter = gender_concept_id == 8507),
+        median =>
+            agg(`(percentile_cont(0.5) WITHIN GROUP (ORDER BY ?))`, year_of_birth))
+end
+
+@funsql begin
+    from(visit_occurrence)
+    partition(person_id, order_by = [visit_start_date])
+    filter(row_number() <= 1)
+end
+```
+
+Custom scalar and aggregate functions can be integrated to `@funsql` notation:
+
+```julia
+const funsql_substring = FunSQL.FunClosure("SUBSTRING(? FROM ? FOR ?)")
+
+@funsql from(location).select(substring(zip, 1, 3))
+
+const funsql_median = FunSQL.AggClosure("(percentile_cont(0.5) WITHIN GROUP (ORDER BY ?))")
+
+@funsql from(person).group().select(median(year_of_birth))
+```
+
+In general, any Julia function with a name `funsql_f()` can be invoked as `f()`
+within `@funsql` macro.  For example:
+
+```julia
+funsql_concept(v, cs...) =
+    @funsql from(concept).filter(vocabulary_id == $v && in(concept_id, $cs...))
+
+funsql_ICD10CM(cs...) =
+    @funsql concept("ICD10CM", $cs...)
+```
+
+For convenience, `@funsql` macro can wrap such function definitions:
+
+```julia
+@funsql concept(v, cs...) = begin
+    from(concept)
+    filter(vocabulary_id == $v && in(concept_id, $cs...))
+end
+
+@funsql ICD10CM(cs...) =
+    concept("ICD10CM", $cs...)
+```
+
+Or even:
+
+```julia
+@funsql begin
+
+concept(v, cs...) = begin
+    from(concept)
+    filter(vocabulary_id == $v && in(concept_id, $cs...))
+end
+
+ICD10CM(cs...) =
+    concept("ICD10CM", $cs...)
+
+end
+```
+
+Here are some other SQL features expressed in `@funsql` notation.  `JOIN` and
+`GROUP BY`:
+
+```julia
+@funsql begin
+    from(person)
+    filter(between(year_of_birth, 1930, 1940))
+    join(
+        location => from(location).filter(state == "IL"),
+        on = location_id == location.location_id)
+    left_join(
+        visit_group => begin
+            from(visit_occurrence)
+            group(person_id)
+        end,
+        on = person_id == visit_group.person_id)
+    select(
+        person_id,
+        latest_visit_date => visit_group.max(visit_start_date))
+end
+```
+
+`ORDER BY` and `LIMIT`:
+
+```julia
+@funsql from(person).order(year_of_birth.desc()).limit(10)
+```
+
+`UNION ALL`:
+
+```julia
+@funsql begin
+    append(
+        from(measurement).define(date => measurement_date),
+        from(observation).define(date => observation_date))
+end
+```
+
+Recursive queries:
+
+```julia
+@funsql begin
+    define(n => 1, f => 1)
+    iterate(define(n => n + 1, f => f * (n + 1)).filter(n <= 10))
+end
+```
+
+Query parameters:
+
+```julia
+@funsql from(person).filter(year_of_birth >= :THRESHOLD)
+```
+
+
 ## v0.11.2
 
 * Fix a number of problems with serializing `Order()` and `Limit()` for
