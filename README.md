@@ -50,14 +50,19 @@ Illinois was seen by a healthcare provider?*
 <details open><summary>Julia Code</summary>
 
 ```julia
-From(:person) |>
-Where(Fun.between(Get.year_of_birth, 1930, 1940)) |>
-Join(From(:location) |> Where(Get.state .== "IL") |> As(:location),
-     on = Get.location_id .== Get.location.location_id) |>
-LeftJoin(From(:visit_occurrence) |> Group(Get.person_id) |> As(:visit_group),
-         on = Get.person_id .== Get.visit_group.person_id) |>
-Select(Get.person_id,
-       Get.visit_group |> Agg.max(Get.visit_start_date) |> As(:latest_visit_date))
+@funsql begin
+    from(person)
+    filter(1930 <= year_of_birth <= 1940)
+    join(
+        from(location).filter(state == "IL").as(location),
+        on = location_id == location.location_id)
+    left_join(
+        from(visit_occurrence).group(person_id).as(visit_group),
+        on = person_id == visit_group.person_id)
+    select(
+        person_id,
+        latest_visit_date => visit_group.max(visit_start_date))
+end
 ```
 
 </details>
@@ -73,7 +78,9 @@ FROM (
     "person_1"."person_id",
     "person_1"."location_id"
   FROM "person" AS "person_1"
-  WHERE ("person_1"."year_of_birth" BETWEEN 1930 AND 1940)
+  WHERE
+    (1930 <= "person_1"."year_of_birth") AND
+    ("person_1"."year_of_birth" <= 1940)
 ) AS "person_2"
 JOIN (
   SELECT "location_1"."location_id"
@@ -90,22 +97,6 @@ LEFT JOIN (
 ```
 
 </details>
-
-With FunSQL, SQL clauses such as `FROM`, `WHERE`, and `JOIN` are represented by
-invocations of `From`, `Where`, and `Join` connected together using the pipe
-(`|>`) operator.  Note the absence of a FunSQL counterpart to nested `SELECT`
-clauses; when necessary, FunSQL automatically adds nested subqueries and
-threads through them column references and aggregate expressions.
-
-Scalar expressions are straightforward: `Fun.between` and `.==` is how FunSQL
-represents SQL functions and operators; `Agg.max` is a notation for aggregate
-functions; `Get.person_id` is a reference to a column; `Get.location.person_id`
-refers to a column fenced by `As(:location)`.
-
-Notably, FunSQL notation does not rely on macros or anonymous functions as they
-hinder modular query construction.  FunSQL queries and their intermediate
-components are first-class objects that could be constructed independently,
-passed around as values, and freely composed together.
 
 
 [docs-rel-img]: https://img.shields.io/badge/docs-stable-green.svg
