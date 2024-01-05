@@ -158,6 +158,9 @@ struct AggClosure
     name::Symbol
 end
 
+AggClosure(name::AbstractString) =
+    AggClosure(Symbol(name))
+
 Base.show(io::IO, f::AggClosure) =
     print(io, Expr(:., nameof(Agg),
                        QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
@@ -166,10 +169,31 @@ Base.getproperty(::typeof(Agg), name::Symbol) =
     AggClosure(name)
 
 Base.getproperty(::typeof(Agg), name::AbstractString) =
-    AggClosure(Symbol(name))
+    AggClosure(name)
 
 (f::AggClosure)(args...; over = nothing, filter = nothing) =
     Agg(over = over, name = f.name, args = SQLNode[args...], filter = filter)
 
 (f::AggClosure)(; over = nothing, args = SQLNode[], filter = nothing) =
     Agg(over = over, name = f.name, args = args, filter = filter)
+
+
+# Common aggregate and window functions.
+
+const funsql_avg = AggClosure(:avg)
+const funsql_count = AggClosure(:count)
+const funsql_count_distinct = AggClosure(:count_distinct)
+const funsql_cume_dist = AggClosure(:cume_dist)
+const funsql_dense_rank = AggClosure(:dense_rank)
+const funsql_first_value = AggClosure(:first_value)
+const funsql_lag = AggClosure(:lag)
+const funsql_last_value = AggClosure(:last_value)
+const funsql_lead = AggClosure(:lead)
+const funsql_max = AggClosure(:max)
+const funsql_min = AggClosure(:min)
+const funsql_nth_value = AggClosure(:nth_value)
+const funsql_ntile = AggClosure(:ntile)
+const funsql_percent_rank = AggClosure(:percent_rank)
+const funsql_rank = AggClosure(:rank)
+const funsql_row_number = AggClosure(:row_number)
+const funsql_sum = AggClosure(:sum)

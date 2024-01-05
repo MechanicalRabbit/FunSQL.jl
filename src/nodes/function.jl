@@ -179,6 +179,9 @@ struct FunClosure
     name::Symbol
 end
 
+FunClosure(name::AbstractString) =
+    FunClosure(Symbol(name))
+
 Base.show(io::IO, f::FunClosure) =
     print(io, Expr(:., nameof(Fun),
                        QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
@@ -187,7 +190,7 @@ Base.getproperty(::typeof(Fun), name::Symbol) =
     FunClosure(name)
 
 Base.getproperty(::typeof(Fun), name::AbstractString) =
-    FunClosure(Symbol(name))
+    FunClosure(name)
 
 (f::FunClosure)(args...) =
     Fun(f.name, args = SQLNode[args...])
@@ -195,6 +198,41 @@ Base.getproperty(::typeof(Fun), name::AbstractString) =
 (f::FunClosure)(; args = SQLNode[]) =
     Fun(f.name, args = args)
 
+
+# Common SQL functions and operators.
+
+const var"funsql_&&" = FunClosure(:and)
+const var"funsql_||" = FunClosure(:or)
+const var"funsql_!" = FunClosure(:not)
+const var"funsql_==" = FunClosure("=")
+const var"funsql_!=" = FunClosure("<>")
+const var"funsql_===" = FunClosure(" IS NOT DISTINCT FROM ")
+const var"funsql_!==" = FunClosure(" IS DISTINCT FROM ")
+const var"funsql_>" = FunClosure(">")
+const var"funsql_>=" = FunClosure(">=")
+const var"funsql_<" = FunClosure("<")
+const var"funsql_<=" = FunClosure("<=")
+const var"funsql_+" = FunClosure("+")
+const var"funsql_-" = FunClosure("-")
+const var"funsql_*" = FunClosure("*")
+const var"funsql_/" = FunClosure("/")
+const funsql_between = FunClosure(:between)
+const funsql_case = FunClosure(:case)
+const funsql_cast = FunClosure(:cast)
+const funsql_coalesce = FunClosure(:coalesce)
+const funsql_concat = FunClosure(:concat)
+const funsql_current_date = FunClosure(:current_date)
+const funsql_current_timestamp = FunClosure(:current_timestamp)
+const funsql_exists = FunClosure(:exists)
+const funsql_extract = FunClosure(:extract)
+const funsql_in = FunClosure(:in)
+const funsql_is_not_null = FunClosure(:is_not_null)
+const funsql_is_null = FunClosure(:is_null)
+const funsql_like = FunClosure(:like)
+const funsql_not_between = FunClosure(:not_between)
+const funsql_not_exists = FunClosure(:not_exists)
+const funsql_not_in = FunClosure(:not_in)
+const funsql_not_like = FunClosure(:not_like)
 
 # Broadcasting notation.
 
