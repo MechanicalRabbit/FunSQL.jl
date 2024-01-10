@@ -123,6 +123,3 @@ function PrettyPrinting.quoteof(n::GroupNode, ctx::QuoteContext)
     end
     ex
 end
-
-label(n::GroupNode) =
-    label(n.over)

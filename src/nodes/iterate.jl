@@ -111,6 +111,3 @@ function PrettyPrinting.quoteof(n::IterateNode, ctx::QuoteContext)
     end
     ex
 end
-
-label(n::IterateNode) =
-    label(n.over)

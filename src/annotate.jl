@@ -358,9 +358,6 @@ function PrettyPrinting.quoteof(n::IntAutoDefineNode, ctx::QuoteContext)
     ex
 end
 
-label(n::Union{NameBoundNode, HandleBoundNode, IntAutoDefineNode, IntBindNode, IntJoinNode}) =
-    label(n.over)
-
 
 # Annotation context.
 

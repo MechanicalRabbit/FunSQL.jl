@@ -84,6 +84,3 @@ function PrettyPrinting.quoteof(n::HighlightNode, ctx::QuoteContext)
     pop!(ctx.colors)
     EscWrapper(ex, n.color, copy(ctx.colors))
 end
-
-label(n::HighlightNode) =
-    label(n.over)

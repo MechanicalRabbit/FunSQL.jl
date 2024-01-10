@@ -55,6 +55,3 @@ function PrettyPrinting.quoteof(n::WhereNode, ctx::QuoteContext)
     end
     ex
 end
-
-label(n::WhereNode) =
-    label(n.over)
