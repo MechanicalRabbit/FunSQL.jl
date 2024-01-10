@@ -55,8 +55,16 @@ Base.convert(::Type{SQLNode}, obj) =
 label(n::SQLNode) =
     label(n[])::Symbol
 
-label(::Union{AbstractSQLNode, Nothing}) =
+label(::Nothing) =
     :_
+
+@generated function label(n::AbstractSQLNode)
+    if :over in fieldnames(n)
+        return :(label(n.over))
+    else
+        return :(:_)
+    end
+end
 
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))

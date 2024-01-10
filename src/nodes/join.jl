@@ -115,6 +115,3 @@ function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
     end
     ex
 end
-
-label(n::JoinNode) =
-    label(n.over)

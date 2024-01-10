@@ -64,6 +64,3 @@ function PrettyPrinting.quoteof(n::OrderNode, ctx::QuoteContext)
     end
     ex
 end
-
-label(n::OrderNode) =
-    label(n.over)

@@ -118,6 +118,3 @@ function PrettyPrinting.quoteof(n::PartitionNode, ctx::QuoteContext)
     end
     ex
 end
-
-label(n::PartitionNode) =
-    label(n.over)
