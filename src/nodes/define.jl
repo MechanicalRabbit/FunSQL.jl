@@ -86,6 +86,3 @@ end
 
 label(n::DefineNode) =
     label(n.over)
-
-rebase(n::DefineNode, n′) =
-    DefineNode(over = rebase(n.over, n′), args = n.args, label_map = n.label_map)

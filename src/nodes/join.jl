@@ -118,8 +118,3 @@ end
 
 label(n::JoinNode) =
     label(n.over)
-
-rebase(n::JoinNode, n′) =
-    JoinNode(over = rebase(n.over, n′),
-             joinee = n.joinee, on = n.on, left = n.left, right = n.right, optional = n.optional)
-

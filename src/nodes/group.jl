@@ -126,6 +126,3 @@ end
 
 label(n::GroupNode) =
     label(n.over)
-
-rebase(n::GroupNode, n′) =
-    GroupNode(over = rebase(n.over, n′), by = n.by, name = n.name, label_map = n.label_map)

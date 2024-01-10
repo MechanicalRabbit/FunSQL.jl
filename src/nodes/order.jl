@@ -67,7 +67,3 @@ end
 
 label(n::OrderNode) =
     label(n.over)
-
-rebase(n::OrderNode, n′) =
-    OrderNode(over = rebase(n.over, n′), by = n.by)
-

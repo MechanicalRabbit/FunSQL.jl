@@ -93,6 +93,3 @@ end
 
 label(n::WithNode) =
     label(n.over)
-
-rebase(n::WithNode, n′) =
-    WithNode(over = rebase(n.over, n′), args = n.args, materialized = n.materialized)

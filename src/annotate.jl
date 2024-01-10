@@ -48,10 +48,6 @@ end
 label(n::BoxNode) =
     n.type.name
 
-rebase(n::BoxNode, n′) =
-    BoxNode(over = rebase(n.over, n′),
-            type = n.type, handle = n.handle, refs = n.refs)
-
 box_type(n::BoxNode) =
     n.type
 
@@ -223,10 +219,6 @@ function PrettyPrinting.quoteof(n::IntBindNode, ctx::QuoteContext)
     ex
 end
 
-rebase(n::IntBindNode, n′) =
-    IntBindNode(over = rebase(n.over, n′),
-                     args = n.args, label_map = n.label_map, owned = n.owned)
-
 # A recursive UNION ALL node.
 mutable struct KnotNode <: TabularNode
     over::Union{SQLNode, Nothing}
@@ -273,10 +265,6 @@ end
 label(n::KnotNode) =
     n.name
 
-rebase(n::KnotNode, n′) =
-    KnotNode(over = rebase(n.over, n′),
-             name = n.name, box = n.box, iterator = n.iterator, iterator_boxes = n.iterator_boxes)
-
 # Iterate node is split into Knot and IntIterate.
 mutable struct IntIterateNode <: TabularNode
     over::Union{SQLNode, Nothing}
@@ -300,9 +288,6 @@ end
 
 label(n::IntIterateNode) =
     n.name
-
-rebase(n::IntIterateNode, n′) =
-    IntIterateNode(over = rebase(n.over, n′), name = n.name)
 
 # Annotated Join node.
 mutable struct IntJoinNode <: TabularNode
@@ -354,10 +339,6 @@ function PrettyPrinting.quoteof(n::IntJoinNode, ctx::QuoteContext)
     ex
 end
 
-rebase(n::IntJoinNode, n′) =
-    IntJoinNode(over = rebase(n.over, n′),
-                     joinee = n.joinee, on = n.on, left = n.left, right = n.right, skip = n.skip, type = n.type, lateral = n.lateral)
-
 # Calculates the keys of a Group node.
 mutable struct IntAutoDefineNode <: TabularNode
     over::Union{SQLNode, Nothing}
@@ -376,9 +357,6 @@ function PrettyPrinting.quoteof(n::IntAutoDefineNode, ctx::QuoteContext)
     end
     ex
 end
-
-rebase(n::IntAutoDefineNode, n′) =
-    IntAutoDefineNode(over = rebase(n.over, n′))
 
 label(n::Union{NameBoundNode, HandleBoundNode, IntAutoDefineNode, IntBindNode, IntJoinNode}) =
     label(n.over)

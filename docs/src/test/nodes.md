@@ -87,6 +87,12 @@ Ill-formed queries are detected.
     end
     =#
 
+    q = From(person) |> Fun.current_date()
+    #=>
+    ERROR: FunSQL.RebaseError in:
+    Fun.current_date()
+    =#
+
 
 ## `@funsql`
 
