@@ -110,6 +110,3 @@ end
 
 label(n::BindNode) =
     label(n.over)
-
-rebase(n::BindNode, n′) =
-    BindNode(over = rebase(n.over, n′), args = n.args)

@@ -73,6 +73,3 @@ end
 
 label(n::SelectNode) =
     label(n.over)
-
-rebase(n::SelectNode, n′) =
-    SelectNode(over = rebase(n.over, n′), args = n.args, label_map = n.label_map)

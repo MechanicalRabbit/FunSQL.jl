@@ -114,6 +114,3 @@ end
 
 label(n::IterateNode) =
     label(n.over)
-
-rebase(n::IterateNode, n′) =
-    IterateNode(over = rebase(n.over, n′), iterator = n.iterator)

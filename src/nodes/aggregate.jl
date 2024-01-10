@@ -145,12 +145,6 @@ end
 label(n::AggregateNode) =
     Meta.isidentifier(n.name) ? n.name : :_
 
-rebase(n::AggregateNode, n′) =
-    AggregateNode(over = rebase(n.over, n′),
-                  name = n.name,
-                  args = n.args,
-                  filter = n.filter)
-
 
 # Notation for making aggregate nodes.
 

@@ -87,6 +87,3 @@ end
 
 label(n::HighlightNode) =
     label(n.over)
-
-rebase(n::HighlightNode, n′) =
-    HighlightNode(over = rebase(n.over, n′), color = n.color)

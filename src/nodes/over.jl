@@ -72,6 +72,3 @@ end
 
 label(n::OverNode) =
     label(n.arg)
-
-rebase(n::OverNode, n′) =
-    OverNode(over = rebase(n.over, n′), arg = n.arg, materialized = n.materialized)

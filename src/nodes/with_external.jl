@@ -101,7 +101,3 @@ end
 
 label(n::WithExternalNode) =
     label(n.over)
-
-rebase(n::WithExternalNode, n′) =
-    WithExternalNode(over = rebase(n.over, n′), args = n.args, qualifiers = n.qualifiers, handler = n.handler)
-

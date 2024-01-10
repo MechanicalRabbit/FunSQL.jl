@@ -78,6 +78,3 @@ end
 
 label(n::AsNode) =
     n.name
-
-rebase(n::AsNode, n′) =
-    AsNode(over = rebase(n.over, n′), name = n.name)

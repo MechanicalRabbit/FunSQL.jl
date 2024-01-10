@@ -51,4 +51,3 @@ Base.convert(::Type{AbstractSQLNode}, ref::Base.RefValue) =
 
 PrettyPrinting.quoteof(n::LiteralNode, ctx::QuoteContext) =
     Expr(:call, nameof(Lit), n.val)
-

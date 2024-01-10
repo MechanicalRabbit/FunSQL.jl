@@ -85,6 +85,3 @@ function label(n::AppendNode)
     end
     lbl
 end
-
-rebase(n::AppendNode, n′) =
-    AppendNode(over = rebase(n.over, n′), args = n.args)

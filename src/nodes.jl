@@ -61,6 +61,19 @@ label(::Union{AbstractSQLNode, Nothing}) =
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))
 
+@generated function rebase(n::AbstractSQLNode, n′)
+    fs = fieldnames(n)
+    if !in(:over, fs)
+        return quote
+            throw(RebaseError(path = [n]))
+        end
+    end
+    return quote
+        $n($(Any[Expr(:kw, f, f === :over ? :(rebase(n.$(f), n′)) : :(n.$(f)))
+                 for f in fs]...))
+    end
+end
+
 Chain(n′, n) =
     rebase(convert(SQLNode, n), n′)
 
@@ -318,6 +331,21 @@ end
 
 function Base.showerror(io::IO, err::IllFormedError)
     print(io, "FunSQL.IllFormedError")
+    showpath(io, err.path)
+end
+
+"""
+A node that cannot be rebased.
+"""
+struct RebaseError <: FunSQLError
+    path::Vector{SQLNode}
+
+    RebaseError(; path = SQLNode[])=
+        new(path)
+end
+
+function Base.showerror(io::IO, err::RebaseError)
+    print(io, "FunSQL.RebaseError")
     showpath(io, err.path)
 end
 
