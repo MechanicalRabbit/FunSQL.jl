@@ -56,18 +56,15 @@ function render(catalog::SQLCatalog, n::SQLNode)
             return sql
         end
     end
-    actx = AnnotateContext(catalog)
-    n′ = annotate(n, actx)
-    @debug "FunSQL.annotate\n" * sprint(pprint, n′) _group = Symbol("FunSQL.annotate")
-    resolve!(actx)
-    @debug "FunSQL.resolve!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.resolve!")
-    link!(actx)
-    @debug "FunSQL.link!\n" * sprint(pprint, n′) _group = Symbol("FunSQL.link!")
-    tctx = TranslateContext(actx)
-    c = translate_toplevel(n′, tctx)
+    n = WithContext(over = n, dialect = catalog.dialect, tables = catalog.tables)
+    n = resolve(n)
+    @debug "FunSQL.resolve\n" * sprint(pprint, n) _group = Symbol("FunSQL.resolve")
+    n = link(n)
+    @debug "FunSQL.link\n" * sprint(pprint, n) _group = Symbol("FunSQL.link")
+    c = translate(n)
     @debug "FunSQL.translate\n" * sprint(pprint, c) _group = Symbol("FunSQL.translate")
-    sql = render(catalog.dialect, c)
-    @debug "FunSQL.render\n" * sql _group = Symbol("FunSQL.render")
+    sql = serialize(c)
+    @debug "FunSQL.serialize\n" * sprint(pprint, sql) _group = Symbol("FunSQL.serialize")
     if cache !== nothing
         cache[n] = sql
     end
@@ -87,9 +84,8 @@ render(dialect::SQLDialect, c::AbstractSQLClause) =
 Serialize the syntax tree of a SQL query.
 """
 function render(dialect::SQLDialect, c::SQLClause)
-    ctx = SerializeContext(dialect)
-    serialize!(c, ctx)
-    raw = String(take!(ctx.io))
-    SQLString(raw, vars = ctx.vars)
+    c = WITH_CONTEXT(over = c, dialect = dialect)
+    sql = serialize(c)
+    sql
 end
 

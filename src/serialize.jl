@@ -11,6 +11,14 @@ mutable struct SerializeContext <: IO
         new(dialect, IOBuffer(), 0, false, Symbol[])
 end
 
+function serialize(c::SQLClause)
+    @dissect(c, WITH_CONTEXT(over = c′, dialect = dialect)) || throw(IllFormedError())
+    ctx = SerializeContext(dialect)
+    serialize!(c′, ctx)
+    raw = String(take!(ctx.io))
+    SQLString(raw, vars = ctx.vars)
+end
+
 Base.write(ctx::SerializeContext, octet::UInt8) =
     write(ctx.io, octet)
 

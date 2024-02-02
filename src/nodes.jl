@@ -360,8 +360,6 @@ end
 module REFERENCE_ERROR_TYPE
 
 @enum ReferenceErrorType::UInt8 begin
-    UNDEFINED_HANDLE
-    AMBIGUOUS_HANDLE
     UNDEFINED_NAME
     AMBIGUOUS_NAME
     UNEXPECTED_ROW_TYPE
@@ -391,11 +389,7 @@ end
 
 function Base.showerror(io::IO, err::ReferenceError)
     print(io, "FunSQL.ReferenceError: ")
-    if err.type == REFERENCE_ERROR_TYPE.UNDEFINED_HANDLE
-        print(io, "node-bound reference failed to resolve")
-    elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_HANDLE
-        print(io, "node-bound reference is ambiguous")
-    elseif err.type == REFERENCE_ERROR_TYPE.UNDEFINED_NAME
+    if err.type == REFERENCE_ERROR_TYPE.UNDEFINED_NAME
         print(io, "cannot find `$(err.name)`")
     elseif err.type == REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME
         print(io, "`$(err.name)` is ambiguous")
@@ -427,9 +421,9 @@ end
 
 function highlight(path::Vector{SQLNode}, color = Base.error_color())
     @assert !isempty(path)
-    n = Highlight(over = path[1], color = color)
-    for k = 2:lastindex(path)
-        n = substitute(path[k], path[k-1], n)
+    n = Highlight(over = path[end], color = color)
+    for k = lastindex(path):-1:2
+        n = substitute(path[k - 1], path[k], n)
     end
     n
 end
@@ -453,7 +447,7 @@ function populate_label_map!(n, args = n.args, label_map = n.label_map, group_na
     for (i, arg) in enumerate(args)
         name = label(arg)
         if name === group_name || name in keys(label_map)
-            err = DuplicateLabelError(name, path = [arg, n])
+            err = DuplicateLabelError(name, path = [n, arg])
             throw(err)
         end
         label_map[name] = i
@@ -670,6 +664,7 @@ end
 include("nodes/aggregate.jl")
 include("nodes/append.jl")
 include("nodes/as.jl")
+include("nodes/aux.jl")
 include("nodes/bind.jl")
 include("nodes/define.jl")
 include("nodes/from.jl")

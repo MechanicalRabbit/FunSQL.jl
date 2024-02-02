@@ -134,6 +134,7 @@ PrettyPrinting.quoteof(names::Vector{Symbol}, ctx::QuoteContext) =
 
 include("clauses/aggregate.jl")
 include("clauses/as.jl")
+include("clauses/aux.jl")
 include("clauses/from.jl")
 include("clauses/function.jl")
 include("clauses/group.jl")
