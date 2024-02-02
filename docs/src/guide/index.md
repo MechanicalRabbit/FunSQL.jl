@@ -1317,7 +1317,7 @@ This is exactly the action of the [`Iterate`](@ref) node.
 
     render(conn, q) |> print
     #=>
-    WITH RECURSIVE "concept_2" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code") AS (
+    WITH RECURSIVE "__1" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code") AS (
       SELECT
         "concept_1"."concept_id",
         "concept_1"."concept_name",
@@ -1330,32 +1330,32 @@ This is exactly the action of the [`Iterate`](@ref) node.
       WHERE ("concept_1"."concept_name" = 'Myocardial infarction')
       UNION ALL
       SELECT
-        "concept_3"."concept_id",
-        "concept_3"."concept_name",
-        "concept_3"."domain_id",
-        "concept_3"."vocabulary_id",
-        "concept_3"."concept_class_id",
-        "concept_3"."standard_concept",
-        "concept_3"."concept_code"
-      FROM "concept" AS "concept_3"
+        "concept_2"."concept_id",
+        "concept_2"."concept_name",
+        "concept_2"."domain_id",
+        "concept_2"."vocabulary_id",
+        "concept_2"."concept_class_id",
+        "concept_2"."standard_concept",
+        "concept_2"."concept_code"
+      FROM "concept" AS "concept_2"
       JOIN (
         SELECT
           "concept_relationship_1"."concept_id_2",
           "concept_relationship_1"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_1"
         WHERE ("concept_relationship_1"."relationship_id" = 'Is a')
-      ) AS "concept_relationship_2" ON ("concept_3"."concept_id" = "concept_relationship_2"."concept_id_1")
-      JOIN "concept_2" AS "concept_4" ON ("concept_relationship_2"."concept_id_2" = "concept_4"."concept_id")
+      ) AS "concept_relationship_2" ON ("concept_2"."concept_id" = "concept_relationship_2"."concept_id_1")
+      JOIN "__1" AS "__2" ON ("concept_relationship_2"."concept_id_2" = "__2"."concept_id")
     )
     SELECT
-      "concept_5"."concept_id",
-      "concept_5"."concept_name",
-      "concept_5"."domain_id",
-      "concept_5"."vocabulary_id",
-      "concept_5"."concept_class_id",
-      "concept_5"."standard_concept",
-      "concept_5"."concept_code"
-    FROM "concept_2" AS "concept_5"
+      "concept_3"."concept_id",
+      "concept_3"."concept_name",
+      "concept_3"."domain_id",
+      "concept_3"."vocabulary_id",
+      "concept_3"."concept_class_id",
+      "concept_3"."standard_concept",
+      "concept_3"."concept_code"
+    FROM "__1" AS "concept_3"
     =#
 
     DBInterface.execute(conn, q) |> DataFrame

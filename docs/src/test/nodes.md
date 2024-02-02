@@ -403,11 +403,6 @@ Use backticks to represent a name that is not a valid identifier.
     end
     =#
 
-    q = q |> Where(Fun.">"(e, 2000))
-
-    e = Get(over = q, :person_id)
-    #-> (…) |> Get.person_id
-
     q.person_id
     #-> (…) |> Get.person_id
 
@@ -419,15 +414,6 @@ Use backticks to represent a name that is not a valid identifier.
 
     q["person_id"]
     #-> (…) |> Get.person_id
-
-    q = q |> Select(e)
-
-    print(render(q))
-    #=>
-    SELECT "person_1"."person_id"
-    FROM "person" AS "person_1"
-    WHERE ("person_1"."year_of_birth" > 2000)
-    =#
 
 `Get` is used for dereferencing an alias created with `As`.
 
@@ -448,23 +434,6 @@ This is particularly useful when you need to disambiguate the output of `Join`.
         Join(From(location) |> As(:l),
              on = Get.p.location_id .== Get.l.location_id) |>
         Select(Get.p.person_id, Get.l.state)
-
-    print(render(q))
-    #=>
-    SELECT
-      "person_1"."person_id",
-      "location_1"."state"
-    FROM "person" AS "person_1"
-    JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
-    =#
-
-Alternatively, node-bound references could be used for this purpose.
-
-    qₚ = From(person)
-    qₗ = From(location)
-    q = qₚ |>
-        Join(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
-        Select(qₚ.person_id, qₗ.state)
 
     print(render(q))
     #=>
@@ -548,45 +517,17 @@ reference, will result in an error.
     end
     =#
 
-A node-bound reference that is bound to an unrelated node will cause an error.
+A reference bound to any node other than `Get` will cause an error.
 
-    q = (qₚ = From(person)) |>
-        Join(:location => From(location) |> Where(qₚ.year_of_birth .>= 1950),
-             on = Get.location_id .== Get.location.location_id)
+    q = (qₚ = From(person)) |> Select(qₚ.person_id)
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: node-bound reference failed to resolve in:
-    let person = SQLTable(:person, …),
-        location = SQLTable(:location, …),
-        q1 = From(person),
-        q2 = From(location),
-        q3 = q2 |> Where(Fun.">="(q1.year_of_birth, 1950)),
-        q4 = q1 |>
-             Join(q3 |> As(:location),
-                  Fun."="(Get.location_id, Get.location.location_id))
-        q4
-    end
-    =#
-
-A node-bound reference which cannot be resolved unambiguously will also cause
-an error.
-
-    q = (qₚ = From(person)) |>
-        Join(:another => qₚ,
-             on = Get.person_id .!= Get.another.person_id) |>
-        Select(qₚ.person_id)
-
-    print(render(q))
-    #=>
-    ERROR: FunSQL.ReferenceError: node-bound reference is ambiguous in:
+    ERROR: FunSQL.IllFormedError in:
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |>
-             Join(q1 |> As(:another),
-                  Fun."<>"(Get.person_id, Get.another.person_id)),
-        q3 = q2 |> Select(q1.person_id)
-        q3
+        q2 = q1 |> Select(q1.person_id)
+        q2
     end
     =#
 
@@ -1638,12 +1579,12 @@ produced by the base query and the iterator query.
     WITH RECURSIVE "previous_1" ("m") AS (
       SELECT 0 AS "m"
       UNION ALL
-      SELECT ("union_1"."m" + 1) AS "m"
-      FROM "previous_1" AS "union_1"
-      WHERE ("union_1"."m" < 10)
+      SELECT ("previous_2"."m" + 1) AS "m"
+      FROM "previous_1" AS "previous_2"
+      WHERE ("previous_2"."m" < 10)
     )
-    SELECT "previous_2"."m"
-    FROM "previous_1" AS "previous_2"
+    SELECT "previous_3"."m"
+    FROM "previous_1" AS "previous_3"
     =#
 
 `Iterate` aligns the columns of its subqueries.
@@ -1726,18 +1667,6 @@ The `=>` shorthand is supported by `@funsql`.
     print(render(q))
     #=>
     SELECT NULL AS "_"
-    FROM "person" AS "person_1"
-    =#
-
-`As` does not block node-bound references.
-
-    q = (qₚ = From(person)) |>
-        As(:p) |>
-        Select(qₚ.person_id)
-
-    print(render(q))
-    #=>
-    SELECT "person_1"."person_id"
     FROM "person" AS "person_1"
     =#
 
@@ -2614,13 +2543,13 @@ It is also an error when an aggregate expression cannot determine its `Group`
 unambiguously.
 
     qₚ = From(person)
-    qᵥ = From(visit_occurrence) |> Group(Get.person_id)
-    qₘ = From(measurement) |> Group(Get.person_id)
+    qᵥ = From(visit_occurrence) |> Group(:visit_person_id => Get.person_id)
+    qₘ = From(measurement) |> Group(:measurement_person_id => Get.person_id)
 
     q = qₚ |>
-        Join(qᵥ, on = qₚ.person_id .== qᵥ.person_id, left = true) |>
-        Join(qₘ, on = qₚ.person_id .== qₘ.person_id, left = true) |>
-        Select(qₚ.person_id, :count => Fun.coalesce(Agg.count(), 0))
+        Join(qᵥ, on = Get.person_id .== Get.visit_person_id, left = true) |>
+        Join(qₘ, on = Get.person_id .== Get.measurement_person_id, left = true) |>
+        Select(Get.person_id, :count => Fun.coalesce(Agg.count(), 0))
 
     print(render(q))
     #=>
@@ -2630,16 +2559,18 @@ unambiguously.
         measurement = SQLTable(:measurement, …),
         q1 = From(person),
         q2 = From(visit_occurrence),
-        q3 = Get.person_id,
-        q4 = q2 |> Group(q3),
-        q5 = q1 |> Join(q4, Fun."="(q1.person_id, q4.person_id), left = true),
-        q6 = From(measurement),
-        q7 = Get.person_id,
-        q8 = q6 |> Group(q7),
-        q9 = q5 |> Join(q8, Fun."="(q1.person_id, q8.person_id), left = true),
-        q10 = q9 |>
-              Select(q1.person_id, Fun.coalesce(Agg.count(), 0) |> As(:count))
-        q10
+        q3 = q2 |> Group(Get.person_id |> As(:visit_person_id)),
+        q4 = q1 |>
+             Join(q3, Fun."="(Get.person_id, Get.visit_person_id), left = true),
+        q5 = From(measurement),
+        q6 = q5 |> Group(Get.person_id |> As(:measurement_person_id)),
+        q7 = q4 |>
+             Join(q6,
+                  Fun."="(Get.person_id, Get.measurement_person_id),
+                  left = true),
+        q8 = q7 |>
+             Select(Get.person_id, Fun.coalesce(Agg.count(), 0) |> As(:count))
+        q8
     end
     =#
 
@@ -2647,11 +2578,11 @@ It is still possible to use an aggregate in the context of a Join when the
 corresponding `Group` could be determined unambiguously.
 
     qₚ = From(person)
-    qᵥ = From(visit_occurrence) |> Group(Get.person_id)
+    qᵥ = From(visit_occurrence) |> Group(:visit_person_id => Get.person_id)
 
     q = qₚ |>
-        Join(qᵥ, on = qₚ.person_id .== qᵥ.person_id, left = true) |>
-        Select(qₚ.person_id, :count => Fun.coalesce(Agg.count(), 0))
+        Join(qᵥ, on = Get.person_id .== Get.visit_person_id, left = true) |>
+        Select(Get.person_id, :count => Fun.coalesce(Agg.count(), 0))
 
     print(render(q))
     #=>
@@ -2662,10 +2593,10 @@ corresponding `Group` could be determined unambiguously.
     LEFT JOIN (
       SELECT
         count(*) AS "count",
-        "visit_occurrence_1"."person_id"
+        "visit_occurrence_1"."person_id" AS "visit_person_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       GROUP BY "visit_occurrence_1"."person_id"
-    ) AS "visit_occurrence_2" ON ("person_1"."person_id" = "visit_occurrence_2"."person_id")
+    ) AS "visit_occurrence_2" ON ("person_1"."person_id" = "visit_occurrence_2"."visit_person_id")
     =#
 
 
@@ -3709,79 +3640,48 @@ Consider the following query.
                :max_visit_start_date =>
                    Get.visit_group |> Agg.max(Get.visit_start_date))
 
-At the first stage of the translation, `render()` augments the query object
-with some additional nodes.  A `Box` node is inserted in front of each
-tabular node and hierarchical `Get` nodes are reversed.
+At the first stage of the translation, `render()` resolves table references
+and determines node types.
 
     #? VERSION >= v"1.7"    # https://github.com/JuliaLang/julia/issues/26798
-    withenv("JULIA_DEBUG" => "FunSQL.annotate") do
+    withenv("JULIA_DEBUG" => "FunSQL.resolve") do
         render(q)
     end;
     #=>
-    ┌ Debug: FunSQL.annotate
+    ┌ Debug: FunSQL.resolve
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
     │     q1 = FromTable(table = person),
-    │     q2 = q1 |> Box(),
+    │     q2 = Resolved(RowType(:person_id => ScalarType(),
+    │                           :gender_concept_id => ScalarType(),
+    │                           :year_of_birth => ScalarType(),
+    │                           :month_of_birth => ScalarType(),
+    │                           :day_of_birth => ScalarType(),
+    │                           :birth_datetime => ScalarType(),
+    │                           :location_id => ScalarType()),
+    │                   over = q1) |>
+    │          Where(Resolved(ScalarType(),
+    │                         over = Fun."<="(Resolved(ScalarType(),
+    │                                                  over = Get.year_of_birth),
+    │                                         Resolved(ScalarType(), over = 2000)))),
     ⋮
-    │     q21 = q20 |>
-    │           Select(Get.person_id,
-    │                  NameBound(over = Agg.max(Get.visit_start_date),
-    │                            name = :visit_group) |>
-    │                  As(:max_visit_start_date)),
-    │     q22 = q21 |> Box()
-    │     q22
+    │     WithContext(over = Resolved(RowType(:person_id => ScalarType(),
+    │                                         :max_visit_start_date => ScalarType()),
+    │                                 over = q9))
     │ end
     └ @ FunSQL …
     =#
 
-Next, `render()` determines the type of each tabular node and attaches
-it to the corresponding `Box` node.
+Next, `render()` determines, for each tabular node, the data that it must
+produce.
 
     #? VERSION >= v"1.7"
-    withenv("JULIA_DEBUG" => "FunSQL.resolve!") do
+    withenv("JULIA_DEBUG" => "FunSQL.link") do
         render(q)
     end;
     #=>
-    ┌ Debug: FunSQL.resolve!
-    │ let person = SQLTable(:person, …),
-    │     location = SQLTable(:location, …),
-    │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = FromTable(table = person),
-    │     q2 = q1 |>
-    │          Box(type = BoxType(:person,
-    │                             :person_id => ScalarType(),
-    │                             :gender_concept_id => ScalarType(),
-    │                             :year_of_birth => ScalarType(),
-    │                             :month_of_birth => ScalarType(),
-    │                             :day_of_birth => ScalarType(),
-    │                             :birth_datetime => ScalarType(),
-    │                             :location_id => ScalarType())),
-    ⋮
-    │     q21 = q20 |>
-    │           Select(Get.person_id,
-    │                  NameBound(over = Agg.max(Get.visit_start_date),
-    │                            name = :visit_group) |>
-    │                  As(:max_visit_start_date)),
-    │     q22 = q21 |>
-    │           Box(type = BoxType(:person,
-    │                              :person_id => ScalarType(),
-    │                              :max_visit_start_date => ScalarType()))
-    │     q22
-    │ end
-    └ @ FunSQL …
-    =#
-
-Next, `render()` validates column references and aggregate functions
-and determine the columns to be provided by each tabular query.
-
-    #? VERSION >= v"1.7"
-    withenv("JULIA_DEBUG" => "FunSQL.link!") do
-        render(q)
-    end;
-    #=>
-    ┌ Debug: FunSQL.link!
+    ┌ Debug: FunSQL.link
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
@@ -3790,25 +3690,9 @@ and determine the columns to be provided by each tabular query.
     │     q3 = Get.person_id,
     │     q4 = Get.location_id,
     │     q5 = Get.year_of_birth,
-    │     q6 = q1 |>
-    │          Box(type = BoxType(:person,
-    │                             :person_id => ScalarType(),
-    │                             :gender_concept_id => ScalarType(),
-    │                             :year_of_birth => ScalarType(),
-    │                             :month_of_birth => ScalarType(),
-    │                             :day_of_birth => ScalarType(),
-    │                             :birth_datetime => ScalarType(),
-    │                             :location_id => ScalarType()),
-    │              refs = [q2, q3, q4, q5],
-    │              imm_refs_begin_at = 4),
+    │     q6 = Linked([q2, q3, q4, q5], 3, over = q1),
     ⋮
-    │     q34 = q33 |> Select(q2, q29 |> As(:max_visit_start_date)),
-    │     q35 = q34 |>
-    │           Box(type = BoxType(:person,
-    │                              :person_id => ScalarType(),
-    │                              :max_visit_start_date => ScalarType()),
-    │               refs = [Get.person_id, Get.max_visit_start_date])
-    │     q35
+    │     WithContext(over = q33)
     │ end
     └ @ FunSQL …
     =#
@@ -3821,68 +3705,73 @@ On the next stage, the query object is converted to a SQL syntax tree.
     end;
     #=>
     ┌ Debug: FunSQL.translate
-    │ ID(:person) |>
-    │ AS(:person_1) |>
-    │ FROM() |>
-    │ WHERE(FUN("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
-    │ SELECT(ID(:person_1) |> ID(:person_id), ID(:person_1) |> ID(:location_id)) |>
-    │ AS(:person_2) |>
-    │ FROM() |>
-    │ JOIN(ID(:location) |>
-    │      AS(:location_1) |>
-    │      FROM() |>
-    │      WHERE(FUN("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
-    │      SELECT(ID(:location_1) |> ID(:location_id)) |>
-    │      AS(:location_2),
-    │      FUN("=",
-    │          ID(:person_2) |> ID(:location_id),
-    │          ID(:location_2) |> ID(:location_id))) |>
-    │ JOIN(ID(:visit_occurrence) |>
-    │      AS(:visit_occurrence_1) |>
-    │      FROM() |>
-    │      GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
-    │      SELECT(AGG("max", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
-    │             AS(:max),
-    │             ID(:visit_occurrence_1) |> ID(:person_id)) |>
-    │      AS(:visit_group_1),
-    │      FUN("=",
-    │          ID(:person_2) |> ID(:person_id),
-    │          ID(:visit_group_1) |> ID(:person_id)),
-    │      left = true) |>
-    │ SELECT(ID(:person_2) |> ID(:person_id),
-    │        ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date))
+    │ WITH_CONTEXT(
+    │     over = ID(:person) |>
+    │            AS(:person_1) |>
+    │            FROM() |>
+    │            WHERE(FUN("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
+    │            SELECT(ID(:person_1) |> ID(:person_id),
+    │                   ID(:person_1) |> ID(:location_id)) |>
+    │            AS(:person_2) |>
+    │            FROM() |>
+    │            JOIN(ID(:location) |>
+    │                 AS(:location_1) |>
+    │                 FROM() |>
+    │                 WHERE(FUN("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
+    │                 SELECT(ID(:location_1) |> ID(:location_id)) |>
+    │                 AS(:location_2),
+    │                 FUN("=",
+    │                     ID(:person_2) |> ID(:location_id),
+    │                     ID(:location_2) |> ID(:location_id))) |>
+    │            JOIN(ID(:visit_occurrence) |>
+    │                 AS(:visit_occurrence_1) |>
+    │                 FROM() |>
+    │                 GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
+    │                 SELECT(AGG("max",
+    │                            ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
+    │                        AS(:max),
+    │                        ID(:visit_occurrence_1) |> ID(:person_id)) |>
+    │                 AS(:visit_group_1),
+    │                 FUN("=",
+    │                     ID(:person_2) |> ID(:person_id),
+    │                     ID(:visit_group_1) |> ID(:person_id)),
+    │                 left = true) |>
+    │            SELECT(ID(:person_2) |> ID(:person_id),
+    │                   ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date)))
     └ @ FunSQL …
     =#
 
 Finally, the SQL tree is serialized into SQL.
 
     #? VERSION >= v"1.7"
-    withenv("JULIA_DEBUG" => "FunSQL.render") do
+    withenv("JULIA_DEBUG" => "FunSQL.serialize") do
         render(q)
     end;
     #=>
-    ┌ Debug: FunSQL.render
-    │ SELECT
-    │   "person_2"."person_id",
-    │   "visit_group_1"."max" AS "max_visit_start_date"
-    │ FROM (
-    │   SELECT
-    │     "person_1"."person_id",
-    │     "person_1"."location_id"
-    │   FROM "person" AS "person_1"
-    │   WHERE ("person_1"."year_of_birth" <= 2000)
-    │ ) AS "person_2"
-    │ JOIN (
-    │   SELECT "location_1"."location_id"
-    │   FROM "location" AS "location_1"
-    │   WHERE ("location_1"."state" = 'IL')
-    │ ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
-    │ LEFT JOIN (
-    │   SELECT
-    │     max("visit_occurrence_1"."visit_start_date") AS "max",
-    │     "visit_occurrence_1"."person_id"
-    │   FROM "visit_occurrence" AS "visit_occurrence_1"
-    │   GROUP BY "visit_occurrence_1"."person_id"
-    │ ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")
+    ┌ Debug: FunSQL.serialize
+    │ SQLString(
+    │     """
+    │     SELECT
+    │       "person_2"."person_id",
+    │       "visit_group_1"."max" AS "max_visit_start_date"
+    │     FROM (
+    │       SELECT
+    │         "person_1"."person_id",
+    │         "person_1"."location_id"
+    │       FROM "person" AS "person_1"
+    │       WHERE ("person_1"."year_of_birth" <= 2000)
+    │     ) AS "person_2"
+    │     JOIN (
+    │       SELECT "location_1"."location_id"
+    │       FROM "location" AS "location_1"
+    │       WHERE ("location_1"."state" = 'IL')
+    │     ) AS "location_2" ON ("person_2"."location_id" = "location_2"."location_id")
+    │     LEFT JOIN (
+    │       SELECT
+    │         max("visit_occurrence_1"."visit_start_date") AS "max",
+    │         "visit_occurrence_1"."person_id"
+    │       FROM "visit_occurrence" AS "visit_occurrence_1"
+    │       GROUP BY "visit_occurrence_1"."person_id"
+    │     ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")""")
     └ @ FunSQL …
     =#
