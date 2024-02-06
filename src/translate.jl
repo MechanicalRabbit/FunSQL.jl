@@ -706,6 +706,7 @@ function assemble(n::IterateNode, ctx)
     dups = Dict{SQLNode, SQLNode}()
     seen = Dict{Symbol, SQLNode}()
     for ref in ctx.refs
+        !in(ref, keys(repl)) || continue
         name = left.repl[ref]
         repl[ref] = name
         if name in keys(seen)
@@ -723,6 +724,7 @@ function assemble(n::IterateNode, ctx)
     urefs = SQLNode[]
     for ref in ctx.refs
         !(ref in keys(dups)) || continue
+        dups[ref] = ref
         push!(urefs, ref)
     end
     cs = SQLClause[]
