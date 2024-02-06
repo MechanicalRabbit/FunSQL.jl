@@ -129,9 +129,8 @@ function dismantle(n::IterateNode, ctx)
 end
 
 function dismantle(n::JoinNode, ctx)
-    lt = row_type(n.over)
     rt = row_type(n.joinee)
-    router = JoinRouter(lt, rt)
+    router = JoinRouter(Set(keys(rt.fields)), !isa(rt.group, EmptyType))
     over′ = dismantle(n.over, ctx)
     joinee′ = dismantle(n.joinee, ctx)
     on′ = dismantle_scalar(n.on, ctx)
@@ -317,7 +316,6 @@ function link(n::IterateNode, ctx)
     iterator′ = n.iterator
     refs = SQLNode[]
     knot_refs = SQLNode[]
-    seen = Set{SQLNode}(refs)
     repeat = true
     while repeat
         refs = copy(ctx.refs)
@@ -340,37 +338,16 @@ function link(n::IterateNode, ctx)
 end
 
 function route(r::JoinRouter, ref::SQLNode)
-    lt = r.lt
-    rt = r.rt
-    while @dissect(ref, over |> Bound(name = name))
-        lt′ = get(lt.fields, name, EmptyType())
-        if lt′ isa EmptyType
-            return 1
-        end
-        rt′ = get(rt.fields, name, EmptyType())
-        if rt′ isa EmptyType
-            return -1
-        end
-        @assert lt′ isa RowType && rt′ isa RowType
-        lt = lt′
-        rt = rt′
-        ref = over
+    if @dissect(ref, over |> Bound(name = name)) && name in r.label_set
+        return 1
     end
-    if @dissect(ref, Get(name = name))
-        if name in keys(lt.fields)
-            return -1
-        else
-            return 1
-        end
-    elseif @dissect(ref, over |> Agg(name = name))
-        if lt.group isa RowType
-            return -1
-        else
-            return 1
-        end
-    else
-        error()
+    if @dissect(ref, Get(name = name)) && name in r.label_set
+        return 1
     end
+    if @dissect(ref, over |> Agg()) && r.group
+        return 1
+    end
+    return -1
 end
 
 function link(n::IntJoinNode, ctx)

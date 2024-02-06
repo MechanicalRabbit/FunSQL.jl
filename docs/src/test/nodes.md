@@ -468,8 +468,8 @@ When `Get` refers to an unknown attribute, an error is reported.
     end
     =#
 
-An error is also reported when a `Get` reference cannot be resolved
-unambiguously.
+An attribute defined in a `Join` shadows any previously defined attributes
+with the same name.
 
     q = person |>
         Join(person, true) |>
@@ -477,14 +477,9 @@ unambiguously.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: `person_id` is ambiguous in:
-    let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = From(person),
-        q3 = q1 |> Join(q2, true),
-        q4 = q3 |> Select(Get.person_id)
-        q4
-    end
+    SELECT "person_2"."person_id"
+    FROM "person" AS "person_1"
+    CROSS JOIN "person" AS "person_2"
     =#
 
 An incomplete hierarchical reference, as well as an unexpected hierarchical
@@ -2539,8 +2534,7 @@ It is an error for an aggregate expression to be used without `Group`.
     end
     =#
 
-It is also an error when an aggregate expression cannot determine its `Group`
-unambiguously.
+`Group` in a `Join` expression shadows any previous applications of `Group`.
 
     qₚ = From(person)
     qᵥ = From(visit_occurrence) |> Group(:visit_person_id => Get.person_id)
@@ -2553,25 +2547,21 @@ unambiguously.
 
     print(render(q))
     #=>
-    ERROR: FunSQL.ReferenceError: aggregate expression is ambiguous in:
-    let person = SQLTable(:person, …),
-        visit_occurrence = SQLTable(:visit_occurrence, …),
-        measurement = SQLTable(:measurement, …),
-        q1 = From(person),
-        q2 = From(visit_occurrence),
-        q3 = q2 |> Group(Get.person_id |> As(:visit_person_id)),
-        q4 = q1 |>
-             Join(q3, Fun."="(Get.person_id, Get.visit_person_id), left = true),
-        q5 = From(measurement),
-        q6 = q5 |> Group(Get.person_id |> As(:measurement_person_id)),
-        q7 = q4 |>
-             Join(q6,
-                  Fun."="(Get.person_id, Get.measurement_person_id),
-                  left = true),
-        q8 = q7 |>
-             Select(Get.person_id, Fun.coalesce(Agg.count(), 0) |> As(:count))
-        q8
-    end
+    SELECT
+      "person_1"."person_id",
+      coalesce("measurement_2"."count", 0) AS "count"
+    FROM "person" AS "person_1"
+    LEFT JOIN (
+      SELECT DISTINCT "visit_occurrence_1"."person_id" AS "visit_person_id"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+    ) AS "visit_occurrence_2" ON ("person_1"."person_id" = "visit_occurrence_2"."visit_person_id")
+    LEFT JOIN (
+      SELECT
+        count(*) AS "count",
+        "measurement_1"."person_id" AS "measurement_person_id"
+      FROM "measurement" AS "measurement_1"
+      GROUP BY "measurement_1"."person_id"
+    ) AS "measurement_2" ON ("person_1"."person_id" = "measurement_2"."measurement_person_id")
     =#
 
 It is still possible to use an aggregate in the context of a Join when the
