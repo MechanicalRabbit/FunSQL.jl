@@ -190,12 +190,12 @@ PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
 
 # Annotated Join node.
 struct JoinRouter
-    lt::RowType
-    rt::RowType
+    label_set::Set{Symbol}
+    group::Bool
 end
 
 PrettyPrinting.quoteof(r::JoinRouter) =
-    Expr(:call, nameof(JoinRouter), quoteof(r.lt), quoteof(r.rt))
+    Expr(:call, nameof(JoinRouter), quoteof(r.label_set), quoteof(r.group))
 
 mutable struct IntJoinNode <: TabularNode
     over::Union{SQLNode, Nothing}

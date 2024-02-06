@@ -341,7 +341,17 @@ function resolve(n::JoinNode, ctx)
     lt = row_type(over′)
     joinee′ = resolve(n.joinee, ResolveContext(ctx, row_type = lt, implicit_knot = false))
     rt = row_type(joinee′)
-    t = union(lt, rt)
+    fields = FieldTypeMap()
+    for (f, ft) in lt.fields
+        fields[f] = get(rt.fields, f, ft)
+    end
+    for (f, ft) in rt.fields
+        if !haskey(fields, f)
+            fields[f] = ft
+        end
+    end
+    group = rt.group isa EmptyType ? lt.group : rt.group
+    t = RowType(fields, group)
     on′ = resolve_scalar(n.on, ctx, t)
     n′ = Join(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right, optional = n.optional)
     Resolved(t, over = n′)

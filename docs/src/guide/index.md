@@ -1283,13 +1283,13 @@ immediate subtypes as the function:
 
     DBInterface.execute(conn, q) |> DataFrame
     #=>
-    2×7 DataFrame
+    2×10 DataFrame
      Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
          │ Int64       String                       String     String         Stri ⋯
     ─────┼──────────────────────────────────────────────────────────────────────────
        1 │    4329847  Myocardial infarction        Condition  SNOMED         Clin ⋯
        2 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin
-                                                                   3 columns omitted
+                                                                   6 columns omitted
     =#
 
 But how can we fetch not just immediate, but all of the subtypes of a concept?
@@ -1317,7 +1317,7 @@ This is exactly the action of the [`Iterate`](@ref) node.
 
     render(conn, q) |> print
     #=>
-    WITH RECURSIVE "__1" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code") AS (
+    WITH RECURSIVE "__1" ("concept_id", "concept_name", "domain_id", "vocabulary_id", "concept_class_id", "standard_concept", "concept_code", "valid_start_date", "valid_end_date", "invalid_reason") AS (
       SELECT
         "concept_1"."concept_id",
         "concept_1"."concept_name",
@@ -1325,7 +1325,10 @@ This is exactly the action of the [`Iterate`](@ref) node.
         "concept_1"."vocabulary_id",
         "concept_1"."concept_class_id",
         "concept_1"."standard_concept",
-        "concept_1"."concept_code"
+        "concept_1"."concept_code",
+        "concept_1"."valid_start_date",
+        "concept_1"."valid_end_date",
+        "concept_1"."invalid_reason"
       FROM "concept" AS "concept_1"
       WHERE ("concept_1"."concept_name" = 'Myocardial infarction')
       UNION ALL
@@ -1336,10 +1339,16 @@ This is exactly the action of the [`Iterate`](@ref) node.
         "concept_2"."vocabulary_id",
         "concept_2"."concept_class_id",
         "concept_2"."standard_concept",
-        "concept_2"."concept_code"
+        "concept_2"."concept_code",
+        "concept_relationship_2"."valid_start_date",
+        "concept_relationship_2"."valid_end_date",
+        "concept_relationship_2"."invalid_reason"
       FROM "concept" AS "concept_2"
       JOIN (
         SELECT
+          "concept_relationship_1"."valid_start_date",
+          "concept_relationship_1"."valid_end_date",
+          "concept_relationship_1"."invalid_reason",
           "concept_relationship_1"."concept_id_2",
           "concept_relationship_1"."concept_id_1"
         FROM "concept_relationship" AS "concept_relationship_1"
@@ -1354,13 +1363,16 @@ This is exactly the action of the [`Iterate`](@ref) node.
       "concept_3"."vocabulary_id",
       "concept_3"."concept_class_id",
       "concept_3"."standard_concept",
-      "concept_3"."concept_code"
+      "concept_3"."concept_code",
+      "concept_3"."valid_start_date",
+      "concept_3"."valid_end_date",
+      "concept_3"."invalid_reason"
     FROM "__1" AS "concept_3"
     =#
 
     DBInterface.execute(conn, q) |> DataFrame
     #=>
-    6×7 DataFrame
+    6×10 DataFrame
      Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
          │ Int64       String                             String     String        ⋯
     ─────┼──────────────────────────────────────────────────────────────────────────
@@ -1370,6 +1382,6 @@ This is exactly the action of the [`Iterate`](@ref) node.
        4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
        5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
        6 │     444406  Acute subendocardial infarction    Condition  SNOMED
-                                                                   3 columns omitted
+                                                                   6 columns omitted
     =#
 

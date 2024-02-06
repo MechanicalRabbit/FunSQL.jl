@@ -18,22 +18,16 @@ end
 PrettyPrinting.quoteof(::ScalarType) =
     Expr(:call, nameof(ScalarType))
 
-struct AmbiguousType <: AbstractSQLType
-end
-
-PrettyPrinting.quoteof(::AmbiguousType) =
-    Expr(:call, nameof(AmbiguousType))
-
 struct RowType <: AbstractSQLType
-    fields::OrderedDict{Symbol, Union{ScalarType, AmbiguousType, RowType}}
-    group::Union{EmptyType, AmbiguousType, RowType}
+    fields::OrderedDict{Symbol, Union{ScalarType, RowType}}
+    group::Union{EmptyType, RowType}
 
     RowType(fields, group = EmptyType()) =
         new(fields, group)
 end
 
-const FieldTypeMap = OrderedDict{Symbol, Union{ScalarType, AmbiguousType, RowType}}
-const GroupType = Union{EmptyType, AmbiguousType, RowType}
+const FieldTypeMap = OrderedDict{Symbol, Union{ScalarType, RowType}}
+const GroupType = Union{EmptyType, RowType}
 
 RowType() =
     RowType(FieldTypeMap())
@@ -63,9 +57,6 @@ Base.intersect(::AbstractSQLType, ::AbstractSQLType) =
 Base.intersect(::ScalarType, ::ScalarType) =
     ScalarType()
 
-Base.intersect(::AmbiguousType, ::AmbiguousType) =
-    AmbiguousType()
-
 function Base.intersect(t1::RowType, t2::RowType)
     if t1 === t2
         return t1
@@ -83,10 +74,16 @@ function Base.intersect(t1::RowType, t2::RowType)
     RowType(fields, group)
 end
 
+
+# Type order.
+
 Base.issubset(::AbstractSQLType, ::AbstractSQLType) =
     false
 
-Base.issubset(::T, ::T) where {T <: AbstractSQLType} =
+Base.issubset(::EmptyType, ::AbstractSQLType) =
+    true
+
+Base.issubset(::ScalarType, ::ScalarType) =
     true
 
 function Base.issubset(t1::RowType, t2::RowType)
@@ -98,50 +95,8 @@ function Base.issubset(t1::RowType, t2::RowType)
             return false
         end
     end
+    if !issubset(t1.group, t2.group)
+        return false
+    end
     return true
-end
-
-# Type of `Join`.
-
-Base.union(::AbstractSQLType, ::AbstractSQLType) =
-    AmbiguousType()
-
-Base.union(::EmptyType, ::EmptyType) =
-    EmptyType()
-
-Base.union(::EmptyType, t::AbstractSQLType) =
-    t
-
-Base.union(t::AbstractSQLType, ::EmptyType) =
-    t
-
-Base.union(::ScalarType, ::ScalarType) =
-    ScalarType()
-
-function Base.union(t1::RowType, t2::RowType)
-    fields = FieldTypeMap()
-    for (f, t) in t1.fields
-        if f in keys(t2.fields)
-            t′ = t2.fields[f]
-            if t isa RowType && t′ isa RowType
-                t = union(t, t′)
-            else
-                t = AmbiguousType()
-            end
-        end
-        fields[f] = t
-    end
-    for (f, t) in t2.fields
-        if !(f in keys(t1.fields))
-            fields[f] = t
-        end
-    end
-    if t1.group isa EmptyType
-        group = t2.group
-    elseif t2.group isa EmptyType
-        group = t1.group
-    else
-        group = AmbiguousType()
-    end
-    RowType(fields, group)
 end
