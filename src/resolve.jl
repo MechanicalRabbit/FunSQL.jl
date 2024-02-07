@@ -406,6 +406,9 @@ function resolve(n::PartitionNode, ctx)
     Resolved(RowType(fields, group), over = n′)
 end
 
+resolve(n::ResolvedNode, ctx) =
+    n
+
 function resolve(n::SelectNode, ctx)
     over′ = resolve(n.over, ctx)
     t = row_type(over′)
