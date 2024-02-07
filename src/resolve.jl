@@ -118,9 +118,7 @@ function resolve_scalar(n::AggregateNode, ctx)
     end
     t = ctx.row_type.group
     if !(t isa RowType)
-        error_type =
-            t isa EmptyType ? REFERENCE_ERROR_TYPE.UNEXPECTED_AGGREGATE :
-            t isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_AGGREGATE : error()
+        error_type = REFERENCE_ERROR_TYPE.UNEXPECTED_AGGREGATE
         throw(ReferenceError(error_type, path = get_path(ctx)))
     end
     ctx′ = ResolveContext(ctx, row_type = t)
@@ -185,9 +183,9 @@ function resolve_scalar(n::BoundNode, ctx)
     t = get(ctx.row_type.fields, n.name, EmptyType())
     if !(t isa RowType)
         error_type =
-            t isa EmptyType ? REFERENCE_ERROR_TYPE.UNDEFINED_NAME :
-            t isa ScalarType ? REFERENCE_ERROR_TYPE.UNEXPECTED_SCALAR_TYPE :
-            t isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME : error()
+            t isa EmptyType ?
+                REFERENCE_ERROR_TYPE.UNDEFINED_NAME :
+                REFERENCE_ERROR_TYPE.UNEXPECTED_SCALAR_TYPE
         throw(ReferenceError(error_type, name = n.name, path = get_path(ctx)))
     end
     over′ = resolve_scalar(n.over, ctx, t)
@@ -291,9 +289,9 @@ function resolve_scalar(n::GetNode, ctx)
     t = get(ctx.row_type.fields, n.name, EmptyType())
     if !(t isa ScalarType)
         error_type =
-            t isa EmptyType ? REFERENCE_ERROR_TYPE.UNDEFINED_NAME :
-            t isa RowType ? REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE :
-            t isa AmbiguousType ? REFERENCE_ERROR_TYPE.AMBIGUOUS_NAME : error()
+            t isa EmptyType ?
+                REFERENCE_ERROR_TYPE.UNDEFINED_NAME :
+                REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE
         throw(ReferenceError(error_type, name = n.name, path = get_path(ctx)))
     end
     Resolved(t, over = n)
