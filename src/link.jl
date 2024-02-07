@@ -122,6 +122,11 @@ function dismantle(n::GroupNode, ctx)
     Group(over = over′, by = by′, name = n.name, label_map = n.label_map)
 end
 
+function dismantle(n::IntAutoDefineNode, ctx)
+    over′ = dismantle(n.over, ctx)
+    IntAutoDefine(over = over′)
+end
+
 function dismantle(n::IterateNode, ctx)
     over′ = dismantle(n.over, ctx)
     iterator′ = dismantle(n.iterator, ctx)
