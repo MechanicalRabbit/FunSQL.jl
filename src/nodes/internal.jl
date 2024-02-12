@@ -105,7 +105,7 @@ PrettyPrinting.quoteof(n::BoundNode, ctx::QuoteContext) =
     Expr(:call, nameof(Bound), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :name, QuoteNode(n.name)))
 
 # A generic From node is specialized to FromNothing, FromTable,
-# FromReference, FromSelf, FromValues, or FromFunction.
+# FromTableExpression, FromKnot, FromValues, or FromFunction.
 mutable struct FromNothingNode <: TabularNode
 end
 
@@ -133,21 +133,22 @@ function PrettyPrinting.quoteof(n::FromTableNode, ctx::QuoteContext)
     Expr(:call, nameof(FromTable), Expr(:kw, :table, tex))
 end
 
-mutable struct FromReferenceNode <: TabularNode
+mutable struct FromTableExpressionNode <: TabularNode
     name::Symbol
+    depth::Int
 
-    FromReferenceNode(; name) =
-        new(name)
+    FromTableExpressionNode(; name, depth) =
+        new(name, depth)
 end
 
-FromReferenceNode(name) =
-    FromReferenceNode(name = name)
+FromTableExpressionNode(name, depth) =
+    FromTableExpressionNode(name = name, depth = depth)
 
-FromReference(args...; kws...) =
-    FromReferenceNode(args...; kws...) |> SQLNode
+FromTableExpression(args...; kws...) =
+    FromTableExpressionNode(args...; kws...) |> SQLNode
 
-PrettyPrinting.quoteof(n::FromReferenceNode, ctx::QuoteContext) =
-    Expr(:call, nameof(FromReference), QuoteNode(n.name))
+PrettyPrinting.quoteof(n::FromTableExpressionNode, ctx::QuoteContext) =
+    Expr(:call, nameof(FromTableExpression), QuoteNode(n.name), n.depth)
 
 mutable struct FromKnotNode <: TabularNode
 end

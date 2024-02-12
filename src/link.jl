@@ -4,15 +4,19 @@ struct LinkContext
     dialect::SQLDialect
     defs::Vector{SQLNode}
     refs::Vector{SQLNode}
-    cte_refs::Dict{Symbol, Vector{SQLNode}}
+    cte_refs::Base.ImmutableDict{Tuple{Symbol, Int}, Vector{SQLNode}}
     knot_refs::Union{Vector{SQLNode}, Nothing}
 
     LinkContext(dialect) =
-        new(dialect, SQLNode[], SQLNode[], Dict{Symbol, Vector{SQLNode}}(), nothing)
+        new(dialect,
+            SQLNode[],
+            SQLNode[],
+            Base.ImmutableDict{Tuple{Symbol, Int}, Vector{SQLNode}}(),
+            nothing)
 
-    LinkContext(ctx::LinkContext; refs = missing, cte_refs = missing, knot_refs = missing) =
+    LinkContext(ctx::LinkContext; defs = missing, refs = missing, cte_refs = missing, knot_refs = missing) =
         new(ctx.dialect,
-            ctx.defs,
+            coalesce(defs, ctx.defs),
             coalesce(refs, ctx.refs),
             coalesce(cte_refs, ctx.cte_refs),
             coalesce(knot_refs, ctx.knot_refs))
@@ -108,7 +112,7 @@ function dismantle(n::FromFunctionNode, ctx)
     FromFunction(over = over′, columns = n.columns)
 end
 
-dismantle(n::Union{FromKnotNode, FromNothingNode, FromReferenceNode, FromTableNode, FromValuesNode}, ctx) =
+dismantle(n::Union{FromKnotNode, FromNothingNode, FromTableExpressionNode, FromTableNode, FromValuesNode}, ctx) =
     convert(SQLNode, n)
 
 function dismantle_scalar(n::FunctionNode, ctx)
@@ -269,8 +273,8 @@ function link(n::FromKnotNode, ctx)
     n
 end
 
-function link(n::FromReferenceNode, ctx)
-    refs = ctx.cte_refs[n.name]
+function link(n::FromTableExpressionNode, ctx)
+    refs = ctx.cte_refs[(n.name, n.depth)]
     for ref in ctx.refs
         push!(refs, Bound(over = ref, name = n.name))
     end
@@ -319,6 +323,8 @@ end
 
 function link(n::IterateNode, ctx)
     iterator′ = n.iterator
+    defs = copy(ctx.defs)
+    cte_refs = [(v, length(v)) for (k, v) in ctx.cte_refs]
     refs = SQLNode[]
     knot_refs = SQLNode[]
     repeat = true
@@ -326,7 +332,10 @@ function link(n::IterateNode, ctx)
         refs = copy(ctx.refs)
         append!(refs, knot_refs)
         knot_refs = SQLNode[]
-        iterator′ = link(n.iterator, LinkContext(ctx, refs = refs, knot_refs = knot_refs))
+        for (v, l) in cte_refs
+            resize!(v, l)
+        end
+        iterator′ = link(n.iterator, LinkContext(ctx, defs = defs, refs = refs, knot_refs = knot_refs))
         repeat = false
         seen = Set(refs)
         for ref in knot_refs
@@ -445,19 +454,31 @@ function link(n::WhereNode, ctx)
     Where(n.condition, over = over′)
 end
 
-function link(n::WithNode, ctx)
-    cte_refs = copy(ctx.cte_refs)
-    for name in keys(n.label_map)
-        cte_refs[name] = SQLNode[]
+function _cte_depth(dict, name)
+    for (n, d) in keys(dict)
+        if n === name
+            return d
+        end
     end
-    ctx′ = LinkContext(ctx, cte_refs = cte_refs)
+    0
+end
+
+function link(n::WithNode, ctx)
+    cte_refs′ = ctx.cte_refs
+    refs_map = Vector{SQLNode}[]
+    for name in keys(n.label_map)
+        depth = _cte_depth(ctx.cte_refs, name) + 1
+        refs = SQLNode[]
+        cte_refs′ = Base.ImmutableDict(cte_refs′, (name, depth) => refs)
+        push!(refs_map, refs)
+    end
+    ctx′ = LinkContext(ctx, cte_refs = cte_refs′)
     over′ = Linked(ctx′.refs, over = link(n.over, ctx′))
     args′ = SQLNode[]
     label_map′ = OrderedDict{Symbol, Int}()
     for (f, i) in n.label_map
         arg = n.args[i]
-        refs = cte_refs[f]
-        #FIXME: !isempty(refs) || continue
+        refs = refs_map[i]
         arg′ = Linked(refs, over = link(arg, ctx, refs))
         push!(args′, arg′)
         label_map′[f] = lastindex(args′)
@@ -466,17 +487,21 @@ function link(n::WithNode, ctx)
 end
 
 function link(n::WithExternalNode, ctx)
-    cte_refs = copy(ctx.cte_refs)
+    cte_refs′ = ctx.cte_refs
+    refs_map = Vector{SQLNode}[]
     for name in keys(n.label_map)
-        cte_refs[name] = SQLNode[]
+        depth = _cte_depth(ctx.cte_refs, name) + 1
+        refs = SQLNode[]
+        cte_refs′ = Base.ImmutableDict(cte_refs′, (name, depth) => refs)
+        push!(refs_map, refs)
     end
-    ctx′ = LinkContext(ctx, cte_refs = cte_refs)
+    ctx′ = LinkContext(ctx, cte_refs = cte_refs′)
     over′ = Linked(ctx′.refs, over = link(n.over, ctx′))
     args′ = SQLNode[]
     label_map′ = OrderedDict{Symbol, Int}()
     for (f, i) in n.label_map
         arg = n.args[i]
-        refs = cte_refs[f]
+        refs = refs_map[i]
         arg′ = Linked(refs, over = link(arg, ctx, refs))
         push!(args′, arg′)
         label_map′[f] = lastindex(args′)

@@ -5,7 +5,7 @@ struct ResolveContext
     tables::Dict{Symbol, SQLTable}
     path::Vector{SQLNode}
     row_type::RowType
-    cte_types::Dict{Symbol, RowType}
+    cte_types::Base.ImmutableDict{Symbol, Tuple{Int, RowType}}
     knot_type::Union{RowType, Nothing}
     implicit_knot::Bool
 
@@ -14,7 +14,7 @@ struct ResolveContext
             tables,
             SQLNode[],
             EMPTY_ROW,
-            Dict{Symbol, RowType}(),
+            Base.ImmutableDict{Symbol, Tuple{Int, RowType}}(),
             nothing,
             false)
 
@@ -228,9 +228,10 @@ function resolve(n::FromNode, ctx)
         n′ = FromTable(table = source)
         t = RowType(source)
     elseif source isa Symbol
-        t = get(ctx.cte_types, source, nothing)
-        if t !== nothing
-            n′ = FromReference(source)
+        v = get(ctx.cte_types, source, nothing)
+        if v !== nothing
+            (depth, t) = v
+            n′ = FromTableExpression(source, depth)
         else
             table = get(ctx.tables, source, nothing)
             if table === nothing
@@ -442,9 +443,10 @@ end
 function resolve(n::WithNode, ctx)
     ctx′ = ResolveContext(ctx, knot_type = nothing, implicit_knot = false)
     args′ = resolve(n.args, ctx′)
-    cte_types = copy(ctx.cte_types)
+    cte_types′ = ctx.cte_types
     for (name, i) in n.label_map
-        @assert !in(name, keys(cte_types)) "TODO: CTE shadowing"
+        v = get(ctx.cte_types, name, nothing)
+        depth = 1 + (v !== nothing ? v[1] : 0)
         t = row_type(args′[i])
         cte_t = get(t.fields, name, EmptyType())
         if !(cte_t isa RowType)
@@ -455,9 +457,9 @@ function resolve(n::WithNode, ctx)
                     path = get_path(ctx)))
 
         end
-        cte_types[name] = cte_t
+        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, cte_t))
     end
-    ctx′ = ResolveContext(ctx, cte_types = cte_types)
+    ctx′ = ResolveContext(ctx, cte_types = cte_types′)
     over′ = resolve(n.over, ctx′)
     n′ = With(over = over′, args = args′, materialized = n.materialized, label_map = n.label_map)
     Resolved(row_type(over′), over = n′)
@@ -466,8 +468,10 @@ end
 function resolve(n::WithExternalNode, ctx)
     ctx′ = ResolveContext(ctx, knot_type = nothing, implicit_knot = false)
     args′ = resolve(n.args, ctx′)
-    cte_types = copy(ctx.cte_types)
+    cte_types′ = ctx.cte_types
     for (name, i) in n.label_map
+        v = get(ctx.cte_types, name, nothing)
+        depth = 1 + (v !== nothing ? v[1] : 0)
         t = row_type(args′[i])
         cte_t = get(t.fields, name, EmptyType())
         if !(cte_t isa RowType)
@@ -478,9 +482,9 @@ function resolve(n::WithExternalNode, ctx)
                     path = get_path(ctx)))
 
         end
-        cte_types[name] = cte_t
+        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, cte_t))
     end
-    ctx′ = ResolveContext(ctx, cte_types = cte_types)
+    ctx′ = ResolveContext(ctx, cte_types = cte_types′)
     over′ = resolve(n.over, ctx′)
     n′ = WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
     Resolved(row_type(over′), over = n′)

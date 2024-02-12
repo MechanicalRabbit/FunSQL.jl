@@ -140,10 +140,10 @@ struct TranslateContext
     dialect::SQLDialect
     defs::Vector{SQLNode}
     aliases::Dict{Symbol, Int}
-    ctes::Vector{CTEAssemblage}
-    cte_map::Dict{Symbol, Int}
-    knot::Ref{Int}
     recursive::Ref{Bool}
+    ctes::Vector{CTEAssemblage}
+    cte_map::Base.ImmutableDict{Tuple{Symbol, Int}, Int}
+    knot::Int
     refs::Vector{SQLNode}
     vars::Dict{Symbol, SQLClause}
     subs::Dict{SQLNode, SQLClause}
@@ -152,22 +152,22 @@ struct TranslateContext
         new(dialect,
             defs,
             Dict{Symbol, Int}(),
-            CTEAssemblage[],
-            Dict{Symbol, Int}(),
-            Ref(0),
             Ref(false),
+            CTEAssemblage[],
+            Base.ImmutableDict{Tuple{Symbol, Int}, Int}(),
+            0,
             SQLNode[],
             Dict{Symbol, SQLClause}(),
             Dict{Int, SQLClause}())
 
-    function TranslateContext(ctx::TranslateContext; refs = missing, vars = missing, subs = missing)
+    function TranslateContext(ctx::TranslateContext; cte_map = missing, knot = missing, refs = missing, vars = missing, subs = missing)
         new(ctx.dialect,
             ctx.defs,
             ctx.aliases,
-            ctx.ctes,
-            ctx.cte_map,
-            ctx.knot,
             ctx.recursive,
+            ctx.ctes,
+            coalesce(cte_map, ctx.cte_map),
+            coalesce(knot, ctx.knot),
             coalesce(refs, ctx.refs),
             coalesce(vars, ctx.vars),
             coalesce(subs, ctx.subs))
@@ -471,7 +471,7 @@ function assemble(n::FromFunctionNode, ctx)
 end
 
 function assemble(n::FromKnotNode, ctx)
-    cte_a = ctx.ctes[ctx.knot[]]
+    cte_a = ctx.ctes[ctx.knot]
     name = cte_a.a.name
     alias = allocate_alias(ctx, name)
     tbl = ID(cte_a.qualifiers, cte_a.name)
@@ -497,8 +497,8 @@ function unwrap_repl(a::Assemblage)
     Assemblage(a.name, a.clause, cols = a.cols, repl = repl′)
 end
 
-function assemble(n::FromReferenceNode, ctx)
-    cte_a = ctx.ctes[ctx.cte_map[n.name]]
+function assemble(n::FromTableExpressionNode, ctx)
+    cte_a = ctx.ctes[ctx.cte_map[(n.name, n.depth)]]
     alias = allocate_alias(ctx, n.name)
     tbl = ID(cte_a.qualifiers, cte_a.name)
     c = FROM(AS(over = tbl, name = alias))
@@ -719,7 +719,8 @@ function assemble(n::IterateNode, ctx)
     union_alias = allocate_alias(ctx, temp_union)
     cte = CTEAssemblage(temp_union, name = union_alias)
     push!(ctx.ctes, cte)
-    knot = ctx.knot[] = lastindex(ctx.ctes)
+    knot = lastindex(ctx.ctes)
+    ctx = TranslateContext(ctx, knot = knot)
     right = assemble(n.iterator, ctx)
     urefs = SQLNode[]
     for ref in ctx.refs
@@ -941,18 +942,21 @@ function assemble(n::WhereNode, ctx)
 end
 
 function assemble(n::WithNode, ctx)
+    cte_map′ = ctx.cte_map
     ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
     for (name, i) in n.label_map
         a = assemble(n.args[i], ctx)
         alias = allocate_alias(ctx, a)
         cte = CTEAssemblage(a, name = alias, materialized = n.materialized)
         push!(ctx.ctes, cte)
-        ctx.cte_map[name] = lastindex(ctx.ctes)
+        depth = _cte_depth(ctx.cte_map, name) + 1
+        cte_map′ = Base.ImmutableDict(cte_map′, (name, depth) => lastindex(ctx.ctes))
     end
-    assemble(n.over, ctx)
+    assemble(n.over, TranslateContext(ctx, cte_map = cte_map′))
 end
 
 function assemble(n::WithExternalNode, ctx)
+    cte_map′ = ctx.cte_map
     ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
     for (name, i) in n.label_map
         a = assemble(n.args[i], ctx)
@@ -967,7 +971,8 @@ function assemble(n::WithExternalNode, ctx)
         end
         cte = CTEAssemblage(a, name = table.name, qualifiers = table.qualifiers, external = true)
         push!(ctx.ctes, cte)
-        ctx.cte_map[name] = lastindex(ctx.ctes)
+        depth = _cte_depth(ctx.cte_map, name) + 1
+        cte_map′ = Base.ImmutableDict(cte_map′, (name, depth) => lastindex(ctx.ctes))
     end
-    assemble(n.over, ctx)
+    assemble(n.over, TranslateContext(ctx, cte_map = cte_map′))
 end
