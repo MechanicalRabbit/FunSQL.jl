@@ -14,9 +14,9 @@ struct LinkContext
             Base.ImmutableDict{Tuple{Symbol, Int}, Vector{SQLNode}}(),
             nothing)
 
-    LinkContext(ctx::LinkContext; defs = missing, refs = missing, cte_refs = missing, knot_refs = missing) =
+    LinkContext(ctx::LinkContext; refs = missing, cte_refs = missing, knot_refs = missing) =
         new(ctx.dialect,
-            coalesce(defs, ctx.defs),
+            ctx.defs,
             coalesce(refs, ctx.refs),
             coalesce(cte_refs, ctx.cte_refs),
             coalesce(knot_refs, ctx.knot_refs))
@@ -335,12 +335,13 @@ function link(n::IterateNode, ctx)
         for (v, l) in cte_refs
             resize!(v, l)
         end
-        iterator′ = link(n.iterator, LinkContext(ctx, defs = defs, refs = refs, knot_refs = knot_refs))
+        iterator′ = link(n.iterator, LinkContext(ctx, refs = refs, knot_refs = knot_refs))
         repeat = false
         seen = Set(refs)
         for ref in knot_refs
             if !in(ref, seen)
                 repeat = true
+                ctx.defs .= defs
                 break
             end
         end
