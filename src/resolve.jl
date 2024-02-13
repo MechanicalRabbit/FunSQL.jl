@@ -20,17 +20,17 @@ struct ResolveContext
 
     ResolveContext(
             ctx::ResolveContext;
-            row_type = missing,
-            cte_types = missing,
-            knot_type = missing,
-            implicit_knot = missing) =
+            row_type = ctx.row_type,
+            cte_types = ctx.cte_types,
+            knot_type = ctx.knot_type,
+            implicit_knot = ctx.implicit_knot) =
         new(ctx.dialect,
             ctx.tables,
             ctx.path,
-            coalesce(row_type, ctx.row_type),
-            coalesce(cte_types, ctx.cte_types),
-            coalesce(knot_type, ctx.knot_type),
-            coalesce(implicit_knot, ctx.implicit_knot))
+            row_type,
+            cte_types,
+            knot_type,
+            implicit_knot)
 end
 
 get_path(ctx::ResolveContext) =
@@ -100,9 +100,9 @@ function resolve_scalar(n::TabularNode, ctx)
     Resolved(ScalarType(), over = n′)
 end
 
-function rebind(node, base, ctx)
+function unnest(node, base, ctx)
     while @dissect(node, over |> Get(name = name))
-        base = Bound(over = base, name = name)
+        base = Nested(over = base, name = name)
         node = over
     end
     if node !== nothing
@@ -113,7 +113,7 @@ end
 
 function resolve_scalar(n::AggregateNode, ctx)
     if n.over !== nothing
-        n′ = rebind(n.over, Agg(name = n.name, args = n.args, filter = n.filter), ctx)
+        n′ = unnest(n.over, Agg(name = n.name, args = n.args, filter = n.filter), ctx)
         return resolve_scalar(n′, ctx)
     end
     t = ctx.row_type.group
@@ -179,7 +179,7 @@ function resolve_scalar(n::BindNode, ctx)
     Resolved(type(over′), over = n′)
 end
 
-function resolve_scalar(n::BoundNode, ctx)
+function resolve_scalar(n::NestedNode, ctx)
     t = get(ctx.row_type.fields, n.name, EmptyType())
     if !(t isa RowType)
         error_type =
@@ -189,7 +189,7 @@ function resolve_scalar(n::BoundNode, ctx)
         throw(ReferenceError(error_type, name = n.name, path = get_path(ctx)))
     end
     over′ = resolve_scalar(n.over, ctx, t)
-    n′ = BoundNode(over = over′, name = n.name)
+    n′ = NestedNode(over = over′, name = n.name)
     Resolved(type(over′), over = n′)
 end
 
@@ -284,7 +284,7 @@ end
 
 function resolve_scalar(n::GetNode, ctx)
     if n.over !== nothing
-        n′ = rebind(n.over, Get(name = n.name), ctx)
+        n′ = unnest(n.over, Get(name = n.name), ctx)
         return resolve_scalar(n′, ctx)
     end
     t = get(ctx.row_type.fields, n.name, EmptyType())
