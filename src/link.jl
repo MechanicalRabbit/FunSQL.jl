@@ -14,12 +14,12 @@ struct LinkContext
             Base.ImmutableDict{Tuple{Symbol, Int}, Vector{SQLNode}}(),
             nothing)
 
-    LinkContext(ctx::LinkContext; refs = missing, cte_refs = missing, knot_refs = missing) =
+    LinkContext(ctx::LinkContext; refs = ctx.refs, cte_refs = ctx.cte_refs, knot_refs = ctx.knot_refs) =
         new(ctx.dialect,
             ctx.defs,
-            coalesce(refs, ctx.refs),
-            coalesce(cte_refs, ctx.cte_refs),
-            coalesce(knot_refs, ctx.knot_refs))
+            refs,
+            cte_refs,
+            knot_refs)
 end
 
 function link(n::SQLNode)
@@ -93,9 +93,9 @@ function dismantle_scalar(n::BindNode, ctx)
     BindNode(over = over′, args = args′, label_map = n.label_map)
 end
 
-function dismantle_scalar(n::BoundNode, ctx)
+function dismantle_scalar(n::NestedNode, ctx)
     over′ = dismantle_scalar(n.over, ctx)
-    BoundNode(over = over′, name = n.name)
+    NestedNode(over = over′, name = n.name)
 end
 
 function dismantle(n::DefineNode, ctx)
@@ -219,7 +219,7 @@ end
 function link(n::AsNode, ctx)
     refs = SQLNode[]
     for ref in ctx.refs
-        if @dissect(ref, over |> Bound(name = name))
+        if @dissect(ref, over |> Nested(name = name))
             @assert name == n.name
             push!(refs, over)
         else
@@ -276,13 +276,13 @@ end
 function link(n::FromTableExpressionNode, ctx)
     refs = ctx.cte_refs[(n.name, n.depth)]
     for ref in ctx.refs
-        push!(refs, Bound(over = ref, name = n.name))
+        push!(refs, Nested(over = ref, name = n.name))
     end
     n
 end
 
 function link(n::GroupNode, ctx)
-    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Bound()), ctx.refs)
+    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Nested()), ctx.refs)
     if !has_aggregates && isempty(n.by)
         return link(FromNothing(), ctx)
     end
@@ -294,7 +294,7 @@ function link(n::GroupNode, ctx)
     if has_aggregates
         ctx′ = LinkContext(ctx, refs = refs)
         for ref in ctx.refs
-            if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> Bound(name = name)) && name === n.name) ||
+            if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> Nested(name = name)) && name === n.name) ||
                (@dissect(ref, nothing |> Agg(args = args, filter = filter)) && n.name === nothing)
                 gather!(args, ctx′)
                 if filter !== nothing
@@ -353,7 +353,7 @@ function link(n::IterateNode, ctx)
 end
 
 function route(r::JoinRouter, ref::SQLNode)
-    if @dissect(ref, over |> Bound(name = name)) && name in r.label_set
+    if @dissect(ref, over |> Nested(name = name)) && name in r.label_set
         return 1
     end
     if @dissect(ref, Get(name = name)) && name in r.label_set
@@ -418,7 +418,7 @@ function link(n::PartitionNode, ctx)
     ctx′ = LinkContext(ctx, refs = imm_refs)
     has_aggregates = false
     for ref in ctx.refs
-        if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> Bound(name = name)) && name === n.name) ||
+        if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> Nested(name = name)) && name === n.name) ||
             (@dissect(ref, nothing |> Agg(args = args, filter = filter)) && n.name === nothing)
             gather!(args, ctx′)
             if filter !== nothing
@@ -526,7 +526,7 @@ gather!(n::AbstractSQLNode, ctx) =
 gather!(n, ctx, refs) =
     gather!(n, LinkContext(ctx, refs = refs))
 
-function gather!(n::Union{AggregateNode, GetNode, BoundNode}, ctx)
+function gather!(n::Union{AggregateNode, GetNode, NestedNode}, ctx)
     push!(ctx.refs, n)
     nothing
 end

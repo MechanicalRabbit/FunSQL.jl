@@ -160,17 +160,17 @@ struct TranslateContext
             Dict{Symbol, SQLClause}(),
             Dict{Int, SQLClause}())
 
-    function TranslateContext(ctx::TranslateContext; cte_map = missing, knot = missing, refs = missing, vars = missing, subs = missing)
+    function TranslateContext(ctx::TranslateContext; cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs)
         new(ctx.dialect,
             ctx.defs,
             ctx.aliases,
             ctx.recursive,
             ctx.ctes,
-            coalesce(cte_map, ctx.cte_map),
-            coalesce(knot, ctx.knot),
-            coalesce(refs, ctx.refs),
-            coalesce(vars, ctx.vars),
-            coalesce(subs, ctx.subs))
+            cte_map,
+            knot,
+            refs,
+            vars,
+            subs)
     end
 end
 
@@ -390,7 +390,7 @@ end
 function assemble(n::AsNode, ctx)
     refs′ = SQLNode[]
     for ref in ctx.refs
-        if @dissect(ref, over |> Bound())
+        if @dissect(ref, over |> Nested())
             push!(refs′, over)
         else
             push!(refs′, ref)
@@ -399,7 +399,7 @@ function assemble(n::AsNode, ctx)
     base = assemble(n.over, TranslateContext(ctx, refs = refs′))
     repl′ = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, over |> Bound())
+        if @dissect(ref, over |> Nested())
             repl′[ref] = base.repl[over]
         else
             repl′[ref] = base.repl[ref]
@@ -491,7 +491,7 @@ assemble(::FromNothingNode, ctx) =
 function unwrap_repl(a::Assemblage)
     repl′ = Dict{SQLNode, Symbol}()
     for (ref, name) in a.repl
-        @dissect(ref, over |> Bound()) || error()
+        @dissect(ref, over |> Nested()) || error()
         repl′[over] = name
     end
     Assemblage(a.name, a.clause, cols = a.cols, repl = repl′)
@@ -592,7 +592,7 @@ function assemble(n::FromValuesNode, ctx)
 end
 
 function assemble(n::GroupNode, ctx)
-    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Bound()), ctx.refs)
+    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Nested()), ctx.refs)
     if isempty(n.by) && !has_aggregates
         return assemble(nothing, ctx)
     end
@@ -612,7 +612,7 @@ function assemble(n::GroupNode, ctx)
             push!(trns, ref => by[n.label_map[name]])
         elseif @dissect(ref, nothing |> Agg())
             push!(trns, ref => translate(ref, ctx, subs))
-        elseif @dissect(ref, (over := nothing |> Agg()) |> Bound())
+        elseif @dissect(ref, (over := nothing |> Agg()) |> Nested())
             push!(trns, ref => translate(over, ctx, subs))
         end
     end
@@ -852,7 +852,7 @@ function assemble(n::PartitionNode, ctx)
         if @dissect(ref, nothing |> Agg()) && n.name === nothing
             push!(trns, ref => partition |> translate(ref, ctx′))
             has_aggregates = true
-        elseif @dissect(ref, (over := nothing |> Agg()) |> Bound(name = name)) && name === n.name
+        elseif @dissect(ref, (over := nothing |> Agg()) |> Nested(name = name)) && name === n.name
             push!(trns, ref => partition |> translate(over, ctx′))
             has_aggregates = true
         else

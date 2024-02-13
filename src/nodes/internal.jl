@@ -86,23 +86,23 @@ function PrettyPrinting.quoteof(n::LinkedNode, ctx::QuoteContext)
     ex
 end
 
-# Get(over = Get(:a), name = :b) => Bound(over = Get(:b), name = :a)
-mutable struct BoundNode <: AbstractSQLNode
+# Get(over = Get(:a), name = :b) => Nested(over = Get(:b), name = :a)
+mutable struct NestedNode <: AbstractSQLNode
     over::SQLNode
     name::Symbol
 
-    BoundNode(; over, name) =
+    NestedNode(; over, name) =
         new(over, name)
 end
 
-Bound(args...; kws...) =
-    BoundNode(args...; kws...) |> SQLNode
+Nested(args...; kws...) =
+    NestedNode(args...; kws...) |> SQLNode
 
-dissect(scr::Symbol, ::typeof(Bound), pats::Vector{Any}) =
-    dissect(scr, BoundNode, pats)
+dissect(scr::Symbol, ::typeof(Nested), pats::Vector{Any}) =
+    dissect(scr, NestedNode, pats)
 
-PrettyPrinting.quoteof(n::BoundNode, ctx::QuoteContext) =
-    Expr(:call, nameof(Bound), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :name, QuoteNode(n.name)))
+PrettyPrinting.quoteof(n::NestedNode, ctx::QuoteContext) =
+    Expr(:call, nameof(Nested), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :name, QuoteNode(n.name)))
 
 # A generic From node is specialized to FromNothing, FromTable,
 # FromTableExpression, FromKnot, FromValues, or FromFunction.

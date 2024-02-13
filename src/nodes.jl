@@ -460,8 +460,8 @@ struct TransliterateContext
     TransliterateContext(mod::Module, src::LineNumberNode, decl::Bool = false) =
         new(mod, src, decl)
 
-    TransliterateContext(ctx::TransliterateContext; src = missing, decl = missing) =
-        new(ctx.mod, coalesce(src, ctx.src), coalesce(decl, ctx.decl))
+    TransliterateContext(ctx::TransliterateContext; src = ctx.src, decl = ctx.decl) =
+        new(ctx.mod, src, decl)
 end
 
 """
