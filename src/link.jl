@@ -93,19 +93,14 @@ function dismantle_scalar(n::BindNode, ctx)
     BindNode(over = over′, args = args′, label_map = n.label_map)
 end
 
-function dismantle_scalar(n::NestedNode, ctx)
-    over′ = dismantle_scalar(n.over, ctx)
-    NestedNode(over = over′, name = n.name)
-end
+dismantle_scalar(n::Union{BoundVariableNode, GetNode, LiteralNode, VariableNode}, ctx) =
+    convert(SQLNode, n)
 
 function dismantle(n::DefineNode, ctx)
     over′ = dismantle(n.over, ctx)
     args′ = dismantle_scalar(n.args, ctx)
     Define(over = over′, args = args′, label_map = n.label_map)
 end
-
-dismantle_scalar(n::Union{GetNode, LiteralNode, VariableNode}, ctx) =
-    convert(SQLNode, n)
 
 function dismantle(n::FromFunctionNode, ctx)
     over′ = dismantle_scalar(n.over, ctx)
@@ -149,6 +144,11 @@ end
 function dismantle(n::LimitNode, ctx)
     over′ = dismantle(n.over, ctx)
     Limit(over = over′, offset = n.offset, limit = n.limit)
+end
+
+function dismantle_scalar(n::NestedNode, ctx)
+    over′ = dismantle_scalar(n.over, ctx)
+    NestedNode(over = over′, name = n.name)
 end
 
 function dismantle(n::OrderNode, ctx)
