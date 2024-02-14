@@ -121,11 +121,6 @@ function dismantle(n::GroupNode, ctx)
     Group(over = over′, by = by′, name = n.name, label_map = n.label_map)
 end
 
-function dismantle(n::IntAutoDefineNode, ctx)
-    over′ = dismantle(n.over, ctx)
-    IntAutoDefine(over = over′)
-end
-
 function dismantle(n::IterateNode, ctx)
     over′ = dismantle(n.over, ctx)
     iterator′ = dismantle(n.iterator, ctx)
@@ -155,6 +150,11 @@ function dismantle(n::OrderNode, ctx)
     over′ = dismantle(n.over, ctx)
     by′ = dismantle_scalar(n.by, ctx)
     Order(over = over′, by = by′)
+end
+
+function dismantle(n::PaddingNode, ctx)
+    over′ = dismantle(n.over, ctx)
+    Padding(over = over′)
 end
 
 function dismantle(n::PartitionNode, ctx)
@@ -308,17 +308,10 @@ function link(n::GroupNode, ctx)
     end
     over = n.over
     if !isempty(n.by)
-        over = IntAutoDefine(over = over)
+        over = Padding(over = over)
     end
     over′ = Linked(refs, 0, over = link(over, ctx, refs))
     Group(over = over′, by = n.by, name = n.name, label_map = n.label_map)
-end
-
-function link(n::IntAutoDefineNode, ctx)
-    refs = SQLNode[]
-    gather!(ctx.refs, ctx, refs)
-    over′ = Linked(refs, 0, over = link(n.over, ctx, refs))
-    IntAutoDefine(over = over′)
 end
 
 function link(n::IterateNode, ctx)
@@ -349,7 +342,7 @@ function link(n::IterateNode, ctx)
     iterator′ = Linked(refs, over = iterator′)
     over′ = Linked(refs, over = link(n.over, ctx, refs))
     n′ = Linked(refs, over = Iterate(over = over′, iterator = iterator′))
-    IntAutoDefine(over = n′)
+    Padding(over = n′)
 end
 
 function route(r::JoinRouter, ref::SQLNode)
@@ -410,6 +403,13 @@ function link(n::OrderNode, ctx)
     gather!(n.by, ctx, refs)
     over′ = Linked(refs, n_ext_refs, over = link(n.over, ctx, refs))
     Order(over = over′, by = n.by)
+end
+
+function link(n::PaddingNode, ctx)
+    refs = SQLNode[]
+    gather!(ctx.refs, ctx, refs)
+    over′ = Linked(refs, 0, over = link(n.over, ctx, refs))
+    Padding(over = over′)
 end
 
 function link(n::PartitionNode, ctx)
