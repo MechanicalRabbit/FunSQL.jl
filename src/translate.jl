@@ -635,28 +635,6 @@ function assemble(n::GroupNode, ctx)
     return Assemblage(base.name, c, cols = cols, repl = repl)
 end
 
-function assemble(n::IntAutoDefineNode, ctx)
-    base = assemble(n.over, ctx)
-    if isempty(ctx.refs)
-        return base
-    end
-    if !@dissect(base.clause, SELECT() || UNION())
-        base_alias = nothing
-        c = base.clause
-    else
-        base_alias = allocate_alias(ctx, base)
-        c = FROM(AS(over = complete(base), name = base_alias))
-    end
-    subs = make_subs(base, base_alias)
-    repl = Dict{SQLNode, Symbol}()
-    trns = Pair{SQLNode, SQLClause}[]
-    for ref in ctx.refs
-        push!(trns, ref => translate(ref, ctx, subs))
-    end
-    repl, cols = make_repl_cols(trns)
-    Assemblage(base.name, c, cols = cols, repl = repl)
-end
-
 function assemble(n::IntJoinNode, ctx)
     left = assemble(n.over, ctx)
     if @dissect(left.clause, tail := FROM() || JOIN())
@@ -829,6 +807,28 @@ function assemble(n::OrderNode, ctx)
     trns = Pair{SQLNode, SQLClause}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
+    end
+    repl, cols = make_repl_cols(trns)
+    Assemblage(base.name, c, cols = cols, repl = repl)
+end
+
+function assemble(n::PaddingNode, ctx)
+    base = assemble(n.over, ctx)
+    if isempty(ctx.refs)
+        return base
+    end
+    if !@dissect(base.clause, SELECT() || UNION())
+        base_alias = nothing
+        c = base.clause
+    else
+        base_alias = allocate_alias(ctx, base)
+        c = FROM(AS(over = complete(base), name = base_alias))
+    end
+    subs = make_subs(base, base_alias)
+    repl = Dict{SQLNode, Symbol}()
+    trns = Pair{SQLNode, SQLClause}[]
+    for ref in ctx.refs
+        push!(trns, ref => translate(ref, ctx, subs))
     end
     repl, cols = make_repl_cols(trns)
     Assemblage(base.name, c, cols = cols, repl = repl)

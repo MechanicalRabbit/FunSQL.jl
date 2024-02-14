@@ -263,19 +263,19 @@ function PrettyPrinting.quoteof(n::IntJoinNode, ctx::QuoteContext)
     ex
 end
 
-# Calculates the keys of a Group node.
-mutable struct IntAutoDefineNode <: TabularNode
+# Calculates the keys of a Group node.  Also used by Iterate.
+mutable struct PaddingNode <: TabularNode
     over::Union{SQLNode, Nothing}
 
-    IntAutoDefineNode(; over = nothing) =
+    PaddingNode(; over = nothing) =
         new(over)
 end
 
-IntAutoDefine(args...; kws...) =
-    IntAutoDefineNode(args...; kws...) |> SQLNode
+Padding(args...; kws...) =
+    PaddingNode(args...; kws...) |> SQLNode
 
-function PrettyPrinting.quoteof(n::IntAutoDefineNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(IntAutoDefine))
+function PrettyPrinting.quoteof(n::PaddingNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(Padding))
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
