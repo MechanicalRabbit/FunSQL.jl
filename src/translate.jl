@@ -145,7 +145,7 @@ struct TranslateContext
     cte_map::Base.ImmutableDict{Tuple{Symbol, Int}, Int}
     knot::Int
     refs::Vector{SQLNode}
-    vars::Dict{Symbol, SQLClause}
+    vars::Base.ImmutableDict{Tuple{Symbol, Int}, SQLClause}
     subs::Dict{SQLNode, SQLClause}
 
     TranslateContext(; dialect, defs) =
@@ -157,7 +157,7 @@ struct TranslateContext
             Base.ImmutableDict{Tuple{Symbol, Int}, Int}(),
             0,
             SQLNode[],
-            Dict{Symbol, SQLClause}(),
+            Base.ImmutableDict{Tuple{Symbol, Int}, SQLClause}(),
             Dict{Int, SQLClause}())
 
     function TranslateContext(ctx::TranslateContext; cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs)
@@ -239,12 +239,17 @@ function translate(n::AsNode, ctx)
 end
 
 function translate(n::BindNode, ctx)
-    vars′ = copy(ctx.vars)
+    vars′ = ctx.vars
     for (name, i) in n.label_map
-        vars′[name] = translate(n.args[i], ctx)
+        depth = _cte_depth(ctx.vars, name) + 1
+        vars′ = Base.ImmutableDict(vars′, (name, depth) => translate(n.args[i], ctx))
     end
     ctx′ = TranslateContext(ctx, vars = vars′)
     translate(n.over, ctx′)
+end
+
+function translate(n::BoundVariableNode, ctx)
+    ctx.vars[(n.name, n.depth)]
 end
 
 function translate(n::LinkedNode, ctx)
@@ -311,11 +316,7 @@ translate(n::SortNode, ctx) =
     SORT(over = translate(n.over, ctx), value = n.value, nulls = n.nulls)
 
 function translate(n::VariableNode, ctx)
-    c = get(ctx.vars, n.name, nothing)
-    if c === nothing
-        c = VAR(n.name)
-    end
-    c
+    VAR(n.name)
 end
 
 function assemble(n::SQLNode, ctx)
@@ -409,9 +410,10 @@ function assemble(n::AsNode, ctx)
 end
 
 function assemble(n::BindNode, ctx)
-    vars′ = copy(ctx.vars)
+    vars′ = ctx.vars
     for (name, i) in n.label_map
-        vars′[name] = translate(n.args[i], ctx)
+        depth = _cte_depth(ctx.vars, name) + 1
+        vars′ = Base.ImmutableDict(vars′, (name, depth) => translate(n.args[i], ctx))
     end
     ctx′ = TranslateContext(ctx, vars = vars′)
     assemble(n.over, ctx′)
@@ -700,7 +702,7 @@ function assemble(n::IntJoinNode, ctx)
 end
 
 function assemble(n::IterateNode, ctx)
-    ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
+    ctx′ = TranslateContext(ctx, vars = Base.ImmutableDict{Tuple{Symbol, Int}, SQLClause}())
     left = assemble(n.over, ctx)
     repl = Dict{SQLNode, Symbol}()
     dups = Dict{SQLNode, SQLNode}()
@@ -943,7 +945,8 @@ end
 
 function assemble(n::WithNode, ctx)
     cte_map′ = ctx.cte_map
-    ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
+    # FIXME: variable pushed into a CTE
+    ctx′ = TranslateContext(ctx, vars = Base.ImmutableDict{Tuple{Symbol, Int}, SQLClause}())
     for (name, i) in n.label_map
         a = assemble(n.args[i], ctx)
         alias = allocate_alias(ctx, a)
@@ -957,7 +960,7 @@ end
 
 function assemble(n::WithExternalNode, ctx)
     cte_map′ = ctx.cte_map
-    ctx′ = TranslateContext(ctx, vars = Dict{Symbol, SQLClause}())
+    ctx′ = TranslateContext(ctx, vars = Base.ImmutableDict{Tuple{Symbol, Int}, SQLClause}())
     for (name, i) in n.label_map
         a = assemble(n.args[i], ctx)
         table_name = a.name

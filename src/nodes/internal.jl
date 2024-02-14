@@ -104,6 +104,24 @@ dissect(scr::Symbol, ::typeof(Nested), pats::Vector{Any}) =
 PrettyPrinting.quoteof(n::NestedNode, ctx::QuoteContext) =
     Expr(:call, nameof(Nested), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :name, QuoteNode(n.name)))
 
+# Var() that has the corresponding Bind()
+mutable struct BoundVariableNode <: AbstractSQLNode
+    name::Symbol
+    depth::Int
+
+    BoundVariableNode(; name, depth) =
+        new(name, depth)
+end
+
+BoundVariableNode(name, depth) =
+    BoundVariableNode(name = name, depth = depth)
+
+BoundVariable(args...; kws...) =
+    BoundVariableNode(args...; kws...) |> SQLNode
+
+PrettyPrinting.quoteof(n::BoundVariableNode, ctx::QuoteContext) =
+    Expr(:call, nameof(BoundVariable), QuoteNode(n.name), n.depth)
+
 # A generic From node is specialized to FromNothing, FromTable,
 # FromTableExpression, FromKnot, FromValues, or FromFunction.
 mutable struct FromNothingNode <: TabularNode

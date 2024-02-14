@@ -6,6 +6,7 @@ struct ResolveContext
     path::Vector{SQLNode}
     row_type::RowType
     cte_types::Base.ImmutableDict{Symbol, Tuple{Int, RowType}}
+    var_types::Base.ImmutableDict{Symbol, Tuple{Int, ScalarType}}
     knot_type::Union{RowType, Nothing}
     implicit_knot::Bool
 
@@ -15,6 +16,7 @@ struct ResolveContext
             SQLNode[],
             EMPTY_ROW,
             Base.ImmutableDict{Symbol, Tuple{Int, RowType}}(),
+            Base.ImmutableDict{Symbol, Tuple{Int, ScalarType}}(),
             nothing,
             false)
 
@@ -22,6 +24,7 @@ struct ResolveContext
             ctx::ResolveContext;
             row_type = ctx.row_type,
             cte_types = ctx.cte_types,
+            var_types = ctx.var_types,
             knot_type = ctx.knot_type,
             implicit_knot = ctx.implicit_knot) =
         new(ctx.dialect,
@@ -29,6 +32,7 @@ struct ResolveContext
             ctx.path,
             row_type,
             cte_types,
+            var_types,
             knot_type,
             implicit_knot)
 end
@@ -167,14 +171,44 @@ end
 
 function resolve(n::BindNode, ctx)
     args′ = resolve_scalar(n.args, ctx)
-    over′ = resolve(n.over, ctx)
+    var_types′ = ctx.var_types
+    for (name, i) in n.label_map
+        v = get(ctx.var_types, name, nothing)
+        depth = 1 + (v !== nothing ? v[1] : 0)
+        t = type(args′[i])
+        if !(t isa ScalarType)
+            throw(
+                ReferenceError(
+                    REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE,
+                    name = name,
+                    path = get_path(ctx)))
+
+        end
+        var_types′ = Base.ImmutableDict(var_types′, name => (depth, t))
+    end
+    over′ = resolve(n.over, ResolveContext(ctx, var_types = var_types′))
     n′ = Bind(over = over′, args = args′, label_map = n.label_map)
     Resolved(row_type(over′), over = n′)
 end
 
 function resolve_scalar(n::BindNode, ctx)
     args′ = resolve_scalar(n.args, ctx)
-    over′ = resolve_scalar(n.over, ctx)
+    var_types′ = ctx.var_types
+    for (name, i) in n.label_map
+        v = get(ctx.var_types, name, nothing)
+        depth = 1 + (v !== nothing ? v[1] : 0)
+        t = type(args′[i])
+        if !(t isa ScalarType)
+            throw(
+                ReferenceError(
+                    REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE,
+                    name = name,
+                    path = get_path(ctx)))
+
+        end
+        var_types′ = Base.ImmutableDict(var_types′, name => (depth, t))
+    end
+    over′ = resolve_scalar(n.over, ResolveContext(ctx, var_types = var_types′))
     n′ = Bind(over = over′, args = args′, label_map = n.label_map)
     Resolved(type(over′), over = n′)
 end
@@ -429,7 +463,14 @@ function resolve_scalar(n::SortNode, ctx)
 end
 
 function resolve_scalar(n::VariableNode, ctx)
-    Resolved(ScalarType(), over = n)
+    v = get(ctx.var_types, n.name, nothing)
+    if v !== nothing
+        depth, t = v
+        n′ = BoundVariable(n.name, depth)
+        Resolved(t, over = n′)
+    else
+        Resolved(ScalarType(), over = n)
+    end
 end
 
 function resolve(n::WhereNode, ctx)
