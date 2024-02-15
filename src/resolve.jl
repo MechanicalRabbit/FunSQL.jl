@@ -45,6 +45,11 @@ function row_type(n::SQLNode)
     type
 end
 
+function scalar_type(n::SQLNode)
+    @dissect(n, Resolved(type = type::ScalarType)) || throw(IllFormedError())
+    type
+end
+
 function type(n::SQLNode)
     @dissect(n, Resolved(type = t)) || throw(IllFormedError())
     t
@@ -169,49 +174,23 @@ function resolve_scalar(n::AsNode, ctx)
     Resolved(type(over′), over = n′)
 end
 
-function resolve(n::BindNode, ctx)
+function resolve(n::BindNode, ctx, scalar = false)
     args′ = resolve_scalar(n.args, ctx)
     var_types′ = ctx.var_types
     for (name, i) in n.label_map
         v = get(ctx.var_types, name, nothing)
         depth = 1 + (v !== nothing ? v[1] : 0)
-        t = type(args′[i])
-        if !(t isa ScalarType)
-            throw(
-                ReferenceError(
-                    REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE,
-                    name = name,
-                    path = get_path(ctx)))
-
-        end
+        t = scalar_type(args′[i])
         var_types′ = Base.ImmutableDict(var_types′, name => (depth, t))
     end
-    over′ = resolve(n.over, ResolveContext(ctx, var_types = var_types′))
-    n′ = Bind(over = over′, args = args′, label_map = n.label_map)
-    Resolved(row_type(over′), over = n′)
-end
-
-function resolve_scalar(n::BindNode, ctx)
-    args′ = resolve_scalar(n.args, ctx)
-    var_types′ = ctx.var_types
-    for (name, i) in n.label_map
-        v = get(ctx.var_types, name, nothing)
-        depth = 1 + (v !== nothing ? v[1] : 0)
-        t = type(args′[i])
-        if !(t isa ScalarType)
-            throw(
-                ReferenceError(
-                    REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE,
-                    name = name,
-                    path = get_path(ctx)))
-
-        end
-        var_types′ = Base.ImmutableDict(var_types′, name => (depth, t))
-    end
-    over′ = resolve_scalar(n.over, ResolveContext(ctx, var_types = var_types′))
+    ctx′ = ResolveContext(ctx, var_types = var_types′)
+    over′ = !scalar ? resolve(n.over, ctx′) : resolve_scalar(n.over, ctx′)
     n′ = Bind(over = over′, args = args′, label_map = n.label_map)
     Resolved(type(over′), over = n′)
 end
+
+resolve_scalar(n::BindNode, ctx) =
+    resolve(n, ctx, true)
 
 function resolve_scalar(n::NestedNode, ctx)
     t = get(ctx.row_type.fields, n.name, EmptyType())
@@ -481,7 +460,7 @@ function resolve(n::WhereNode, ctx)
     Resolved(t, over = n′)
 end
 
-function resolve(n::WithNode, ctx)
+function resolve(n::Union{WithNode, WithExternalNode}, ctx)
     ctx′ = ResolveContext(ctx, knot_type = nothing, implicit_knot = false)
     args′ = resolve(n.args, ctx′)
     cte_types′ = ctx.cte_types
@@ -502,31 +481,10 @@ function resolve(n::WithNode, ctx)
     end
     ctx′ = ResolveContext(ctx, cte_types = cte_types′)
     over′ = resolve(n.over, ctx′)
-    n′ = With(over = over′, args = args′, materialized = n.materialized, label_map = n.label_map)
-    Resolved(row_type(over′), over = n′)
-end
-
-function resolve(n::WithExternalNode, ctx)
-    ctx′ = ResolveContext(ctx, knot_type = nothing, implicit_knot = false)
-    args′ = resolve(n.args, ctx′)
-    cte_types′ = ctx.cte_types
-    for (name, i) in n.label_map
-        v = get(ctx.cte_types, name, nothing)
-        depth = 1 + (v !== nothing ? v[1] : 0)
-        t = row_type(args′[i])
-        cte_t = get(t.fields, name, EmptyType())
-        if !(cte_t isa RowType)
-            throw(
-                ReferenceError(
-                    REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE,
-                    name = name,
-                    path = get_path(ctx)))
-
-        end
-        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, cte_t))
+    if n isa WithNode
+        n′ = With(over = over′, args = args′, materialized = n.materialized, label_map = n.label_map)
+    else
+        n′ = WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
     end
-    ctx′ = ResolveContext(ctx, cte_types = cte_types′)
-    over′ = resolve(n.over, ctx′)
-    n′ = WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
     Resolved(row_type(over′), over = n′)
 end

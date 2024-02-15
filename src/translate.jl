@@ -252,11 +252,6 @@ function translate(n::BoundVariableNode, ctx)
     ctx.vars[(n.name, n.depth)]
 end
 
-function translate(n::LinkedNode, ctx)
-    base = assemble(n.over, TranslateContext(ctx, refs = n.refs))
-    complete(base)
-end
-
 function translate(n::FunctionNode, ctx)
     args = translate(n.args, ctx)
     if n.name === :and
@@ -301,6 +296,11 @@ end
 
 function translate(n::IsolatedNode, ctx)
     base = assemble(ctx.defs[n.idx], ctx)
+    complete(base)
+end
+
+function translate(n::LinkedNode, ctx)
+    base = assemble(n.over, TranslateContext(ctx, refs = n.refs))
     complete(base)
 end
 
@@ -595,7 +595,7 @@ end
 
 function assemble(n::GroupNode, ctx)
     has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Nested()), ctx.refs)
-    if isempty(n.by) && !has_aggregates
+    if isempty(n.by) && !has_aggregates # NOOP: already processed in link()
         return assemble(nothing, ctx)
     end
     base = assemble(n.over, ctx)

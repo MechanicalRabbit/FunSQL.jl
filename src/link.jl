@@ -464,7 +464,7 @@ function _cte_depth(dict, name)
     0
 end
 
-function link(n::WithNode, ctx)
+function link(n::Union{WithNode, WithExternalNode}, ctx)
     cte_refs′ = ctx.cte_refs
     refs_map = Vector{SQLNode}[]
     for name in keys(n.label_map)
@@ -484,30 +484,11 @@ function link(n::WithNode, ctx)
         push!(args′, arg′)
         label_map′[f] = lastindex(args′)
     end
-    With(over = over′, args = args′, materialized = n.materialized, label_map = label_map′)
-end
-
-function link(n::WithExternalNode, ctx)
-    cte_refs′ = ctx.cte_refs
-    refs_map = Vector{SQLNode}[]
-    for name in keys(n.label_map)
-        depth = _cte_depth(ctx.cte_refs, name) + 1
-        refs = SQLNode[]
-        cte_refs′ = Base.ImmutableDict(cte_refs′, (name, depth) => refs)
-        push!(refs_map, refs)
+    if n isa WithNode
+        With(over = over′, args = args′, materialized = n.materialized, label_map = label_map′)
+    else
+        WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = label_map′)
     end
-    ctx′ = LinkContext(ctx, cte_refs = cte_refs′)
-    over′ = Linked(ctx′.refs, over = link(n.over, ctx′))
-    args′ = SQLNode[]
-    label_map′ = OrderedDict{Symbol, Int}()
-    for (f, i) in n.label_map
-        arg = n.args[i]
-        refs = refs_map[i]
-        arg′ = Linked(refs, over = link(arg, ctx, refs))
-        push!(args′, arg′)
-        label_map′[f] = lastindex(args′)
-    end
-    WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = label_map′)
 end
 
 function gather!(n::SQLNode, ctx)
