@@ -428,45 +428,45 @@ WITH RECURSIVE &quot;base_1&quot; (&quot;concept_id&quot;) AS (
     (&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
     (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;22298006&#39;)
   UNION ALL
-  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
-  FROM &quot;base_1&quot; AS &quot;concept_2&quot;
+  SELECT &quot;concept_2&quot;.&quot;concept_id&quot;
+  FROM &quot;base_1&quot; AS &quot;base_2&quot;
   JOIN (
     SELECT
       &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;,
       &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;
     FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
     WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
-  ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
-  JOIN &quot;concept&quot; AS &quot;concept_3&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_3&quot;.&quot;concept_id&quot;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;base_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_2&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
 ),
-&quot;base_3&quot; (&quot;concept_id&quot;) AS (
-  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
-  FROM &quot;concept&quot; AS &quot;concept_4&quot;
+&quot;base_4&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_3&quot;
   WHERE
-    (&quot;concept_4&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
-    (&quot;concept_4&quot;.&quot;concept_code&quot; = &#39;70422006&#39;)
+    (&quot;concept_3&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
+    (&quot;concept_3&quot;.&quot;concept_code&quot; = &#39;70422006&#39;)
   UNION ALL
-  SELECT &quot;concept_6&quot;.&quot;concept_id&quot;
-  FROM &quot;base_3&quot; AS &quot;concept_5&quot;
+  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
+  FROM &quot;base_4&quot; AS &quot;base_5&quot;
   JOIN (
     SELECT
       &quot;concept_relationship_3&quot;.&quot;concept_id_1&quot;,
       &quot;concept_relationship_3&quot;.&quot;concept_id_2&quot;
     FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_3&quot;
     WHERE (&quot;concept_relationship_3&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
-  ) AS &quot;concept_relationship_4&quot; ON (&quot;concept_5&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
-  JOIN &quot;concept&quot; AS &quot;concept_6&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_6&quot;.&quot;concept_id&quot;)
+  ) AS &quot;concept_relationship_4&quot; ON (&quot;base_5&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
 )
 SELECT
   &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
   &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
 FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
 JOIN (
-  SELECT &quot;base_2&quot;.&quot;concept_id&quot;
-  FROM &quot;base_1&quot; AS &quot;base_2&quot;
-  LEFT JOIN &quot;base_3&quot; AS &quot;base_4&quot; ON (&quot;base_2&quot;.&quot;concept_id&quot; = &quot;base_4&quot;.&quot;concept_id&quot;)
-  WHERE (&quot;base_4&quot;.&quot;concept_id&quot; IS NULL)
-) AS &quot;concept_7&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;concept_7&quot;.&quot;concept_id&quot;)
+  SELECT &quot;base_3&quot;.&quot;concept_id&quot;
+  FROM &quot;base_1&quot; AS &quot;base_3&quot;
+  LEFT JOIN &quot;base_4&quot; AS &quot;base_6&quot; ON (&quot;base_3&quot;.&quot;concept_id&quot; = &quot;base_6&quot;.&quot;concept_id&quot;)
+  WHERE (&quot;base_6&quot;.&quot;concept_id&quot; IS NULL)
+) AS &quot;base_7&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;base_7&quot;.&quot;concept_id&quot;)
 ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_occurrence_id&quot;
 =#</code></pre><h2 id="Assembling-queries-incrementally"><a class="docs-heading-anchor" href="#Assembling-queries-incrementally">Assembling queries incrementally</a><a id="Assembling-queries-incrementally-1"></a><a class="docs-heading-anchor-permalink" href="#Assembling-queries-incrementally" title="Permalink"></a></h2><p>It is often convenient to build a query incrementally, one component at a time. This allows us to validate individual components, inspect their output, and possibly reuse them in other queries.</p><p><em>Find all occurrences of myocardial infarction that was diagnosed during an inpatient visit.  Filter out repeating occurrences by requiring a 180-day gap between consecutive events.</em></p><p>We start with generating two datasets: inpatient visits and myocardial infarction conditions.  For constructing the concepts <em>Inpatient Visit</em> and <em>Myocardial Infarction</em>, we use the definitions from the section <a href="#Querying-concepts">Querying concepts</a>:</p><pre><code class="language-julia hljs">MyocardialInfarctionConcept() =
     SNOMED(&quot;22298006&quot;) |&gt;
@@ -650,34 +650,34 @@ WITH RECURSIVE &quot;base_1&quot; (&quot;concept_id&quot;) AS (
     (&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
     (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;22298006&#39;)
   UNION ALL
-  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
-  FROM &quot;base_1&quot; AS &quot;concept_2&quot;
+  SELECT &quot;concept_2&quot;.&quot;concept_id&quot;
+  FROM &quot;base_1&quot; AS &quot;base_2&quot;
   JOIN (
     SELECT
       &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;,
       &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;
     FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
     WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
-  ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
-  JOIN &quot;concept&quot; AS &quot;concept_3&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_3&quot;.&quot;concept_id&quot;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;base_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_2&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
 ),
-&quot;base_3&quot; (&quot;concept_id&quot;) AS (
-  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
-  FROM &quot;concept&quot; AS &quot;concept_4&quot;
+&quot;base_4&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_3&quot;
   WHERE
-    (&quot;concept_4&quot;.&quot;vocabulary_id&quot; = &#39;Visit&#39;) AND
-    (&quot;concept_4&quot;.&quot;concept_code&quot; = &#39;IP&#39;)
+    (&quot;concept_3&quot;.&quot;vocabulary_id&quot; = &#39;Visit&#39;) AND
+    (&quot;concept_3&quot;.&quot;concept_code&quot; = &#39;IP&#39;)
   UNION ALL
-  SELECT &quot;concept_6&quot;.&quot;concept_id&quot;
-  FROM &quot;base_3&quot; AS &quot;concept_5&quot;
+  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
+  FROM &quot;base_4&quot; AS &quot;base_5&quot;
   JOIN (
     SELECT
       &quot;concept_relationship_3&quot;.&quot;concept_id_1&quot;,
       &quot;concept_relationship_3&quot;.&quot;concept_id_2&quot;
     FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_3&quot;
     WHERE (&quot;concept_relationship_3&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
-  ) AS &quot;concept_relationship_4&quot; ON (&quot;concept_5&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
-  JOIN &quot;concept&quot; AS &quot;concept_6&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_6&quot;.&quot;concept_id&quot;)
+  ) AS &quot;concept_relationship_4&quot; ON (&quot;base_5&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
 )
 SELECT
   &quot;condition_occurrence_3&quot;.&quot;person_id&quot;,
@@ -692,13 +692,13 @@ FROM (
       &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
       &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
     FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
-    JOIN &quot;base_1&quot; AS &quot;base_2&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;base_2&quot;.&quot;concept_id&quot;)
+    JOIN &quot;base_1&quot; AS &quot;base_3&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;base_3&quot;.&quot;concept_id&quot;)
     ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_occurrence_id&quot;
   ) AS &quot;condition_occurrence_2&quot;
   WHERE (EXISTS (
     SELECT NULL AS &quot;_&quot;
     FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
-    JOIN &quot;base_3&quot; AS &quot;base_4&quot; ON (&quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot; = &quot;base_4&quot;.&quot;concept_id&quot;)
+    JOIN &quot;base_4&quot; AS &quot;base_6&quot; ON (&quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot; = &quot;base_6&quot;.&quot;concept_id&quot;)
     WHERE
       (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;condition_occurrence_2&quot;.&quot;person_id&quot;) AND
       (&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
@@ -825,4 +825,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
   10 │     95538  2009-03-30  2009-09-02
   11 │    107680  2009-06-07  2009-07-30
   12 │    110862  2008-09-07  2010-06-07
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 1 February 2024 00:28">Thursday 1 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 15 February 2024 14:02">Thursday 15 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

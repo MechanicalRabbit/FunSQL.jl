@@ -674,13 +674,13 @@ q = base |&gt; Append(SubtypesOf(base))
 
 DBInterface.execute(conn, q) |&gt; DataFrame
 #=&gt;
-2×7 DataFrame
+2×10 DataFrame
  Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
      │ Int64       String                       String     String         Stri ⋯
 ─────┼──────────────────────────────────────────────────────────────────────────
    1 │    4329847  Myocardial infarction        Condition  SNOMED         Clin ⋯
    2 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin
-                                                               3 columns omitted
+                                                               6 columns omitted
 =#</code></pre><p>But how can we fetch not just immediate, but all of the subtypes of a concept?</p><p><em>Show the concept &quot;Myocardial Infarction&quot; and all of its subtypes.</em></p><p>A good start is to repeatedly apply <code>SubtypesOf</code> and concatenate all the outputs:</p><pre><code class="language-julia hljs">base |&gt;
 Append(SubtypesOf(base),
        SubtypesOf(SubtypesOf(base)),
@@ -692,7 +692,7 @@ q = base |&gt;
 
 render(conn, q) |&gt; print
 #=&gt;
-WITH RECURSIVE &quot;concept_2&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;, &quot;domain_id&quot;, &quot;vocabulary_id&quot;, &quot;concept_class_id&quot;, &quot;standard_concept&quot;, &quot;concept_code&quot;) AS (
+WITH RECURSIVE &quot;__1&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;, &quot;domain_id&quot;, &quot;vocabulary_id&quot;, &quot;concept_class_id&quot;, &quot;standard_concept&quot;, &quot;concept_code&quot;, &quot;valid_start_date&quot;, &quot;valid_end_date&quot;, &quot;invalid_reason&quot;) AS (
   SELECT
     &quot;concept_1&quot;.&quot;concept_id&quot;,
     &quot;concept_1&quot;.&quot;concept_name&quot;,
@@ -700,42 +700,54 @@ WITH RECURSIVE &quot;concept_2&quot; (&quot;concept_id&quot;, &quot;concept_name
     &quot;concept_1&quot;.&quot;vocabulary_id&quot;,
     &quot;concept_1&quot;.&quot;concept_class_id&quot;,
     &quot;concept_1&quot;.&quot;standard_concept&quot;,
-    &quot;concept_1&quot;.&quot;concept_code&quot;
+    &quot;concept_1&quot;.&quot;concept_code&quot;,
+    &quot;concept_1&quot;.&quot;valid_start_date&quot;,
+    &quot;concept_1&quot;.&quot;valid_end_date&quot;,
+    &quot;concept_1&quot;.&quot;invalid_reason&quot;
   FROM &quot;concept&quot; AS &quot;concept_1&quot;
   WHERE (&quot;concept_1&quot;.&quot;concept_name&quot; = &#39;Myocardial infarction&#39;)
   UNION ALL
   SELECT
-    &quot;concept_3&quot;.&quot;concept_id&quot;,
-    &quot;concept_3&quot;.&quot;concept_name&quot;,
-    &quot;concept_3&quot;.&quot;domain_id&quot;,
-    &quot;concept_3&quot;.&quot;vocabulary_id&quot;,
-    &quot;concept_3&quot;.&quot;concept_class_id&quot;,
-    &quot;concept_3&quot;.&quot;standard_concept&quot;,
-    &quot;concept_3&quot;.&quot;concept_code&quot;
-  FROM &quot;concept&quot; AS &quot;concept_3&quot;
+    &quot;concept_2&quot;.&quot;concept_id&quot;,
+    &quot;concept_2&quot;.&quot;concept_name&quot;,
+    &quot;concept_2&quot;.&quot;domain_id&quot;,
+    &quot;concept_2&quot;.&quot;vocabulary_id&quot;,
+    &quot;concept_2&quot;.&quot;concept_class_id&quot;,
+    &quot;concept_2&quot;.&quot;standard_concept&quot;,
+    &quot;concept_2&quot;.&quot;concept_code&quot;,
+    &quot;concept_relationship_2&quot;.&quot;valid_start_date&quot;,
+    &quot;concept_relationship_2&quot;.&quot;valid_end_date&quot;,
+    &quot;concept_relationship_2&quot;.&quot;invalid_reason&quot;
+  FROM &quot;concept&quot; AS &quot;concept_2&quot;
   JOIN (
     SELECT
+      &quot;concept_relationship_1&quot;.&quot;valid_start_date&quot;,
+      &quot;concept_relationship_1&quot;.&quot;valid_end_date&quot;,
+      &quot;concept_relationship_1&quot;.&quot;invalid_reason&quot;,
       &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;,
       &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;
     FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
     WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
-  ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_3&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_1&quot;)
-  JOIN &quot;concept_2&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_2&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;concept_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_1&quot;)
+  JOIN &quot;__1&quot; AS &quot;__2&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_2&quot; = &quot;__2&quot;.&quot;concept_id&quot;)
 )
 SELECT
-  &quot;concept_5&quot;.&quot;concept_id&quot;,
-  &quot;concept_5&quot;.&quot;concept_name&quot;,
-  &quot;concept_5&quot;.&quot;domain_id&quot;,
-  &quot;concept_5&quot;.&quot;vocabulary_id&quot;,
-  &quot;concept_5&quot;.&quot;concept_class_id&quot;,
-  &quot;concept_5&quot;.&quot;standard_concept&quot;,
-  &quot;concept_5&quot;.&quot;concept_code&quot;
-FROM &quot;concept_2&quot; AS &quot;concept_5&quot;
+  &quot;concept_3&quot;.&quot;concept_id&quot;,
+  &quot;concept_3&quot;.&quot;concept_name&quot;,
+  &quot;concept_3&quot;.&quot;domain_id&quot;,
+  &quot;concept_3&quot;.&quot;vocabulary_id&quot;,
+  &quot;concept_3&quot;.&quot;concept_class_id&quot;,
+  &quot;concept_3&quot;.&quot;standard_concept&quot;,
+  &quot;concept_3&quot;.&quot;concept_code&quot;,
+  &quot;concept_3&quot;.&quot;valid_start_date&quot;,
+  &quot;concept_3&quot;.&quot;valid_end_date&quot;,
+  &quot;concept_3&quot;.&quot;invalid_reason&quot;
+FROM &quot;__1&quot; AS &quot;concept_3&quot;
 =#
 
 DBInterface.execute(conn, q) |&gt; DataFrame
 #=&gt;
-6×7 DataFrame
+6×10 DataFrame
  Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
      │ Int64       String                             String     String        ⋯
 ─────┼──────────────────────────────────────────────────────────────────────────
@@ -745,5 +757,5 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
    5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
    6 │     444406  Acute subendocardial infarction    Condition  SNOMED
-                                                               3 columns omitted
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 1 February 2024 00:28">Thursday 1 February 2024</span>. Using Julia version 1.10.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+                                                               6 columns omitted
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../reference/">API Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Thursday 15 February 2024 14:02">Thursday 15 February 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
