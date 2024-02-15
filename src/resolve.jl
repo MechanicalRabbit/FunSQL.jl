@@ -71,7 +71,7 @@ resolve(ns::Vector{SQLNode}, ctx) =
 function resolve(::Nothing, ctx)
     t = ctx.knot_type
     if t !== nothing && ctx.implicit_knot
-        n = FromKnot()
+        n = FromIterate()
     else
         n = FromNothing()
         t = EMPTY_ROW
@@ -278,7 +278,7 @@ function resolve(n::FromNode, ctx)
             n′ = FromTable(table = table)
             t = RowType(table)
         end
-    elseif source isa KnotSource
+    elseif source isa IterateSource
         t = ctx.knot_type
         if t === nothing
             throw(
@@ -286,7 +286,7 @@ function resolve(n::FromNode, ctx)
                     REFERENCE_ERROR_TYPE.INVALID_SELF_REFERENCE,
                     path = get_path(ctx)))
         end
-        n′ = FromKnot()
+        n′ = FromIterate()
     elseif source isa ValuesSource
         n′ = FromValues(columns = source.columns)
         fields = FieldTypeMap()

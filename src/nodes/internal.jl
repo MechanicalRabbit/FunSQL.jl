@@ -104,7 +104,7 @@ dissect(scr::Symbol, ::typeof(Nested), pats::Vector{Any}) =
 PrettyPrinting.quoteof(n::NestedNode, ctx::QuoteContext) =
     Expr(:call, nameof(Nested), Expr(:kw, :over, quoteof(n.over, ctx)), Expr(:kw, :name, QuoteNode(n.name)))
 
-# Var() that has the corresponding Bind()
+# Var() that found the corresponding Bind()
 mutable struct BoundVariableNode <: AbstractSQLNode
     name::Symbol
     depth::Int
@@ -123,7 +123,7 @@ PrettyPrinting.quoteof(n::BoundVariableNode, ctx::QuoteContext) =
     Expr(:call, nameof(BoundVariable), QuoteNode(n.name), n.depth)
 
 # A generic From node is specialized to FromNothing, FromTable,
-# FromTableExpression, FromKnot, FromValues, or FromFunction.
+# FromTableExpression, FromIterate, FromValues, or FromFunction.
 mutable struct FromNothingNode <: TabularNode
 end
 
@@ -168,14 +168,14 @@ FromTableExpression(args...; kws...) =
 PrettyPrinting.quoteof(n::FromTableExpressionNode, ctx::QuoteContext) =
     Expr(:call, nameof(FromTableExpression), QuoteNode(n.name), n.depth)
 
-mutable struct FromKnotNode <: TabularNode
+mutable struct FromIterateNode <: TabularNode
 end
 
-FromKnot(args...; kws...) =
-    FromKnotNode(args...; kws...) |> SQLNode
+FromIterate(args...; kws...) =
+    FromIterateNode(args...; kws...) |> SQLNode
 
-PrettyPrinting.quoteof(n::FromKnotNode, ctx::QuoteContext) =
-    Expr(:call, nameof(FromKnot))
+PrettyPrinting.quoteof(n::FromIterateNode, ctx::QuoteContext) =
+    Expr(:call, nameof(FromIterate))
 
 mutable struct FromValuesNode <: TabularNode
     columns::NamedTuple
@@ -216,7 +216,7 @@ end
 PrettyPrinting.quoteof(r::JoinRouter) =
     Expr(:call, nameof(JoinRouter), quoteof(r.label_set), quoteof(r.group))
 
-mutable struct IntJoinNode <: TabularNode
+mutable struct RoutedJoinNode <: TabularNode
     over::Union{SQLNode, Nothing}
     joinee::SQLNode
     on::SQLNode
@@ -226,18 +226,18 @@ mutable struct IntJoinNode <: TabularNode
     lateral::Bool
     optional::Bool
 
-    IntJoinNode(; over, joinee, on, router, left, right, lateral = false, optional = false) =
+    RoutedJoinNode(; over, joinee, on, router, left, right, lateral = false, optional = false) =
         new(over, joinee, on, router, left, right, lateral, optional)
 end
 
-IntJoinNode(joinee, on; over = nothing, router, left = false, right = false, lateral = false, optional = false) =
-    IntJoinNode(over = over, joinee = joinee, on = on, router, left = left, right = right, lateral = lateral, optional = optional)
+RoutedJoinNode(joinee, on; over = nothing, router, left = false, right = false, lateral = false, optional = false) =
+    RoutedJoinNode(over = over, joinee = joinee, on = on, router, left = left, right = right, lateral = lateral, optional = optional)
 
-IntJoin(args...; kws...) =
-    IntJoinNode(args...; kws...) |> SQLNode
+RoutedJoin(args...; kws...) =
+    RoutedJoinNode(args...; kws...) |> SQLNode
 
-function PrettyPrinting.quoteof(n::IntJoinNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(IntJoin))
+function PrettyPrinting.quoteof(n::RoutedJoinNode, ctx::QuoteContext)
+    ex = Expr(:call, nameof(RoutedJoin))
     if !ctx.limit
         push!(ex.args, quoteof(n.joinee, ctx))
         push!(ex.args, quoteof(n.on, ctx))
