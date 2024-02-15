@@ -107,7 +107,7 @@ function dismantle(n::FromFunctionNode, ctx)
     FromFunction(over = over′, columns = n.columns)
 end
 
-dismantle(n::Union{FromKnotNode, FromNothingNode, FromTableExpressionNode, FromTableNode, FromValuesNode}, ctx) =
+dismantle(n::Union{FromIterateNode, FromNothingNode, FromTableExpressionNode, FromTableNode, FromValuesNode}, ctx) =
     convert(SQLNode, n)
 
 function dismantle_scalar(n::FunctionNode, ctx)
@@ -133,7 +133,7 @@ function dismantle(n::JoinNode, ctx)
     over′ = dismantle(n.over, ctx)
     joinee′ = dismantle(n.joinee, ctx)
     on′ = dismantle_scalar(n.on, ctx)
-    IntJoin(over = over′, joinee = joinee′, on = on′, router = router, left = n.left, right = n.right, optional = n.optional)
+    RoutedJoin(over = over′, joinee = joinee′, on = on′, router = router, left = n.left, right = n.right, optional = n.optional)
 end
 
 function dismantle(n::LimitNode, ctx)
@@ -268,7 +268,7 @@ end
 link(n::Union{FromFunctionNode, FromNothingNode, FromTableNode, FromValuesNode}, ctx) =
     convert(SQLNode, n)
 
-function link(n::FromKnotNode, ctx)
+function link(n::FromIterateNode, ctx)
     append!(ctx.knot_refs, ctx.refs)
     n
 end
@@ -358,7 +358,7 @@ function route(r::JoinRouter, ref::SQLNode)
     return -1
 end
 
-function link(n::IntJoinNode, ctx)
+function link(n::RoutedJoinNode, ctx)
     lrefs = SQLNode[]
     rrefs = SQLNode[]
     for ref in ctx.refs
@@ -382,7 +382,7 @@ function link(n::IntJoinNode, ctx)
     end
     over′ = Linked(lrefs, ln_ext_refs, over = link(n.over, ctx, lrefs))
     joinee′ = Linked(rrefs, rn_ext_refs, over = link(n.joinee, ctx, rrefs))
-    IntJoinNode(
+    RoutedJoinNode(
         over = over′,
         joinee = joinee′,
         on = n.on,

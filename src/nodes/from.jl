@@ -3,7 +3,7 @@
 abstract type AbstractSource
 end
 
-struct KnotSource <: AbstractSource
+struct IterateSource <: AbstractSource
 end
 
 struct ValuesSource <: AbstractSource
@@ -15,17 +15,17 @@ struct FunctionSource <: AbstractSource
     columns::Vector{Symbol}
 end
 
-_from_source(source::Union{SQLTable, KnotSource, FunctionSource, ValuesSource, Nothing}) =
+_from_source(source::Union{SQLTable, IterateSource, FunctionSource, ValuesSource, Nothing}) =
     source
 
 _from_source(source::AbstractString) =
     Symbol(source)
 
 _from_source(source::Symbol) =
-    source === :^ ? KnotSource() : source
+    source === :^ ? IterateSource() : source
 
 _from_source(::typeof(^)) =
-    KnotSource()
+    IterateSource()
 
 function _from_source(node::AbstractSQLNode;
                       columns::AbstractVector{<:Union{Symbol, AbstractString}})
@@ -51,7 +51,7 @@ function _from_source(source)
 end
 
 mutable struct FromNode <: TabularNode
-    source::Union{SQLTable, Symbol, KnotSource, ValuesSource, FunctionSource, Nothing}
+    source::Union{SQLTable, Symbol, IterateSource, ValuesSource, FunctionSource, Nothing}
 
     FromNode(; source, kws...) =
         new(_from_source(source; kws...))
@@ -230,7 +230,7 @@ function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
         Expr(:call, nameof(From), tex)
     elseif source isa Symbol
         Expr(:call, nameof(From), QuoteNode(source))
-    elseif source isa KnotSource
+    elseif source isa IterateSource
         Expr(:call, nameof(From), :^)
     elseif source isa ValuesSource
         Expr(:call, nameof(From), quoteof(source.columns, ctx))

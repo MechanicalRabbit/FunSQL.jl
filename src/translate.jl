@@ -472,7 +472,7 @@ function assemble(n::FromFunctionNode, ctx)
     Assemblage(label(n.over), c, cols = cols, repl = repl)
 end
 
-function assemble(n::FromKnotNode, ctx)
+function assemble(n::FromIterateNode, ctx)
     cte_a = ctx.ctes[ctx.knot]
     name = cte_a.a.name
     alias = allocate_alias(ctx, name)
@@ -633,50 +633,6 @@ function assemble(n::GroupNode, ctx)
         cols = OrderedDict{Symbol, SQLClause}([name => ID(name) for name in keys(cols)])
     end
     return Assemblage(base.name, c, cols = cols, repl = repl)
-end
-
-function assemble(n::IntJoinNode, ctx)
-    left = assemble(n.over, ctx)
-    if @dissect(left.clause, tail := FROM() || JOIN())
-        left_alias = nothing
-    else
-        left_alias = allocate_alias(ctx, left)
-        tail = FROM(AS(over = complete(left), name = left_alias))
-    end
-    lateral = n.lateral
-    subs = make_subs(left, left_alias)
-    if lateral
-        right = assemble(n.joinee, TranslateContext(ctx, subs = subs))
-    else
-        right = assemble(n.joinee, ctx)
-    end
-    if @dissect(right.clause, (joinee := (nothing || nothing |> ID()) |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
-       @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM()) ||
-       @dissect(right.clause, (joinee := FUN() |> AS(name = right_alias)) |> FROM())
-        for (ref, name) in right.repl
-            subs[ref] = right.cols[name]
-        end
-        if ctx.dialect.has_implicit_lateral
-            lateral = false
-        end
-    else
-        right_alias = allocate_alias(ctx, right)
-        joinee = AS(over = complete(right), name = right_alias)
-        right_cache = Dict{Symbol, SQLClause}()
-        for (ref, name) in right.repl
-            subs[ref] = get(right_cache, name) do
-                ID(over = right_alias, name = name)
-            end
-        end
-    end
-    on = translate(n.on, ctx, subs)
-    c = JOIN(over = tail, joinee = joinee, on = on, left = n.left, right = n.right, lateral = lateral)
-    trns = Pair{SQLNode, SQLClause}[]
-    for ref in ctx.refs
-        push!(trns, ref => subs[ref])
-    end
-    repl, cols = make_repl_cols(trns)
-    Assemblage(left.name, c, cols = cols, repl = repl)
 end
 
 function assemble(n::IterateNode, ctx)
@@ -864,6 +820,50 @@ function assemble(n::PartitionNode, ctx)
     @assert has_aggregates
     repl, cols = make_repl_cols(trns)
     Assemblage(base.name, c, cols = cols, repl = repl)
+end
+
+function assemble(n::RoutedJoinNode, ctx)
+    left = assemble(n.over, ctx)
+    if @dissect(left.clause, tail := FROM() || JOIN())
+        left_alias = nothing
+    else
+        left_alias = allocate_alias(ctx, left)
+        tail = FROM(AS(over = complete(left), name = left_alias))
+    end
+    lateral = n.lateral
+    subs = make_subs(left, left_alias)
+    if lateral
+        right = assemble(n.joinee, TranslateContext(ctx, subs = subs))
+    else
+        right = assemble(n.joinee, ctx)
+    end
+    if @dissect(right.clause, (joinee := (nothing || nothing |> ID()) |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
+       @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM()) ||
+       @dissect(right.clause, (joinee := FUN() |> AS(name = right_alias)) |> FROM())
+        for (ref, name) in right.repl
+            subs[ref] = right.cols[name]
+        end
+        if ctx.dialect.has_implicit_lateral
+            lateral = false
+        end
+    else
+        right_alias = allocate_alias(ctx, right)
+        joinee = AS(over = complete(right), name = right_alias)
+        right_cache = Dict{Symbol, SQLClause}()
+        for (ref, name) in right.repl
+            subs[ref] = get(right_cache, name) do
+                ID(over = right_alias, name = name)
+            end
+        end
+    end
+    on = translate(n.on, ctx, subs)
+    c = JOIN(over = tail, joinee = joinee, on = on, left = n.left, right = n.right, lateral = lateral)
+    trns = Pair{SQLNode, SQLClause}[]
+    for ref in ctx.refs
+        push!(trns, ref => subs[ref])
+    end
+    repl, cols = make_repl_cols(trns)
+    Assemblage(left.name, c, cols = cols, repl = repl)
 end
 
 function assemble(n::SelectNode, ctx)
