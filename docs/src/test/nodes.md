@@ -1549,6 +1549,43 @@ The `From(^)` node in front of the iterator query can be omitted.
     FROM "__1" AS "__4"
     =#
 
+An `Iterate` node may use a CTE.
+
+    q = Define(:n => 1, :f => 1) |>
+        Iterate(Define(:n => Get.n .+ 1, :f => Get.f .* (Get.n .+ 1)) |>
+                CrossJoin(From(:threshold)) |>
+                Where(Get.n .<= Get.threshold)) |>
+        With(:threshold => Define(:threshold => 10))
+
+    print(render(q))
+    #=>
+    WITH RECURSIVE "threshold_1" ("threshold") AS (
+      SELECT 10 AS "threshold"
+    ),
+    "__1" ("n", "f") AS (
+      SELECT
+        1 AS "n",
+        1 AS "f"
+      UNION ALL
+      SELECT
+        "__3"."n",
+        "__3"."f"
+      FROM (
+        SELECT
+          ("__2"."n" + 1) AS "n",
+          ("__2"."f" * ("__2"."n" + 1)) AS "f",
+          "threshold_2"."threshold"
+        FROM "__1" AS "__2"
+        CROSS JOIN "threshold_1" AS "threshold_2"
+      ) AS "__3"
+      WHERE ("__3"."n" <= "__3"."threshold")
+    )
+    SELECT
+      "__4"."n",
+      "__4"."f"
+    FROM "__1" AS "__4"
+    =#
+
 It is an error to use `From(^)` outside of `Iterate`.
 
     q = From(^)
@@ -2049,6 +2086,39 @@ We can create a temporary dataset using `With` and refer to it with `From`.
         SELECT count(*) AS "count"
         FROM "female_1" AS "female_2"
       ) AS "female_count"
+    =#
+
+`With` can shadow the previous `With` definition.
+
+    q = From(:cohort) |>
+        With(:cohort => From(:cohort) |> Where(Get.gender_concept_id .== 8507)) |>
+        With(:cohort => From(:cohort) |> Where(Get.year_of_birth .>= 1950)) |>
+        With(:cohort => From(person)) |>
+        Select(Get.person_id)
+
+    print(render(q))
+    #=>
+    WITH "cohort_1" ("person_id", "gender_concept_id", "year_of_birth") AS (
+      SELECT
+        "person_1"."person_id",
+        "person_1"."gender_concept_id",
+        "person_1"."year_of_birth"
+      FROM "person" AS "person_1"
+    ),
+    "cohort_3" ("person_id", "gender_concept_id") AS (
+      SELECT
+        "cohort_2"."person_id",
+        "cohort_2"."gender_concept_id"
+      FROM "cohort_1" AS "cohort_2"
+      WHERE ("cohort_2"."year_of_birth" >= 1950)
+    ),
+    "cohort_5" ("person_id") AS (
+      SELECT "cohort_4"."person_id"
+      FROM "cohort_3" AS "cohort_4"
+      WHERE ("cohort_4"."gender_concept_id" = 8507)
+    )
+    SELECT "cohort_6"."person_id"
+    FROM "cohort_5" AS "cohort_6"
     =#
 
 A `With` node can be created using `@funsql`.
@@ -2659,6 +2729,26 @@ functions.
       "person_1"."person_id",
       (row_number() OVER (PARTITION BY "person_1"."gender_concept_id")) AS "row_number"
     FROM "person" AS "person_1"
+    =#
+
+    q = From(visit_occurrence) |>
+        Partition(Get.person_id) |>
+        Where(Get.visit_start_date .- Agg.min(Get.visit_start_date, filter = Get.visit_start_date .< Get.visit_end_date) .> 30) |>
+        Select(Get.person_id, Get.visit_start_date)
+
+    print(render(q))
+    #=>
+    SELECT
+      "visit_occurrence_2"."person_id",
+      "visit_occurrence_2"."visit_start_date"
+    FROM (
+      SELECT
+        "visit_occurrence_1"."person_id",
+        "visit_occurrence_1"."visit_start_date",
+        (min("visit_occurrence_1"."visit_start_date") FILTER (WHERE ("visit_occurrence_1"."visit_start_date" < "visit_occurrence_1"."visit_end_date")) OVER (PARTITION BY "visit_occurrence_1"."person_id")) AS "min"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+    ) AS "visit_occurrence_2"
+    WHERE (("visit_occurrence_2"."visit_start_date" - "visit_occurrence_2"."min") > 30)
     =#
 
 A partition may specify the window frame.
@@ -3328,7 +3418,7 @@ Both the offset and the limit can be specified.
     FETCH FIRST 10 ROWS ONLY
     =#
 
-    q = From(person)
+    q = From(person) |>
         Limit()
 
     print(render(q))
