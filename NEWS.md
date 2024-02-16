@@ -1,5 +1,43 @@
 # Release Notes
 
+## v0.13.0
+
+This release introduces some backward-incompatible changes.  Before upgrading,
+please review these notes.
+
+* Type resolution has been refactored to allow assembling query fragments based
+  on the type information.
+
+* Type checking is now more strict.  A `Define` field or an optional `Join` will
+  be validated even when they are to be elided.
+
+* Resolution of ambiguous column names in `Join` has been changed in favor of
+  the *right* branch.  Previously, an ambiguous name would cause an error.
+
+* Node-bound references are no longer supported.  The following query will
+  fail:
+
+  ```julia
+  qₚ = From(:person)
+  qₗ = From(:location)
+  q = qₚ |>
+      Join(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
+      Select(qₚ.person_id, qₗ.state)
+  ```
+
+  Use nested references instead:
+
+  ```julia
+  q = @funsql begin
+      from(person)
+      join(
+          location => from(location),
+          location_id == location.location_id)
+      select(person_id, location.state)
+  end
+  ```
+
+
 ## v0.12.0
 
 This release introduces some backward-incompatible changes.  Before upgrading,
