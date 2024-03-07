@@ -1131,6 +1131,52 @@ rendered.
     FROM "person"
     =#
 
+`GROUP` can accept the grouping mode or a vector of grouping sets.
+
+    c = FROM(:person) |> GROUP(:year_of_birth, grouping_sets = :ROLLUP)
+    #-> (…) |> GROUP(…, grouping_sets = :ROLLUP)
+
+    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    #=>
+    SELECT
+      "year_of_birth",
+      count(*)
+    FROM "person"
+    GROUP BY ROLLUP("year_of_birth")
+    =#
+
+    c = FROM(:person) |> GROUP(:year_of_birth, grouping_sets = :CUBE)
+    #-> (…) |> GROUP(…, grouping_sets = :CUBE)
+
+    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    #=>
+    SELECT
+      "year_of_birth",
+      count(*)
+    FROM "person"
+    GROUP BY CUBE("year_of_birth")
+    =#
+
+    c = FROM(:person) |> GROUP(:year_of_birth, grouping_sets = [[1], Int[]])
+    #-> (…) |> GROUP(…, grouping_sets = [[1], Int64[]])
+
+    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    #=>
+    SELECT
+      "year_of_birth",
+      count(*)
+    FROM "person"
+    GROUP BY GROUPING SETS(("year_of_birth"), ())
+    =#
+
+`GROUP` raises an error when the vector of grouping sets is out of bounds.
+
+    FROM(:person) |> GROUP(:year_of_birth, grouping_sets = [[1, 2], [1], Int[]])
+    #=>
+    ERROR: DomainError with [[1, 2], [1], Int64[]]:
+    grouping_sets is out of bounds
+    =#
+
 
 ## `HAVING` Clause
 

@@ -618,15 +618,15 @@ function assemble(n::GroupNode, ctx)
             push!(trns, ref => translate(over, ctx, subs))
         end
     end
-    if !has_aggregates
+    if !has_aggregates && n.grouping_sets === nothing
         for name in keys(n.label_map)
             push!(trns, Get(name = name) => by[n.label_map[name]])
         end
     end
     repl, cols = make_repl_cols(trns)
     @assert !isempty(cols)
-    if has_aggregates
-        c = GROUP(over = tail, by = by)
+    if has_aggregates || n.grouping_sets !== nothing
+        c = GROUP(over = tail, by = by, grouping_sets = n.grouping_sets)
     else
         args = complete(cols)
         c = SELECT(over = tail, distinct = true, args = args)

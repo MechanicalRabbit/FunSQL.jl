@@ -118,7 +118,7 @@ end
 function dismantle(n::GroupNode, ctx)
     over′ = dismantle(n.over, ctx)
     by′ = dismantle_scalar(n.by, ctx)
-    Group(over = over′, by = by′, name = n.name, label_map = n.label_map)
+    Group(over = over′, by = by′, grouping_sets = n.grouping_sets, name = n.name, label_map = n.label_map)
 end
 
 function dismantle(n::IterateNode, ctx)
@@ -290,6 +290,10 @@ function link(n::GroupNode, ctx)
     # To avoid duplicate SQL, they must be evaluated in a nested subquery.
     refs = SQLNode[]
     append!(refs, n.by)
+    if n.grouping_sets !== nothing
+        # Force evaluation in a nested subquery.
+        append!(refs, n.by)
+    end
     # Ignore `SELECT DISTINCT` case.
     if has_aggregates
         ctx′ = LinkContext(ctx, refs = refs)
@@ -311,7 +315,7 @@ function link(n::GroupNode, ctx)
         over = Padding(over = over)
     end
     over′ = Linked(refs, 0, over = link(over, ctx, refs))
-    Group(over = over′, by = n.by, name = n.name, label_map = n.label_map)
+    Group(over = over′, by = n.by, grouping_sets = n.grouping_sets, name = n.name, label_map = n.label_map)
 end
 
 function link(n::IterateNode, ctx)

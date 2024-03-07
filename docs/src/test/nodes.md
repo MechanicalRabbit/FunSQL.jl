@@ -2502,6 +2502,57 @@ downstream.
     ) AS "person_2"
     =#
 
+`Group` allows specifying the grouping sets.
+
+    q = From(person) |>
+        Group(Get.year_of_birth, grouping_sets = :cube)
+        Define(Agg.count())
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.year_of_birth, grouping_sets = :CUBE)
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    GROUP BY CUBE("person_1"."year_of_birth")
+    =#
+
+    q = From(person) |>
+        Group(Get.year_of_birth, grouping_sets = [[1], Int[]])
+        Define(Agg.count())
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |> Group(Get.year_of_birth, grouping_sets = [[1], []])
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT "person_1"."year_of_birth"
+    FROM "person" AS "person_1"
+    GROUP BY GROUPING SETS(("person_1"."year_of_birth"), ())
+    =#
+
+`Group` complains about out-of-bound grouping sets.
+
+    From(person) |>
+    Group(Get.year_of_birth, grouping_sets = [[1, 2], [1], Int[]])
+    #=>
+    ERROR: DomainError with [[1, 2], [1], Int64[]]:
+    grouping_sets is out of bounds
+    =#
+
 `Group` allows specifying the name of a group field.
 
     q = From(person) |>
