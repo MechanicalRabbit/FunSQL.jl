@@ -1,5 +1,22 @@
 # Release Notes
 
+## v0.13.1
+
+* Add support for grouping sets, which are used in SQL to calculate totals
+  and subtotals.  The `Group()` node accepts an optional parameter `sets`,
+  which is either a grouping mode indicator `:cube` or `:rollup`, or
+  a collection of grouping key sets `Vector{Vector{Symbol}}`.  Examples:
+
+  ```julia
+  From(:person) |> Group(:year_of_birth, sets = :cube)
+
+  From(:person) |> Group(:year_of_birth, :month_of_birth, sets = :rollup)
+
+  From(:person) |> Group(:year_of_birth, :gender_concept_id,
+                         sets = [[:year_of_birth], [:gender_concept_id]])
+  ```
+
+
 ## v0.13.0
 
 This release introduces some backward-incompatible changes.  Before upgrading,
