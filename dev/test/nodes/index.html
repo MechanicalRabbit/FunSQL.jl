@@ -1927,6 +1927,78 @@ FROM (
   SELECT DISTINCT &quot;person_1&quot;.&quot;year_of_birth&quot;
   FROM &quot;person&quot; AS &quot;person_1&quot;
 ) AS &quot;person_2&quot;
+=#</code></pre><p><code>Group</code> allows specifying the grouping sets, either with grouping mode indicators <code>:cube</code> or <code>:rollup</code>, or by explicit enumeration.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Group(Get.year_of_birth, sets = :cube)
+    Define(Agg.count())
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Group(Get.year_of_birth, sets = :CUBE)
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY CUBE(&quot;person_1&quot;.&quot;year_of_birth&quot;)
+=#
+
+q = From(person) |&gt;
+    Group(Get.year_of_birth, sets = [[1], Int[]])
+    Define(Agg.count())
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt; Group(Get.year_of_birth, sets = [[1], []])
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY GROUPING SETS((&quot;person_1&quot;.&quot;year_of_birth&quot;), ())
+=#</code></pre><p><code>Group</code> allows specifying grouping sets using names of the grouping keys.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Group(Get.year_of_birth, Get.gender_concept_id,
+          sets = ([:year_of_birth], [&quot;gender_concept_id&quot;]))
+    Define(Agg.count())
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], [2]])
+    q2
+end
+=#</code></pre><p><code>Group</code> will report when a grouping set refers to an unknown key.</p><pre><code class="language-julia hljs">From(person) |&gt;
+Group(Get.year_of_birth, sets = [[:gender_concept_id], []])
+#=&gt;
+ERROR: FunSQL.InvalidGroupingSetsError: `gender_concept_id` is not a valid key
+=#</code></pre><p><code>Group</code> complains about out-of-bound or incomplete grouping sets.</p><pre><code class="language-julia hljs">From(person) |&gt;
+Group(Get.year_of_birth, sets = [[1, 2], [1], []])
+#=&gt;
+ERROR: FunSQL.InvalidGroupingSetsError: `2` is out of bounds in:
+let q1 = Group(Get.year_of_birth, sets = [[1, 2], [1], []])
+    q1
+end
+=#
+
+From(person) |&gt;
+Group(Get.year_of_birth, Get.gender_concept_id,
+      sets = [[1], []])
+#=&gt;
+ERROR: FunSQL.InvalidGroupingSetsError: missing keys `[:year_of_birth]` in:
+let q1 = Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], []])
+    q1
+end
 =#</code></pre><p><code>Group</code> allows specifying the name of a group field.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.year_of_birth, name = :person) |&gt;
     Define(Get.person |&gt; Agg.count())
@@ -3037,4 +3109,4 @@ end;
 │       GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 1 March 2024 00:30">Friday 1 March 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 8 March 2024 19:52">Friday 8 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

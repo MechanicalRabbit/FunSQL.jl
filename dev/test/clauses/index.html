@@ -865,6 +865,44 @@ print(render(c |&gt; SELECT(AGG(:count))))
 #=&gt;
 SELECT count(*)
 FROM &quot;person&quot;
+=#</code></pre><p><code>GROUP</code> can accept the grouping mode or a vector of grouping sets.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; GROUP(:year_of_birth, sets = :ROLLUP)
+#-&gt; (…) |&gt; GROUP(…, sets = :ROLLUP)
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY ROLLUP(&quot;year_of_birth&quot;)
+=#
+
+c = FROM(:person) |&gt; GROUP(:year_of_birth, sets = :CUBE)
+#-&gt; (…) |&gt; GROUP(…, sets = :CUBE)
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY CUBE(&quot;year_of_birth&quot;)
+=#
+
+c = FROM(:person) |&gt; GROUP(:year_of_birth, sets = [[1], Int[]])
+#-&gt; (…) |&gt; GROUP(…, sets = [[1], Int64[]])
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY GROUPING SETS((&quot;year_of_birth&quot;), ())
+=#</code></pre><p><code>GROUP</code> raises an error when the vector of grouping sets is out of bounds.</p><pre><code class="language-julia hljs">FROM(:person) |&gt; GROUP(:year_of_birth, sets = [[1, 2], [1], Int[]])
+#=&gt;
+ERROR: DomainError with [[1, 2], [1], Int64[]]:
+sets are out of bounds
 =#</code></pre><h2 id="HAVING-Clause"><a class="docs-heading-anchor" href="#HAVING-Clause"><code>HAVING</code> Clause</a><a id="HAVING-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#HAVING-Clause" title="Permalink"></a></h2><p>A <code>HAVING</code> clause is created with <code>HAVING()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
     GROUP(:year_of_birth) |&gt;
     HAVING(FUN(&quot;&gt;&quot;, AGG(:count), 10))
@@ -1186,4 +1224,4 @@ print(render(c))
 #=&gt;
 SELECT *
 FROM &quot;condition_occurrence&quot;
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.2.1 on <span class="colophon-date" title="Friday 1 March 2024 00:30">Friday 1 March 2024</span>. Using Julia version 1.10.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 8 March 2024 19:52">Friday 8 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
