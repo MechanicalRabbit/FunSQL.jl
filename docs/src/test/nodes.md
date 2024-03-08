@@ -2502,7 +2502,8 @@ downstream.
     ) AS "person_2"
     =#
 
-`Group` allows specifying the grouping sets.
+`Group` allows specifying the grouping sets, either with grouping mode
+indicators `:cube` or `:rollup`, or by explicit enumeration.
 
     q = From(person) |>
         Group(Get.year_of_birth, sets = :cube)
@@ -2544,13 +2545,50 @@ downstream.
     GROUP BY GROUPING SETS(("person_1"."year_of_birth"), ())
     =#
 
-`Group` complains about out-of-bound grouping sets.
+`Group` allows specifying grouping sets using names of the grouping keys.
+
+    q = From(person) |>
+        Group(Get.year_of_birth, Get.gender_concept_id,
+              sets = ([:year_of_birth], ["gender_concept_id"]))
+        Define(Agg.count())
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], [2]])
+        q2
+    end
+    =#
+
+`Group` will report when a grouping set refers to an unknown key.
 
     From(person) |>
-    Group(Get.year_of_birth, sets = [[1, 2], [1], Int[]])
+    Group(Get.year_of_birth, sets = [[:gender_concept_id], []])
     #=>
-    ERROR: DomainError with [[1, 2], [1], Int64[]]:
-    sets are out of bounds
+    ERROR: FunSQL.InvalidGroupingSetsError: `gender_concept_id` is not a valid key
+    =#
+
+`Group` complains about out-of-bound or incomplete grouping sets.
+
+    From(person) |>
+    Group(Get.year_of_birth, sets = [[1, 2], [1], []])
+    #=>
+    ERROR: FunSQL.InvalidGroupingSetsError: `2` is out of bounds in:
+    let q1 = Group(Get.year_of_birth, sets = [[1, 2], [1], []])
+        q1
+    end
+    =#
+
+    From(person) |>
+    Group(Get.year_of_birth, Get.gender_concept_id,
+          sets = [[1], []])
+    #=>
+    ERROR: FunSQL.InvalidGroupingSetsError: missing keys `[:year_of_birth]` in:
+    let q1 = Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], []])
+        q1
+    end
     =#
 
 `Group` allows specifying the name of a group field.

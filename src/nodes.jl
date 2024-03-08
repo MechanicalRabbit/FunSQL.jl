@@ -348,12 +348,36 @@ A node that cannot be rebased.
 struct RebaseError <: FunSQLError
     path::Vector{SQLNode}
 
-    RebaseError(; path = SQLNode[])=
+    RebaseError(; path = SQLNode[]) =
         new(path)
 end
 
 function Base.showerror(io::IO, err::RebaseError)
     print(io, "FunSQL.RebaseError")
+    showpath(io, err.path)
+end
+
+"""
+Grouping sets are specified incorrectly.
+"""
+struct InvalidGroupingSetsError <: FunSQLError
+    value::Union{Int, Symbol, Vector{Symbol}}
+    path::Vector{SQLNode}
+
+    InvalidGroupingSetsError(value; path = SQLNode[]) =
+        new(value, path)
+end
+
+function Base.showerror(io::IO, err::InvalidGroupingSetsError)
+    print(io, "FunSQL.InvalidGroupingSetsError: ")
+    value = err.value
+    if value isa Int
+        print(io, "`$value` is out of bounds")
+    elseif value isa Symbol
+        print(io, "`$value` is not a valid key")
+    elseif value isa Vector{Symbol}
+        print(io, "missing keys `$value`")
+    end
     showpath(io, err.path)
 end
 
