@@ -162,7 +162,7 @@ Any `Dict`-like object can serve as a query cache.
     #-> SQLCatalog(dialect = SQLDialect(), cache = Dict{Any, Any}())
 
     display(customcache_catalog)
-    #-> SQLCatalog(dialect = SQLDialect(), cache = Dict{Any, Any}())
+    #-> SQLCatalog(dialect = SQLDialect(), cache = (Dict{Any, Any})())
 
 The catalog behaves as a read-only `Dict` object.
 
