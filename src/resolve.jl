@@ -324,7 +324,7 @@ function resolve(n::GroupNode, ctx)
         fields[n.name] = RowType(FieldTypeMap(), group)
         group = EmptyType()
     end
-    n′ = Group(over = over′, by = by′, grouping_sets = n.grouping_sets, label_map = n.label_map)
+    n′ = Group(over = over′, by = by′, sets = n.sets, label_map = n.label_map)
     Resolved(RowType(fields, group), over = n′)
 end
 

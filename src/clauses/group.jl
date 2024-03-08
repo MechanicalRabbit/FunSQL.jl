@@ -21,27 +21,27 @@ import .GROUPING_MODE.GroupingMode
 mutable struct GroupClause <: AbstractSQLClause
     over::Union{SQLClause, Nothing}
     by::Vector{SQLClause}
-    grouping_sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
+    sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
 
     function GroupClause(;
                 over = nothing,
                 by = SQLClause[],
-                grouping_sets = nothing)
-        c = new(over, by, grouping_sets isa Symbol ? convert(GroupingMode, grouping_sets) : grouping_sets)
-        gs = c.grouping_sets
-        if gs isa Vector{Vector{Int}} && !checkbounds(Bool, c.by, gs)
-            throw(DomainError(gs, "grouping_sets is out of bounds"))
+                sets = nothing)
+        c = new(over, by, sets isa Symbol ? convert(GroupingMode, sets) : sets)
+        s = c.sets
+        if s isa Vector{Vector{Int}} && !checkbounds(Bool, c.by, s)
+            throw(DomainError(s, "sets are out of bounds"))
         end
         c
     end
 end
 
-GroupClause(by...; over = nothing, grouping_sets = nothing) =
-    GroupClause(over = over, by = SQLClause[by...], grouping_sets = grouping_sets)
+GroupClause(by...; over = nothing, sets = nothing) =
+    GroupClause(over = over, by = SQLClause[by...], sets = sets)
 
 """
-    GROUP(; over = nothing, by = [], grouping_sets = nothing)
-    GROUP(by...; over = nothing, grouping_sets = nothing)
+    GROUP(; over = nothing, by = [], sets = nothing)
+    GROUP(by...; over = nothing, sets = nothing)
 
 A `GROUP BY` clause.
 
@@ -69,9 +69,9 @@ dissect(scr::Symbol, ::typeof(GROUP), pats::Vector{Any}) =
 function PrettyPrinting.quoteof(c::GroupClause, ctx::QuoteContext)
     ex = Expr(:call, nameof(GROUP))
     append!(ex.args, quoteof(c.by, ctx))
-    gs = c.grouping_sets
-    if gs !== nothing
-        push!(ex.args, Expr(:kw, :grouping_sets, gs isa GroupingMode ? QuoteNode(Symbol(gs)) : gs))
+    s = c.sets
+    if s !== nothing
+        push!(ex.args, Expr(:kw, :sets, s isa GroupingMode ? QuoteNode(Symbol(s)) : s))
     end
     if c.over !== nothing
         ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
@@ -80,5 +80,5 @@ function PrettyPrinting.quoteof(c::GroupClause, ctx::QuoteContext)
 end
 
 rebase(c::GroupClause, c′) =
-    GroupClause(over = rebase(c.over, c′), by = c.by, grouping_sets = c.grouping_sets)
+    GroupClause(over = rebase(c.over, c′), by = c.by, sets = c.sets)
 

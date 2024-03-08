@@ -1133,8 +1133,8 @@ rendered.
 
 `GROUP` can accept the grouping mode or a vector of grouping sets.
 
-    c = FROM(:person) |> GROUP(:year_of_birth, grouping_sets = :ROLLUP)
-    #-> (…) |> GROUP(…, grouping_sets = :ROLLUP)
+    c = FROM(:person) |> GROUP(:year_of_birth, sets = :ROLLUP)
+    #-> (…) |> GROUP(…, sets = :ROLLUP)
 
     print(render(c |> SELECT(:year_of_birth, AGG(:count))))
     #=>
@@ -1145,8 +1145,8 @@ rendered.
     GROUP BY ROLLUP("year_of_birth")
     =#
 
-    c = FROM(:person) |> GROUP(:year_of_birth, grouping_sets = :CUBE)
-    #-> (…) |> GROUP(…, grouping_sets = :CUBE)
+    c = FROM(:person) |> GROUP(:year_of_birth, sets = :CUBE)
+    #-> (…) |> GROUP(…, sets = :CUBE)
 
     print(render(c |> SELECT(:year_of_birth, AGG(:count))))
     #=>
@@ -1157,8 +1157,8 @@ rendered.
     GROUP BY CUBE("year_of_birth")
     =#
 
-    c = FROM(:person) |> GROUP(:year_of_birth, grouping_sets = [[1], Int[]])
-    #-> (…) |> GROUP(…, grouping_sets = [[1], Int64[]])
+    c = FROM(:person) |> GROUP(:year_of_birth, sets = [[1], Int[]])
+    #-> (…) |> GROUP(…, sets = [[1], Int64[]])
 
     print(render(c |> SELECT(:year_of_birth, AGG(:count))))
     #=>
@@ -1171,10 +1171,10 @@ rendered.
 
 `GROUP` raises an error when the vector of grouping sets is out of bounds.
 
-    FROM(:person) |> GROUP(:year_of_birth, grouping_sets = [[1, 2], [1], Int[]])
+    FROM(:person) |> GROUP(:year_of_birth, sets = [[1, 2], [1], Int[]])
     #=>
     ERROR: DomainError with [[1, 2], [1], Int64[]]:
-    grouping_sets is out of bounds
+    sets are out of bounds
     =#
 
 

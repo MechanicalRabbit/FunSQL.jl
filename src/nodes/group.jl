@@ -3,25 +3,25 @@
 mutable struct GroupNode <: TabularNode
     over::Union{SQLNode, Nothing}
     by::Vector{SQLNode}
-    grouping_sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
+    sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
     name::Union{Symbol, Nothing}
     label_map::OrderedDict{Symbol, Int}
 
     function GroupNode(;
                        over = nothing,
                        by = SQLNode[],
-                       grouping_sets = nothing,
+                       sets = nothing,
                        name::Union{Symbol, AbstractString, Nothing} = nothing,
                        label_map = nothing)
         n = new(
             over,
             by,
-            grouping_sets isa Symbol ? convert(GroupingMode, grouping_sets) : grouping_sets,
+            sets isa Symbol ? convert(GroupingMode, sets) : sets,
             name !== nothing ? Symbol(name) : nothing,
             label_map !== nothing ? label_map : OrderedDict{Symbol, Int}())
-        gs = n.grouping_sets
-        if gs isa Vector{Vector{Int}} && !checkbounds(Bool, n.by, gs)
-            throw(DomainError(gs, "grouping_sets is out of bounds"))
+        s = n.sets
+        if s isa Vector{Vector{Int}} && !checkbounds(Bool, n.by, s)
+            throw(DomainError(s, "sets are out of bounds"))
         end
         if label_map === nothing
             populate_label_map!(n, n.by, n.label_map, n.name)
@@ -30,19 +30,19 @@ mutable struct GroupNode <: TabularNode
     end
 end
 
-GroupNode(by...; over = nothing, grouping_sets = nothing, name = nothing) =
-    GroupNode(over = over, by = SQLNode[by...], grouping_sets = grouping_sets, name = name)
+GroupNode(by...; over = nothing, sets = nothing, name = nothing) =
+    GroupNode(over = over, by = SQLNode[by...], sets = sets, name = name)
 
 """
-    Group(; over, by = [], grouping_sets = grouping_sets, name = nothing)
-    Group(by...; over, grouping_sets = grouping_sets, name = nothing)
+    Group(; over, by = [], sets = sets, name = nothing)
+    Group(by...; over, sets = sets, name = nothing)
 
 The `Group` node summarizes the input dataset.
 
 Specifically, `Group` outputs all unique values of the given grouping key.
 This key partitions the input rows into disjoint groups that are summarized
 by aggregate functions [`Agg`](@ref) applied to the output of `Group`.  The
-parameter `grouping_sets` customizes the grouping sets.  An optional parameter
+parameter `sets` customizes the grouping sets.  An optional parameter
 `name` specifies the field to hold the group.
 
 The `Group` node is translated to a SQL query with a `GROUP BY` clause:
@@ -108,7 +108,7 @@ GROUP BY "person_1"."year_of_birth"
 julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
 
 julia> q = From(:person) |>
-           Group(Get.year_of_birth, grouping_sets = :cube) |>
+           Group(Get.year_of_birth, sets = :cube) |>
            Select(Get.year_of_birth, Agg.count());
 
 julia> print(render(q, tables = [person]))
@@ -142,9 +142,9 @@ dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(n::GroupNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Group), quoteof(n.by, ctx)...)
-    gs = n.grouping_sets
-    if gs !== nothing
-        push!(ex.args, Expr(:kw, :grouping_sets, gs isa GroupingMode ? QuoteNode(Symbol(gs)) : gs))
+    s = n.sets
+    if s !== nothing
+        push!(ex.args, Expr(:kw, :sets, s isa GroupingMode ? QuoteNode(Symbol(s)) : s))
     end
     if n.name !== nothing
         push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
