@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>SQL Clauses · FunSQL.jl</title><meta name="title" content="SQL Clauses · FunSQL.jl"/><meta property="og:title" content="SQL Clauses · FunSQL.jl"/><meta property="twitter:title" content="SQL Clauses · FunSQL.jl"/><meta name="description" content="Documentation for FunSQL.jl."/><meta property="og:description" content="Documentation for FunSQL.jl."/><meta property="twitter:description" content="Documentation for FunSQL.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FunSQL.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><a class="tocitem" href="../../guide/">Usage Guide</a></li><li><a class="tocitem" href="../../reference/">API Reference</a></li><li><a class="tocitem" href="../../examples/">Examples</a></li><li><a class="tocitem" href="../">Test Suite</a></li><li><span class="tocitem">Articles</span><ul><li><a class="tocitem" href="../../two-kinds-of-sql-query-builders/">Two Kinds of SQL Query Builders</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>SQL Clauses</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>SQL Clauses</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/MechanicalRabbit/FunSQL.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/test/clauses.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="SQL-Clauses"><a class="docs-heading-anchor" href="#SQL-Clauses">SQL Clauses</a><a id="SQL-Clauses-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Clauses" title="Permalink"></a></h1><pre><code class="language-julia hljs">using FunSQL:
+    AGG, AS, ASC, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, LIMIT, LIT,
+    NOTE, ORDER, PARTITION, SELECT, SORT, UNION, VALUES, VAR, WHERE,
+    WINDOW, WITH, pack, render</code></pre><p>The syntactic structure of a SQL query is represented as a tree of <code>SQLClause</code> objects.  Different types of clauses are created by specialized constructors and connected using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    SELECT(:person_id, :year_of_birth)
+#-&gt; (…) |&gt; SELECT(…)</code></pre><p>Displaying a <code>SQLClause</code> object shows how it was constructed.</p><pre><code class="language-julia hljs">display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth))</code></pre><p>A <code>SQLClause</code> object wraps a concrete clause object, which can be accessed using the indexing operator.</p><pre><code class="language-julia hljs">c[]
+#-&gt; ((…) |&gt; SELECT(…))[]
+
+display(c[])
+#-&gt; (ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth)))[]</code></pre><p>To generate SQL, we use function <code>render()</code>.</p><pre><code class="language-julia hljs">print(render(c))
+#=&gt;
+SELECT
+  &quot;person_id&quot;,
+  &quot;year_of_birth&quot;
+FROM &quot;person&quot;
+=#</code></pre><h2 id="SQL-Literals"><a class="docs-heading-anchor" href="#SQL-Literals">SQL Literals</a><a id="SQL-Literals-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Literals" title="Permalink"></a></h2><p>A SQL literal is created using a <code>LIT()</code> constructor.</p><pre><code class="language-julia hljs">c = LIT(&quot;SQL is fun!&quot;)
+#-&gt; LIT(&quot;SQL is fun!&quot;)</code></pre><p>Values of certain Julia data types are automatically converted to SQL literals when they are used in the context of a SQL clause.</p><pre><code class="language-julia hljs">using Dates
+
+c = SELECT(missing, true, 42, &quot;SQL is fun!&quot;, Date(2000))
+
+display(c)
+#=&gt;
+SELECT(LIT(missing),
+       LIT(true),
+       LIT(42),
+       LIT(&quot;SQL is fun!&quot;),
+       LIT(Dates.Date(&quot;2000-01-01&quot;)))
+=#
+
+print(render(c))
+#=&gt;
+SELECT
+  NULL,
+  TRUE,
+  42,
+  &#39;SQL is fun!&#39;,
+  &#39;2000-01-01&#39;
+=#</code></pre><p>Some values may render differently depending on the dialect.</p><pre><code class="language-julia hljs">c = LIT(false)
+
+print(render(c, dialect = :sqlserver))
+#-&gt; (1 = 0)</code></pre><p>A quote character in a string literal is represented by a pair of quotes.</p><pre><code class="language-julia hljs">c = LIT(&quot;O&#39;Hare&quot;)
+
+print(render(c))
+#-&gt; &#39;O&#39;&#39;Hare&#39;</code></pre><p>Some dialects use backslash to escape quote characters.</p><pre><code class="language-julia hljs">print(render(c, dialect = :spark))
+#-&gt; &#39;O\&#39;Hare&#39;</code></pre><h2 id="SQL-Identifiers"><a class="docs-heading-anchor" href="#SQL-Identifiers">SQL Identifiers</a><a id="SQL-Identifiers-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Identifiers" title="Permalink"></a></h2><p>A SQL identifier is created with <code>ID()</code> constructor.</p><pre><code class="language-julia hljs">c = ID(:person)
+#-&gt; ID(:person)
+
+display(c)
+#-&gt; ID(:person)
+
+print(render(c))
+#-&gt; &quot;person&quot;</code></pre><p>Serialization of an identifier depends on the SQL dialect.</p><pre><code class="language-julia hljs">print(render(c, dialect = :sqlserver))
+#-&gt; [person]</code></pre><p>A quote character in an identifier is properly escaped.</p><pre><code class="language-julia hljs">c = ID(&quot;year of \&quot;birth\&quot;&quot;)
+
+print(render(c))
+#-&gt; &quot;year of &quot;&quot;birth&quot;&quot;&quot;</code></pre><p>A qualified identifier is created using the chain operator.</p><pre><code class="language-julia hljs">c = ID(:person) |&gt; ID(:year_of_birth)
+#-&gt; (…) |&gt; ID(:year_of_birth)
+
+display(c)
+#-&gt; ID(:person) |&gt; ID(:year_of_birth)
+
+print(render(c))
+#-&gt; &quot;person&quot;.&quot;year_of_birth&quot;</code></pre><p>Symbols and pairs of symbols are automatically converted to SQL identifiers when they are used in the context of a SQL clause.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt; SELECT((:p, :person_id))
+display(c)
+#-&gt; ID(:person) |&gt; AS(:p) |&gt; FROM() |&gt; SELECT(ID(:p) |&gt; ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+=#</code></pre><h2 id="SQL-Variables"><a class="docs-heading-anchor" href="#SQL-Variables">SQL Variables</a><a id="SQL-Variables-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Variables" title="Permalink"></a></h2><p>Placeholder parameters to a SQL query are created with <code>VAR()</code> constructor.</p><pre><code class="language-julia hljs">c = VAR(:YEAR)
+#-&gt; VAR(:YEAR)
+
+display(c)
+#-&gt; VAR(:YEAR)
+
+print(render(c))
+#-&gt; :YEAR</code></pre><p>Rendering of a SQL parameter depends on the chosen dialect.</p><pre><code class="language-julia hljs">print(render(c, dialect = :sqlite))
+#-&gt; ?1
+
+print(render(c, dialect = :postgresql))
+#-&gt; $1
+
+print(render(c, dialect = :mysql))
+#-&gt; ?</code></pre><p>Function <code>pack()</code> converts named parameters to a positional form.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    WHERE(FUN(:or, FUN(&quot;=&quot;, :gender_concept_id, VAR(:GENDER)),
+                   FUN(&quot;=&quot;, :gender_source_concept_id, VAR(:GENDER)))) |&gt;
+    SELECT(:person_id)
+
+sql = render(c, dialect = :sqlite)
+
+print(sql)
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+WHERE
+  (&quot;gender_concept_id&quot; = ?1) OR
+  (&quot;gender_source_concept_id&quot; = ?1)
+=#
+
+pack(sql, (GENDER = 8532,))
+#-&gt; Any[8532]
+
+pack(sql, Dict(:GENDER =&gt; 8532))
+#-&gt; Any[8532]
+
+pack(sql, Dict(&quot;GENDER&quot; =&gt; 8532))
+#-&gt; Any[8532]</code></pre><p>If the dialect does not support numbered parameters, <code>pack()</code> may need to duplicate parameter values.</p><pre><code class="language-julia hljs">sql = render(c, dialect = :mysql)
+
+print(sql)
+#=&gt;
+SELECT `person_id`
+FROM `person`
+WHERE
+  (`gender_concept_id` = ?) OR
+  (`gender_source_concept_id` = ?)
+=#
+
+pack(sql, (GENDER = 8532,))
+#-&gt; Any[8532, 8532]</code></pre><h2 id="SQL-Functions-and-Operators"><a class="docs-heading-anchor" href="#SQL-Functions-and-Operators">SQL Functions and Operators</a><a id="SQL-Functions-and-Operators-1"></a><a class="docs-heading-anchor-permalink" href="#SQL-Functions-and-Operators" title="Permalink"></a></h2><p>An application of a SQL function is created with <code>FUN()</code> constructor.</p><pre><code class="language-julia hljs">c = FUN(:concat, :city, &quot;, &quot;, :state)
+#-&gt; FUN(&quot;concat&quot;, …)
+
+display(c)
+#-&gt; FUN(&quot;concat&quot;, ID(:city), LIT(&quot;, &quot;), ID(:state))
+
+print(render(c))
+#-&gt; concat(&quot;city&quot;, &#39;, &#39;, &quot;state&quot;)
+
+c = FUN(:now)
+#-&gt; FUN(&quot;now&quot;)
+
+print(render(c))
+#-&gt; now()</code></pre><p><code>FUN()</code> with an empty name generates a comma-separated list of values.</p><pre><code class="language-julia hljs">c = FUN(&quot;&quot;, &quot;60614&quot;, &quot;60615&quot;)
+
+print(render(c))
+#-&gt; (&#39;60614&#39;, &#39;60615&#39;)</code></pre><p>A name that contains only symbol characters is considered an operator.</p><pre><code class="language-julia hljs">c = FUN(&quot;||&quot;, :city, &quot;, &quot;, :state)
+
+print(render(c))
+#-&gt; (&quot;city&quot; || &#39;, &#39; || &quot;state&quot;)</code></pre><p>To create an operator containing alphabetical characters, add a leading or a trailing space to its name.</p><pre><code class="language-julia hljs">c = FUN(&quot; IS DISTINCT FROM &quot;, :zip, missing)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; IS DISTINCT FROM NULL)
+
+c = FUN(&quot; IS DISTINCT FROM&quot;, :zip, missing)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; IS DISTINCT FROM NULL)
+
+c = FUN(&quot; COLLATE \&quot;C\&quot;&quot;, :zip)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; COLLATE &quot;C&quot;)
+
+c = FUN(&quot;DATE &quot;, &quot;2000-01-01&quot;)
+
+print(render(c))
+#-&gt; (DATE &#39;2000-01-01&#39;)
+
+c = FUN(&quot;CURRENT_TIME &quot;)
+
+print(render(c))
+#-&gt; CURRENT_TIME
+
+c = FUN(&quot; CURRENT_TIME&quot;)
+
+print(render(c))
+#-&gt; CURRENT_TIME</code></pre><p>To create a SQL expression with irregular syntax, supply <code>FUN()</code> with a <em>template</em> string.</p><pre><code class="language-julia hljs">c = FUN(&quot;SUBSTRING(? FROM ? FOR ?)&quot;, :zip, 1, 3)
+
+print(render(c))
+#-&gt; SUBSTRING(&quot;zip&quot; FROM 1 FOR 3)
+
+c = FUN(&quot;?::date&quot;, &quot;2000-01-01&quot;)
+
+print(render(c))
+#-&gt; &#39;2000-01-01&#39;::date</code></pre><p>Write <code>??</code> to  use <code>?</code> in an operator name or a template.</p><pre><code class="language-julia hljs">c = FUN(&quot;??-&quot;, &quot;(1,0)&quot;, &quot;(0,0)&quot;)
+
+print(render(c))
+#-&gt; (&#39;(1,0)&#39; ?- &#39;(0,0)&#39;)
+
+c = FUN(&quot;(&#39;(?,?)&#39;::point ??| &#39;(?,?)&#39;::point)&quot;, 0, 1, 0, 0)
+
+print(render(c))
+#-&gt; (&#39;(0,1)&#39;::point ?| &#39;(0,0)&#39;::point)</code></pre><p>Some functions and operators have specialized serializers.</p><pre><code class="language-julia hljs">c = FUN(:and)
+
+print(render(c))
+#-&gt; TRUE
+
+c = FUN(:and, true)
+
+print(render(c))
+#-&gt; TRUE
+
+c = FUN(:and, true, false)
+
+print(render(c))
+#-&gt; (TRUE AND FALSE)
+
+c = FUN(:or)
+
+print(render(c))
+#-&gt; FALSE
+
+c = FUN(:or, true)
+
+print(render(c))
+#-&gt; TRUE
+
+c = FUN(:or, true, false)
+
+print(render(c))
+#-&gt; (TRUE OR FALSE)
+
+c = FUN(:not, true)
+
+print(render(c))
+#-&gt; (NOT TRUE)
+
+c = FUN(:concat, :city, &quot;, &quot;, :state)
+
+print(render(c))
+#-&gt; concat(&quot;city&quot;, &#39;, &#39;, &quot;state&quot;)
+
+print(render(c, dialect = :sqlite))
+#-&gt; (&quot;city&quot; || &#39;, &#39; || &quot;state&quot;)
+
+c = FUN(:in, :zip)
+
+print(render(c))
+#-&gt; FALSE
+
+c = FUN(:in, :zip, &quot;60614&quot;, &quot;60615&quot;)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; IN (&#39;60614&#39;, &#39;60615&#39;))
+
+c = SELECT(FUN(:in, &quot;60615&quot;, FROM(:location) |&gt; SELECT(:zip)))
+
+print(render(c))
+#=&gt;
+SELECT (&#39;60615&#39; IN (
+  SELECT &quot;zip&quot;
+  FROM &quot;location&quot;
+))
+=#
+
+c = FUN(:not_in, :zip)
+
+print(render(c))
+#-&gt; TRUE
+
+c = FUN(:not_in, :zip, &quot;60614&quot;, &quot;60615&quot;)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; NOT IN (&#39;60614&#39;, &#39;60615&#39;))
+
+c = SELECT(FUN(:not_in, &quot;60615&quot;, FROM(:location) |&gt; SELECT(:zip)))
+
+print(render(c))
+#=&gt;
+SELECT (&#39;60615&#39; NOT IN (
+  SELECT &quot;zip&quot;
+  FROM &quot;location&quot;
+))
+=#
+
+c = SELECT(FUN(:exists, FROM(:location) |&gt;
+                        WHERE(FUN(&quot;=&quot;, :zip, &quot;60615&quot;)) |&gt;
+                        SELECT(missing)))
+
+print(render(c))
+#=&gt;
+SELECT (EXISTS (
+  SELECT NULL
+  FROM &quot;location&quot;
+  WHERE (&quot;zip&quot; = &#39;60615&#39;)
+))
+=#
+
+c = SELECT(FUN(:not_exists, FROM(:location) |&gt;
+                            WHERE(FUN(&quot;=&quot;, :zip, &quot;60615&quot;)) |&gt;
+                            SELECT(missing)))
+
+print(render(c))
+#=&gt;
+SELECT (NOT EXISTS (
+  SELECT NULL
+  FROM &quot;location&quot;
+  WHERE (&quot;zip&quot; = &#39;60615&#39;)
+))
+=#
+
+c = FUN(:is_null, :zip)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; IS NULL)
+
+c = FUN(:is_not_null, :zip)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; IS NOT NULL)
+
+c = FUN(:like, :zip, &quot;606%&quot;)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; LIKE &#39;606%&#39;)
+
+c = FUN(:not_like, :zip, &quot;606%&quot;)
+
+print(render(c))
+#-&gt; (&quot;zip&quot; NOT LIKE &#39;606%&#39;)
+
+c = FUN(:case, FUN(&quot;&lt;&quot;, :year_of_birth, 1970), &quot;boomer&quot;)
+
+print(render(c))
+#-&gt; (CASE WHEN (&quot;year_of_birth&quot; &lt; 1970) THEN &#39;boomer&#39; END)
+
+c = FUN(:case, FUN(&quot;&lt;&quot;, :year_of_birth, 1970), &quot;boomer&quot;, &quot;millenial&quot;)
+
+print(render(c))
+#-&gt; (CASE WHEN (&quot;year_of_birth&quot; &lt; 1970) THEN &#39;boomer&#39; ELSE &#39;millenial&#39; END)
+
+c = FUN(:cast, &quot;2020-01-01&quot;, &quot;DATE&quot;)
+
+print(render(c))
+#-&gt; CAST(&#39;2020-01-01&#39; AS DATE)
+
+c = FUN(:extract, &quot;YEAR&quot;, c)
+
+print(render(c))
+#-&gt; EXTRACT(YEAR FROM CAST(&#39;2020-01-01&#39; AS DATE))
+
+c = FUN(:between, :year_of_birth, 1950, 2000)
+
+print(render(c))
+#-&gt; (&quot;year_of_birth&quot; BETWEEN 1950 AND 2000)
+
+c = FUN(:not_between, :year_of_birth, 1950, 2000)
+
+print(render(c))
+#-&gt; (&quot;year_of_birth&quot; NOT BETWEEN 1950 AND 2000)
+
+c = FUN(:current_date)
+
+print(render(c))
+#-&gt; CURRENT_DATE
+
+c = FUN(:current_date, 1)
+
+print(render(c))
+#-&gt; CURRENT_DATE(1)
+
+c = FUN(:current_timestamp)
+
+print(render(c))
+#-&gt; CURRENT_TIMESTAMP</code></pre><h2 id="Aggregate-Functions"><a class="docs-heading-anchor" href="#Aggregate-Functions">Aggregate Functions</a><a id="Aggregate-Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Aggregate-Functions" title="Permalink"></a></h2><p>Aggregate SQL functions have a specialized <code>AGG()</code> constructor.</p><pre><code class="language-julia hljs">c = AGG(:max, :year_of_birth)
+#-&gt; AGG(&quot;max&quot;, …)
+
+display(c)
+#-&gt; AGG(&quot;max&quot;, ID(:year_of_birth))
+
+print(render(c))
+#-&gt; max(&quot;year_of_birth&quot;)</code></pre><p>Some well-known aggregate functions with irregular syntax are supported.</p><pre><code class="language-julia hljs">c = AGG(:count)
+#-&gt; AGG(&quot;count&quot;)
+
+display(c)
+#-&gt; AGG(&quot;count&quot;)
+
+print(render(c))
+#-&gt; count(*)
+
+c = AGG(:count_distinct, :zip)
+
+print(render(c))
+#-&gt; count(DISTINCT &quot;zip&quot;)</code></pre><p>Otherwise, a template name can be used.</p><pre><code class="language-julia hljs">c = AGG(&quot;string_agg(DISTINCT ?, &#39;,&#39; ORDER BY ?)&quot;, :zip, :zip)
+
+print(render(c))
+#-&gt; string_agg(DISTINCT &quot;zip&quot;, &#39;,&#39; ORDER BY &quot;zip&quot;)</code></pre><p>An aggregate function may have a <code>FILTER</code> modifier.</p><pre><code class="language-julia hljs">c = AGG(:count, filter = FUN(&quot;&gt;&quot;, :year_of_birth, 1970))
+
+display(c)
+#-&gt; AGG(&quot;count&quot;, filter = FUN(&quot;&gt;&quot;, ID(:year_of_birth), LIT(1970)))
+
+print(render(c))
+#-&gt; (count(*) FILTER (WHERE (&quot;year_of_birth&quot; &gt; 1970)))</code></pre><p>A window function can be created by adding an <code>OVER</code> modifier.</p><pre><code class="language-julia hljs">c = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]) |&gt;
+    AGG(&quot;row_number&quot;)
+
+display(c)
+#=&gt;
+AGG(&quot;row_number&quot;,
+    over = PARTITION(ID(:year_of_birth),
+                     order_by = [ID(:month_of_birth), ID(:day_of_birth)]))
+=#
+
+print(render(c))
+#-&gt; (row_number() OVER (PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;))
+
+c = AGG(&quot;row_number&quot;, over = :w)
+
+print(render(c))
+#-&gt; (row_number() OVER (&quot;w&quot;))</code></pre><p>The <code>PARTITION</code> clause may contain a frame specification including the frame mode, frame endpoints, and frame exclusion.</p><pre><code class="language-julia hljs">c = PARTITION(order_by = [:year_of_birth], frame = :groups)
+#-&gt; PARTITION(order_by = […], frame = :GROUPS)
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; GROUPS UNBOUNDED PRECEDING
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :rows,))
+#-&gt; PARTITION(order_by = […], frame = :ROWS)
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; ROWS UNBOUNDED PRECEDING
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -1, finish = 1, exclude = :current_row))
+#-&gt; PARTITION(order_by = […], frame = (mode = :RANGE, start = -1, finish = 1, exclude = :CURRENT_ROW))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING EXCLUDE CURRENT ROW
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -Inf, finish = 0))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = 0, finish = Inf))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :no_others))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE UNBOUNDED PRECEDING EXCLUDE NO OTHERS
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :group))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE UNBOUNDED PRECEDING EXCLUDE GROUP
+
+c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :ties))
+
+print(render(c))
+#-&gt; ORDER BY &quot;year_of_birth&quot; RANGE UNBOUNDED PRECEDING EXCLUDE TIES</code></pre><h2 id="AS-Clause"><a class="docs-heading-anchor" href="#AS-Clause"><code>AS</code> Clause</a><a id="AS-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#AS-Clause" title="Permalink"></a></h2><p>An <code>AS</code> clause is created with <code>AS()</code> constructor.</p><pre><code class="language-julia hljs">c = ID(:person) |&gt; AS(:p)
+#-&gt; (…) |&gt; AS(:p)
+
+display(c)
+#-&gt; ID(:person) |&gt; AS(:p)
+
+print(render(c))
+#-&gt; &quot;person&quot; AS &quot;p&quot;</code></pre><p>A pair expression is automatically converted to an <code>AS</code> clause.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person)
+display(c)
+#-&gt; ID(:person) |&gt; AS(:p) |&gt; FROM()
+
+print(render(c |&gt; SELECT((:p, :person_id))))
+#=&gt;
+SELECT &quot;p&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+=#</code></pre><h2 id="FROM-Clause"><a class="docs-heading-anchor" href="#FROM-Clause"><code>FROM</code> Clause</a><a id="FROM-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#FROM-Clause" title="Permalink"></a></h2><p>A <code>FROM</code> clause is created with <code>FROM()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person)
+#-&gt; (…) |&gt; FROM()
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM()
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+=#</code></pre><h2 id="SELECT-Clause"><a class="docs-heading-anchor" href="#SELECT-Clause"><code>SELECT</code> Clause</a><a id="SELECT-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-Clause" title="Permalink"></a></h2><p>A <code>SELECT</code> clause is created with <code>SELECT()</code> constructor.  While in SQL, <code>SELECT</code> typically opens a query, in FunSQL, <code>SELECT()</code> should be placed at the end of a clause chain.</p><pre><code class="language-julia hljs">c = :person |&gt; FROM() |&gt; SELECT(:person_id, :year_of_birth)
+#-&gt; (…) |&gt; SELECT(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; SELECT(ID(:person_id), ID(:year_of_birth))
+
+print(render(c))
+#=&gt;
+SELECT
+  &quot;person_id&quot;,
+  &quot;year_of_birth&quot;
+FROM &quot;person&quot;
+=#</code></pre><p>The <code>DISTINCT</code> modifier can be added from the constructor.</p><pre><code class="language-julia hljs">c = FROM(:location) |&gt; SELECT(distinct = true, :zip)
+#-&gt; (…) |&gt; SELECT(…)
+
+display(c)
+#-&gt; ID(:location) |&gt; FROM() |&gt; SELECT(distinct = true, ID(:zip))
+
+print(render(c))
+#=&gt;
+SELECT DISTINCT &quot;zip&quot;
+FROM &quot;location&quot;
+=#</code></pre><p>A <code>TOP</code> modifier could be specified.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; SELECT(top = 1, :person_id)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; SELECT(top = 1, ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT TOP 1 &quot;person_id&quot;
+FROM &quot;person&quot;
+=#
+
+c = FROM(:person) |&gt;
+    ORDER(:year_of_birth) |&gt;
+    SELECT(top = (limit = 1, with_ties = true), :person_id)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+ORDER(ID(:year_of_birth)) |&gt;
+SELECT(top = (limit = 1, with_ties = true), ID(:person_id))
+=#
+
+print(render(c))
+#=&gt;
+SELECT TOP 1 WITH TIES &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY &quot;year_of_birth&quot;
+=#</code></pre><p>A <code>SELECT</code> clause with an empty list of arguments can be created explicitly.</p><pre><code class="language-julia hljs">c = SELECT(args = [])
+#-&gt; SELECT(…)</code></pre><p>Rendering a nested <code>SELECT</code> clause adds parentheses around it.</p><pre><code class="language-julia hljs">c = :location |&gt; FROM() |&gt; SELECT(:state, :zip) |&gt; FROM() |&gt; SELECT(:zip)
+
+print(render(c))
+#=&gt;
+SELECT &quot;zip&quot;
+FROM (
+  SELECT
+    &quot;state&quot;,
+    &quot;zip&quot;
+  FROM &quot;location&quot;
+)
+=#</code></pre><h2 id="WHERE-Clause"><a class="docs-heading-anchor" href="#WHERE-Clause"><code>WHERE</code> Clause</a><a id="WHERE-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE-Clause" title="Permalink"></a></h2><p>A <code>WHERE</code> clause is created with <code>WHERE()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; WHERE(FUN(&quot;&gt;&quot;, :year_of_birth, 2000))
+#-&gt; (…) |&gt; WHERE(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; WHERE(FUN(&quot;&gt;&quot;, ID(:year_of_birth), LIT(2000)))
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+WHERE (&quot;year_of_birth&quot; &gt; 2000)
+=#</code></pre><h2 id="LIMIT-Clause"><a class="docs-heading-anchor" href="#LIMIT-Clause"><code>LIMIT</code> Clause</a><a id="LIMIT-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#LIMIT-Clause" title="Permalink"></a></h2><p>A <code>LIMIT/OFFSET</code> (or <code>OFFSET/FETCH</code>) clause is created with <code>LIMIT()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; LIMIT(10)
+#-&gt; (…) |&gt; LIMIT(10)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; LIMIT(10)
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+FETCH FIRST 10 ROWS ONLY
+=#</code></pre><p>Many SQL dialects represent <code>LIMIT</code> clause with a non-standard syntax.</p><pre><code class="language-julia hljs">print(render(c |&gt; SELECT(:person_id), dialect = :mysql))
+#=&gt;
+SELECT `person_id`
+FROM `person`
+LIMIT 10
+=#
+
+print(render(c |&gt; SELECT(:person_id), dialect = :postgresql))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+LIMIT 10
+=#
+
+print(render(c |&gt; SELECT(:person_id), dialect = :sqlite))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+LIMIT 10
+=#
+
+print(render(c |&gt; SELECT(:person_id), dialect = :sqlserver))
+#=&gt;
+SELECT TOP 10 [person_id]
+FROM [person]
+=#</code></pre><p>Both limit (the number of rows) and offset (number of rows to skip) can be specified.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; LIMIT(100, 10) |&gt; SELECT(:person_id)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; LIMIT(100, 10) |&gt; SELECT(ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+OFFSET 100 ROWS
+FETCH NEXT 10 ROWS ONLY
+=#
+
+print(render(c, dialect = :mysql))
+#=&gt;
+SELECT `person_id`
+FROM `person`
+LIMIT 100, 10
+=#
+
+print(render(c, dialect = :postgresql))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+LIMIT 10
+OFFSET 100
+=#
+
+print(render(c, dialect = :sqlite))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+LIMIT 10
+OFFSET 100
+=#
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM [person]
+OFFSET 100 ROWS
+FETCH NEXT 10 ROWS ONLY
+=#</code></pre><p>Alternatively, both limit and offset can be specified as a unit range.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; LIMIT(101:110)
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+OFFSET 100 ROWS
+FETCH NEXT 10 ROWS ONLY
+=#</code></pre><p>It is possible to specify the offset without the limit.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; LIMIT(offset = 100) |&gt; SELECT(:person_id)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; LIMIT(100, nothing) |&gt; SELECT(ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+OFFSET 100 ROWS
+=#
+
+print(render(c, dialect = :mysql))
+#=&gt;
+SELECT `person_id`
+FROM `person`
+LIMIT 100, 18446744073709551615
+=#
+
+print(render(c, dialect = :postgresql))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+OFFSET 100
+=#
+
+print(render(c, dialect = :sqlite))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+LIMIT -1
+OFFSET 100
+=#
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM [person]
+OFFSET 100 ROWS
+=#</code></pre><p>It is possible to specify the limit with ties.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    ORDER(:year_of_birth) |&gt;
+    LIMIT(10, with_ties = true) |&gt;
+    SELECT(:person_id)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+ORDER(ID(:year_of_birth)) |&gt;
+LIMIT(10, with_ties = true) |&gt;
+SELECT(ID(:person_id))
+=#
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY &quot;year_of_birth&quot;
+FETCH FIRST 10 ROWS WITH TIES
+=#</code></pre><p>SQL Server prohibits <code>ORDER BY</code> without limiting in a nested query, so FunSQL automatically adds <code>OFFSET 0</code> clause to the query.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    ORDER(:year_of_birth) |&gt;
+    SELECT(:person_id, :gender_concept_id) |&gt;
+    AS(:person) |&gt;
+    FROM() |&gt;
+    WHERE(FUN(&quot;=&quot;, :gender_concept_id, 8507)) |&gt;
+    SELECT(:person_id)
+
+print(render(c, dialect = :sqlserver))
+#=&gt;
+SELECT [person_id]
+FROM (
+  SELECT
+    [person_id],
+    [gender_concept_id]
+  FROM [person]
+  ORDER BY [year_of_birth]
+  OFFSET 0 ROWS
+) AS [person]
+WHERE ([gender_concept_id] = 8507)
+=#</code></pre><h2 id="JOIN-Clause"><a class="docs-heading-anchor" href="#JOIN-Clause"><code>JOIN</code> Clause</a><a id="JOIN-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#JOIN-Clause" title="Permalink"></a></h2><p>A <code>JOIN</code> clause is created with <code>JOIN()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:l =&gt; :location, FUN(&quot;=&quot;, (:p, :location_id), (:l, :location_id)), left = true)
+#-&gt; (…) |&gt; JOIN(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:location) |&gt; AS(:l),
+     FUN(&quot;=&quot;, ID(:p) |&gt; ID(:location_id), ID(:l) |&gt; ID(:location_id)),
+     left = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:l, :state))))
+#=&gt;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;l&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+LEFT JOIN &quot;location&quot; AS &quot;l&quot; ON (&quot;p&quot;.&quot;location_id&quot; = &quot;l&quot;.&quot;location_id&quot;)
+=#</code></pre><p>Different types of <code>JOIN</code> are supported.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:op =&gt; :observation_period,
+         on = FUN(&quot;=&quot;, (:p, :person_id), (:op, :person_id)))
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:observation_period) |&gt; AS(:op),
+     FUN(&quot;=&quot;, ID(:p) |&gt; ID(:person_id), ID(:op) |&gt; ID(:person_id)))
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:op, :observation_period_start_date))))
+#=&gt;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;op&quot;.&quot;observation_period_start_date&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+JOIN &quot;observation_period&quot; AS &quot;op&quot; ON (&quot;p&quot;.&quot;person_id&quot; = &quot;op&quot;.&quot;person_id&quot;)
+=#
+
+c = FROM(:l =&gt; :location) |&gt;
+    JOIN(:cs =&gt; :care_site,
+         on = FUN(&quot;=&quot;, (:l, :location_id), (:cs, :location_id)),
+         right = true)
+
+display(c)
+#=&gt;
+ID(:location) |&gt;
+AS(:l) |&gt;
+FROM() |&gt;
+JOIN(ID(:care_site) |&gt; AS(:cs),
+     FUN(&quot;=&quot;, ID(:l) |&gt; ID(:location_id), ID(:cs) |&gt; ID(:location_id)),
+     right = true)
+=#
+
+print(render(c |&gt; SELECT((:cs, :care_site_name), (:l, :state))))
+#=&gt;
+SELECT
+  &quot;cs&quot;.&quot;care_site_name&quot;,
+  &quot;l&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;l&quot;
+RIGHT JOIN &quot;care_site&quot; AS &quot;cs&quot; ON (&quot;l&quot;.&quot;location_id&quot; = &quot;cs&quot;.&quot;location_id&quot;)
+=#
+
+c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:pr =&gt; :provider,
+         on = FUN(&quot;=&quot;, (:p, :provider_id), (:pr, :provider_id)),
+         left = true,
+         right = true)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:provider) |&gt; AS(:pr),
+     FUN(&quot;=&quot;, ID(:p) |&gt; ID(:provider_id), ID(:pr) |&gt; ID(:provider_id)),
+     left = true,
+     right = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:pr, :npi))))
+#=&gt;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;pr&quot;.&quot;npi&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+FULL JOIN &quot;provider&quot; AS &quot;pr&quot; ON (&quot;p&quot;.&quot;provider_id&quot; = &quot;pr&quot;.&quot;provider_id&quot;)
+=#</code></pre><p>To render a <code>CROSS JOIN</code>, set the join condition to <code>true</code>.</p><pre><code class="language-julia hljs">c = FROM(:p1 =&gt; :person) |&gt;
+    JOIN(:p2 =&gt; :person,
+         on = true)
+
+print(render(c |&gt; SELECT((:p1, :person_id), (:p2, :person_id))))
+#=&gt;
+SELECT
+  &quot;p1&quot;.&quot;person_id&quot;,
+  &quot;p2&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p1&quot;
+CROSS JOIN &quot;person&quot; AS &quot;p2&quot;
+=#</code></pre><p>A <code>JOIN LATERAL</code> clause can be created.</p><pre><code class="language-julia hljs">c = FROM(:p =&gt; :person) |&gt;
+    JOIN(:vo =&gt; FROM(:vo =&gt; :visit_occurrence) |&gt;
+                WHERE(FUN(&quot;=&quot;, (:p, :person_id), (:vo, :person_id))) |&gt;
+                ORDER((:vo, :visit_start_date) |&gt; DESC()) |&gt;
+                LIMIT(1) |&gt;
+                SELECT((:vo, :visit_start_date)),
+         on = true,
+         left = true,
+         lateral = true)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+AS(:p) |&gt;
+FROM() |&gt;
+JOIN(ID(:visit_occurrence) |&gt;
+     AS(:vo) |&gt;
+     FROM() |&gt;
+     WHERE(FUN(&quot;=&quot;, ID(:p) |&gt; ID(:person_id), ID(:vo) |&gt; ID(:person_id))) |&gt;
+     ORDER(ID(:vo) |&gt; ID(:visit_start_date) |&gt; DESC()) |&gt;
+     LIMIT(1) |&gt;
+     SELECT(ID(:vo) |&gt; ID(:visit_start_date)) |&gt;
+     AS(:vo),
+     LIT(true),
+     left = true,
+     lateral = true)
+=#
+
+print(render(c |&gt; SELECT((:p, :person_id), (:vo, :visit_start_date))))
+#=&gt;
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;vo&quot;.&quot;visit_start_date&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+LEFT JOIN LATERAL (
+  SELECT &quot;vo&quot;.&quot;visit_start_date&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;vo&quot;
+  WHERE (&quot;p&quot;.&quot;person_id&quot; = &quot;vo&quot;.&quot;person_id&quot;)
+  ORDER BY &quot;vo&quot;.&quot;visit_start_date&quot; DESC
+  FETCH FIRST 1 ROW ONLY
+) AS &quot;vo&quot; ON TRUE
+=#</code></pre><h2 id="GROUP-Clause"><a class="docs-heading-anchor" href="#GROUP-Clause"><code>GROUP</code> Clause</a><a id="GROUP-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#GROUP-Clause" title="Permalink"></a></h2><p>A <code>GROUP BY</code> clause is created with <code>GROUP</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; GROUP(:year_of_birth)
+#-&gt; (…) |&gt; GROUP(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; GROUP(ID(:year_of_birth))
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;
+=#</code></pre><p>A <code>GROUP</code> constructor accepts an empty partition list, in which case, it is not rendered.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; GROUP()
+#-&gt; (…) |&gt; GROUP()
+
+print(render(c |&gt; SELECT(AGG(:count))))
+#=&gt;
+SELECT count(*)
+FROM &quot;person&quot;
+=#</code></pre><p><code>GROUP</code> can accept the grouping mode or a vector of grouping sets.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; GROUP(:year_of_birth, sets = :ROLLUP)
+#-&gt; (…) |&gt; GROUP(…, sets = :ROLLUP)
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY ROLLUP(&quot;year_of_birth&quot;)
+=#
+
+c = FROM(:person) |&gt; GROUP(:year_of_birth, sets = :CUBE)
+#-&gt; (…) |&gt; GROUP(…, sets = :CUBE)
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY CUBE(&quot;year_of_birth&quot;)
+=#
+
+c = FROM(:person) |&gt; GROUP(:year_of_birth, sets = [[1], Int[]])
+#-&gt; (…) |&gt; GROUP(…, sets = [[1], Int64[]])
+
+print(render(c |&gt; SELECT(:year_of_birth, AGG(:count))))
+#=&gt;
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY GROUPING SETS((&quot;year_of_birth&quot;), ())
+=#</code></pre><p><code>GROUP</code> raises an error when the vector of grouping sets is out of bounds.</p><pre><code class="language-julia hljs">FROM(:person) |&gt; GROUP(:year_of_birth, sets = [[1, 2], [1], Int[]])
+#=&gt;
+ERROR: DomainError with [[1, 2], [1], Int64[]]:
+sets are out of bounds
+=#</code></pre><h2 id="HAVING-Clause"><a class="docs-heading-anchor" href="#HAVING-Clause"><code>HAVING</code> Clause</a><a id="HAVING-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#HAVING-Clause" title="Permalink"></a></h2><p>A <code>HAVING</code> clause is created with <code>HAVING()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    GROUP(:year_of_birth) |&gt;
+    HAVING(FUN(&quot;&gt;&quot;, AGG(:count), 10))
+#-&gt; (…) |&gt; HAVING(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+GROUP(ID(:year_of_birth)) |&gt;
+HAVING(FUN(&quot;&gt;&quot;, AGG(&quot;count&quot;), LIT(10)))
+=#
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;
+HAVING (count(*) &gt; 10)
+=#</code></pre><h2 id="ORDER-Clause"><a class="docs-heading-anchor" href="#ORDER-Clause"><code>ORDER</code> Clause</a><a id="ORDER-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#ORDER-Clause" title="Permalink"></a></h2><p>An <code>ORDER BY</code> clause is created with <code>ORDER</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; ORDER(:year_of_birth)
+#-&gt; (…) |&gt; ORDER(…)
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; ORDER(ID(:year_of_birth))
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY &quot;year_of_birth&quot;
+=#</code></pre><p>An <code>ORDER</code> constructor accepts an empty list, in which case, it is not rendered.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt; ORDER()
+#-&gt; (…) |&gt; ORDER()
+
+print(render(c |&gt; SELECT(:person_id)))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+=#</code></pre><p>It is possible to specify ascending or descending order of the sort column.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    ORDER(:year_of_birth |&gt; DESC(nulls = :first),
+          :person_id |&gt; ASC()) |&gt;
+    SELECT(:person_id)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+ORDER(ID(:year_of_birth) |&gt; DESC(nulls = :NULLS_FIRST),
+      ID(:person_id) |&gt; ASC()) |&gt;
+SELECT(ID(:person_id))
+=#
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY
+  &quot;year_of_birth&quot; DESC NULLS FIRST,
+  &quot;person_id&quot; ASC
+=#</code></pre><p>Instead of <code>ASC</code> and <code>DESC</code>, a generic <code>SORT</code> constructor can be used.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    ORDER(:year_of_birth |&gt; SORT(:desc, nulls = :last),
+          :person_id |&gt; SORT(:asc)) |&gt;
+    SELECT(:person_id)
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY
+  &quot;year_of_birth&quot; DESC NULLS LAST,
+  &quot;person_id&quot; ASC
+=#</code></pre><h2 id="UNION-Clause."><a class="docs-heading-anchor" href="#UNION-Clause."><code>UNION</code> Clause.</a><a id="UNION-Clause.-1"></a><a class="docs-heading-anchor-permalink" href="#UNION-Clause." title="Permalink"></a></h2><p><code>UNION</code> and <code>UNION ALL</code> clauses are created with <code>UNION()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:measurement) |&gt;
+    SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
+    UNION(all = true,
+          FROM(:observation) |&gt;
+          SELECT(:person_id, :date =&gt; :observation_date))
+#-&gt; (…) |&gt; UNION(all = true, …)
+
+display(c)
+#=&gt;
+ID(:measurement) |&gt;
+FROM() |&gt;
+SELECT(ID(:person_id), ID(:measurement_date) |&gt; AS(:date)) |&gt;
+UNION(all = true,
+      ID(:observation) |&gt;
+      FROM() |&gt;
+      SELECT(ID(:person_id), ID(:observation_date) |&gt; AS(:date)))
+=#
+
+print(render(c))
+#=&gt;
+SELECT
+  &quot;person_id&quot;,
+  &quot;measurement_date&quot; AS &quot;date&quot;
+FROM &quot;measurement&quot;
+UNION ALL
+SELECT
+  &quot;person_id&quot;,
+  &quot;observation_date&quot; AS &quot;date&quot;
+FROM &quot;observation&quot;
+=#</code></pre><p>A <code>UNION</code> clause with no subqueries can be created explicitly.</p><pre><code class="language-julia hljs">UNION(args = [])
+#-&gt; UNION(args = [])</code></pre><p>Rendering a nested <code>UNION</code> clause adds parentheses around it.</p><pre><code class="language-julia hljs">c = FROM(:measurement) |&gt;
+    SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
+    UNION(all = true,
+          FROM(:observation) |&gt;
+          SELECT(:person_id, :date =&gt; :observation_date)) |&gt;
+    FROM() |&gt;
+    AS(:union) |&gt;
+    WHERE(FUN(&quot;&gt;&quot;, ID(:date), Date(2000))) |&gt;
+    SELECT(ID(:person_id))
+
+print(render(c))
+#=&gt;
+SELECT &quot;person_id&quot;
+FROM (
+  SELECT
+    &quot;person_id&quot;,
+    &quot;measurement_date&quot; AS &quot;date&quot;
+  FROM &quot;measurement&quot;
+  UNION ALL
+  SELECT
+    &quot;person_id&quot;,
+    &quot;observation_date&quot; AS &quot;date&quot;
+  FROM &quot;observation&quot;
+) AS &quot;union&quot;
+WHERE (&quot;date&quot; &gt; &#39;2000-01-01&#39;)
+=#</code></pre><h2 id="VALUES-Clause"><a class="docs-heading-anchor" href="#VALUES-Clause"><code>VALUES</code> Clause</a><a id="VALUES-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#VALUES-Clause" title="Permalink"></a></h2><p>A <code>VALUES</code> clause is created with <code>VALUES()</code> constructor.</p><pre><code class="language-julia hljs">c = VALUES([(&quot;SQL&quot;, 1974), (&quot;Julia&quot;, 2012), (&quot;FunSQL&quot;, 2021)])
+#-&gt; VALUES([(&quot;SQL&quot;, 1974), (&quot;Julia&quot;, 2012), (&quot;FunSQL&quot;, 2021)])
+
+display(c)
+#-&gt; VALUES([(&quot;SQL&quot;, 1974), (&quot;Julia&quot;, 2012), (&quot;FunSQL&quot;, 2021)])
+
+print(render(c))
+#=&gt;
+VALUES
+  (&#39;SQL&#39;, 1974),
+  (&#39;Julia&#39;, 2012),
+  (&#39;FunSQL&#39;, 2021)
+=#</code></pre><p>MySQL has special syntax for rows.</p><pre><code class="language-julia hljs">print(render(c, dialect = :mysql))
+#=&gt;
+VALUES
+  ROW(&#39;SQL&#39;, 1974),
+  ROW(&#39;Julia&#39;, 2012),
+  ROW(&#39;FunSQL&#39;, 2021)
+=#</code></pre><p>When <code>VALUES</code> clause contains a single row, it is emitted on the same line.</p><pre><code class="language-julia hljs">c = VALUES([(&quot;SQL&quot;, 1974)])
+
+print(render(c))
+#-&gt; VALUES (&#39;SQL&#39;, 1974)</code></pre><p><code>VALUES</code> accepts a vector of scalar values.</p><pre><code class="language-julia hljs">c = VALUES([&quot;SQL&quot;, &quot;Julia&quot;, &quot;FunSQL&quot;])
+
+print(render(c))
+#=&gt;
+VALUES
+  &#39;SQL&#39;,
+  &#39;Julia&#39;,
+  &#39;FunSQL&#39;
+=#</code></pre><p>When <code>VALUES</code> is nested in a <code>FROM</code> clause, it is wrapped in parentheses.</p><pre><code class="language-julia hljs">c = VALUES([(&quot;SQL&quot;, 1974), (&quot;Julia&quot;, 2012), (&quot;FunSQL&quot;, 2021)]) |&gt;
+    AS(:values, columns = [:name, :year]) |&gt;
+    FROM() |&gt;
+    SELECT(FUN(&quot;*&quot;))
+
+print(render(c))
+#=&gt;
+SELECT *
+FROM (
+  VALUES
+    (&#39;SQL&#39;, 1974),
+    (&#39;Julia&#39;, 2012),
+    (&#39;FunSQL&#39;, 2021)
+) AS &quot;values&quot; (&quot;name&quot;, &quot;year&quot;)
+=#</code></pre><h2 id="WINDOW-Clause"><a class="docs-heading-anchor" href="#WINDOW-Clause"><code>WINDOW</code> Clause</a><a id="WINDOW-Clause-1"></a><a class="docs-heading-anchor-permalink" href="#WINDOW-Clause" title="Permalink"></a></h2><p>A <code>WINDOW</code> clause is created with <code>WINDOW()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    WINDOW(:w1 =&gt; PARTITION(:gender_concept_id),
+           :w2 =&gt; :w1 |&gt; PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
+#-&gt; (…) |&gt; WINDOW(…)
+
+display(c)
+#=&gt;
+ID(:person) |&gt;
+FROM() |&gt;
+WINDOW(PARTITION(ID(:gender_concept_id)) |&gt; AS(:w1),
+       ID(:w1) |&gt;
+       PARTITION(ID(:year_of_birth),
+                 order_by = [ID(:month_of_birth), ID(:day_of_birth)]) |&gt;
+       AS(:w2))
+=#
+
+print(render(c |&gt; SELECT(:w1 |&gt; AGG(&quot;row_number&quot;), :w2 |&gt; AGG(&quot;row_number&quot;))))
+#=&gt;
+SELECT
+  (row_number() OVER (&quot;w1&quot;)),
+  (row_number() OVER (&quot;w2&quot;))
+FROM &quot;person&quot;
+WINDOW
+  &quot;w1&quot; AS (PARTITION BY &quot;gender_concept_id&quot;),
+  &quot;w2&quot; AS (&quot;w1&quot; PARTITION BY &quot;year_of_birth&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)
+=#</code></pre><p>The <code>WINDOW()</code> constructor accepts an empty list of partitions, in which case, it is not rendered.</p><pre><code class="language-julia hljs">c = FROM(:person) |&gt;
+    WINDOW(args = [])
+
+display(c)
+#-&gt; ID(:person) |&gt; FROM() |&gt; WINDOW(args = [])
+
+print(render(c |&gt; SELECT(AGG(&quot;row_number&quot;, over = PARTITION()))))
+#=&gt;
+SELECT (row_number() OVER ())
+FROM &quot;person&quot;
+=#</code></pre><h2 id="WITH-Clause-and-Common-Table-Expressions"><a class="docs-heading-anchor" href="#WITH-Clause-and-Common-Table-Expressions"><code>WITH</code> Clause and Common Table Expressions</a><a id="WITH-Clause-and-Common-Table-Expressions-1"></a><a class="docs-heading-anchor-permalink" href="#WITH-Clause-and-Common-Table-Expressions" title="Permalink"></a></h2><p>The <code>AS</code> clause that defines a common table expression is created using the <code>AS</code> constructor.</p><pre><code class="language-julia hljs">cte1 =
+    FROM(:concept) |&gt;
+    WHERE(FUN(&quot;=&quot;, :concept_id, 320128)) |&gt;
+    SELECT(:concept_id, :concept_name) |&gt;
+    AS(:essential_hypertension)
+#-&gt; (…) |&gt; AS(:essential_hypertension)
+
+cte2 =
+    FROM(:essential_hypertension) |&gt;
+    SELECT(:concept_id, :concept_name) |&gt;
+    UNION(all = true,
+          FROM(:eh =&gt; :essential_hypertension_with_descendants) |&gt;
+          JOIN(:cr =&gt; :concept_relationship,
+               FUN(&quot;=&quot;, (:eh, :concept_id), (:cr, :concept_id_1))) |&gt;
+          JOIN(:c =&gt; :concept,
+               FUN(&quot;=&quot;, (:cr, :concept_id_2), (:c, :concept_id))) |&gt;
+          WHERE(FUN(&quot;=&quot;, (:cr, :relationship_id), &quot;Subsumes&quot;)) |&gt;
+          SELECT((:c, :concept_id), (:c, :concept_name))) |&gt;
+    AS(:essential_hypertension_with_descendants,
+        columns = [:concept_id, :concept_name])
+#-&gt; (…) |&gt; AS(:essential_hypertension_with_descendants, columns = […])</code></pre><p>The <code>WITH</code> clause is created using the <code>WITH()</code> constructor.</p><pre><code class="language-julia hljs">c = FROM(:essential_hypertension_with_descendants) |&gt;
+    SELECT(*) |&gt;
+    WITH(recursive = true, cte1, cte2)
+#-&gt; (…) |&gt; WITH(recursive = true, …)
+
+display(c)
+#=&gt;
+ID(:essential_hypertension_with_descendants) |&gt;
+FROM() |&gt;
+SELECT(FUN(&quot;*&quot;)) |&gt;
+WITH(recursive = true,
+     ID(:concept) |&gt;
+     FROM() |&gt;
+     WHERE(FUN(&quot;=&quot;, ID(:concept_id), LIT(320128))) |&gt;
+     SELECT(ID(:concept_id), ID(:concept_name)) |&gt;
+     AS(:essential_hypertension),
+     ID(:essential_hypertension) |&gt;
+     FROM() |&gt;
+     SELECT(ID(:concept_id), ID(:concept_name)) |&gt;
+     UNION(all = true,
+           ID(:essential_hypertension_with_descendants) |&gt;
+           AS(:eh) |&gt;
+           FROM() |&gt;
+           JOIN(ID(:concept_relationship) |&gt; AS(:cr),
+                FUN(&quot;=&quot;,
+                    ID(:eh) |&gt; ID(:concept_id),
+                    ID(:cr) |&gt; ID(:concept_id_1))) |&gt;
+           JOIN(ID(:concept) |&gt; AS(:c),
+                FUN(&quot;=&quot;,
+                    ID(:cr) |&gt; ID(:concept_id_2),
+                    ID(:c) |&gt; ID(:concept_id))) |&gt;
+           WHERE(FUN(&quot;=&quot;, ID(:cr) |&gt; ID(:relationship_id), LIT(&quot;Subsumes&quot;))) |&gt;
+           SELECT(ID(:c) |&gt; ID(:concept_id), ID(:c) |&gt; ID(:concept_name))) |&gt;
+     AS(:essential_hypertension_with_descendants,
+        columns = [:concept_id, :concept_name]))
+=#
+
+print(render(c))
+#=&gt;
+WITH RECURSIVE &quot;essential_hypertension&quot; AS (
+  SELECT
+    &quot;concept_id&quot;,
+    &quot;concept_name&quot;
+  FROM &quot;concept&quot;
+  WHERE (&quot;concept_id&quot; = 320128)
+),
+&quot;essential_hypertension_with_descendants&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;) AS (
+  SELECT
+    &quot;concept_id&quot;,
+    &quot;concept_name&quot;
+  FROM &quot;essential_hypertension&quot;
+  UNION ALL
+  SELECT
+    &quot;c&quot;.&quot;concept_id&quot;,
+    &quot;c&quot;.&quot;concept_name&quot;
+  FROM &quot;essential_hypertension_with_descendants&quot; AS &quot;eh&quot;
+  JOIN &quot;concept_relationship&quot; AS &quot;cr&quot; ON (&quot;eh&quot;.&quot;concept_id&quot; = &quot;cr&quot;.&quot;concept_id_1&quot;)
+  JOIN &quot;concept&quot; AS &quot;c&quot; ON (&quot;cr&quot;.&quot;concept_id_2&quot; = &quot;c&quot;.&quot;concept_id&quot;)
+  WHERE (&quot;cr&quot;.&quot;relationship_id&quot; = &#39;Subsumes&#39;)
+)
+SELECT *
+FROM &quot;essential_hypertension_with_descendants&quot;
+=#</code></pre><p>The <code>MATERIALIZED</code> annotation can be added using <code>NOTE</code>.</p><pre><code class="language-julia hljs">cte =
+    FROM(:condition_occurrence) |&gt;
+    WHERE(FUN(&quot;=&quot;, :condition_concept_id, 320128)) |&gt;
+    SELECT(:person_id) |&gt;
+    NOTE(&quot;MATERIALIZED&quot;) |&gt;
+    AS(:essential_hypertension_occurrence)
+#-&gt; (…) |&gt; AS(:essential_hypertension_occurrence)
+
+display(cte)
+#=&gt;
+ID(:condition_occurrence) |&gt;
+FROM() |&gt;
+WHERE(FUN(&quot;=&quot;, ID(:condition_concept_id), LIT(320128))) |&gt;
+SELECT(ID(:person_id)) |&gt;
+NOTE(&quot;MATERIALIZED&quot;) |&gt;
+AS(:essential_hypertension_occurrence)
+=#
+
+print(render(FROM(:essential_hypertension_occurrence) |&gt; SELECT(*) |&gt; WITH(cte)))
+#=&gt;
+WITH &quot;essential_hypertension_occurrence&quot; AS MATERIALIZED (
+  SELECT &quot;person_id&quot;
+  FROM &quot;condition_occurrence&quot;
+  WHERE (&quot;condition_concept_id&quot; = 320128)
+)
+SELECT *
+FROM &quot;essential_hypertension_occurrence&quot;
+=#</code></pre><p>A <code>WITH</code> clause without any common table expressions will be omitted.</p><pre><code class="language-julia hljs">c = FROM(:condition_occurrence) |&gt;
+    SELECT(*) |&gt;
+    WITH(args = [])
+#-&gt; (…) |&gt; WITH(args = [])
+
+print(render(c))
+#=&gt;
+SELECT *
+FROM &quot;condition_occurrence&quot;
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Friday 8 March 2024 20:37">Friday 8 March 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
