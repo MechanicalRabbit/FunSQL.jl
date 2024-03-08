@@ -2505,14 +2505,14 @@ downstream.
 `Group` allows specifying the grouping sets.
 
     q = From(person) |>
-        Group(Get.year_of_birth, grouping_sets = :cube)
+        Group(Get.year_of_birth, sets = :cube)
         Define(Agg.count())
 
     display(q)
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Group(Get.year_of_birth, grouping_sets = :CUBE)
+        q2 = q1 |> Group(Get.year_of_birth, sets = :CUBE)
         q2
     end
     =#
@@ -2525,14 +2525,14 @@ downstream.
     =#
 
     q = From(person) |>
-        Group(Get.year_of_birth, grouping_sets = [[1], Int[]])
+        Group(Get.year_of_birth, sets = [[1], Int[]])
         Define(Agg.count())
 
     display(q)
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Group(Get.year_of_birth, grouping_sets = [[1], []])
+        q2 = q1 |> Group(Get.year_of_birth, sets = [[1], []])
         q2
     end
     =#
@@ -2547,10 +2547,10 @@ downstream.
 `Group` complains about out-of-bound grouping sets.
 
     From(person) |>
-    Group(Get.year_of_birth, grouping_sets = [[1, 2], [1], Int[]])
+    Group(Get.year_of_birth, sets = [[1, 2], [1], Int[]])
     #=>
     ERROR: DomainError with [[1, 2], [1], Int64[]]:
-    grouping_sets is out of bounds
+    sets are out of bounds
     =#
 
 `Group` allows specifying the name of a group field.

@@ -538,22 +538,22 @@ function serialize!(c::GroupClause, ctx)
     !isempty(c.by) || return
     newline(ctx)
     print(ctx, "GROUP BY")
-    grouping_sets = c.grouping_sets
-    if grouping_sets !== nothing
-        if grouping_sets isa GroupingMode
-            if grouping_sets == GROUPING_MODE.ROLLUP
+    sets = c.sets
+    if sets !== nothing
+        if sets isa GroupingMode
+            if sets == GROUPING_MODE.ROLLUP
                 print(ctx, " ROLLUP(")
-            elseif grouping_sets == GROUPING_MODE.CUBE
+            elseif sets == GROUPING_MODE.CUBE
                 print(ctx, " CUBE(")
             else
-                throw(DomainError(grouping_sets))
+                throw(DomainError(sets))
             end
             serialize!(c.by, ctx)
             print(ctx, ')')
         else
             print(ctx, " GROUPING SETS(")
             first = true
-            for set in grouping_sets
+            for set in sets
                 if !first
                     print(ctx, ", ")
                 else
