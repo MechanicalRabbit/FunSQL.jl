@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.13.2
+
+* Wrap a branch of `UNION ALL` in a subquery if it contains `ORDER BY` or
+  `LIMIT` clause.
+
+
 ## v0.13.1
 
 * Add support for grouping sets, which are used in SQL to calculate totals
