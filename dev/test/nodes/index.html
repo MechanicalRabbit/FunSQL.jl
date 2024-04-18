@@ -1097,6 +1097,36 @@ FROM (
     &quot;observation_1&quot;.&quot;person_id&quot;
   FROM &quot;observation&quot; AS &quot;observation_1&quot;
 ) AS &quot;observation_2&quot;
+=#</code></pre><p>Arguments of <code>Append</code> may contain <code>ORDER BY</code> or <code>LIMIT</code> clauses, which must be wrapped in a nested subquery.</p><pre><code class="language-julia hljs">q = From(measurement) |&gt;
+    Order(Get.measurement_date) |&gt;
+    Select(Get.person_id, :date =&gt; Get.measurement_date) |&gt;
+    Append(From(observation) |&gt;
+           Define(:date =&gt; Get.observation_date) |&gt;
+           Limit(1))
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;measurement_2&quot;.&quot;person_id&quot;,
+  &quot;measurement_2&quot;.&quot;date&quot;
+FROM (
+  SELECT
+    &quot;measurement_1&quot;.&quot;person_id&quot;,
+    &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
+  FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
+  ORDER BY &quot;measurement_1&quot;.&quot;measurement_date&quot;
+) AS &quot;measurement_2&quot;
+UNION ALL
+SELECT
+  &quot;observation_2&quot;.&quot;person_id&quot;,
+  &quot;observation_2&quot;.&quot;date&quot;
+FROM (
+  SELECT
+    &quot;observation_1&quot;.&quot;person_id&quot;,
+    &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
+  FROM &quot;observation&quot; AS &quot;observation_1&quot;
+  FETCH FIRST 1 ROW ONLY
+) AS &quot;observation_2&quot;
 =#</code></pre><p>An <code>Append</code> without any queries can be created explicitly.</p><pre><code class="language-julia hljs">q = Append(args = [])
 #-&gt; Append(args = [])
 
@@ -3109,4 +3139,4 @@ end;
 │       GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.3.0 on <span class="colophon-date" title="Monday 1 April 2024 00:30">Monday 1 April 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.0 on <span class="colophon-date" title="Thursday 18 April 2024 03:12">Thursday 18 April 2024</span>. Using Julia version 1.10.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
