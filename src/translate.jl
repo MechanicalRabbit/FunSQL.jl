@@ -365,10 +365,10 @@ function assemble(n::AppendNode, ctx)
         if a.name !== a_name
             a_name = :union
         end
-        if @dissect(a.clause, SELECT(args = args)) && aligned_columns(urefs, repl, args)
+        if @dissect(a.clause, over |> SELECT(args = args)) && aligned_columns(urefs, repl, args) && !@dissect(over, ORDER() || LIMIT())
             push!(cs, a.clause)
             continue
-        elseif !@dissect(a.clause, SELECT() || UNION())
+        elseif !@dissect(a.clause, SELECT() || UNION() || ORDER() || LIMIT())
             alias = nothing
             tail = a.clause
         else
@@ -666,10 +666,10 @@ function assemble(n::IterateNode, ctx)
     end
     cs = SQLClause[]
     for (arg, a) in (n.over => left, n.iterator => right)
-        if @dissect(a.clause, SELECT(args = args)) && aligned_columns(urefs, left.repl, args)
+        if @dissect(a.clause, over |> SELECT(args = args)) && aligned_columns(urefs, repl, args) && !@dissect(over, ORDER() || LIMIT())
             push!(cs, a.clause)
             continue
-        elseif !@dissect(a.clause, SELECT() || UNION())
+        elseif !@dissect(a.clause, SELECT() || UNION() || ORDER() || LIMIT())
             alias = nothing
             tail = a.clause
         else

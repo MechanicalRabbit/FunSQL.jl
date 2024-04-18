@@ -1426,6 +1426,41 @@ nested subqueries.
     ) AS "observation_2"
     =#
 
+Arguments of `Append` may contain `ORDER BY` or `LIMIT` clauses, which
+must be wrapped in a nested subquery.
+
+    q = From(measurement) |>
+        Order(Get.measurement_date) |>
+        Select(Get.person_id, :date => Get.measurement_date) |>
+        Append(From(observation) |>
+               Define(:date => Get.observation_date) |>
+               Limit(1))
+
+    print(render(q))
+    #=>
+    SELECT
+      "measurement_2"."person_id",
+      "measurement_2"."date"
+    FROM (
+      SELECT
+        "measurement_1"."person_id",
+        "measurement_1"."measurement_date" AS "date"
+      FROM "measurement" AS "measurement_1"
+      ORDER BY "measurement_1"."measurement_date"
+    ) AS "measurement_2"
+    UNION ALL
+    SELECT
+      "observation_2"."person_id",
+      "observation_2"."date"
+    FROM (
+      SELECT
+        "observation_1"."person_id",
+        "observation_1"."observation_date" AS "date"
+      FROM "observation" AS "observation_1"
+      FETCH FIRST 1 ROW ONLY
+    ) AS "observation_2"
+    =#
+
 An `Append` without any queries can be created explicitly.
 
     q = Append(args = [])
