@@ -837,9 +837,7 @@ function assemble(n::RoutedJoinNode, ctx)
     else
         right = assemble(n.joinee, ctx)
     end
-    if @dissect(right.clause, (joinee := (nothing || nothing |> ID()) |> ID() |> AS(name = right_alias, columns = nothing)) |> FROM()) ||
-       @dissect(right.clause, (joinee := nothing |> ID(name = right_alias)) |> FROM()) ||
-       @dissect(right.clause, (joinee := FUN() |> AS(name = right_alias)) |> FROM())
+    if @dissect(right.clause, (joinee := (ID() || AS())) |> FROM())
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end
