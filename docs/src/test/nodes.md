@@ -2277,7 +2277,7 @@ for a `CREATE TABLE AS` or `SELECT INTO` statement.
     with_external_handler((tbl, def)) =
         println("CREATE TEMP TABLE ",
                 render(ID(tbl.qualifiers, tbl.name)),
-                " (", join([render(ID(c)) for c in tbl.columns], ", "), ") AS\n",
+                " (", join([render(ID(c.name)) for (n, c) in tbl.columns], ", "), ") AS\n",
                 render(def), ";\n")
 
     q = From(:male) |>

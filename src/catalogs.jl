@@ -1,6 +1,51 @@
 # Database structure.
 
 """
+    SQLColumn(; name)
+    SQLColumn(name)
+
+`SQLColumn` represents a column of a database table.
+"""
+struct SQLColumn
+    name::Symbol
+
+    function SQLColumn(; name::Union{Symbol, AbstractString})
+        new(Symbol(name))
+    end
+end
+
+SQLColumn(name) =
+    SQLColumn(name = name)
+
+Base.show(io::IO, col::SQLColumn) =
+    print(io, quoteof(col, limit = true))
+
+Base.show(io::IO, ::MIME"text/plain", col::SQLColumn) =
+    pprint(io, col)
+
+function PrettyPrinting.quoteof(col::SQLColumn; limit::Bool = false)
+    Expr(:call, nameof(SQLColumn), QuoteNode(col.name))
+end
+
+_column_map(columns::OrderedDict{Symbol, SQLColumn}) =
+    columns
+
+_column_map(columns::AbstractVector{Pair{Symbol, SQLColumn}}) =
+    OrderedDict{Symbol, SQLColumn}(columns)
+
+_column_map(columns) =
+    OrderedDict{Symbol, SQLColumn}(Pair{Symbol, SQLColumn}[_column_entry(c) for c in columns])
+
+_column_entry(c::Symbol) =
+    c => SQLColumn(c)
+
+_column_entry(c::AbstractString) =
+    _column_entry(Symbol(c))
+
+_column_entry((n, c)::Pair{<:Union{Symbol, AbstractString}, SQLColumn}) =
+    Symbol(n) => c
+
+"""
     SQLTable(; qualifiers = [], name, columns)
     SQLTable(name; qualifiers = [], columns)
     SQLTable(name, columns...; qualifiers = [])
@@ -8,9 +53,10 @@
 The structure of a SQL table or a table-like entity (`TEMP TABLE`, `VIEW`, etc)
 for use as a reference in assembling SQL queries.
 
-The `SQLTable` constructor expects the table `name`, a vector `columns` of
-column names, and, optionally, a vector containing the name of the table schema
-and other `qualifiers`.  A name can be a `Symbol` or a `String` value.
+The `SQLTable` constructor expects the table `name`, an ordered dictionary
+`columns` that maps names to columns, and, optionally, a vector containing
+the name of the table schema and other `qualifiers`.  A name can be a `Symbol`
+or a `String`.
 
 # Examples
 
@@ -18,32 +64,28 @@ and other `qualifiers`.  A name can be a `Symbol` or a `String` value.
 julia> person = SQLTable(qualifiers = ["public"],
                          name = "person",
                          columns = ["person_id", "year_of_birth"])
-SQLTable(:person,
-         qualifiers = [:public],
-         columns = [:person_id, :year_of_birth])
+SQLTable(qualifiers = [:public],
+         :person,
+         SQLColumn(:person_id),
+         SQLColumn(:year_of_birth))
 ```
 """
 struct SQLTable
     qualifiers::Vector{Symbol}
     name::Symbol
-    columns::Vector{Symbol}
-    column_set::Set{Symbol}
+    columns::OrderedDict{Symbol, SQLColumn}
 
     function SQLTable(;
                       qualifiers::AbstractVector{<:Union{Symbol, AbstractString}} = Symbol[],
                       name::Union{Symbol, AbstractString},
-                      columns::AbstractVector{<:Union{Symbol, AbstractString}})
+                      columns)
         qualifiers =
             !isa(qualifiers, Vector{Symbol}) ?
                 Symbol[Symbol(ql) for ql in qualifiers] :
                 qualifiers
         name = Symbol(name)
-        columns =
-            !isa(columns, Vector{Symbol}) ?
-                Symbol[Symbol(col) for col in columns] :
-                columns
-        column_set = Set{Symbol}(columns)
-        new(qualifiers, name, columns, column_set)
+        columns = _column_map(columns)
+        new(qualifiers, name, columns)
     end
 end
 
@@ -61,12 +103,18 @@ Base.show(io::IO, ::MIME"text/plain", tbl::SQLTable) =
 
 function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
     ex = Expr(:call, nameof(SQLTable))
-    push!(ex.args, quoteof(tbl.name))
     if !isempty(tbl.qualifiers)
         push!(ex.args, Expr(:kw, :qualifiers, quoteof(tbl.qualifiers)))
     end
+    push!(ex.args, quoteof(tbl.name))
     if !limit
-        push!(ex.args, Expr(:kw, :columns, tbl.columns))
+        for (name, col) in tbl.columns
+            arg = quoteof(col)
+            if name !== col.name
+                arg = Expr(:call, :(=>), QuoteNode(name), arg)
+            end
+            push!(ex.args, arg)
+        end
     else
         push!(ex.args, :…)
     end
@@ -120,10 +168,11 @@ julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :locati
 julia> location = SQLTable(:location, columns = [:location_id, :state]);
 
 julia> catalog = SQLCatalog(person, location, dialect = :postgresql)
-SQLCatalog(:location => SQLTable(:location, columns = [:location_id, :state]),
-           :person =>
-               SQLTable(:person,
-                        columns = [:person_id, :year_of_birth, :location_id]),
+SQLCatalog(SQLTable(:location, SQLColumn(:location_id), SQLColumn(:state)),
+           SQLTable(:person,
+                    SQLColumn(:person_id),
+                    SQLColumn(:year_of_birth),
+                    SQLColumn(:location_id)),
            dialect = SQLDialect(:postgresql))
 ```
 """
@@ -147,7 +196,12 @@ SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize) =
 function PrettyPrinting.quoteof(c::SQLCatalog)
     ex = Expr(:call, nameof(SQLCatalog))
     for name in sort!(collect(keys(c.tables)))
-        push!(ex.args, Expr(:call, :(=>), QuoteNode(name), quoteof(c.tables[name])))
+        tbl = c.tables[name]
+        arg = quoteof(tbl)
+        if name !== tbl.name
+            arg = Expr(:call, :(=>), QuoteNode(name), arg)
+        end
+        push!(ex.args, arg)
     end
     push!(ex.args, Expr(:kw, :dialect, quoteof(c.dialect)))
     cache = c.cache

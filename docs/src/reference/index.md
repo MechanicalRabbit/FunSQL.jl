@@ -34,7 +34,7 @@ Pages = ["connections.jl"]
 ```
 
 
-## `SQLCatalog` and `SQLTable`
+## `SQLCatalog`, `SQLTable`, and `SQLColumn`
 
 ```@autodocs
 Modules = [FunSQL]
