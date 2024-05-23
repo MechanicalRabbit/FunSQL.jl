@@ -125,6 +125,35 @@ the object.
              :name => SQLColumn(:vocabulary_name))
     =#
 
+A `SQLTable` object behaves like a read-only dictionary.
+
+    person[:person_id]
+    #-> SQLColumn(:person_id)
+
+    person["person_id"]
+    #-> SQLColumn(:person_id)
+
+    person[:visit_occurrence]
+    #-> ERROR: KeyError: key :visit_occurrence not found
+
+    get(person, :person_id, nothing)
+    #-> SQLColumn(:person_id)
+
+    get(person, "person_id", nothing)
+    #-> SQLColumn(:person_id)
+
+    get(person, :visit_occurrence, missing)
+    #-> missing
+
+    get(() -> missing, person, :visit_occurrence)
+    #-> missing
+
+    length(person)
+    #-> 3
+
+    collect(keys(person))
+    #-> [:person_id, :year_of_birth, :location_id]
+
 A `SQLCatalog` constructor takes a collection of `SQLTable` objects,
 the target dialect, and the size of the query cache.  Just as columns,
 a table may have a custom name for use with FunSQL and the original name

@@ -70,7 +70,7 @@ SQLTable(qualifiers = [:public],
          SQLColumn(:year_of_birth))
 ```
 """
-struct SQLTable
+struct SQLTable <: AbstractDict{Symbol, SQLColumn}
     qualifiers::Vector{Symbol}
     name::Symbol
     columns::OrderedDict{Symbol, SQLColumn}
@@ -120,6 +120,21 @@ function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
     end
     ex
 end
+
+Base.get(tbl::SQLTable, key::Union{Symbol, AbstractString}, default) =
+    get(tbl.columns, Symbol(key), default)
+
+Base.get(default::Base.Callable, tbl::SQLTable, key::Union{Symbol, AbstractString}) =
+    get(default, tbl.columns, Symbol(key))
+
+Base.getindex(tbl::SQLTable, key::Union{Symbol, AbstractString}) =
+    tbl.columns[Symbol(key)]
+
+Base.iterate(tbl::SQLTable, state...) =
+    iterate(tbl.columns, state...)
+
+Base.length(tbl::SQLTable) =
+    length(tbl.columns)
 
 const default_cache_maxsize = 256
 
