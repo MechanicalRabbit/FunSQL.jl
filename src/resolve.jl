@@ -229,7 +229,7 @@ end
 
 function RowType(table::SQLTable)
     fields = FieldTypeMap()
-    for f in table.columns
+    for f in keys(table.columns)
         fields[f] = ScalarType()
     end
     RowType(fields)

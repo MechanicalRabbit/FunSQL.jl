@@ -66,23 +66,25 @@ by name.
     DBInterface.close!(conn)
 
 
-## `SQLCatalog` and `SQLTable`
+## `SQLCatalog`, `SQLTable`, and `SQLColumn`
 
 In FunSQL, tables and table-like entities are represented using `SQLTable`
-objects.  A collection of `SQLTable` objects is represented as a `SQLCatalog`
+objects.  Their columns are represented using `SQLColumn` objects.
+A collection of `SQLTable` objects is represented as a `SQLCatalog`
 object.
 
-    using FunSQL: SQLCatalog, SQLTable
+    using FunSQL: SQLCatalog, SQLColumn, SQLTable
 
-A `SQLTable` constructor takes the table name, a vector of column names,
-and, optionally, the name of the table schema and other qualifiers.  A name
-could be provided either as a `Symbol` or as a `String` value.
+A `SQLTable` constructor takes the table name, a vector of columns, and,
+optionally, the name of the table schema and other qualifiers.  A name
+could be provided either as a `Symbol` or as a `String` value.  A column
+can be specified just by its name.
 
     location = SQLTable(qualifiers = [:public],
                         name = :location,
                         columns = [:location_id, :address_1, :address_2,
                                    :city, :state, :zip])
-    #-> SQLTable(:location, qualifiers = [:public], …)
+    #-> SQLTable(qualifiers = [:public], :location, …)
 
     person = SQLTable(name = "person",
                       columns = ["person_id", "year_of_birth", "location_id"])
@@ -90,54 +92,73 @@ could be provided either as a `Symbol` or as a `String` value.
 
 The table and the column names could be provided as positional arguments.
 
-    vocabulary = SQLTable(:vocabulary,
-                          columns = [:vocabulary_id, :vocabulary_name])
-    #-> SQLTable(:vocabulary, …)
-
     concept = SQLTable("concept", "concept_id", "concept_name", "vocabulary_id")
     #-> SQLTable(:concept, …)
+
+A column may have a custom name for use with FunSQL and the original name
+for generating SQL queries.
+
+    vocabulary = SQLTable(:vocabulary,
+                          :id => SQLColumn(:vocabulary_id),
+                          :name => SQLColumn(:vocabulary_name))
+    #-> SQLTable(:vocabulary, …)
 
 A `SQLTable` object is displayed as a Julia expression that created
 the object.
 
     display(location)
     #=>
-    SQLTable(:location,
-             qualifiers = [:public],
-             columns = [:location_id, :address_1, :address_2, :city, :state, :zip])
+    SQLTable(qualifiers = [:public],
+             :location,
+             SQLColumn(:location_id),
+             SQLColumn(:address_1),
+             SQLColumn(:address_2),
+             SQLColumn(:city),
+             SQLColumn(:state),
+             SQLColumn(:zip))
     =#
 
-    display(person)
+    display(vocabulary)
     #=>
-    SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id])
+    SQLTable(:vocabulary,
+             :id => SQLColumn(:vocabulary_id),
+             :name => SQLColumn(:vocabulary_name))
     =#
 
 A `SQLCatalog` constructor takes a collection of `SQLTable` objects,
-the target dialect, and the size of the query cache.
+the target dialect, and the size of the query cache.  Just as columns,
+a table may have a custom name for use with FunSQL and the original name
+for generating SQL.
 
-    catalog = SQLCatalog(tables = [person, location, vocabulary, concept],
+    catalog = SQLCatalog(tables = [person, location, concept, :concept_vocabulary => vocabulary],
                          dialect = :sqlite,
                          cache = 128)
     #-> SQLCatalog(…4 tables…, dialect = SQLDialect(:sqlite), cache = 128)
 
     display(catalog)
     #=>
-    SQLCatalog(
-        :concept => SQLTable(:concept,
-                             columns =
-                                 [:concept_id, :concept_name, :vocabulary_id]),
-        :location =>
-            SQLTable(
-                :location,
-                qualifiers = [:public],
-                columns =
-                    [:location_id, :address_1, :address_2, :city, :state, :zip]),
-        :person => SQLTable(:person,
-                            columns = [:person_id, :year_of_birth, :location_id]),
-        :vocabulary => SQLTable(:vocabulary,
-                                columns = [:vocabulary_id, :vocabulary_name]),
-        dialect = SQLDialect(:sqlite),
-        cache = 128)
+    SQLCatalog(SQLTable(:concept,
+                        SQLColumn(:concept_id),
+                        SQLColumn(:concept_name),
+                        SQLColumn(:vocabulary_id)),
+               :concept_vocabulary => SQLTable(:vocabulary,
+                                               :id => SQLColumn(:vocabulary_id),
+                                               :name => SQLColumn(
+                                                            :vocabulary_name)),
+               SQLTable(qualifiers = [:public],
+                        :location,
+                        SQLColumn(:location_id),
+                        SQLColumn(:address_1),
+                        SQLColumn(:address_2),
+                        SQLColumn(:city),
+                        SQLColumn(:state),
+                        SQLColumn(:zip)),
+               SQLTable(:person,
+                        SQLColumn(:person_id),
+                        SQLColumn(:year_of_birth),
+                        SQLColumn(:location_id)),
+               dialect = SQLDialect(:sqlite),
+               cache = 128)
     =#
 
 Number of tables in the catalog affects its representation.
@@ -191,7 +212,7 @@ The catalog behaves as a read-only `Dict` object.
     #-> 4
 
     sort(collect(keys(catalog)))
-    #-> [:concept, :location, :person, :vocabulary]
+    #-> [:concept, :concept_vocabulary, :location, :person]
 
 
 ## `SQLDialect`

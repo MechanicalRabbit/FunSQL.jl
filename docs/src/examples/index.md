@@ -346,10 +346,7 @@ the definitions programmatically.
         !contains(String(c), "source")
 
     q = From(:person) |>
-        Select(Get.(filter(is_not_source_column, person_table.columns))...)
-
-    # q = From(:person) |>
-    #     Select(args = [Get(c) for c in person_table.columns if is_not_source_column(c)])
+        Select(args = [Get(c) for c in keys(person_table.columns) if is_not_source_column(c)])
 
     display(q)
     #=>
@@ -447,16 +444,16 @@ however we must ensure that all column names are unique.
     const visit_occurrence_table = conn.catalog[:visit_occurrence]
 
     q = q |>
-        Select(Get.(person_table.columns)...,
-               Get.(visit_occurrence_table.columns, over = Get.visit)...)
+        Select(Get.(keys(person_table.columns))...,
+               Get.(keys(visit_occurrence_table.columns), over = Get.visit)...)
     #=>
     ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
     ⋮
     =#
 
     q = q |>
-        Select(Get.(person_table.columns)...,
-               Get.(filter(!in(person_table.columns), visit_occurrence_table.columns),
+        Select(Get.(keys(person_table.columns))...,
+               Get.(filter(!in(keys(person_table.columns)), collect(keys(visit_occurrence_table.columns))),
                     over = Get.visit)...)
 
     render(conn, q) |> print

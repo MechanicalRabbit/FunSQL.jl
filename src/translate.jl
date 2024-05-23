@@ -516,7 +516,7 @@ end
 function assemble(n::FromTableNode, ctx)
     seen = Set{Symbol}()
     for ref in ctx.refs
-        @dissect(ref, nothing |> Get(name = name)) && name in n.table.column_set || error()
+        @dissect(ref, nothing |> Get(name = name)) && name in keys(n.table.columns) || error()
         if !(name in seen)
             push!(seen, name)
         end
@@ -525,9 +525,9 @@ function assemble(n::FromTableNode, ctx)
     tbl = ID(n.table.qualifiers, n.table.name)
     c = FROM(AS(over = tbl, name = alias))
     cols = OrderedDict{Symbol, SQLClause}()
-    for col in n.table.columns
-        col in seen || continue
-        cols[col] = ID(over = alias, name = col)
+    for (name, col) in n.table.columns
+        name in seen || continue
+        cols[name] = ID(over = alias, name = col.name)
     end
     repl = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
