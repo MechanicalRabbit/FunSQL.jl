@@ -1,21 +1,21 @@
 # Find select lists.
 
 struct LinkContext
-    dialect::SQLDialect
+    catalog::SQLCatalog
     defs::Vector{SQLNode}
     refs::Vector{SQLNode}
     cte_refs::Base.ImmutableDict{Tuple{Symbol, Int}, Vector{SQLNode}}
     knot_refs::Union{Vector{SQLNode}, Nothing}
 
-    LinkContext(dialect) =
-        new(dialect,
+    LinkContext(catalog) =
+        new(catalog,
             SQLNode[],
             SQLNode[],
             Base.ImmutableDict{Tuple{Symbol, Int}, Vector{SQLNode}}(),
             nothing)
 
     LinkContext(ctx::LinkContext; refs = ctx.refs, cte_refs = ctx.cte_refs, knot_refs = ctx.knot_refs) =
-        new(ctx.dialect,
+        new(ctx.catalog,
             ctx.defs,
             refs,
             cte_refs,
@@ -23,8 +23,8 @@ struct LinkContext
 end
 
 function link(n::SQLNode)
-    @dissect(n, WithContext(over = over, dialect = dialect)) || throw(ILLFormedError())
-    ctx = LinkContext(dialect)
+    @dissect(n, WithContext(over = over, catalog = catalog)) || throw(ILLFormedError())
+    ctx = LinkContext(catalog)
     t = row_type(over)
     refs = SQLNode[]
     for (f, ft) in t.fields
@@ -33,7 +33,7 @@ function link(n::SQLNode)
         end
     end
     over′ = Linked(refs, over = link(dismantle(over, ctx), ctx, refs))
-    WithContext(over = over′, dialect = dialect, defs = ctx.defs)
+    WithContext(over = over′, catalog = catalog, defs = ctx.defs)
 end
 
 function dismantle(n::SQLNode, ctx)

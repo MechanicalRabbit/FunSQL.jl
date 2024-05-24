@@ -56,7 +56,7 @@ function render(catalog::SQLCatalog, n::SQLNode)
             return sql
         end
     end
-    n = WithContext(over = n, dialect = catalog.dialect, tables = catalog.tables)
+    n = WithContext(over = n, catalog = catalog)
     n = resolve(n)
     @debug "FunSQL.resolve\n" * sprint(pprint, n) _group = Symbol("FunSQL.resolve")
     n = link(n)
