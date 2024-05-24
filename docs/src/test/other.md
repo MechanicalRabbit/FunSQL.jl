@@ -243,6 +243,25 @@ The catalog behaves as a read-only `Dict` object.
     sort(collect(keys(catalog)))
     #-> [:concept, :concept_vocabulary, :location, :person]
 
+Catalog objects can be assigned arbitrary metadata.
+
+    metadata_catalog =
+        SQLCatalog(SQLTable(:person,
+                            SQLColumn(:person_id, metadata = Dict(:label => "Person ID")),
+                            metadata = Dict(:caption => "Person")),
+                   metadata = Dict(:schema => "OMOP"))
+    #-> SQLCatalog(…1 table…, dialect = SQLDialect(), metadata = Dict(…))
+
+    display(metadata_catalog)
+    #=>
+    SQLCatalog(SQLTable(:person,
+                        SQLColumn(:person_id,
+                                  metadata = Dict(:label => "Person ID")),
+                        metadata = Dict(:caption => "Person")),
+               dialect = SQLDialect(),
+               metadata = Dict(:schema => "OMOP"))
+    =#
+
 
 ## `SQLDialect`
 

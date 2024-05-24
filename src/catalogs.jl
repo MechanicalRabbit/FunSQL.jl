@@ -8,14 +8,15 @@
 """
 struct SQLColumn
     name::Symbol
+    metadata::Union{Nothing, Dict{Symbol, Any}}
 
-    function SQLColumn(; name::Union{Symbol, AbstractString})
-        new(Symbol(name))
+    function SQLColumn(; name::Union{Symbol, AbstractString}, metadata = nothing)
+        new(Symbol(name), metadata)
     end
 end
 
-SQLColumn(name) =
-    SQLColumn(name = name)
+SQLColumn(name; metadata = nothing) =
+    SQLColumn(name = name, metadata = metadata)
 
 Base.show(io::IO, col::SQLColumn) =
     print(io, quoteof(col, limit = true))
@@ -24,7 +25,12 @@ Base.show(io::IO, ::MIME"text/plain", col::SQLColumn) =
     pprint(io, col)
 
 function PrettyPrinting.quoteof(col::SQLColumn; limit::Bool = false)
-    Expr(:call, nameof(SQLColumn), QuoteNode(col.name))
+    ex = Expr(:call, nameof(SQLColumn), QuoteNode(col.name))
+    m = col.metadata
+    if m !== nothing && !isempty(m)
+        push!(ex.args, Expr(:kw, :metadata, limit ? :… : quoteof(m)))
+    end
+    ex
 end
 
 _column_map(columns::OrderedDict{Symbol, SQLColumn}) =
@@ -41,6 +47,9 @@ _column_entry(c::Symbol) =
 
 _column_entry(c::AbstractString) =
     _column_entry(Symbol(c))
+
+_column_entry(c::SQLColumn) =
+    c.name => c
 
 _column_entry((n, c)::Pair{<:Union{Symbol, AbstractString}, SQLColumn}) =
     Symbol(n) => c
@@ -74,26 +83,28 @@ struct SQLTable <: AbstractDict{Symbol, SQLColumn}
     qualifiers::Vector{Symbol}
     name::Symbol
     columns::OrderedDict{Symbol, SQLColumn}
+    metadata::Union{Nothing, Dict{Symbol, Any}}
 
     function SQLTable(;
                       qualifiers::AbstractVector{<:Union{Symbol, AbstractString}} = Symbol[],
                       name::Union{Symbol, AbstractString},
-                      columns)
+                      columns,
+                      metadata = nothing)
         qualifiers =
             !isa(qualifiers, Vector{Symbol}) ?
                 Symbol[Symbol(ql) for ql in qualifiers] :
                 qualifiers
         name = Symbol(name)
         columns = _column_map(columns)
-        new(qualifiers, name, columns)
+        new(qualifiers, name, columns, metadata)
     end
 end
 
-SQLTable(name; qualifiers = Symbol[], columns) =
-    SQLTable(qualifiers = qualifiers, name = name, columns = columns)
+SQLTable(name; qualifiers = Symbol[], columns, metadata = nothing) =
+    SQLTable(qualifiers = qualifiers, name = name, columns = columns, metadata = metadata)
 
-SQLTable(name, columns...; qualifiers = Symbol[]) =
-    SQLTable(qualifiers = qualifiers, name = name, columns = [columns...])
+SQLTable(name, columns...; qualifiers = Symbol[], metadata = nothing) =
+    SQLTable(qualifiers = qualifiers, name = name, columns = [columns...], metadata = metadata)
 
 Base.show(io::IO, tbl::SQLTable) =
     print(io, quoteof(tbl, limit = true))
@@ -114,6 +125,10 @@ function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
                 arg = Expr(:call, :(=>), QuoteNode(name), arg)
             end
             push!(ex.args, arg)
+        end
+        m = tbl.metadata
+        if m !== nothing && !isempty(m)
+            push!(ex.args, Expr(:kw, :metadata, quoteof(m)))
         end
     else
         push!(ex.args, :…)
@@ -195,18 +210,19 @@ struct SQLCatalog <: AbstractDict{Symbol, SQLTable}
     tables::Dict{Symbol, SQLTable}
     dialect::SQLDialect
     cache::Any # Union{AbstractDict{SQLNode, SQLString}, Nothing}
+    metadata::Union{Nothing, Dict{Symbol, Any}}
 
-    function SQLCatalog(; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache = default_cache_maxsize)
+    function SQLCatalog(; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache = default_cache_maxsize, metadata = nothing)
         table_map = _table_map(tables)
         if cache isa Number
             cache = LRU{SQLNode, SQLString}(maxsize = cache)
         end
-        new(table_map, dialect, cache)
+        new(table_map, dialect, cache, metadata)
     end
 end
 
-SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize) =
-    SQLCatalog(tables = tables, dialect = dialect, cache = cache)
+SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize, metadata = nothing) =
+    SQLCatalog(tables = tables, dialect = dialect, cache = cache, metadata = metadata)
 
 function PrettyPrinting.quoteof(c::SQLCatalog)
     ex = Expr(:call, nameof(SQLCatalog))
@@ -229,6 +245,10 @@ function PrettyPrinting.quoteof(c::SQLCatalog)
     else
         push!(ex.args, Expr(:kw, :cache, Expr(:call, typeof(cache))))
     end
+    m = c.metadata
+    if m !== nothing && !isempty(m)
+        push!(ex.args, Expr(:kw, :metadata, quoteof(m)))
+    end
     ex
 end
 
@@ -250,6 +270,10 @@ function Base.show(io::IO, c::SQLCatalog)
         end
     else
         print(io, ", cache = ", typeof(cache), "()")
+    end
+    m = c.metadata
+    if m !== nothing && !isempty(m)
+        print(io, ", metadata = Dict(…)")
     end
     print(io, ')')
     nothing
