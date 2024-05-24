@@ -3874,7 +3874,8 @@ and determines node types.
     ⋮
     │     WithContext(over = Resolved(RowType(:person_id => ScalarType(),
     │                                         :max_visit_start_date => ScalarType()),
-    │                                 over = q9))
+    │                                 over = q9),
+    │                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
     │ end
     └ @ FunSQL …
     =#
@@ -3898,7 +3899,8 @@ produce.
     │     q5 = Get.year_of_birth,
     │     q6 = Linked([q2, q3, q4, q5], 3, over = q1),
     ⋮
-    │     WithContext(over = q33)
+    │     WithContext(over = q33,
+    │                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
     │ end
     └ @ FunSQL …
     =#

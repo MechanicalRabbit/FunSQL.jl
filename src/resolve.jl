@@ -1,8 +1,7 @@
 # Resolving node types.
 
 struct ResolveContext
-    dialect::SQLDialect
-    tables::Dict{Symbol, SQLTable}
+    catalog::SQLCatalog
     path::Vector{SQLNode}
     row_type::RowType
     cte_types::Base.ImmutableDict{Symbol, Tuple{Int, RowType}}
@@ -10,9 +9,8 @@ struct ResolveContext
     knot_type::Union{RowType, Nothing}
     implicit_knot::Bool
 
-    ResolveContext(dialect, tables) =
-        new(dialect,
-            tables,
+    ResolveContext(catalog) =
+        new(catalog,
             SQLNode[],
             EMPTY_ROW,
             Base.ImmutableDict{Symbol, Tuple{Int, RowType}}(),
@@ -27,8 +25,7 @@ struct ResolveContext
             var_types = ctx.var_types,
             knot_type = ctx.knot_type,
             implicit_knot = ctx.implicit_knot) =
-        new(ctx.dialect,
-            ctx.tables,
+        new(ctx.catalog,
             ctx.path,
             row_type,
             cte_types,
@@ -56,9 +53,9 @@ function type(n::SQLNode)
 end
 
 function resolve(n::SQLNode)
-    @dissect(n, WithContext(over = n′, dialect = dialect, tables = tables)) || throw(IllFormedError())
-    ctx = ResolveContext(dialect, tables)
-    WithContext(over = resolve(n′, ctx), dialect = dialect)
+    @dissect(n, WithContext(over = n′, catalog = catalog)) || throw(IllFormedError())
+    ctx = ResolveContext(catalog)
+    WithContext(over = resolve(n′, ctx), catalog = catalog)
 end
 
 function resolve(n::SQLNode, ctx)
@@ -246,7 +243,7 @@ function resolve(n::FromNode, ctx)
             (depth, t) = v
             n′ = FromTableExpression(source, depth)
         else
-            table = get(ctx.tables, source, nothing)
+            table = get(ctx.catalog, source, nothing)
             if table === nothing
                 throw(
                     ReferenceError(

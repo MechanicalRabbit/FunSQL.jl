@@ -137,7 +137,7 @@ end
 # Translating context.
 
 struct TranslateContext
-    dialect::SQLDialect
+    catalog::SQLCatalog
     defs::Vector{SQLNode}
     aliases::Dict{Symbol, Int}
     recursive::Ref{Bool}
@@ -148,8 +148,8 @@ struct TranslateContext
     vars::Base.ImmutableDict{Tuple{Symbol, Int}, SQLClause}
     subs::Dict{SQLNode, SQLClause}
 
-    TranslateContext(; dialect, defs) =
-        new(dialect,
+    TranslateContext(; catalog, defs) =
+        new(catalog,
             defs,
             Dict{Symbol, Int}(),
             Ref(false),
@@ -161,7 +161,7 @@ struct TranslateContext
             Dict{Int, SQLClause}())
 
     function TranslateContext(ctx::TranslateContext; cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs)
-        new(ctx.dialect,
+        new(ctx.catalog,
             ctx.defs,
             ctx.aliases,
             ctx.recursive,
@@ -184,8 +184,8 @@ function allocate_alias(ctx::TranslateContext, alias::Symbol)
 end
 
 function translate(n::SQLNode)
-    @dissect(n, WithContext(over = n′, dialect = dialect, defs = defs)) || throw(IllFormedError())
-    ctx = TranslateContext(dialect = dialect, defs = defs)
+    @dissect(n, WithContext(over = n′, catalog = catalog, defs = defs)) || throw(IllFormedError())
+    ctx = TranslateContext(catalog = catalog, defs = defs)
     c = translate(n′, ctx)
     with_args = SQLClause[]
     for cte_a in ctx.ctes
@@ -205,7 +205,7 @@ function translate(n::SQLNode)
     if !isempty(with_args)
         c = WITH(over = c, args = with_args, recursive = ctx.recursive[])
     end
-    WITH_CONTEXT(over = c, dialect = ctx.dialect)
+    WITH_CONTEXT(over = c, dialect = ctx.catalog.dialect)
 end
 
 function translate(n::SQLNode, ctx)
@@ -566,15 +566,15 @@ function assemble(n::FromValuesNode, ctx)
             col in seen || continue
             cols[col] = LIT(missing)
         end
-    elseif ctx.dialect.has_as_columns
+    elseif ctx.catalog.dialect.has_as_columns
         c = FROM(AS(alias, columns = column_aliases, over = VALUES(rows)))
         for col in columns
             col in seen || continue
             cols[col] = ID(over = alias, name = col)
         end
     else
-        column_prefix = ctx.dialect.values_column_prefix
-        column_index = ctx.dialect.values_column_index
+        column_prefix = ctx.catalog.dialect.values_column_prefix
+        column_index = ctx.catalog.dialect.values_column_index
         column_prefix !== nothing || error()
         c = FROM(AS(alias, over = VALUES(rows)))
         for col in columns
@@ -841,7 +841,7 @@ function assemble(n::RoutedJoinNode, ctx)
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end
-        if ctx.dialect.has_implicit_lateral
+        if ctx.catalog.dialect.has_implicit_lateral
             lateral = false
         end
     else

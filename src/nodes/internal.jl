@@ -3,12 +3,11 @@
 # Preserve context between rendering passes.
 mutable struct WithContextNode <: AbstractSQLNode
     over::SQLNode
-    dialect::SQLDialect
-    tables::Dict{Symbol, SQLTable}
+    catalog::SQLCatalog
     defs::Vector{SQLNode}
 
-    WithContextNode(; over, dialect = default_dialect, tables = Dict{Symbol, SQLTable}(), defs = SQLNode[]) =
-        new(over, dialect, tables, defs)
+    WithContextNode(; over, catalog = SQLCatalog(), defs = SQLNode[]) =
+        new(over, catalog, defs)
 end
 
 WithContext(args...; kws...) =
@@ -19,12 +18,7 @@ dissect(scr::Symbol, ::typeof(WithContext), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(n::WithContextNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(WithContext), Expr(:kw, :over, quoteof(n.over, ctx)))
-    if n.dialect != default_dialect
-        push!(ex.args, Expr(:kw, :dialect, quoteof(n.dialect)))
-    end
-    if !isempty(n.tables)
-        push!(ex.args, Expr(:kw, :tables, quoteof(n.tables)))
-    end
+    push!(ex.args, Expr(:kw, :catalog, quoteof(n.catalog)))
     if !isempty(n.defs)
         push!(ex.args, Expr(:kw, :defs, Expr(:vect, Any[quoteof(def, ctx) for def in n.defs]...)))
     end
