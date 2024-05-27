@@ -639,6 +639,129 @@ a simple reference.
     FROM "person" AS "person_1"
     =#
 
+`Define` allows you to insert columns at the beginning or at the end of
+the column list.
+
+    q = From(person) |>
+        Define(:age => Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+               before = true)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Define(Fun."-"(Fun.now(), Get.birth_datetime) |> As(:age),
+                    Get.birth_datetime,
+                    before = true)
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT
+      (now() - "person_1"."birth_datetime") AS "age",
+      "person_1"."birth_datetime",
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+    q = From(person) |>
+        Define(:age => Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+               after = true)
+
+    display(q)
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person),
+        q2 = q1 |>
+             Define(Fun."-"(Fun.now(), Get.birth_datetime) |> As(:age),
+                    Get.birth_datetime,
+                    after = true)
+        q2
+    end
+    =#
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."location_id",
+      (now() - "person_1"."birth_datetime") AS "age",
+      "person_1"."birth_datetime"
+    FROM "person" AS "person_1"
+    =#
+
+It can also insert columns in front of or right after a specified column.
+
+    q = From(person) |>
+        Define(:age => Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+               before = :year_of_birth)
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      (now() - "person_1"."birth_datetime") AS "age",
+      "person_1"."birth_datetime",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+    q = From(person) |>
+        Define(:age => Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+               after = :birth_datetime)
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      "person_1"."gender_concept_id",
+      "person_1"."year_of_birth",
+      "person_1"."month_of_birth",
+      "person_1"."day_of_birth",
+      (now() - "person_1"."birth_datetime") AS "age",
+      "person_1"."birth_datetime",
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    =#
+
+It is an error to set both `before` and `after` or to refer to a non-existent
+column.
+
+    q = From(person) |>
+        Define(before = true, after = true)
+
+    print(render(q))
+    #=>
+    ERROR: DomainError with (before = true, after = true):
+    only one of `before` and `after` could be set
+    =#
+
+    q = Define(before = :person_id)
+
+    print(render(q))
+    #=>
+    ERROR: FunSQL.ReferenceError: cannot find `person_id` in:
+    let q1 = Define(before = :person_id)
+        q1
+    end
+    =#
+
 `Define` has no effect if none of the defined fields are used in the query.
 
     q = From(person) |>
