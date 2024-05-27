@@ -3,27 +3,38 @@
 mutable struct DefineNode <: TabularNode
     over::Union{SQLNode, Nothing}
     args::Vector{SQLNode}
+    before::Union{Symbol, Bool}
+    after::Union{Symbol, Bool}
     label_map::OrderedDict{Symbol, Int}
 
-    function DefineNode(; over = nothing, args = [], label_map = nothing)
+    function DefineNode(; over = nothing, args = [], before = nothing, after = nothing, label_map = nothing)
         if label_map !== nothing
-            new(over, args, label_map)
+            n = new(over, args, something(before, false), something(after, false), label_map)
         else
-            n = new(over, args, OrderedDict{Symbol, Int}())
+            n = new(over, args, something(before, false), something(after, false), OrderedDict{Symbol, Int}())
             populate_label_map!(n)
-            n
         end
+        if (n.before isa Symbol || n.before) && (n.after isa Symbol || n.after)
+            throw(DomainError((before = n.before, after = n.after), "only one of `before` and `after` could be set"))
+        end
+        n
     end
 end
 
-DefineNode(args...; over = nothing) =
-    DefineNode(over = over, args = SQLNode[args...])
+DefineNode(args...; over = nothing, before = nothing, after = nothing) =
+    DefineNode(over = over, args = SQLNode[args...], before = before, after = after)
 
 """
-    Define(; over; args = [])
-    Define(args...; over)
+    Define(; over; args = [], before = nothing, after = nothing)
+    Define(args...; over, before = nothing, after = nothing)
 
 The `Define` node adds or replaces output columns.
+
+By default, new columns are added at the end of the column list while replaced
+columns retain their position.  Set `after = true` (`after = <column>`) to add
+both new and replaced columns at the end (after a specified column).
+Alternatively, set `before = true` (`before = <column>`) to add both new and
+replaced columns at the front (before the specified column).
 
 # Examples
 
@@ -33,19 +44,19 @@ The `Define` node adds or replaces output columns.
 julia> person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
 
 julia> q = From(:person) |>
-           Define(:age => Fun.now() .- Get.birth_datetime) |>
+           Define(:age => Fun.now() .- Get.birth_datetime, before = :birth_datetime) |>
            Where(Get.age .>= "16 years");
 
 julia> print(render(q, tables = [person]))
 SELECT
   "person_2"."person_id",
-  "person_2"."birth_datetime",
-  "person_2"."age"
+  "person_2"."age",
+  "person_2"."birth_datetime"
 FROM (
   SELECT
     "person_1"."person_id",
-    "person_1"."birth_datetime",
-    (now() - "person_1"."birth_datetime") AS "age"
+    (now() - "person_1"."birth_datetime") AS "age",
+    "person_1"."birth_datetime"
   FROM "person" AS "person_1"
 ) AS "person_2"
 WHERE ("person_2"."age" >= '16 years')
@@ -78,6 +89,12 @@ dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
 
 function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
     ex = Expr(:call, nameof(Define), quoteof(n.args, ctx)...)
+    if n.before !== false
+        push!(ex.args, Expr(:kw, :before, n.before isa Symbol ? QuoteNode(n.before) : n.before))
+    end
+    if n.after !== false
+        push!(ex.args, Expr(:kw, :after, n.after isa Symbol ? QuoteNode(n.after) : n.after))
+    end
     if n.over !== nothing
         ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end

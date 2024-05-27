@@ -206,18 +206,44 @@ end
 function resolve(n::DefineNode, ctx)
     over′ = resolve(n.over, ctx)
     t = row_type(over′)
+    anchor =
+        n.before isa Symbol ? n.before :
+        n.before && !isempty(t.fields) ? first(first(t.fields)) :
+        n.after isa Symbol ? n.after :
+        n.after && !isempty(t.fields) ? first(last(t.fields)) :
+        nothing
+    if anchor !== nothing && !haskey(t.fields, anchor)
+        throw(ReferenceError(REFERENCE_ERROR_TYPE.UNDEFINED_NAME, name = anchor, path = get_path(ctx)))
+    end
+    before = n.before isa Symbol || n.before
+    after = n.after isa Symbol || n.after
     args′ = resolve_scalar(n.args, ctx, t)
     fields = FieldTypeMap()
     for (f, ft) in t.fields
         i = get(n.label_map, f, nothing)
-        if i !== nothing
-            ft = type(args′[i])
+        if f === anchor
+            if after && i === nothing
+                fields[f] = ft
+            end
+            for (l, j) in n.label_map
+                fields[l] = type(args′[j])
+            end
+            if before && i === nothing
+                fields[f] = ft
+            end
+        elseif i !== nothing
+            if anchor === nothing
+                fields[f] = type(args′[i])
+            end
+        else
+            fields[f] = ft
         end
-        fields[f] = ft
     end
-    for (f, i) in n.label_map
-        if !haskey(fields, f)
-            fields[f] = type(args′[i])
+    if anchor === nothing
+        for (l, j) in n.label_map
+            if !haskey(fields, l)
+                fields[l] = type(args′[j])
+            end
         end
     end
     n′ = Define(over = over′, args = args′, label_map = n.label_map)
