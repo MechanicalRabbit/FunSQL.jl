@@ -1,9 +1,11 @@
 # Serialized SQL query with parameter mapping.
 
 """
-    SQLString(raw, vars = Symbol[])
+    SQLString(raw; columns = nothing, vars = Symbol[])
 
 Serialized SQL query.
+
+Parameter `columns` is a vector describing the output columns.
 
 Parameter `vars` is a vector of query parameters (created with [`Var`](@ref))
 in the order they are expected by the `DBInterface.execute()` function.
@@ -20,7 +22,8 @@ SQLString(\"""
           SELECT
             "person_1"."person_id",
             "person_1"."year_of_birth"
-          FROM "person" AS "person_1\\"\""")
+          FROM "person" AS "person_1\\"\""",
+          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)])
 
 julia> q = From(person) |> Where(Fun.and(Get.year_of_birth .>= Var.YEAR,
                                          Get.year_of_birth .< Var.YEAR .+ 10));
@@ -34,6 +37,7 @@ SQLString(\"""
           WHERE
             (`person_1`.`year_of_birth` >= ?) AND
             (`person_1`.`year_of_birth` < (? + 10))\""",
+          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)],
           vars = [:YEAR, :YEAR])
 
 julia> render(q, dialect = :postgresql)
@@ -45,15 +49,17 @@ SQLString(\"""
           WHERE
             ("person_1"."year_of_birth" >= \$1) AND
             ("person_1"."year_of_birth" < (\$1 + 10))\""",
+          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)],
           vars = [:YEAR])
 ```
 """
 struct SQLString <: AbstractString
     raw::String
+    columns::Union{Vector{SQLColumn}, Nothing}
     vars::Vector{Symbol}
 
-    SQLString(raw; vars = Symbol[]) =
-        new(raw, vars)
+    SQLString(raw; columns = nothing, vars = Symbol[]) =
+        new(raw, columns, vars)
 end
 
 Base.ncodeunits(sql::SQLString) =
@@ -82,6 +88,9 @@ Base.write(io::IO, sql::SQLString) =
 
 function PrettyPrinting.quoteof(sql::SQLString)
     ex = Expr(:call, nameof(SQLString), sql.raw)
+    if sql.columns !== nothing
+        push!(ex.args, Expr(:kw, :columns, Expr(:vect, Any[quoteof(col) for col in sql.columns]...)))
+    end
     if !isempty(sql.vars)
         push!(ex.args, Expr(:kw, :vars, quoteof(sql.vars)))
     end
@@ -91,6 +100,11 @@ end
 function Base.show(io::IO, sql::SQLString)
     print(io, "SQLString(")
     show(io, sql.raw)
+    if sql.columns !== nothing
+        print(io, ", columns = ")
+        l = length(sql.columns)
+        print(io, l == 0 ? "[]" : l == 1 ? "[…1 column…]" : "[…$l columns…]")
+    end
     if !isempty(sql.vars)
         print(io, ", vars = ")
         show(io, sql.vars)

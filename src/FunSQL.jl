@@ -96,10 +96,10 @@ end
 
 include("dissect.jl")
 include("quote.jl")
-include("strings.jl")
 include("dialects.jl")
 include("types.jl")
 include("catalogs.jl")
+include("strings.jl")
 include("clauses.jl")
 include("nodes.jl")
 include("connections.jl")

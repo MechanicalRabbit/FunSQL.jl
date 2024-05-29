@@ -184,9 +184,14 @@ function allocate_alias(ctx::TranslateContext, alias::Symbol)
 end
 
 function translate(n::SQLNode)
-    @dissect(n, WithContext(over = n′, catalog = catalog, defs = defs)) || throw(IllFormedError())
+    @dissect(n, WithContext(over = Linked(over = n′, refs = refs), catalog = catalog, defs = defs)) || throw(IllFormedError())
     ctx = TranslateContext(catalog = catalog, defs = defs)
-    c = translate(n′, ctx)
+    base = assemble(n′, TranslateContext(ctx, refs = refs))
+    columns = nothing
+    if !isempty(base.cols)
+        columns = [SQLColumn(col) for col in keys(base.cols)]
+    end
+    c = complete(base)
     with_args = SQLClause[]
     for cte_a in ctx.ctes
         !cte_a.external || continue
@@ -205,7 +210,7 @@ function translate(n::SQLNode)
     if !isempty(with_args)
         c = WITH(over = c, args = with_args, recursive = ctx.recursive[])
     end
-    WITH_CONTEXT(over = c, dialect = ctx.catalog.dialect)
+    WITH_CONTEXT(over = c, dialect = ctx.catalog.dialect, columns = columns)
 end
 
 function translate(n::SQLNode, ctx)
