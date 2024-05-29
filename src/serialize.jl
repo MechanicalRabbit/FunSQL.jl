@@ -12,11 +12,11 @@ mutable struct SerializeContext <: IO
 end
 
 function serialize(c::SQLClause)
-    @dissect(c, WITH_CONTEXT(over = c′, dialect = dialect)) || throw(IllFormedError())
+    @dissect(c, WITH_CONTEXT(over = c′, dialect = dialect, columns = columns)) || throw(IllFormedError())
     ctx = SerializeContext(dialect)
     serialize!(c′, ctx)
     raw = String(take!(ctx.io))
-    SQLString(raw, vars = ctx.vars)
+    SQLString(raw, columns = columns, vars = ctx.vars)
 end
 
 Base.write(ctx::SerializeContext, octet::UInt8) =
