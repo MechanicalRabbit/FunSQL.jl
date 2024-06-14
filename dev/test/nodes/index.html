@@ -180,23 +180,13 @@ let q1 = From(:concept),
     q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.concept_id, 4329847))
     q2
 end
-=#</code></pre><p>The <code>@funsql</code> macro applied to a constant definition transliterates the value.</p><pre><code class="language-julia hljs">@funsql const ip_or_er_visit_q = concept_by_code(&quot;Visit&quot;, &quot;IP&quot;, &quot;ER&quot;)
-
-display(ip_or_er_visit_q)
-#=&gt;
-let q1 = From(:concept),
-    q2 = q1 |&gt;
-         Where(Fun.and(Fun.&quot;=&quot;(Get.vocabulary_id, &quot;Visit&quot;),
-                       Fun.in(Get.concept_code, &quot;IP&quot;, &quot;ER&quot;)))
-    q2
-end
 =#</code></pre><p>A single <code>@funsql</code> macro can wrap multiple definitions.</p><pre><code class="language-julia hljs">@funsql begin
     SNOMED(codes...) = concept_by_code(&quot;SNOMED&quot;, $(codes...))
 
-    const myocardial_infarction_q = SNOMED(&quot;22298006&quot;)
+    `MYOCARDIAL INFARCTION`() = SNOMED(&quot;22298006&quot;)
 end
 
-display(myocardial_infarction_q)
+display(@funsql `MYOCARDIAL INFARCTION`())
 #=&gt;
 let q1 = From(:concept),
     q2 = q1 |&gt;
@@ -204,7 +194,19 @@ let q1 = From(:concept),
                        Fun.&quot;=&quot;(Get.concept_code, &quot;22298006&quot;)))
     q2
 end
-=#</code></pre><p>An ill-formed <code>@funsql</code> query triggers an error.</p><pre><code class="language-julia hljs">@funsql for p in person; end
+=#</code></pre><p>A query function may have a docstring.</p><pre><code class="language-julia hljs">@funsql begin
+    &quot;SNOMED concept set with the given `codes`&quot;
+    SNOMED
+
+    &quot;Visit concept set with the given `codes`&quot;
+    Visit(codes...) = concept_by_code(&quot;Visit&quot;, $(codes...))
+end
+
+@doc funsql_SNOMED
+#-&gt; SNOMED concept set with the given `codes`
+
+@doc funsql_Visit
+#-&gt; Visit concept set with the given `codes`</code></pre><p>An ill-formed <code>@funsql</code> query triggers an error.</p><pre><code class="language-julia hljs">@funsql for p in person; end
 #=&gt;
 ERROR: LoadError: FunSQL.TransliterationError: ill-formed @funsql notation:
 quote
@@ -3139,4 +3141,4 @@ end;
 │       GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;)
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Saturday 1 June 2024 00:31">Saturday 1 June 2024</span>. Using Julia version 1.10.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Friday 14 June 2024 19:16">Friday 14 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
