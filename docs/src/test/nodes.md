@@ -247,10 +247,10 @@ A single `@funsql` macro can wrap multiple definitions.
     @funsql begin
         SNOMED(codes...) = concept_by_code("SNOMED", $(codes...))
 
-        MYOCARDIAL_INFARCTION() = SNOMED("22298006")
+        `MYOCARDIAL INFARCTION`() = SNOMED("22298006")
     end
 
-    display(@funsql MYOCARDIAL_INFARCTION())
+    display(@funsql `MYOCARDIAL INFARCTION`())
     #=>
     let q1 = From(:concept),
         q2 = q1 |>
@@ -259,6 +259,22 @@ A single `@funsql` macro can wrap multiple definitions.
         q2
     end
     =#
+
+A query function may have a docstring.
+
+    @funsql begin
+        "SNOMED concept set with the given `codes`"
+        SNOMED
+
+        "Visit concept set with the given `codes`"
+        Visit(codes...) = concept_by_code("Visit", $(codes...))
+    end
+
+    @doc funsql_SNOMED
+    #-> SNOMED concept set with the given `codes`
+
+    @doc funsql_Visit
+    #-> Visit concept set with the given `codes`
 
 An ill-formed `@funsql` query triggers an error.
 
