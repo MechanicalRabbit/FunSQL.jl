@@ -110,22 +110,9 @@ function dissect(scr::Symbol, ::Type{QuoteNode}, pats::Vector{Any})
     error("invalid pattern: $(repr(pats))")
 end
 
-function dissect(scr::Symbol, ::Type{Cmd}, pats::Vector{Any})
-    if length(pats) == 1
-        scr_ref = gensym(:scr_ref)
-        scr_str = gensym(:scr_str)
-        return quote
-            $scr isa Expr &&
-            $scr.head === :macrocall &&
-            length($scr.args) >= 2 &&
-            (local $scr_ref = $scr.args[1];
-             $scr_ref isa GlobalRef &&
-             $scr_ref.mod === Core &&
-             $scr_ref.name === $(QuoteNode(Symbol("@cmd")))) &&
-            (local $scr_str = $scr.args[end];
-             $scr_str isa String) &&
-            $(dissect(scr_str, pats[1]))
-        end
+function dissect(scr::Symbol, ::Type{GlobalRef}, pats::Vector{Any})
+    if length(pats) == 2
+        return :($scr isa GlobalRef && $scr.mod == $(pats[1]) && $scr.name === $(pats[2]))
     end
-    error("invalid pattern $(repr(pats))")
+    error("invalid pattern: $(repr(pats))")
 end
