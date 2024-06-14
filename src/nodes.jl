@@ -538,9 +538,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:parameters, args...))
             # ; args...
             return Expr(:parameters, Any[transliterate(arg, ctx) for arg in args]...)
-        elseif @dissect(ex, Expr(op := :const || :global || :local, arg))
-            return Expr(op, transliterate(arg, ctx))
-        elseif @dissect(ex, Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), _..., name::String))
+        elseif @dissect(ex, Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), ::LineNumberNode, name::String))
             # `name`
             return QuoteNode(Symbol(name))
         elseif @dissect(ex, Expr(:call, Expr(:., over, QuoteNode(name)), args...))
@@ -619,14 +617,13 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # name(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :($(esc(Symbol("funsql_$name")))($(trs...)))
-        elseif @dissect(ex, Expr(:call, Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), _..., name::String), args...))
+        elseif @dissect(ex, Expr(:call, Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), ::LineNumberNode, name::String), args...))
             # `name`(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :($(esc(Symbol("funsql_$name")))($(trs...)))
         elseif @dissect(ex, Expr(:block, args...))
             # begin; args...; end
-            if all(arg isa LineNumberNode ||
-                   @dissect(arg, Expr(:(=) || :const || :global || :local, _...))
+            if all(@dissect(arg, ::LineNumberNode || Expr(:(=), _...))
                    for arg in args)
                 trs = Any[]
                 for arg in args

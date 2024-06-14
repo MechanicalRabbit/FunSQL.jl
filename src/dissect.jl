@@ -30,6 +30,8 @@ function dissect(scr::Symbol, @nospecialize(pat))
             ex1 = dissect(scr, pat.args[1])
             ex2 = dissect(scr, pat.args[2])
             :($ex2 && $ex1)
+        elseif pat.head === :(::) && nargs == 1
+            :($scr isa $(pat.args[1]))
         elseif pat.head === :(::) && nargs == 2
             ex1 = dissect(scr, pat.args[1])
             ex2 = :($scr isa $(pat.args[2]))

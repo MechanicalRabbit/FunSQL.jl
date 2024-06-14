@@ -242,29 +242,15 @@ A parameter of a query function accepts a type declaration.
     end
     =#
 
-The `@funsql` macro applied to a constant definition transliterates the value.
-
-    @funsql const ip_or_er_visit_q = concept_by_code("Visit", "IP", "ER")
-
-    display(ip_or_er_visit_q)
-    #=>
-    let q1 = From(:concept),
-        q2 = q1 |>
-             Where(Fun.and(Fun."="(Get.vocabulary_id, "Visit"),
-                           Fun.in(Get.concept_code, "IP", "ER")))
-        q2
-    end
-    =#
-
 A single `@funsql` macro can wrap multiple definitions.
 
     @funsql begin
         SNOMED(codes...) = concept_by_code("SNOMED", $(codes...))
 
-        const myocardial_infarction_q = SNOMED("22298006")
+        MYOCARDIAL_INFARCTION() = SNOMED("22298006")
     end
 
-    display(myocardial_infarction_q)
+    display(@funsql MYOCARDIAL_INFARCTION())
     #=>
     let q1 = From(:concept),
         q2 = q1 |>
