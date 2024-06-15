@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · FunSQL.jl</title><meta name="title" content="Examples · FunSQL.jl"/><meta property="og:title" content="Examples · FunSQL.jl"/><meta property="twitter:title" content="Examples · FunSQL.jl"/><meta name="description" content="Documentation for FunSQL.jl."/><meta property="og:description" content="Documentation for FunSQL.jl."/><meta property="twitter:description" content="Documentation for FunSQL.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../guide/">Usage Guide</a></li><li><a class="tocitem" href="../reference/">API Reference</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Importing-FunSQL"><span>Importing FunSQL</span></a></li><li><a class="tocitem" href="#Establishing-a-database-connection"><span>Establishing a database connection</span></a></li><li><a class="tocitem" href="#Database-connection-with-LibPQ.jl"><span>Database connection with LibPQ.jl</span></a></li><li><a class="tocitem" href="#SELECT-*-FROM-table"><span><code>SELECT * FROM table</code></span></a></li><li><a class="tocitem" href="#WHERE,-ORDER,-LIMIT"><span><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></span></a></li><li><a class="tocitem" href="#SELECT-COUNT(*)-FROM-table"><span><code>SELECT COUNT(*) FROM table</code></span></a></li><li><a class="tocitem" href="#SELECT-DISTINCT"><span><code>SELECT DISTINCT</code></span></a></li><li><a class="tocitem" href="#Generating-a-complex-CASE-clause"><span>Generating a complex <code>CASE</code> clause</span></a></li><li><a class="tocitem" href="#Filtering-output-columns"><span>Filtering output columns</span></a></li><li><a class="tocitem" href="#Output-columns-of-a-Join"><span>Output columns of a <code>Join</code></span></a></li><li><a class="tocitem" href="#Querying-concepts"><span>Querying concepts</span></a></li><li><a class="tocitem" href="#Assembling-queries-incrementally"><span>Assembling queries incrementally</span></a></li><li><a class="tocitem" href="#Merging-overlapping-intervals"><span>Merging overlapping intervals</span></a></li></ul></li><li><a class="tocitem" href="../test/">Test Suite</a></li><li><span class="tocitem">Articles</span><ul><li><a class="tocitem" href="../two-kinds-of-sql-query-builders/">Two Kinds of SQL Query Builders</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/MechanicalRabbit/FunSQL.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/examples/index.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><h2 id="Importing-FunSQL"><a class="docs-heading-anchor" href="#Importing-FunSQL">Importing FunSQL</a><a id="Importing-FunSQL-1"></a><a class="docs-heading-anchor-permalink" href="#Importing-FunSQL" title="Permalink"></a></h2><p>FunSQL does not export any symbols by default.  The following statement imports all available query constructors and the function <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a>.</p><pre><code class="language-julia hljs">using FunSQL:
+    FunSQL, Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From,
+    Get, Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order,
+    Partition, Select, Sort, Var, Where, With, WithExternal, render</code></pre><h2 id="Establishing-a-database-connection"><a class="docs-heading-anchor" href="#Establishing-a-database-connection">Establishing a database connection</a><a id="Establishing-a-database-connection-1"></a><a class="docs-heading-anchor-permalink" href="#Establishing-a-database-connection" title="Permalink"></a></h2><p>We use FunSQL to assemble SQL queries.  To actually run these queries, we need a regular database library such as <a href="https://github.com/JuliaDatabases/SQLite.jl">SQLite.jl</a>, <a href="https://github.com/invenia/LibPQ.jl">LibPQ.jl</a>, <a href="https://github.com/JuliaDatabases/MySQL.jl">MySQL.jl</a>, or <a href="https://github.com/JuliaDatabases/ODBC.jl">ODBC.jl</a>.</p><p>In the following examples, we use a SQLite database containing a tiny sample of the <a href="https://www.cms.gov/Research-Statistics-Data-and-Systems/Downloadable-Public-Use-Files/SynPUFs/DE_Syn_PUF">CMS DE-SynPuf dataset</a>. See the <a href="../guide/#Test-Database">Usage Guide</a> for the description of the database schema.</p><p><em>Download the database file.</em></p><pre><code class="language-julia hljs">const URL = &quot;https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.sqlite&quot;
+const DATABASE = download(URL)</code></pre><p><em>Download the database file as an <a href="../Artifacts.toml">artifact</a>.</em></p><pre><code class="language-julia hljs">using Pkg.Artifacts, LazyArtifacts
+
+const DATABASE = joinpath(artifact&quot;synpuf-10p&quot;, &quot;synpuf-10p.sqlite&quot;)
+#-&gt; ⋮</code></pre><p><em>Create a connection object.</em></p><pre><code class="language-julia hljs">using SQLite
+
+const conn = DBInterface.connect(FunSQL.DB{SQLite.DB}, DATABASE)</code></pre><h2 id="Database-connection-with-LibPQ.jl"><a class="docs-heading-anchor" href="#Database-connection-with-LibPQ.jl">Database connection with LibPQ.jl</a><a id="Database-connection-with-LibPQ.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Database-connection-with-LibPQ.jl" title="Permalink"></a></h2><p>To create a connection object, FunSQL relies on the <a href="https://github.com/JuliaDatabases/DBInterface.jl">DBInterface.jl</a> package. Unfortunately <a href="https://github.com/invenia/LibPQ.jl">LibPQ.jl</a>, the PostgreSQL client library, does not support DBInterface.  To make <code>DBInterface.connect</code> work, we need to manually bridge LibPQ and DBInterface.</p><pre><code class="language-julia hljs">using LibPQ
+using DBInterface
+
+DBInterface.connect(::Type{LibPQ.Connection}, args...; kws...) =
+    LibPQ.Connection(args...; kws...)
+
+DBInterface.prepare(conn::LibPQ.Connection, args...; kws...) =
+    LibPQ.prepare(conn, args...; kws...)
+
+DBInterface.execute(conn::Union{LibPQ.Connection, LibPQ.Statement}, args...; kws...) =
+    LibPQ.execute(conn, args...; kws...)</code></pre><p>Now we can create a FunSQL connection using <code>DBInterface.connect</code>.</p><pre><code class="language-julia hljs">const conn = DBInterface.connect(FunSQL.DB{LibPQ.Connection}, …)</code></pre><h2 id="SELECT-*-FROM-table"><a class="docs-heading-anchor" href="#SELECT-*-FROM-table"><code>SELECT * FROM table</code></a><a id="SELECT-*-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-*-FROM-table" title="Permalink"></a></h2><p>FunSQL does not require that a query object contains <code>Select</code>, so a minimal FunSQL query consists of a single <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node.</p><p><em>Show all patient records.</em></p><pre><code class="language-julia hljs">q = From(:person)</code></pre><p>We use the function <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a> to serialize the query node as a SQL statement.</p><pre><code class="language-julia hljs">sql = render(conn, q)
+
+print(sql)
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>This query could be executed with <code>DBInterface.execute</code>.</p><pre><code class="language-julia hljs">res = DBInterface.execute(conn, sql)</code></pre><p>To display the output of a query, it is convenient to use the <a href="https://github.com/JuliaData/DataFrames.jl">DataFrame</a> interface.</p><pre><code class="language-julia hljs">using DataFrames
+
+DataFrame(res)
+#=&gt;
+10×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │      1780               8532           1940               2             ⋯
+   2 │     30091               8532           1932               8
+   3 │     37455               8532           1913               7
+   4 │     42383               8507           1922               2
+   5 │     69985               8532           1956               7             ⋯
+   6 │     72120               8507           1937              10
+   7 │     82328               8532           1957               9
+   8 │     95538               8507           1923              11
+   9 │    107680               8532           1963              12             ⋯
+  10 │    110862               8507           1911               4
+                                                              14 columns omitted
+=#</code></pre><p>We could also directly apply <code>DBInterface.execute</code> to the query node in order to render and immediately execute it.</p><pre><code class="language-julia hljs">DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+10×18 DataFrame
+⋮
+=#</code></pre><h2 id="WHERE,-ORDER,-LIMIT"><a class="docs-heading-anchor" href="#WHERE,-ORDER,-LIMIT"><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></a><a id="WHERE,-ORDER,-LIMIT-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE,-ORDER,-LIMIT" title="Permalink"></a></h2><p>Tabular operations such as <a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a>, <a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a>, and <a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a> are available in FunSQL.  Unlike SQL, FunSQL lets you apply them in any order.</p><p><em>Show the top 3 oldest male patients.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Where(Get.gender_concept_id .== 8507) |&gt;
+    Order(Get.year_of_birth) |&gt;
+    Limit(3)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;gender_concept_id&quot; = 8507)
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+LIMIT 3
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+3×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    110862               8507           1911               4             ⋯
+   2 │     42383               8507           1922               2
+   3 │     95538               8507           1923              11
+                                                              14 columns omitted
+=#</code></pre><p><em>Show all males among the top 3 oldest patients.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Order(Get.year_of_birth) |&gt;
+    Limit(3) |&gt;
+    Where(Get.gender_concept_id .== 8507)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_2&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM (
+  SELECT
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    ⋮
+    &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+  LIMIT 3
+) AS &quot;person_2&quot;
+WHERE (&quot;person_2&quot;.&quot;gender_concept_id&quot; = 8507)
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+2×18 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    110862               8507           1911               4             ⋯
+   2 │     42383               8507           1922               2
+                                                              14 columns omitted
+=#</code></pre><h2 id="SELECT-COUNT(*)-FROM-table"><a class="docs-heading-anchor" href="#SELECT-COUNT(*)-FROM-table"><code>SELECT COUNT(*) FROM table</code></a><a id="SELECT-COUNT(*)-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-COUNT(*)-FROM-table" title="Permalink"></a></h2><p>To calculate an aggregate value for the whole dataset, we apply a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node without arguments.</p><p><em>Show the number of patient records.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Group() |&gt;
+    Select(Agg.count())
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×1 DataFrame
+ Row │ count
+     │ Int64
+─────┼───────
+   1 │    10
+=#</code></pre><h2 id="SELECT-DISTINCT"><a class="docs-heading-anchor" href="#SELECT-DISTINCT"><code>SELECT DISTINCT</code></a><a id="SELECT-DISTINCT-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-DISTINCT" title="Permalink"></a></h2><p>If we use a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node, but do not apply any aggregate functions, FunSQL will render it as a <code>SELECT DISTINCT</code> clause.</p><p><em>Show all US states present in the location records.</em></p><pre><code class="language-julia hljs">q = From(:location) |&gt;
+    Group(Get.state)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT DISTINCT &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+10×1 DataFrame
+ Row │ state
+     │ String
+─────┼────────
+   1 │ MI
+   2 │ WA
+   3 │ FL
+   4 │ MD
+   5 │ NY
+   6 │ MS
+   7 │ CO
+   8 │ GA
+   9 │ MA
+  10 │ IL
+=#</code></pre><h2 id="Generating-a-complex-CASE-clause"><a class="docs-heading-anchor" href="#Generating-a-complex-CASE-clause">Generating a complex <code>CASE</code> clause</a><a id="Generating-a-complex-CASE-clause-1"></a><a class="docs-heading-anchor-permalink" href="#Generating-a-complex-CASE-clause" title="Permalink"></a></h2><p><em>Show the number of patients stratified by the age group.</em></p><p>In this query, we need to place a person&#39;s age into one of the age buckets: <em>0 – 4</em>, <em>5 – 9</em>, <em>10 – 14</em>, …, <em>95 – 99</em>, <em>100 +</em>.  This is a tedious expression to write in raw SQL, but it could be written very compactly in FunSQL by using array comprehension to build the <code>CASE</code> expression.</p><pre><code class="language-julia hljs">using Dates
+
+PersonAgeAt(date) =
+    Fun.strftime(&quot;%Y&quot;, date) .- Get.year_of_birth
+
+AgeGroup(age) =
+    Fun.case(Iterators.flatten([(age .&lt; y, &quot;$(y-5) - $(y-1)&quot;)
+                                for y = 5:5:100])...,
+             &quot;≥ 100&quot;)
+
+q = From(:person) |&gt;
+    Group(:age_group =&gt; AgeGroup(PersonAgeAt(Date(&quot;2020-01-01&quot;)))) |&gt;
+    Order(Get.age_group) |&gt;
+    Select(Get.age_group, Agg.count())
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_2&quot;.&quot;age_group&quot;,
+  count(*) AS &quot;count&quot;
+FROM (
+  SELECT (CASE WHEN ((strftime(&#39;%Y&#39;, &#39;2020-01-01&#39;) - &quot;person_1&quot;.&quot;year_of_birth&quot;) &lt; 5) THEN &#39;0 - 4&#39; … ELSE &#39;≥ 100&#39; END) AS &quot;age_group&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+) AS &quot;person_2&quot;
+GROUP BY &quot;person_2&quot;.&quot;age_group&quot;
+ORDER BY &quot;person_2&quot;.&quot;age_group&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×2 DataFrame
+ Row │ age_group  count
+     │ String     Int64
+─────┼──────────────────
+   1 │ 55 - 59        1
+   2 │ 60 - 64        2
+   3 │ 80 - 84        2
+   4 │ 85 - 89        1
+   5 │ 95 - 99        2
+   6 │ ≥ 100          2
+=#</code></pre><h2 id="Filtering-output-columns"><a class="docs-heading-anchor" href="#Filtering-output-columns">Filtering output columns</a><a id="Filtering-output-columns-1"></a><a class="docs-heading-anchor-permalink" href="#Filtering-output-columns" title="Permalink"></a></h2><p>By default, the <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node outputs all columns of a table, but we could restrict or change the list of output columns using <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a>. Typically, we would directly pass the definitions of output columns as individual arguments of <code>Select</code>, but occasionally it is convenient to generate the definitions programmatically.</p><p><em>Filter out all &quot;source&quot; columns from patient records.</em></p><pre><code class="language-julia hljs">const person_table = conn.catalog[:person]
+
+is_not_source_column(c::Symbol) =
+    !contains(String(c), &quot;source&quot;)
+
+q = From(:person) |&gt;
+    Select(args = [Get(c) for c in keys(person_table.columns) if is_not_source_column(c)])
+
+display(q)
+#=&gt;
+let q1 = From(:person),
+    q2 = q1 |&gt;
+         Select(Get.person_id,
+                Get.gender_concept_id,
+                Get.year_of_birth,
+                Get.month_of_birth,
+                Get.day_of_birth,
+                Get.time_of_birth,
+                Get.race_concept_id,
+                Get.ethnicity_concept_id,
+                Get.location_id,
+                Get.provider_id,
+                Get.care_site_id)
+    q2
+end
+=#
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;time_of_birth&quot;,
+  &quot;person_1&quot;.&quot;race_concept_id&quot;,
+  &quot;person_1&quot;.&quot;ethnicity_concept_id&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  &quot;person_1&quot;.&quot;provider_id&quot;,
+  &quot;person_1&quot;.&quot;care_site_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+10×11 DataFrame
+ Row │ person_id  gender_concept_id  year_of_birth  month_of_birth  day_of_bir ⋯
+     │ Int64      Int64              Int64          Int64           Int64      ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │      1780               8532           1940               2             ⋯
+   2 │     30091               8532           1932               8
+   3 │     37455               8532           1913               7
+   4 │     42383               8507           1922               2
+   5 │     69985               8532           1956               7             ⋯
+   6 │     72120               8507           1937              10
+   7 │     82328               8532           1957               9
+   8 │     95538               8507           1923              11
+   9 │    107680               8532           1963              12             ⋯
+  10 │    110862               8507           1911               4
+                                                               7 columns omitted
+=#</code></pre><h2 id="Output-columns-of-a-Join"><a class="docs-heading-anchor" href="#Output-columns-of-a-Join">Output columns of a <code>Join</code></a><a id="Output-columns-of-a-Join-1"></a><a class="docs-heading-anchor-permalink" href="#Output-columns-of-a-Join" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a> is often used to disambiguate the columns of the two input branches of the <a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a> node.  By default, columns fenced by <code>As</code> are not present in the output.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+    Join(From(:visit_occurrence) |&gt; As(:visit),
+         on = Get.person_id .== Get.visit.person_id)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
+=#
+
+q′ = From(:person) |&gt; As(:person) |&gt;
+     Join(From(:visit_occurrence),
+          on = Get.person.person_id .== Get.person_id)
+
+render(conn, q′) |&gt; print
+#=&gt;
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  ⋮
+  &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
+=#</code></pre><p>We could use a <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node to output the columns of both branches, however we must ensure that all column names are unique.</p><pre><code class="language-julia hljs">const visit_occurrence_table = conn.catalog[:visit_occurrence]
+
+q = q |&gt;
+    Select(Get.(keys(person_table.columns))...,
+           Get.(keys(visit_occurrence_table.columns), over = Get.visit)...)
+#=&gt;
+ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
+⋮
+=#
+
+q = q |&gt;
+    Select(Get.(keys(person_table.columns))...,
+           Get.(filter(!in(keys(person_table.columns)), collect(keys(visit_occurrence_table.columns))),
+                over = Get.visit)...)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  ⋮
+  &quot;person_1&quot;.&quot;ethnicity_source_concept_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;,
+  ⋮
+  &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
+=#</code></pre><h2 id="Querying-concepts"><a class="docs-heading-anchor" href="#Querying-concepts">Querying concepts</a><a id="Querying-concepts-1"></a><a class="docs-heading-anchor-permalink" href="#Querying-concepts" title="Permalink"></a></h2><p>Medical terms, such as <em>Inpatient</em> (visit) or <em>Myocardial infarction</em> (condition), are stored in the table <code>concept</code>.  Concepts are typically identified by the <em>vocabulary</em> and the <em>code</em> within the vocabulary.  For example, <em>Myocardial infarction</em> has a code <em>22298006</em> in the <a href="https://en.wikipedia.org/wiki/SNOMED_CT"><em>SNOMED CT</em></a> vocabulary.</p><p>Concept may be related to each other.  For example, <em>Acute myocardial infarction</em> <strong>is a</strong> subtype of <em>Myocardial infarction</em>.  Relationships between concepts are stored in the table <code>concept_relationship</code> with the column <code>relationship_id</code> specifying the type of the relationship.</p><p>Querying healthcare information often starts with identifying the set of relevant concepts.  For example, a researcher may want to specify a concept set containing</p><ul><li><em>Myocardial infarction</em> (SNOMED 22298006);</li><li>And all the subtypes;</li><li>But excluding <em>Acute subendocardial infarction</em> (SNOMED 70422006) and its subtypes.</li></ul><p>This suggests us to make a FunSQL-based mini-language for querying concept sets.  This language will include primitives for fetching concepts by name, or by vocabulary and code, operations for adding related concepts, and combining and excluding concept sets.  These operations could be expressed directly in terms of FunSQL queries.</p><p>We start with a primitive for finding a concept by its code in the vocabulary.</p><pre><code class="language-julia hljs">ConceptByCode(vocabulary, code) =
+    From(:concept) |&gt;
+    Where(Fun.and(Get.vocabulary_id .== vocabulary,
+                  Get.concept_code .== code))
+
+ConceptByCode(vocabulary, codes...) =
+    From(:concept) |&gt;
+    Where(Fun.and(Get.vocabulary_id .== vocabulary,
+                  Fun.in(Get.concept_code, codes...)))</code></pre><p>It is convenient to add a shortcut for common vocabularies.</p><pre><code class="language-julia hljs">SNOMED(codes...) =
+    ConceptByCode(&quot;SNOMED&quot;, codes...)
+
+VISIT(codes...) =
+    ConceptByCode(&quot;Visit&quot;, codes...)</code></pre><p>Now we can define</p><pre><code class="language-julia hljs">q = SNOMED(&quot;22298006&quot;)          # Myocardial infarction
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×10 DataFrame
+ Row │ concept_id  concept_name           domain_id  vocabulary_id  concept_cl ⋯
+     │ Int64       String                 String     String         String     ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction  Condition  SNOMED         Clinical F ⋯
+                                                               6 columns omitted
+=#</code></pre><p>The following composite query pipeline can be applied to a set of concepts to determine their immediate subtypes.</p><pre><code class="language-julia hljs">ImmediateSubtypes() =
+    As(:base) |&gt;
+    Join(From(:concept_relationship) |&gt;
+         Where(Get.relationship_id .== &quot;Is a&quot;) |&gt;
+         As(:concept_relationship),
+         on = Get.base.concept_id .== Get.concept_relationship.concept_id_2) |&gt;
+    Join(From(:concept),
+         on = Get.concept_relationship.concept_id_1 .== Get.concept_id)
+
+q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    ImmediateSubtypes()
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×10 DataFrame
+ Row │ concept_id  concept_name                 domain_id  vocabulary_id  conc ⋯
+     │ Int64       String                       String     String         Stri ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin ⋯
+                                                               6 columns omitted
+=#</code></pre><p>Recursively applying <code>ImmediateSubtypes</code> with <a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a> gives us the concept set together will all subtypes.</p><pre><code class="language-julia hljs">WithSubtypes() =
+    Iterate(ImmediateSubtypes())
+
+q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    WithSubtypes()
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×10 DataFrame
+ Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+     │ Int64       String                             String     String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+   2 │     312327  Acute myocardial infarction        Condition  SNOMED
+   3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+   4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+   5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+   6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                               6 columns omitted
+=#</code></pre><p>Finally, we add operations on a concept set for adding or removing concepts.</p><pre><code class="language-julia hljs">IncludingConcepts(include) =
+    Append(include)
+
+ExcludingConcepts(exclude) =
+    LeftJoin(:exclude =&gt; exclude,
+             Get.concept_id .== Get.exclude.concept_id) |&gt;
+    Where(Fun.is_null(Get.exclude.concept_id))
+
+q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    WithSubtypes() |&gt;
+    ExcludingConcepts(
+        SNOMED(&quot;70422006&quot;) |&gt;   # Acute subendocardial infarction
+        WithSubtypes())
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+5×10 DataFrame
+ Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+     │ Int64       String                             String     String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+   2 │     312327  Acute myocardial infarction        Condition  SNOMED
+   3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+   4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+   5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+                                                               6 columns omitted
+=#</code></pre><p>Given a concept set, it is now easy to find the matching clinical conditions.</p><pre><code class="language-julia hljs">MyocardialInfarctionConcepts() =
+    SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
+    WithSubtypes() |&gt;
+    ExcludingConcepts(
+        SNOMED(&quot;70422006&quot;) |&gt;   # Acute subendocardial infarction
+        WithSubtypes())
+
+q = From(:condition_occurrence) |&gt;
+    Join(MyocardialInfarctionConcepts(),
+         Get.condition_concept_id .== Get.concept_id) |&gt;
+    Order(Get.condition_occurrence_id) |&gt;
+    Select(Get.person_id, Get.condition_start_date)
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×2 DataFrame
+ Row │ person_id  condition_start_date
+     │ Int64      String
+─────┼─────────────────────────────────
+   1 │      1780  2008-04-10
+   2 │     37455  2010-08-12
+   3 │     69985  2010-05-06
+   4 │    110862  2008-09-07
+   5 │    110862  2008-09-07
+   6 │    110862  2010-06-07
+=#</code></pre><p>This notation is much more compact and readable than the corresponding SQL query.</p><pre><code class="language-julia hljs">render(conn, q) |&gt; print
+#=&gt;
+WITH RECURSIVE &quot;base_1&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_1&quot;
+  WHERE
+    (&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
+    (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;22298006&#39;)
+  UNION ALL
+  SELECT &quot;concept_2&quot;.&quot;concept_id&quot;
+  FROM &quot;base_1&quot; AS &quot;base_2&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;,
+      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
+    WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;base_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_2&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
+),
+&quot;base_4&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_3&quot;
+  WHERE
+    (&quot;concept_3&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
+    (&quot;concept_3&quot;.&quot;concept_code&quot; = &#39;70422006&#39;)
+  UNION ALL
+  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
+  FROM &quot;base_4&quot; AS &quot;base_5&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_3&quot;.&quot;concept_id_1&quot;,
+      &quot;concept_relationship_3&quot;.&quot;concept_id_2&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_3&quot;
+    WHERE (&quot;concept_relationship_3&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_4&quot; ON (&quot;base_5&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
+)
+SELECT
+  &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
+FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+JOIN (
+  SELECT &quot;base_3&quot;.&quot;concept_id&quot;
+  FROM &quot;base_1&quot; AS &quot;base_3&quot;
+  LEFT JOIN &quot;base_4&quot; AS &quot;base_6&quot; ON (&quot;base_3&quot;.&quot;concept_id&quot; = &quot;base_6&quot;.&quot;concept_id&quot;)
+  WHERE (&quot;base_6&quot;.&quot;concept_id&quot; IS NULL)
+) AS &quot;base_7&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;base_7&quot;.&quot;concept_id&quot;)
+ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_occurrence_id&quot;
+=#</code></pre><h2 id="Assembling-queries-incrementally"><a class="docs-heading-anchor" href="#Assembling-queries-incrementally">Assembling queries incrementally</a><a id="Assembling-queries-incrementally-1"></a><a class="docs-heading-anchor-permalink" href="#Assembling-queries-incrementally" title="Permalink"></a></h2><p>It is often convenient to build a query incrementally, one component at a time. This allows us to validate individual components, inspect their output, and possibly reuse them in other queries.</p><p><em>Find all occurrences of myocardial infarction that was diagnosed during an inpatient visit.  Filter out repeating occurrences by requiring a 180-day gap between consecutive events.</em></p><p>We start with generating two datasets: inpatient visits and myocardial infarction conditions.  For constructing the concepts <em>Inpatient Visit</em> and <em>Myocardial Infarction</em>, we use the definitions from the section <a href="#Querying-concepts">Querying concepts</a>:</p><pre><code class="language-julia hljs">MyocardialInfarctionConcept() =
+    SNOMED(&quot;22298006&quot;) |&gt;
+    WithSubtypes()
+
+DBInterface.execute(conn, MyocardialInfarctionConcept()) |&gt; DataFrame
+#=&gt;
+6×10 DataFrame
+ Row │ concept_id  concept_name                       domain_id  vocabulary_id ⋯
+     │ Int64       String                             String     String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │    4329847  Myocardial infarction              Condition  SNOMED        ⋯
+   2 │     312327  Acute myocardial infarction        Condition  SNOMED
+   3 │     434376  Acute myocardial infarction of a…  Condition  SNOMED
+   4 │     438170  Acute myocardial infarction of i…  Condition  SNOMED
+   5 │     438438  Acute myocardial infarction of a…  Condition  SNOMED        ⋯
+   6 │     444406  Acute subendocardial infarction    Condition  SNOMED
+                                                               6 columns omitted
+=#
+
+MyocardialInfarctionOccurrence() =
+    From(:condition_occurrence) |&gt;
+    Join(:concept =&gt; MyocardialInfarctionConcept(),
+         on = Get.condition_concept_id .== Get.concept.concept_id) |&gt;
+    Order(Get.condition_occurrence_id)
+
+DBInterface.execute(conn, MyocardialInfarctionOccurrence()) |&gt; DataFrame
+#=&gt;
+11×11 DataFrame
+ Row │ condition_occurrence_id  person_id  condition_concept_id  condition_sta ⋯
+     │ Int64                    Int64      Int64                 String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │                  228161       1780                312327  2008-04-10    ⋯
+   2 │                 3767773      30091                444406  2009-08-02
+   3 │                 4696273      37455                438438  2010-08-12
+   4 │                 8701359      69985                444406  2010-07-22
+   5 │                 8701405      69985                312327  2010-05-06    ⋯
+   6 │                11881327      95538                444406  2009-03-30
+   7 │                13374905     107680                444406  2009-07-20
+   8 │                13769162     110862                444406  2009-09-30
+   9 │                13769189     110862                438170  2008-09-07    ⋯
+  10 │                13769190     110862                434376  2008-09-07
+  11 │                13769260     110862                312327  2010-06-07
+                                                               8 columns omitted
+=#
+
+InpatientVisitConcept() =
+    VISIT(&quot;IP&quot;) |&gt;
+    WithSubtypes()
+
+DBInterface.execute(conn, InpatientVisitConcept()) |&gt; DataFrame
+#=&gt;
+2×10 DataFrame
+ Row │ concept_id  concept_name        domain_id  vocabulary_id         concep ⋯
+     │ Int64       String              String     String                String ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │       9201  Inpatient Visit     Visit      Visit                 Visit  ⋯
+   2 │       8717  Inpatient Hospital  Visit      CMS Place of Service  Visit
+                                                               6 columns omitted
+=#
+
+InpatientVisitOccurrence() =
+    From(:visit_occurrence) |&gt;
+    Join(:concept =&gt; InpatientVisitConcept(),
+         on = Get.visit_concept_id .== Get.concept.concept_id)
+
+DBInterface.execute(conn, InpatientVisitOccurrence()) |&gt; DataFrame
+#=&gt;
+6×12 DataFrame
+ Row │ visit_occurrence_id  person_id  visit_concept_id  visit_start_date  vis ⋯
+     │ Int64                Int64      Int64             String            Mis ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │               88179       1780              9201  2008-04-09            ⋯
+   2 │             1454883      30091              9201  2009-07-30
+   3 │             3359790      69985              9201  2010-07-22
+   4 │             4586628      95538              9201  2009-03-30
+   5 │             5162803     107680              9201  2009-07-20            ⋯
+   6 │             5314664     110862              9201  2009-09-30
+                                                               8 columns omitted
+=#</code></pre><p>Using these two datasets, we need to find those conditions that occurred during one of the visits.  We start with building a parameterized query that finds visits overlapping with a specified timestamp.</p><pre><code class="language-julia hljs">using Dates
+
+CorrelatedInpatientVisit(person_id, date) =
+    InpatientVisitOccurrence() |&gt;
+    Where(Fun.and(Get.person_id .== Var.PERSON_ID,
+                  Fun.between(Var.DATE, Get.visit_start_date, Get.visit_end_date))) |&gt;
+    Bind(:PERSON_ID =&gt; person_id,
+         :DATE =&gt; date)
+
+q = CorrelatedInpatientVisit(1780, Date(&quot;2008-04-10&quot;))
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+1×12 DataFrame
+ Row │ visit_occurrence_id  person_id  visit_concept_id  visit_start_date  vis ⋯
+     │ Int64                Int64      Int64             String            Mis ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │               88179       1780              9201  2008-04-09            ⋯
+                                                               8 columns omitted
+=#</code></pre><p>We will use this query to correlate inpatient visits with the date of the diagnosed condition.</p><pre><code class="language-julia hljs">MyocardialInfarctionDuringInpatientVisit() =
+    MyocardialInfarctionOccurrence() |&gt;
+    Where(Fun.exists(CorrelatedInpatientVisit(Get.person_id, Get.condition_start_date)))
+
+DBInterface.execute(conn, MyocardialInfarctionDuringInpatientVisit()) |&gt; DataFrame
+#=&gt;
+6×11 DataFrame
+ Row │ condition_occurrence_id  person_id  condition_concept_id  condition_sta ⋯
+     │ Int64                    Int64      Int64                 String        ⋯
+─────┼──────────────────────────────────────────────────────────────────────────
+   1 │                  228161       1780                312327  2008-04-10    ⋯
+   2 │                 3767773      30091                444406  2009-08-02
+   3 │                 8701359      69985                444406  2010-07-22
+   4 │                11881327      95538                444406  2009-03-30
+   5 │                13374905     107680                444406  2009-07-20    ⋯
+   6 │                13769162     110862                444406  2009-09-30
+                                                               8 columns omitted
+=#</code></pre><p>Finally, we must exclude any events that occurred within 180 days from the previous event.  For this purpose, we build a filtering pipeline:</p><pre><code class="language-julia hljs">using Dates
+
+FilterByGap(date, gap) =
+    Partition(Get.person_id, order_by = [date]) |&gt;
+    Define(:boundary =&gt; Agg.lag(Fun.date(date, gap))) |&gt;
+    Where(Fun.or(Fun.is_null(Get.boundary),
+                 Get.boundary .&lt; date))</code></pre><p>To verify that this pipeline operates correctly, we could apply it to a synthetic dataset.</p><pre><code class="language-julia hljs">events = DataFrame([(person_id = 1, date = Date(&quot;2020-01-01&quot;)),    # ✓
+                    (person_id = 1, date = Date(&quot;2020-02-01&quot;)),    # ✗
+                    (person_id = 1, date = Date(&quot;2021-01-01&quot;)),    # ✓
+                    (person_id = 1, date = Date(&quot;2021-05-01&quot;)),    # ✗
+                    (person_id = 1, date = Date(&quot;2021-10-01&quot;)),    # ✗
+                    (person_id = 2, date = Date(&quot;2020-01-01&quot;)),    # ✓
+])
+#=&gt;
+6×2 DataFrame
+ Row │ person_id  date
+     │ Int64      Date
+─────┼───────────────────────
+   1 │         1  2020-01-01
+   2 │         1  2020-02-01
+   3 │         1  2021-01-01
+   4 │         1  2021-05-01
+   5 │         1  2021-10-01
+   6 │         2  2020-01-01
+=#
+
+q = From(events) |&gt;
+    FilterByGap(Get.date, Day(180))
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+3×3 DataFrame
+ Row │ person_id  date        boundary
+     │ Int64      String      String?
+─────┼───────────────────────────────────
+   1 │         1  2020-01-01  missing
+   2 │         1  2021-01-01  2020-07-30
+   3 │         2  2020-01-01  missing
+=#</code></pre><p>Now we have all the components to construct the final query:</p><pre><code class="language-julia hljs">FilteredMyocardialInfarctionDuringInpatientVisit() =
+    MyocardialInfarctionDuringInpatientVisit() |&gt;
+    FilterByGap(Get.condition_start_date, Day(180))
+
+q = FilteredMyocardialInfarctionDuringInpatientVisit() |&gt;
+    Select(Get.person_id, Get.condition_start_date)
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+6×2 DataFrame
+ Row │ person_id  condition_start_date
+     │ Int64      String
+─────┼─────────────────────────────────
+   1 │      1780  2008-04-10
+   2 │     30091  2009-08-02
+   3 │     69985  2010-07-22
+   4 │     95538  2009-03-30
+   5 │    107680  2009-07-20
+   6 │    110862  2009-09-30
+=#
+
+render(conn, q) |&gt; print
+#=&gt;
+WITH RECURSIVE &quot;base_1&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_1&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_1&quot;
+  WHERE
+    (&quot;concept_1&quot;.&quot;vocabulary_id&quot; = &#39;SNOMED&#39;) AND
+    (&quot;concept_1&quot;.&quot;concept_code&quot; = &#39;22298006&#39;)
+  UNION ALL
+  SELECT &quot;concept_2&quot;.&quot;concept_id&quot;
+  FROM &quot;base_1&quot; AS &quot;base_2&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_1&quot;.&quot;concept_id_1&quot;,
+      &quot;concept_relationship_1&quot;.&quot;concept_id_2&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_1&quot;
+    WHERE (&quot;concept_relationship_1&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_2&quot; ON (&quot;base_2&quot;.&quot;concept_id&quot; = &quot;concept_relationship_2&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_2&quot; ON (&quot;concept_relationship_2&quot;.&quot;concept_id_1&quot; = &quot;concept_2&quot;.&quot;concept_id&quot;)
+),
+&quot;base_4&quot; (&quot;concept_id&quot;) AS (
+  SELECT &quot;concept_3&quot;.&quot;concept_id&quot;
+  FROM &quot;concept&quot; AS &quot;concept_3&quot;
+  WHERE
+    (&quot;concept_3&quot;.&quot;vocabulary_id&quot; = &#39;Visit&#39;) AND
+    (&quot;concept_3&quot;.&quot;concept_code&quot; = &#39;IP&#39;)
+  UNION ALL
+  SELECT &quot;concept_4&quot;.&quot;concept_id&quot;
+  FROM &quot;base_4&quot; AS &quot;base_5&quot;
+  JOIN (
+    SELECT
+      &quot;concept_relationship_3&quot;.&quot;concept_id_1&quot;,
+      &quot;concept_relationship_3&quot;.&quot;concept_id_2&quot;
+    FROM &quot;concept_relationship&quot; AS &quot;concept_relationship_3&quot;
+    WHERE (&quot;concept_relationship_3&quot;.&quot;relationship_id&quot; = &#39;Is a&#39;)
+  ) AS &quot;concept_relationship_4&quot; ON (&quot;base_5&quot;.&quot;concept_id&quot; = &quot;concept_relationship_4&quot;.&quot;concept_id_2&quot;)
+  JOIN &quot;concept&quot; AS &quot;concept_4&quot; ON (&quot;concept_relationship_4&quot;.&quot;concept_id_1&quot; = &quot;concept_4&quot;.&quot;concept_id&quot;)
+)
+SELECT
+  &quot;condition_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;condition_occurrence_3&quot;.&quot;condition_start_date&quot;
+FROM (
+  SELECT
+    &quot;condition_occurrence_2&quot;.&quot;person_id&quot;,
+    &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;,
+    (lag(date(&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;, &#39;180 days&#39;)) OVER (PARTITION BY &quot;condition_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot;)) AS &quot;boundary&quot;
+  FROM (
+    SELECT
+      &quot;condition_occurrence_1&quot;.&quot;person_id&quot;,
+      &quot;condition_occurrence_1&quot;.&quot;condition_start_date&quot;
+    FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+    JOIN &quot;base_1&quot; AS &quot;base_3&quot; ON (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = &quot;base_3&quot;.&quot;concept_id&quot;)
+    ORDER BY &quot;condition_occurrence_1&quot;.&quot;condition_occurrence_id&quot;
+  ) AS &quot;condition_occurrence_2&quot;
+  WHERE (EXISTS (
+    SELECT NULL AS &quot;_&quot;
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+    JOIN &quot;base_4&quot; AS &quot;base_6&quot; ON (&quot;visit_occurrence_1&quot;.&quot;visit_concept_id&quot; = &quot;base_6&quot;.&quot;concept_id&quot;)
+    WHERE
+      (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;condition_occurrence_2&quot;.&quot;person_id&quot;) AND
+      (&quot;condition_occurrence_2&quot;.&quot;condition_start_date&quot; BETWEEN &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; AND &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;)
+  ))
+) AS &quot;condition_occurrence_3&quot;
+WHERE
+  (&quot;condition_occurrence_3&quot;.&quot;boundary&quot; IS NULL) OR
+  (&quot;condition_occurrence_3&quot;.&quot;boundary&quot; &lt; &quot;condition_occurrence_3&quot;.&quot;condition_start_date&quot;)
+=#</code></pre><h2 id="Merging-overlapping-intervals"><a class="docs-heading-anchor" href="#Merging-overlapping-intervals">Merging overlapping intervals</a><a id="Merging-overlapping-intervals-1"></a><a class="docs-heading-anchor-permalink" href="#Merging-overlapping-intervals" title="Permalink"></a></h2><p>Merging overlapping intervals into a single encompassing period could be done in three steps:</p><ol><li>Tag the intervals that start a new period.</li><li>Enumerate the periods.</li><li>Group the intervals by the period number.</li></ol><p>FunSQL lets us encapsulate and reuse this rather complex sequence of transformations.</p><p><em>Merge overlapping visits.</em></p><pre><code class="language-julia hljs">MergeOverlappingIntervals(start_date, end_date) =
+    Partition(Get.person_id,
+              order_by = [start_date],
+              frame = (mode = :rows, start = -Inf, finish = -1)) |&gt;
+    Define(:new =&gt; Fun.case(start_date .&lt;= Agg.max(end_date), 0, 1)) |&gt;
+    Partition(Get.person_id,
+              order_by = [start_date, .- Get.new],
+              frame = :rows) |&gt;
+    Define(:period =&gt; Agg.sum(Get.new)) |&gt;
+    Group(Get.person_id, Get.period) |&gt;
+    Define(:start_date =&gt; Agg.min(start_date),
+           :end_date =&gt; Agg.max(end_date))
+
+q = From(:visit_occurrence) |&gt;
+    MergeOverlappingIntervals(Get.visit_start_date, Get.visit_end_date) |&gt;
+    Select(Get.person_id, Get.start_date, Get.end_date)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  min(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  max(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;) AS &quot;end_date&quot;
+FROM (
+  SELECT
+    &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
+    (sum(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
+  FROM (
+    SELECT
+      &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
+      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (max(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  ) AS &quot;visit_occurrence_2&quot;
+) AS &quot;visit_occurrence_3&quot;
+GROUP BY
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_3&quot;.&quot;period&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+25×3 DataFrame
+ Row │ person_id  start_date  end_date
+     │ Int64      String      String
+─────┼───────────────────────────────────
+   1 │      1780  2008-04-09  2008-04-13
+   2 │      1780  2008-11-22  2008-11-22
+   3 │      1780  2009-05-22  2009-05-22
+   4 │     30091  2008-11-12  2008-11-12
+   5 │     30091  2009-07-30  2009-08-07
+   6 │     37455  2008-03-18  2008-03-18
+   7 │     37455  2008-10-30  2008-10-30
+   8 │     37455  2010-08-12  2010-08-12
+  ⋮  │     ⋮          ⋮           ⋮
+  19 │     95538  2009-09-02  2009-09-02
+  20 │    107680  2009-06-07  2009-06-07
+  21 │    107680  2009-07-20  2009-07-30
+  22 │    110862  2008-09-07  2008-09-16
+  23 │    110862  2009-06-30  2009-06-30
+  24 │    110862  2009-09-30  2009-10-01
+  25 │    110862  2010-06-07  2010-06-07
+                          10 rows omitted
+=#</code></pre><p><em>Derive a patient&#39;s observation periods by merging visits with less than one year gap between them.</em></p><pre><code class="language-julia hljs">MergeIntervalsByGap(start_date, end_date, gap) =
+    MergeOverlappingIntervals(start_date, Fun.date(end_date, gap)) |&gt;
+    Define(:end_date =&gt; Fun.date(Get.end_date, -gap))
+
+q = From(:visit_occurrence) |&gt;
+    MergeIntervalsByGap(Get.visit_start_date, Get.visit_end_date, Day(365)) |&gt;
+    Select(Get.person_id, Get.start_date, Get.end_date)
+
+render(conn, q) |&gt; print
+#=&gt;
+SELECT
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  min(&quot;visit_occurrence_3&quot;.&quot;visit_start_date&quot;) AS &quot;start_date&quot;,
+  date(max(date(&quot;visit_occurrence_3&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)), &#39;-365 days&#39;) AS &quot;end_date&quot;
+FROM (
+  SELECT
+    &quot;visit_occurrence_2&quot;.&quot;person_id&quot;,
+    (sum(&quot;visit_occurrence_2&quot;.&quot;new&quot;) OVER (PARTITION BY &quot;visit_occurrence_2&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;, (- &quot;visit_occurrence_2&quot;.&quot;new&quot;) ROWS UNBOUNDED PRECEDING)) AS &quot;period&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_start_date&quot;,
+    &quot;visit_occurrence_2&quot;.&quot;visit_end_date&quot;
+  FROM (
+    SELECT
+      &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+      &quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;,
+      (CASE WHEN (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; &lt;= (max(date(&quot;visit_occurrence_1&quot;.&quot;visit_end_date&quot;, &#39;365 days&#39;)) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING))) THEN 0 ELSE 1 END) AS &quot;new&quot;
+    FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  ) AS &quot;visit_occurrence_2&quot;
+) AS &quot;visit_occurrence_3&quot;
+GROUP BY
+  &quot;visit_occurrence_3&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_3&quot;.&quot;period&quot;
+=#
+
+DBInterface.execute(conn, q) |&gt; DataFrame
+#=&gt;
+12×3 DataFrame
+ Row │ person_id  start_date  end_date
+     │ Int64      String      String
+─────┼───────────────────────────────────
+   1 │      1780  2008-04-09  2009-05-22
+   2 │     30091  2008-11-12  2009-08-07
+   3 │     37455  2008-03-18  2008-10-30
+   4 │     37455  2010-08-12  2010-08-12
+   5 │     42383  2009-06-29  2010-04-15
+   6 │     69985  2009-01-09  2009-01-09
+   7 │     69985  2010-04-17  2010-07-30
+   8 │     72120  2008-12-15  2008-12-15
+   9 │     82328  2008-10-20  2009-01-25
+  10 │     95538  2009-03-30  2009-09-02
+  11 │    107680  2009-06-07  2009-07-30
+  12 │    110862  2008-09-07  2010-06-07
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Saturday 15 June 2024 14:49">Saturday 15 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
