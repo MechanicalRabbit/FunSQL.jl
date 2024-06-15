@@ -197,10 +197,7 @@ is_not_source_column(c::Symbol) =
     !contains(String(c), &quot;source&quot;)
 
 q = From(:person) |&gt;
-    Select(Get.(filter(is_not_source_column, person_table.columns))...)
-
-# q = From(:person) |&gt;
-#     Select(args = [Get(c) for c in person_table.columns if is_not_source_column(c)])
+    Select(args = [Get(c) for c in keys(person_table.columns) if is_not_source_column(c)])
 
 display(q)
 #=&gt;
@@ -284,16 +281,16 @@ JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;pe
 =#</code></pre><p>We could use a <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node to output the columns of both branches, however we must ensure that all column names are unique.</p><pre><code class="language-julia hljs">const visit_occurrence_table = conn.catalog[:visit_occurrence]
 
 q = q |&gt;
-    Select(Get.(person_table.columns)...,
-           Get.(visit_occurrence_table.columns, over = Get.visit)...)
+    Select(Get.(keys(person_table.columns))...,
+           Get.(keys(visit_occurrence_table.columns), over = Get.visit)...)
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
 ⋮
 =#
 
 q = q |&gt;
-    Select(Get.(person_table.columns)...,
-           Get.(filter(!in(person_table.columns), visit_occurrence_table.columns),
+    Select(Get.(keys(person_table.columns))...,
+           Get.(filter(!in(keys(person_table.columns)), collect(keys(visit_occurrence_table.columns))),
                 over = Get.visit)...)
 
 render(conn, q) |&gt; print
@@ -825,4 +822,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
   10 │     95538  2009-03-30  2009-09-02
   11 │    107680  2009-06-07  2009-07-30
   12 │    110862  2008-09-07  2010-06-07
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Friday 14 June 2024 19:16">Friday 14 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Saturday 15 June 2024 03:00">Saturday 15 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

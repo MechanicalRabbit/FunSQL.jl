@@ -1752,7 +1752,7 @@ end
 =#</code></pre><p>A variant of <code>With</code> called <code>WithExternal</code> can be used to prepare a definition for a <code>CREATE TABLE AS</code> or <code>SELECT INTO</code> statement.</p><pre><code class="language-julia hljs">with_external_handler((tbl, def)) =
     println(&quot;CREATE TEMP TABLE &quot;,
             render(ID(tbl.qualifiers, tbl.name)),
-            &quot; (&quot;, join([render(ID(c)) for c in tbl.columns], &quot;, &quot;), &quot;) AS\n&quot;,
+            &quot; (&quot;, join([render(ID(c.name)) for (n, c) in tbl.columns], &quot;, &quot;), &quot;) AS\n&quot;,
             render(def), &quot;;\n&quot;)
 
 q = From(:male) |&gt;
@@ -3048,7 +3048,8 @@ end;
 ⋮
 │     WithContext(over = Resolved(RowType(:person_id =&gt; ScalarType(),
 │                                         :max_visit_start_date =&gt; ScalarType()),
-│                                 over = q9))
+│                                 over = q9),
+│                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
 │ end
 └ @ FunSQL …
 =#</code></pre><p>Next, <code>render()</code> determines, for each tabular node, the data that it must produce.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
@@ -3067,7 +3068,8 @@ end;
 │     q5 = Get.year_of_birth,
 │     q6 = Linked([q2, q3, q4, q5], 3, over = q1),
 ⋮
-│     WithContext(over = q33)
+│     WithContext(over = q33,
+│                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
 │ end
 └ @ FunSQL …
 =#</code></pre><p>On the next stage, the query object is converted to a SQL syntax tree.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
@@ -3108,7 +3110,8 @@ end;
 │                     ID(:visit_group_1) |&gt; ID(:person_id)),
 │                 left = true) |&gt;
 │            SELECT(ID(:person_2) |&gt; ID(:person_id),
-│                   ID(:visit_group_1) |&gt; ID(:max) |&gt; AS(:max_visit_start_date)))
+│                   ID(:visit_group_1) |&gt; ID(:max) |&gt; AS(:max_visit_start_date)),
+│     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
 └ @ FunSQL …
 =#</code></pre><p>Finally, the SQL tree is serialized into SQL.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
 withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.serialize&quot;) do
@@ -3139,6 +3142,7 @@ end;
 │         &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
 │       FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
 │       GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
-│     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;)
+│     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;,
+│     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Friday 14 June 2024 19:16">Friday 14 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Saturday 15 June 2024 03:00">Saturday 15 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
