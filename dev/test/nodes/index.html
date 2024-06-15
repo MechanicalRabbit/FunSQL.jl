@@ -461,6 +461,115 @@ SELECT
   &quot;person_1&quot;.&quot;birth_datetime&quot;,
   &quot;person_1&quot;.&quot;location_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p><code>Define</code> allows you to insert columns at the beginning or at the end of the column list.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Define(:age =&gt; Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+           before = true)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Define(Fun.&quot;-&quot;(Fun.now(), Get.birth_datetime) |&gt; As(:age),
+                Get.birth_datetime,
+                before = true)
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT
+  (now() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+q = From(person) |&gt;
+    Define(:age =&gt; Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+           after = true)
+
+display(q)
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person),
+    q2 = q1 |&gt;
+         Define(Fun.&quot;-&quot;(Fun.now(), Get.birth_datetime) |&gt; As(:age),
+                Get.birth_datetime,
+                after = true)
+    q2
+end
+=#
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;,
+  (now() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>It can also insert columns in front of or right after a specified column.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Define(:age =&gt; Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+           before = :year_of_birth)
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  (now() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#
+
+q = From(person) |&gt;
+    Define(:age =&gt; Fun.now() .- Get.birth_datetime, Get.birth_datetime,
+           after = :birth_datetime)
+
+print(render(q))
+#=&gt;
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;gender_concept_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  &quot;person_1&quot;.&quot;month_of_birth&quot;,
+  &quot;person_1&quot;.&quot;day_of_birth&quot;,
+  (now() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;,
+  &quot;person_1&quot;.&quot;birth_datetime&quot;,
+  &quot;person_1&quot;.&quot;location_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+=#</code></pre><p>It is an error to set both <code>before</code> and <code>after</code> or to refer to a non-existent column.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    Define(before = true, after = true)
+
+print(render(q))
+#=&gt;
+ERROR: DomainError with (before = true, after = true):
+only one of `before` and `after` could be set
+=#
+
+q = Define(before = :person_id)
+
+print(render(q))
+#=&gt;
+ERROR: FunSQL.ReferenceError: cannot find `person_id` in:
+let q1 = Define(before = :person_id)
+    q1
+end
 =#</code></pre><p><code>Define</code> has no effect if none of the defined fields are used in the query.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Define(:age =&gt; 2020 .- Get.year_of_birth) |&gt;
     Select(Get.person_id, Get.year_of_birth)
@@ -3145,4 +3254,4 @@ end;
 │     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;,
 │     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Saturday 15 June 2024 03:00">Saturday 15 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Saturday 15 June 2024 03:10">Saturday 15 June 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
