@@ -133,6 +133,9 @@ A `SQLTable` object behaves like a read-only dictionary.
     person["person_id"]
     #-> SQLColumn(:person_id)
 
+    person[1]
+    #-> SQLColumn(:person_id)
+
     person[:visit_occurrence]
     #-> ERROR: KeyError: key :visit_occurrence not found
 
@@ -262,6 +265,40 @@ Catalog objects can be assigned arbitrary metadata.
                dialect = SQLDialect(),
                metadata = [:model => "OMOP"])
     =#
+
+FunSQL metadata supports DataAPI metadata interface.
+
+    using DataAPI
+
+    DataAPI.metadata(metadata_catalog)
+    #-> Dict("model" => "OMOP")
+
+    DataAPI.metadata(metadata_catalog, style = true)
+    #-> Dict("model" => ("OMOP", :default))
+
+    DataAPI.metadata(metadata_catalog, :name, :default)
+    #-> :default
+
+    DataAPI.metadata(metadata_catalog[:person])["caption"]
+    #-> "Person"
+
+    DataAPI.metadata(metadata_catalog[:person], :is_view, true)
+    #-> false
+
+    DataAPI.colmetadata(metadata_catalog[:person])[:person_id]["label"]
+    #-> "Person ID"
+
+    DataAPI.colmetadata(metadata_catalog[:person], 1, :label)
+    #-> "Person ID"
+
+    DataAPI.colmetadata(metadata_catalog[:person], :year_of_birth, :label, "")
+    #-> ""
+
+    DataAPI.metadata(metadata_catalog[:person][:person_id])
+    #-> Dict("label" => "Person ID")
+
+    DataAPI.metadata(metadata_catalog[:person][:person_id], :label, "")
+    #-> "Person ID"
 
 
 ## `SQLDialect`
