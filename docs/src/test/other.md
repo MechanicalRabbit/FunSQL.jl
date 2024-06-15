@@ -247,19 +247,20 @@ Catalog objects can be assigned arbitrary metadata.
 
     metadata_catalog =
         SQLCatalog(SQLTable(:person,
-                            SQLColumn(:person_id, metadata = Dict(:label => "Person ID")),
-                            metadata = Dict(:caption => "Person")),
-                   metadata = Dict(:schema => "OMOP"))
-    #-> SQLCatalog(…1 table…, dialect = SQLDialect(), metadata = Dict(…))
+                            SQLColumn(:person_id, metadata = (; label = "Person ID")),
+                            SQLColumn(:year_of_birth, metadata = (;)),
+                            metadata = (; caption = "Person", is_view = false)),
+                   metadata = (; model = "OMOP"))
+    #-> SQLCatalog(…1 table…, dialect = SQLDialect(), metadata = …)
 
     display(metadata_catalog)
     #=>
     SQLCatalog(SQLTable(:person,
-                        SQLColumn(:person_id,
-                                  metadata = Dict(:label => "Person ID")),
-                        metadata = Dict(:caption => "Person")),
+                        SQLColumn(:person_id, metadata = [:label => "Person ID"]),
+                        SQLColumn(:year_of_birth),
+                        metadata = [:caption => "Person", :is_view => false]),
                dialect = SQLDialect(),
-               metadata = Dict(:schema => "OMOP"))
+               metadata = [:model => "OMOP"])
     =#
 
 
