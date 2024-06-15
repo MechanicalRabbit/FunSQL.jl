@@ -1,17 +1,31 @@
 # Database structure.
 
-"""
-    SQLColumn(; name)
-    SQLColumn(name)
+const SQLMetadata = Base.ImmutableDict{Symbol, Any}
 
-`SQLColumn` represents a column of a database table.
+_metadata(::Nothing) =
+    SQLMetadata()
+
+_metadata(dict::SQLMetadata) =
+    dict
+
+_metadata(dict::SQLMetadata, kvs...) =
+    Base.ImmutableDict(dict, kvs...)
+
+_metadata(other) =
+    _metadata(SQLMetadata(), pairs(other)...)
+
+"""
+    SQLColumn(; name, metadata = nothing)
+    SQLColumn(name; metadata = nothing)
+
+`SQLColumn` represents a column with the given `name` and optional `metadata`.
 """
 struct SQLColumn
     name::Symbol
-    metadata::Union{Nothing, Dict{Symbol, Any}}
+    metadata::SQLMetadata
 
     function SQLColumn(; name::Union{Symbol, AbstractString}, metadata = nothing)
-        new(Symbol(name), metadata)
+        new(Symbol(name), _metadata(metadata))
     end
 end
 
@@ -26,9 +40,8 @@ Base.show(io::IO, ::MIME"text/plain", col::SQLColumn) =
 
 function PrettyPrinting.quoteof(col::SQLColumn; limit::Bool = false)
     ex = Expr(:call, nameof(SQLColumn), QuoteNode(col.name))
-    m = col.metadata
-    if m !== nothing && !isempty(m)
-        push!(ex.args, Expr(:kw, :metadata, limit ? :… : quoteof(m)))
+    if !isempty(col.metadata)
+        push!(ex.args, Expr(:kw, :metadata, limit ? :… : quoteof(reverse!(collect(col.metadata)))))
     end
     ex
 end
@@ -55,35 +68,36 @@ _column_entry((n, c)::Pair{<:Union{Symbol, AbstractString}, SQLColumn}) =
     Symbol(n) => c
 
 """
-    SQLTable(; qualifiers = [], name, columns)
-    SQLTable(name; qualifiers = [], columns)
-    SQLTable(name, columns...; qualifiers = [])
+    SQLTable(; qualifiers = [], name, columns, metadata = nothing)
+    SQLTable(name; qualifiers = [], columns, metadata = nothing)
+    SQLTable(name, columns...; qualifiers = [], metadata = nothing)
 
 The structure of a SQL table or a table-like entity (`TEMP TABLE`, `VIEW`, etc)
 for use as a reference in assembling SQL queries.
 
-The `SQLTable` constructor expects the table `name`, an ordered dictionary
-`columns` that maps names to columns, and, optionally, a vector containing
-the name of the table schema and other `qualifiers`.  A name can be a `Symbol`
-or a `String`.
+The `SQLTable` constructor expects the table `name`, an optional vector
+containing the table schema and other `qualifiers`, an ordered dictionary
+`columns` that maps names to columns, and an optional `metadata`.
 
 # Examples
 
 ```jldoctest
 julia> person = SQLTable(qualifiers = ["public"],
                          name = "person",
-                         columns = ["person_id", "year_of_birth"])
+                         columns = ["person_id", "year_of_birth"],
+                         metadata = (; is_view = false))
 SQLTable(qualifiers = [:public],
          :person,
          SQLColumn(:person_id),
-         SQLColumn(:year_of_birth))
+         SQLColumn(:year_of_birth),
+         metadata = [:is_view => false])
 ```
 """
 struct SQLTable <: AbstractDict{Symbol, SQLColumn}
     qualifiers::Vector{Symbol}
     name::Symbol
     columns::OrderedDict{Symbol, SQLColumn}
-    metadata::Union{Nothing, Dict{Symbol, Any}}
+    metadata::SQLMetadata
 
     function SQLTable(;
                       qualifiers::AbstractVector{<:Union{Symbol, AbstractString}} = Symbol[],
@@ -96,7 +110,7 @@ struct SQLTable <: AbstractDict{Symbol, SQLColumn}
                 qualifiers
         name = Symbol(name)
         columns = _column_map(columns)
-        new(qualifiers, name, columns, metadata)
+        new(qualifiers, name, columns, _metadata(metadata))
     end
 end
 
@@ -126,9 +140,8 @@ function PrettyPrinting.quoteof(tbl::SQLTable; limit::Bool = false)
             end
             push!(ex.args, arg)
         end
-        m = tbl.metadata
-        if m !== nothing && !isempty(m)
-            push!(ex.args, Expr(:kw, :metadata, quoteof(m)))
+        if !isempty(tbl.metadata)
+            push!(ex.args, Expr(:kw, :metadata, quoteof(reverse!(collect(tbl.metadata)))))
         end
     else
         push!(ex.args, :…)
@@ -171,11 +184,13 @@ _table_entry((n, t)::Pair{<:Union{Symbol, AbstractString}, SQLTable}) =
 """
     SQLCatalog(; tables = Dict{Symbol, SQLTable}(),
                  dialect = :default,
-                 cache = $default_cache_maxsize)
-    SQLCatalog(tables...; dialect = :default, cache = $default_cache_maxsize)
+                 cache = $default_cache_maxsize,
+                 metadata = nothing)
+    SQLCatalog(tables...;
+               dialect = :default, cache = $default_cache_maxsize, metadata = nothing)
 
 `SQLCatalog` encapsulates available database `tables`, the target SQL `dialect`,
-and a `cache` of serialized queries.
+a `cache` of serialized queries, and an optional `metadata`.
 
 Parameter `tables` is either a dictionary or a vector of [`SQLTable`](@ref)
 objects, where the vector will be converted to a dictionary with
@@ -210,14 +225,14 @@ struct SQLCatalog <: AbstractDict{Symbol, SQLTable}
     tables::Dict{Symbol, SQLTable}
     dialect::SQLDialect
     cache::Any # Union{AbstractDict{SQLNode, SQLString}, Nothing}
-    metadata::Union{Nothing, Dict{Symbol, Any}}
+    metadata::SQLMetadata
 
     function SQLCatalog(; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache = default_cache_maxsize, metadata = nothing)
         table_map = _table_map(tables)
         if cache isa Number
             cache = LRU{SQLNode, SQLString}(maxsize = cache)
         end
-        new(table_map, dialect, cache, metadata)
+        new(table_map, dialect, cache, _metadata(metadata))
     end
 end
 
@@ -245,9 +260,8 @@ function PrettyPrinting.quoteof(c::SQLCatalog)
     else
         push!(ex.args, Expr(:kw, :cache, Expr(:call, typeof(cache))))
     end
-    m = c.metadata
-    if m !== nothing && !isempty(m)
-        push!(ex.args, Expr(:kw, :metadata, quoteof(m)))
+    if !isempty(c.metadata)
+        push!(ex.args, Expr(:kw, :metadata, quoteof(reverse!(collect(c.metadata)))))
     end
     ex
 end
@@ -271,9 +285,8 @@ function Base.show(io::IO, c::SQLCatalog)
     else
         print(io, ", cache = ", typeof(cache), "()")
     end
-    m = c.metadata
-    if m !== nothing && !isempty(m)
-        print(io, ", metadata = Dict(…)")
+    if !isempty(c.metadata)
+        print(io, ", metadata = …")
     end
     print(io, ')')
     nothing
