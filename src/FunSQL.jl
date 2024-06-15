@@ -84,6 +84,7 @@ using OrderedCollections: OrderedDict, OrderedSet
 using Tables
 using DBInterface
 using LRUCache
+using DataAPI
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}

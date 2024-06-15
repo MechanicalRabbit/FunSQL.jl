@@ -14,6 +14,22 @@ _metadata(dict::SQLMetadata, kvs...) =
 _metadata(other) =
     _metadata(SQLMetadata(), pairs(other)...)
 
+_metadata_style(@nospecialize(val)) =
+    :default
+
+_metadata_keys(dict::SQLMetadata) =
+    Base.Generator(string, keys(dict))
+
+_metadata_get(dict::SQLMetadata, key::Union{Symbol, AbstractString}; style::Bool) =
+    let val = dict[Symbol(key)]
+        style ? (val, _metadata_style(val)) : val
+    end
+
+_metadata_get(dict::SQLMetadata, key::Union{Symbol, AbstractString}, default; style::Bool) =
+    let val = get(dict, Symbol(key), default)
+        style ? (val, _metadata_style(val)) : val
+    end
+
 """
     SQLColumn(; name, metadata = nothing)
     SQLColumn(name; metadata = nothing)
@@ -46,26 +62,17 @@ function PrettyPrinting.quoteof(col::SQLColumn; limit::Bool = false)
     ex
 end
 
-_column_map(columns::OrderedDict{Symbol, SQLColumn}) =
-    columns
+DataAPI.metadatasupport(::Type{SQLColumn}) =
+    (read = true, write = false)
 
-_column_map(columns::AbstractVector{Pair{Symbol, SQLColumn}}) =
-    OrderedDict{Symbol, SQLColumn}(columns)
+DataAPI.metadata(col::SQLColumn, key::Union{Symbol, AbstractString}; style::Bool = false) =
+    _metadata_get(col.metadata, key; style)
 
-_column_map(columns) =
-    OrderedDict{Symbol, SQLColumn}(Pair{Symbol, SQLColumn}[_column_entry(c) for c in columns])
+DataAPI.metadata(col::SQLColumn, key::Union{Symbol, AbstractString}, default; style::Bool = false) =
+    _metadata_get(col.metadata, key, default; style)
 
-_column_entry(c::Symbol) =
-    c => SQLColumn(c)
-
-_column_entry(c::AbstractString) =
-    _column_entry(Symbol(c))
-
-_column_entry(c::SQLColumn) =
-    c.name => c
-
-_column_entry((n, c)::Pair{<:Union{Symbol, AbstractString}, SQLColumn}) =
-    Symbol(n) => c
+DataAPI.metadatakeys(col::SQLColumn) =
+    _metadata_keys(col.metadata)
 
 """
     SQLTable(; qualifiers = [], name, columns, metadata = nothing)
@@ -120,6 +127,27 @@ SQLTable(name; qualifiers = Symbol[], columns, metadata = nothing) =
 SQLTable(name, columns...; qualifiers = Symbol[], metadata = nothing) =
     SQLTable(qualifiers = qualifiers, name = name, columns = [columns...], metadata = metadata)
 
+_column_map(columns::OrderedDict{Symbol, SQLColumn}) =
+    columns
+
+_column_map(columns::AbstractVector{Pair{Symbol, SQLColumn}}) =
+    OrderedDict{Symbol, SQLColumn}(columns)
+
+_column_map(columns) =
+    OrderedDict{Symbol, SQLColumn}(Pair{Symbol, SQLColumn}[_column_entry(c) for c in columns])
+
+_column_entry(c::Symbol) =
+    c => SQLColumn(c)
+
+_column_entry(c::AbstractString) =
+    _column_entry(Symbol(c))
+
+_column_entry(c::SQLColumn) =
+    c.name => c
+
+_column_entry((n, c)::Pair{<:Union{Symbol, AbstractString}, SQLColumn}) =
+    Symbol(n) => c
+
 Base.show(io::IO, tbl::SQLTable) =
     print(io, quoteof(tbl, limit = true))
 
@@ -158,28 +186,43 @@ Base.get(default::Base.Callable, tbl::SQLTable, key::Union{Symbol, AbstractStrin
 Base.getindex(tbl::SQLTable, key::Union{Symbol, AbstractString}) =
     tbl.columns[Symbol(key)]
 
+Base.getindex(tbl::SQLTable, key::Integer) =
+    tbl.columns.vals[key]
+
 Base.iterate(tbl::SQLTable, state...) =
     iterate(tbl.columns, state...)
 
 Base.length(tbl::SQLTable) =
     length(tbl.columns)
 
+DataAPI.metadatasupport(::Type{SQLTable}) =
+    (read = true, write = false)
+
+DataAPI.metadata(tbl::SQLTable, key::Union{Symbol, AbstractString}; style::Bool = false) =
+    _metadata_get(tbl.metadata, key; style)
+
+DataAPI.metadata(tbl::SQLTable, key::Union{Symbol, AbstractString}, default; style::Bool = false) =
+    _metadata_get(tbl.metadata, key, default; style)
+
+DataAPI.metadatakeys(tbl::SQLTable) =
+    _metadata_keys(tbl.metadata)
+
+DataAPI.colmetadatasupport(::Type{SQLTable}) =
+    (read = true, write = false)
+
+DataAPI.colmetadata(tbl::SQLTable, col::Union{Symbol, Integer}, key::Union{Symbol, AbstractString}; style::Bool = false) =
+    _metadata_get(tbl[col].metadata, key; style)
+
+DataAPI.colmetadata(tbl::SQLTable, col::Union{Symbol, Integer}, key::Union{Symbol, AbstractString}, default; style::Bool = false) =
+    _metadata_get(tbl[col].metadata, key, default; style)
+
+DataAPI.colmetadatakeys(tbl::SQLTable) =
+    (k => _metadata_keys(v.metadata) for (k, v) in tbl.columns)
+
+DataAPI.colmetadatakeys(tbl::SQLTable, col::Union{Symbol, Integer}) =
+    _metadata_keys(tbl[col].metadata)
+
 const default_cache_maxsize = 256
-
-_table_map(tables::Dict{Symbol, SQLTable}) =
-    tables
-
-_table_map(tables::AbstractVector{Pair{Symbol, SQLTable}}) =
-    Dict{Symbol, SQLTable}(tables)
-
-_table_map(tables) =
-    Dict{Symbol, SQLTable}(Pair{Symbol, SQLTable}[_table_entry(t) for t in tables])
-
-_table_entry(t::SQLTable) =
-    t.name => t
-
-_table_entry((n, t)::Pair{<:Union{Symbol, AbstractString}, SQLTable}) =
-    Symbol(n) => t
 
 """
     SQLCatalog(; tables = Dict{Symbol, SQLTable}(),
@@ -238,6 +281,21 @@ end
 
 SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize, metadata = nothing) =
     SQLCatalog(tables = tables, dialect = dialect, cache = cache, metadata = metadata)
+
+_table_map(tables::Dict{Symbol, SQLTable}) =
+    tables
+
+_table_map(tables::AbstractVector{Pair{Symbol, SQLTable}}) =
+    Dict{Symbol, SQLTable}(tables)
+
+_table_map(tables) =
+    Dict{Symbol, SQLTable}(Pair{Symbol, SQLTable}[_table_entry(t) for t in tables])
+
+_table_entry(t::SQLTable) =
+    t.name => t
+
+_table_entry((n, t)::Pair{<:Union{Symbol, AbstractString}, SQLTable}) =
+    Symbol(n) => t
 
 function PrettyPrinting.quoteof(c::SQLCatalog)
     ex = Expr(:call, nameof(SQLCatalog))
@@ -310,3 +368,14 @@ Base.iterate(c::SQLCatalog, state...) =
 Base.length(c::SQLCatalog) =
     length(c.tables)
 
+DataAPI.metadatasupport(::Type{SQLCatalog}) =
+    (read = true, write = false)
+
+DataAPI.metadata(c::SQLCatalog, key::Union{Symbol, AbstractString}; style::Bool = false) =
+    _metadata_get(c.metadata, key; style)
+
+DataAPI.metadata(c::SQLCatalog, key::Union{Symbol, AbstractString}, default; style::Bool = false) =
+    _metadata_get(c.metadata, key, default; style)
+
+DataAPI.metadatakeys(c::SQLCatalog) =
+    _metadata_keys(c.metadata)
