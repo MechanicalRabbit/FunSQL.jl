@@ -1,5 +1,31 @@
 # Release Notes
 
+## v0.14.0
+
+* `Define`: add parameters `before` and `after` for specifying position
+  of the defined columns.
+
+* Introduce the `SQLColumn` type to represent table columns.  The type of
+  `SQLTable.columns` is changed from `Vector{Symbol}` to
+  `OrderedDict{Symbol, SQLColumn}`.
+
+* Make `SQLTable` an `AbstractDict{Symbol, SQLColumn}`.
+
+* Add DataAPI-compatible metadata to catalog objects `SQLCatalog`, `SQLTable`,
+  and `SQLColumn`.
+
+* Add a field `SQLString.columns` with an optional `Vector{SQLColumn}`
+  representing output columns of the SQL query.
+
+* Support docstrings in `@funsql` notation.
+
+* Remove support for `const` and variable assignment syntax from `@funsql`
+  notation.
+
+* Use a simpler and more consistent rule for collapsing JOIN branches
+  (fixes #60).
+
+
 ## v0.13.2
 
 * Wrap a branch of `UNION ALL` in a subquery if it contains `ORDER BY` or
