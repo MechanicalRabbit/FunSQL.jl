@@ -2585,6 +2585,111 @@ JOIN (
   FROM &quot;location&quot; AS &quot;location_1&quot;
   WHERE (&quot;location_1&quot;.&quot;state&quot; = &#39;IL&#39;)
 ) AS &quot;location_2&quot; ON (&quot;person_2&quot;.&quot;location_id&quot; = &quot;location_2&quot;.&quot;location_id&quot;)
+=#</code></pre><p>An outer <code>Join</code> does not collapse its branches when doing so may change the values of unmatched rows.</p><pre><code class="language-julia hljs">join_q(; left = false, right = false) =
+    From(:cohort1) |&gt; Define(:n_cohort =&gt; 1) |&gt; As(:cohort1) |&gt;
+    Join(From(:cohort2) |&gt; Define(:n_cohort =&gt; 1) |&gt; As(:cohort2),
+         on = Get.cohort1.person_id .== Get.cohort2.person_id,
+         left = left,
+         right = right) |&gt;
+    Select(:person_id =&gt; Fun.coalesce(Get.cohort1.person_id, Get.cohort2.person_id),
+           :n_cohort =&gt; Fun.coalesce(Get.cohort1.n_cohort, 0) .+ Fun.coalesce(Get.cohort2.n_cohort, 0)) |&gt;
+    With(:cohort1 =&gt; From(person) |&gt; Where(Get.year_of_birth .&gt; 1970),
+         :cohort2 =&gt; From(person) |&gt; Where(Get.year_of_birth .&lt; 1990))
+
+print(render(join_q()))
+#=&gt;
+WITH &quot;cohort1_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1970)
+),
+&quot;cohort2_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_2&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_2&quot;
+  WHERE (&quot;person_2&quot;.&quot;year_of_birth&quot; &lt; 1990)
+)
+SELECT
+  coalesce(&quot;cohort1_2&quot;.&quot;person_id&quot;, &quot;cohort2_2&quot;.&quot;person_id&quot;) AS &quot;person_id&quot;,
+  (coalesce(1, 0) + coalesce(1, 0)) AS &quot;n_cohort&quot;
+FROM &quot;cohort1_1&quot; AS &quot;cohort1_2&quot;
+JOIN &quot;cohort2_1&quot; AS &quot;cohort2_2&quot; ON (&quot;cohort1_2&quot;.&quot;person_id&quot; = &quot;cohort2_2&quot;.&quot;person_id&quot;)
+=#
+
+print(render(join_q(left = true)))
+#=&gt;
+WITH &quot;cohort1_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1970)
+),
+&quot;cohort2_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_2&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_2&quot;
+  WHERE (&quot;person_2&quot;.&quot;year_of_birth&quot; &lt; 1990)
+)
+SELECT
+  coalesce(&quot;cohort1_2&quot;.&quot;person_id&quot;, &quot;cohort2_3&quot;.&quot;person_id&quot;) AS &quot;person_id&quot;,
+  (coalesce(1, 0) + coalesce(&quot;cohort2_3&quot;.&quot;n_cohort&quot;, 0)) AS &quot;n_cohort&quot;
+FROM &quot;cohort1_1&quot; AS &quot;cohort1_2&quot;
+LEFT JOIN (
+  SELECT
+    &quot;cohort2_2&quot;.&quot;person_id&quot;,
+    1 AS &quot;n_cohort&quot;
+  FROM &quot;cohort2_1&quot; AS &quot;cohort2_2&quot;
+) AS &quot;cohort2_3&quot; ON (&quot;cohort1_2&quot;.&quot;person_id&quot; = &quot;cohort2_3&quot;.&quot;person_id&quot;)
+=#
+
+print(render(join_q(right = true)))
+#=&gt;
+WITH &quot;cohort1_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1970)
+),
+&quot;cohort2_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_2&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_2&quot;
+  WHERE (&quot;person_2&quot;.&quot;year_of_birth&quot; &lt; 1990)
+)
+SELECT
+  coalesce(&quot;cohort1_3&quot;.&quot;person_id&quot;, &quot;cohort2_2&quot;.&quot;person_id&quot;) AS &quot;person_id&quot;,
+  (coalesce(&quot;cohort1_3&quot;.&quot;n_cohort&quot;, 0) + coalesce(1, 0)) AS &quot;n_cohort&quot;
+FROM (
+  SELECT
+    &quot;cohort1_2&quot;.&quot;person_id&quot;,
+    1 AS &quot;n_cohort&quot;
+  FROM &quot;cohort1_1&quot; AS &quot;cohort1_2&quot;
+) AS &quot;cohort1_3&quot;
+RIGHT JOIN &quot;cohort2_1&quot; AS &quot;cohort2_2&quot; ON (&quot;cohort1_3&quot;.&quot;person_id&quot; = &quot;cohort2_2&quot;.&quot;person_id&quot;)
+=#
+
+print(render(join_q(left = true, right = true)))
+#=&gt;
+WITH &quot;cohort1_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_1&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+  WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 1970)
+),
+&quot;cohort2_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;person_2&quot;.&quot;person_id&quot;
+  FROM &quot;person&quot; AS &quot;person_2&quot;
+  WHERE (&quot;person_2&quot;.&quot;year_of_birth&quot; &lt; 1990)
+)
+SELECT
+  coalesce(&quot;cohort1_3&quot;.&quot;person_id&quot;, &quot;cohort2_3&quot;.&quot;person_id&quot;) AS &quot;person_id&quot;,
+  (coalesce(&quot;cohort1_3&quot;.&quot;n_cohort&quot;, 0) + coalesce(&quot;cohort2_3&quot;.&quot;n_cohort&quot;, 0)) AS &quot;n_cohort&quot;
+FROM (
+  SELECT
+    &quot;cohort1_2&quot;.&quot;person_id&quot;,
+    1 AS &quot;n_cohort&quot;
+  FROM &quot;cohort1_1&quot; AS &quot;cohort1_2&quot;
+) AS &quot;cohort1_3&quot;
+FULL JOIN (
+  SELECT
+    &quot;cohort2_2&quot;.&quot;person_id&quot;,
+    1 AS &quot;n_cohort&quot;
+  FROM &quot;cohort2_1&quot; AS &quot;cohort2_2&quot;
+) AS &quot;cohort2_3&quot; ON (&quot;cohort1_3&quot;.&quot;person_id&quot; = &quot;cohort2_3&quot;.&quot;person_id&quot;)
 =#</code></pre><p><code>Join</code> can be applied to correlated subqueries.</p><pre><code class="language-julia hljs">ql(person_id) =
     From(visit_occurrence) |&gt;
     Where(Get.person_id .== Var.PERSON_ID) |&gt;
@@ -3254,4 +3359,4 @@ end;
 │     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;,
 │     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Monday 1 July 2024 00:35">Monday 1 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Wednesday 3 July 2024 02:32">Wednesday 3 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
