@@ -827,9 +827,12 @@ function assemble(n::PartitionNode, ctx)
     Assemblage(base.name, c, cols = cols, repl = repl)
 end
 
+_outer_safe(a::Assemblage) =
+    all(@dissect(col, (nothing |> ID() |> ID())) for col in values(a.cols))
+
 function assemble(n::RoutedJoinNode, ctx)
     left = assemble(n.over, ctx)
-    if @dissect(left.clause, tail := FROM() || JOIN())
+    if @dissect(left.clause, tail := FROM() || JOIN()) && (!n.right || _outer_safe(left))
         left_alias = nothing
     else
         left_alias = allocate_alias(ctx, left)
@@ -842,7 +845,7 @@ function assemble(n::RoutedJoinNode, ctx)
     else
         right = assemble(n.joinee, ctx)
     end
-    if @dissect(right.clause, (joinee := (ID() || AS())) |> FROM())
+    if @dissect(right.clause, (joinee := (ID() || AS())) |> FROM()) && (!n.left || _outer_safe(right))
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end
