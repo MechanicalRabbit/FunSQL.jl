@@ -1,5 +1,15 @@
 # Release Notes
 
+## V0.14.1
+
+* Fix `Join` incorrectly collapsing an outer branch when it may transform a NULL
+  to a non-NULL value.
+
+* Make `@funsql` macro support operators `≥`, `≤`, `≢`, `≡`, `≠`, `∉`, `∈`
+  as aliases for `>=`, `<=`, `IS DISTINCT FROM`, `IS NOT DISTINCT FROM`, `<>`,
+  `IN`, `NOT IN`, thanks to Ashlin Harris.
+
+
 ## v0.14.0
 
 * `Define`: add parameters `before` and `after` for specifying position
