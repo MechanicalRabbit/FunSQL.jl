@@ -26,6 +26,19 @@ const postgresql_reflect_clause =
     SELECT(:schema => (:n, :nspname),
            :name => (:c, :relname),
            :column => (:a, :attname))
+# same as postgresql, just the default schema is "main" instead of "public":
+const duckdb_reflect_clause =
+    FROM(:n => (:pg_catalog, :pg_namespace)) |>
+    JOIN(:c => (:pg_catalog, :pg_class), on = FUN("=", (:n, :oid), (:c, :relnamespace))) |>
+    JOIN(:a => (:pg_catalog, :pg_attribute), on = FUN("=", (:c, :oid), (:a, :attrelid))) |>
+    WHERE(FUN(:and, FUN("=", (:n, :nspname), FUN(:coalesce, VAR(:schema), "main")),
+                    FUN(:in, (:c, :relkind), "r", "v"),
+                    FUN(">", (:a, :attnum), 0),
+                    FUN(:not, (:a, :attisdropped)))) |>
+    ORDER((:n, :nspname), (:c, :relname), (:a, :attnum)) |>
+    SELECT(:schema => (:n, :nspname),
+        :name => (:c, :relname),
+        :column => (:a, :attname))
 const redshift_reflect_clause = postgresql_reflect_clause
 const sqlite_reflect_clause =
     FROM(:sm => :sqlite_master) |>
@@ -49,6 +62,7 @@ const sqlserver_reflect_clause =
 const standard_reflect_clauses = [
     :mysql => mysql_reflect_clause,
     :postgresql => postgresql_reflect_clause,
+    :duckdb => duckdb_reflect_clause,
     :redshift => redshift_reflect_clause,
     :sqlite => sqlite_reflect_clause,
     :sqlserver => sqlserver_reflect_clause]
