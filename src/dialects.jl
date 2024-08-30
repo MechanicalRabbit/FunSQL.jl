@@ -151,6 +151,11 @@ const postgresql_dialect =
                limit_style = LIMIT_STYLE.POSTGRESQL,
                variable_prefix = '$',
                variable_style = VARIABLE_STYLE.NUMBERED)
+const duckdb_dialect =
+    SQLDialect(name = :duckdb,
+               limit_style = LIMIT_STYLE.POSTGRESQL,
+               variable_prefix = '$',
+               variable_style = VARIABLE_STYLE.NUMBERED)
 const redshift_dialect =
     SQLDialect(name = :redshift,
                concat_operator = Symbol("||"),
@@ -187,7 +192,8 @@ const standard_dialects = [
     spark_dialect,
     sqlite_dialect,
     sqlserver_dialect,
-    default_dialect]
+    default_dialect,
+    duckdb_dialect]
 
 function SQLDialect(name::Symbol; kws...)
     for sd in standard_dialects
@@ -210,6 +216,7 @@ const known_connection_types = [
     [:MySQL, :Connection] => :mysql,
     [:LibPQ, :Connection] => :postgresql,
     [:SQLite, :DB] => :sqlite,
+    [:DuckDB, :DB] => :duckdb,
 ]
 
 function SQLDialect(@nospecialize ConnType::Type)
