@@ -1,6 +1,11 @@
 # Release Notes
 
-## V0.14.1
+## v0.14.2
+
+* Add DuckDB support.  Thanks to Alexander Plavin.
+
+
+## v0.14.1
 
 * Fix `Join` incorrectly collapsing an outer branch when it may transform a NULL
   to a non-NULL value.
