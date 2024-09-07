@@ -60,6 +60,7 @@ Properties and capabilities of a particular SQL dialect.
 
 Use `SQLDialect(name::Symbol)` to create one of the known dialects.
 The following names are recognized:
+* `:duckdb`
 * `:mysql`
 * `:postgresql`
 * `:redshift`
@@ -72,8 +73,9 @@ check the source code.
 
 Use `SQLDialect(ConnType::Type)` to detect the dialect based on the type
 of the database connection object.  The following types are recognized:
-* `LibPQ.Connection`
+* `DuckDB.DB`
 * `MySQL.Connection`
+* `LibPQ.Connection`
 * `SQLite.DB`
 
 # Examples
@@ -137,6 +139,11 @@ end
 
 const default_dialect =
     SQLDialect()
+const duckdb_dialect =
+    SQLDialect(name = :duckdb,
+               limit_style = LIMIT_STYLE.POSTGRESQL,
+               variable_prefix = '$',
+               variable_style = VARIABLE_STYLE.NUMBERED)
 const mysql_dialect =
     SQLDialect(name = :mysql,
                identifier_quotes = ('`', '`'),
@@ -148,11 +155,6 @@ const mysql_dialect =
                variable_style = VARIABLE_STYLE.POSITIONAL)
 const postgresql_dialect =
     SQLDialect(name = :postgresql,
-               limit_style = LIMIT_STYLE.POSTGRESQL,
-               variable_prefix = '$',
-               variable_style = VARIABLE_STYLE.NUMBERED)
-const duckdb_dialect =
-    SQLDialect(name = :duckdb,
                limit_style = LIMIT_STYLE.POSTGRESQL,
                variable_prefix = '$',
                variable_style = VARIABLE_STYLE.NUMBERED)
@@ -186,14 +188,14 @@ const sqlserver_dialect =
                variable_prefix = '?',
                variable_style = VARIABLE_STYLE.POSITIONAL)
 const standard_dialects = [
+    duckdb_dialect,
     mysql_dialect,
     postgresql_dialect,
     redshift_dialect,
     spark_dialect,
     sqlite_dialect,
     sqlserver_dialect,
-    default_dialect,
-    duckdb_dialect]
+    default_dialect]
 
 function SQLDialect(name::Symbol; kws...)
     for sd in standard_dialects
@@ -213,10 +215,10 @@ end
 end
 
 const known_connection_types = [
+    [:DuckDB, :DB] => :duckdb,
     [:MySQL, :Connection] => :mysql,
     [:LibPQ, :Connection] => :postgresql,
     [:SQLite, :DB] => :sqlite,
-    [:DuckDB, :DB] => :duckdb,
 ]
 
 function SQLDialect(@nospecialize ConnType::Type)
@@ -288,4 +290,3 @@ end
 
 Base.show(io::IO, ::MIME"text/plain", d::SQLDialect) =
     pprint(io, d)
-
