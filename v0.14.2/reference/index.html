@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>API Reference · FunSQL.jl</title><meta name="title" content="API Reference · FunSQL.jl"/><meta property="og:title" content="API Reference · FunSQL.jl"/><meta property="twitter:title" content="API Reference · FunSQL.jl"/><meta name="description" content="Documentation for FunSQL.jl."/><meta property="og:description" content="Documentation for FunSQL.jl."/><meta property="twitter:description" content="Documentation for FunSQL.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">FunSQL.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../guide/">Usage Guide</a></li><li class="is-active"><a class="tocitem" href>API Reference</a><ul class="internal"><li><a class="tocitem" href="#render()"><span><code>render()</code></span></a></li><li><a class="tocitem" href="#reflect()"><span><code>reflect()</code></span></a></li><li><a class="tocitem" href="#SQLConnection-and-SQLStatement"><span><code>SQLConnection</code> and <code>SQLStatement</code></span></a></li><li><a class="tocitem" href="#SQLCatalog,-SQLTable,-and-SQLColumn"><span><code>SQLCatalog</code>, <code>SQLTable</code>, and <code>SQLColumn</code></span></a></li><li><a class="tocitem" href="#SQLDialect"><span><code>SQLDialect</code></span></a></li><li><a class="tocitem" href="#SQLString"><span><code>SQLString</code></span></a></li><li><a class="tocitem" href="#SQLNode"><span><code>SQLNode</code></span></a></li><li><a class="tocitem" href="#Agg"><span><code>Agg</code></span></a></li><li><a class="tocitem" href="#Append"><span><code>Append</code></span></a></li><li><a class="tocitem" href="#As"><span><code>As</code></span></a></li><li><a class="tocitem" href="#Bind"><span><code>Bind</code></span></a></li><li><a class="tocitem" href="#Define"><span><code>Define</code></span></a></li><li><a class="tocitem" href="#From"><span><code>From</code></span></a></li><li><a class="tocitem" href="#Fun"><span><code>Fun</code></span></a></li><li><a class="tocitem" href="#Get"><span><code>Get</code></span></a></li><li><a class="tocitem" href="#Group"><span><code>Group</code></span></a></li><li><a class="tocitem" href="#Highlight"><span><code>Highlight</code></span></a></li><li><a class="tocitem" href="#Iterate"><span><code>Iterate</code></span></a></li><li><a class="tocitem" href="#Join"><span><code>Join</code></span></a></li><li><a class="tocitem" href="#Limit"><span><code>Limit</code></span></a></li><li><a class="tocitem" href="#Lit"><span><code>Lit</code></span></a></li><li><a class="tocitem" href="#Order"><span><code>Order</code></span></a></li><li><a class="tocitem" href="#Over"><span><code>Over</code></span></a></li><li><a class="tocitem" href="#Partition"><span><code>Partition</code></span></a></li><li><a class="tocitem" href="#Select"><span><code>Select</code></span></a></li><li><a class="tocitem" href="#Sort,-Asc,-and-Desc"><span><code>Sort</code>, <code>Asc</code>, and <code>Desc</code></span></a></li><li><a class="tocitem" href="#Var"><span><code>Var</code></span></a></li><li><a class="tocitem" href="#Where"><span><code>Where</code></span></a></li><li><a class="tocitem" href="#With"><span><code>With</code></span></a></li><li><a class="tocitem" href="#WithExternal"><span><code>WithExternal</code></span></a></li><li><a class="tocitem" href="#SQLClause"><span><code>SQLClause</code></span></a></li><li><a class="tocitem" href="#AGG"><span><code>AGG</code></span></a></li><li><a class="tocitem" href="#AS"><span><code>AS</code></span></a></li><li><a class="tocitem" href="#FROM"><span><code>FROM</code></span></a></li><li><a class="tocitem" href="#FUN"><span><code>FUN</code></span></a></li><li><a class="tocitem" href="#GROUP"><span><code>GROUP</code></span></a></li><li><a class="tocitem" href="#HAVING"><span><code>HAVING</code></span></a></li><li><a class="tocitem" href="#ID"><span><code>ID</code></span></a></li><li><a class="tocitem" href="#JOIN"><span><code>JOIN</code></span></a></li><li><a class="tocitem" href="#LIMIT"><span><code>LIMIT</code></span></a></li><li><a class="tocitem" href="#LIT"><span><code>LIT</code></span></a></li><li><a class="tocitem" href="#NOTE"><span><code>NOTE</code></span></a></li><li><a class="tocitem" href="#ORDER"><span><code>ORDER</code></span></a></li><li><a class="tocitem" href="#PARTITION"><span><code>PARTITION</code></span></a></li><li><a class="tocitem" href="#SELECT"><span><code>SELECT</code></span></a></li><li><a class="tocitem" href="#SORT,-ASC,-and-DESC"><span><code>SORT</code>, <code>ASC</code>, and <code>DESC</code></span></a></li><li><a class="tocitem" href="#UNION"><span><code>UNION</code></span></a></li><li><a class="tocitem" href="#VALUES"><span><code>VALUES</code></span></a></li><li><a class="tocitem" href="#VAR"><span><code>VAR</code></span></a></li><li><a class="tocitem" href="#WHERE"><span><code>WHERE</code></span></a></li><li><a class="tocitem" href="#WINDOW"><span><code>WINDOW</code></span></a></li><li><a class="tocitem" href="#WITH"><span><code>WITH</code></span></a></li></ul></li><li><a class="tocitem" href="../examples/">Examples</a></li><li><a class="tocitem" href="../test/">Test Suite</a></li><li><span class="tocitem">Articles</span><ul><li><a class="tocitem" href="../two-kinds-of-sql-query-builders/">Two Kinds of SQL Query Builders</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>API Reference</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>API Reference</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/MechanicalRabbit/FunSQL.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/master/docs/src/reference/index.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="API-Reference"><a class="docs-heading-anchor" href="#API-Reference">API Reference</a><a id="API-Reference-1"></a><a class="docs-heading-anchor-permalink" href="#API-Reference" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.FunSQLError" href="#FunSQL.FunSQLError"><code>FunSQL.FunSQLError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Base error class for all errors raised by FunSQL.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/FunSQL.jl#L99-L101">source</a></section></article><h2 id="render()"><a class="docs-heading-anchor" href="#render()"><code>render()</code></a><a id="render()-1"></a><a class="docs-heading-anchor-permalink" href="#render()" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.render-Tuple{Any}" href="#FunSQL.render-Tuple{Any}"><code>FunSQL.render</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">render(node; tables = Dict{Symbol, SQLTable}(),
+             dialect = :default,
+             cache = nothing)::SQLString</code></pre><p>Create a <a href="#FunSQL.SQLCatalog"><code>SQLCatalog</code></a> object and serialize the query node.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/render.jl#L3-L9">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.render-Tuple{FunSQL.SQLCatalog, FunSQL.SQLNode}" href="#FunSQL.render-Tuple{FunSQL.SQLCatalog, FunSQL.SQLNode}"><code>FunSQL.render</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">render(catalog::Union{SQLConnection, SQLCatalog}, node::SQLNode)::SQLString</code></pre><p>Serialize the query node as a SQL statement.</p><p>Parameter <code>catalog</code> of <a href="#FunSQL.SQLCatalog"><code>SQLCatalog</code></a> type encapsulates available database tables and the target SQL dialect.  A <a href="#FunSQL.SQLConnection"><code>SQLConnection</code></a> object is also accepted.</p><p>Parameter <code>node</code> is a composite <a href="#SQLNode"><code>SQLNode</code></a> object.</p><p>The function returns a <a href="#FunSQL.SQLString"><code>SQLString</code></a> value.  The result is also cached (with the identity of <code>node</code> serving as the key) in the catalog cache.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; catalog = SQLCatalog(
+           :person =&gt; SQLTable(:person, columns = [:person_id, :year_of_birth]),
+           dialect = :postgresql);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Get.year_of_birth .&gt;= 1950);
+
+julia&gt; print(render(catalog, q))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1950)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/render.jl#L19-L50">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.render-Tuple{FunSQL.SQLDialect, FunSQL.SQLClause}" href="#FunSQL.render-Tuple{FunSQL.SQLDialect, FunSQL.SQLClause}"><code>FunSQL.render</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">render(dialect::Union{SQLConnection, SQLCatalog, SQLDialect},
+       clause::SQLClause)::SQLString</code></pre><p>Serialize the syntax tree of a SQL query.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/render.jl#L80-L85">source</a></section></article><h2 id="reflect()"><a class="docs-heading-anchor" href="#reflect()"><code>reflect()</code></a><a id="reflect()-1"></a><a class="docs-heading-anchor-permalink" href="#reflect()" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.reflect-Tuple{Any}" href="#FunSQL.reflect-Tuple{Any}"><code>FunSQL.reflect</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">reflect(conn;
+        schema = nothing,
+        dialect = nothing,
+        cache = 256)::SQLCatalog</code></pre><p>Retrieve the information about available database tables.</p><p>The function returns a <a href="#FunSQL.SQLCatalog"><code>SQLCatalog</code></a> object.  The catalog will be populated with the tables from the given database <code>schema</code>, or, if parameter <code>schema</code> is not set, from the default database schema (e.g., schema <code>public</code> for PostgreSQL).</p><p>Parameter <code>dialect</code> specifies the target <a href="#FunSQL.SQLDialect"><code>SQLDialect</code></a>.  If not set, <code>dialect</code> will be inferred from the type of the connection object.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/reflect.jl#L78-L94">source</a></section></article><h2 id="SQLConnection-and-SQLStatement"><a class="docs-heading-anchor" href="#SQLConnection-and-SQLStatement"><code>SQLConnection</code> and <code>SQLStatement</code></a><a id="SQLConnection-and-SQLStatement-1"></a><a class="docs-heading-anchor-permalink" href="#SQLConnection-and-SQLStatement" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.DB" href="#FunSQL.DB"><code>FunSQL.DB</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Shorthand for <a href="#FunSQL.SQLConnection"><code>SQLConnection</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L57-L59">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLConnection" href="#FunSQL.SQLConnection"><code>FunSQL.SQLConnection</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLConnection(conn; catalog)</code></pre><p>Wrap a raw database connection object together with a <a href="#FunSQL.SQLCatalog"><code>SQLCatalog</code></a> object containing information about database tables.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L3-L8">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLStatement" href="#FunSQL.SQLStatement"><code>FunSQL.SQLStatement</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLStatement(conn, raw; vars = Symbol[])</code></pre><p>Wrap a prepared SQL statement.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L28-L32">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="DBInterface.connect-Union{Tuple{RawConnType}, Tuple{Type{FunSQL.SQLConnection{RawConnType}}, Vararg{Any}}} where RawConnType" href="#DBInterface.connect-Union{Tuple{RawConnType}, Tuple{Type{FunSQL.SQLConnection{RawConnType}}, Vararg{Any}}} where RawConnType"><code>DBInterface.connect</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DBInterface.connect(DB{RawConnType},
+                    args...;
+                    schema = nothing,
+                    dialect = nothing,
+                    cache = 256,
+                    kws...)</code></pre><p>Connect to the database server, call <a href="#FunSQL.reflect-Tuple{Any}"><code>reflect</code></a> to retrieve the information about available tables and return a <a href="#FunSQL.SQLConnection"><code>SQLConnection</code></a> object.</p><p>Extra parameters <code>args</code> and <code>kws</code> are passed to the call:</p><pre><code class="nohighlight hljs">DBInterface.connect(RawConnType, args...; kws...)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L62-L76">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="DBInterface.execute-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}, Any}" href="#DBInterface.execute-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}, Any}"><code>DBInterface.execute</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DBInterface.execute(conn::SQLConnection, sql::SQLNode, params)
+DBInterface.execute(conn::SQLConnection, sql::SQLClause, params)</code></pre><p>Serialize and execute the query node.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L116-L121">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="DBInterface.execute-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}}" href="#DBInterface.execute-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}}"><code>DBInterface.execute</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DBInterface.execute(conn::SQLConnection, sql::SQLNode; params...)
+DBInterface.execute(conn::SQLConnection, sql::SQLClause; params...)</code></pre><p>Serialize and execute the query node.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L107-L112">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="DBInterface.execute-Tuple{FunSQL.SQLStatement, Any}" href="#DBInterface.execute-Tuple{FunSQL.SQLStatement, Any}"><code>DBInterface.execute</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DBInterface.execute(stmt::SQLStatement, params)</code></pre><p>Execute the prepared SQL statement.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L128-L132">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="DBInterface.prepare-Tuple{FunSQL.SQLConnection, FunSQL.SQLString}" href="#DBInterface.prepare-Tuple{FunSQL.SQLConnection, FunSQL.SQLString}"><code>DBInterface.prepare</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DBInterface.prepare(conn::SQLConnection, str::SQLString)::SQLStatement</code></pre><p>Generate a prepared SQL statement.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L96-L100">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="DBInterface.prepare-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}}" href="#DBInterface.prepare-Tuple{FunSQL.SQLConnection, Union{FunSQL.AbstractSQLClause, FunSQL.AbstractSQLNode}}"><code>DBInterface.prepare</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DBInterface.prepare(conn::SQLConnection, sql::SQLNode)::SQLStatement
+DBInterface.prepare(conn::SQLConnection, sql::SQLClause)::SQLStatement</code></pre><p>Serialize the query node and return a prepared SQL statement.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/connections.jl#L87-L92">source</a></section></article><h2 id="SQLCatalog,-SQLTable,-and-SQLColumn"><a class="docs-heading-anchor" href="#SQLCatalog,-SQLTable,-and-SQLColumn"><code>SQLCatalog</code>, <code>SQLTable</code>, and <code>SQLColumn</code></a><a id="SQLCatalog,-SQLTable,-and-SQLColumn-1"></a><a class="docs-heading-anchor-permalink" href="#SQLCatalog,-SQLTable,-and-SQLColumn" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLCatalog" href="#FunSQL.SQLCatalog"><code>FunSQL.SQLCatalog</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLCatalog(; tables = Dict{Symbol, SQLTable}(),
+             dialect = :default,
+             cache = 256,
+             metadata = nothing)
+SQLCatalog(tables...;
+           dialect = :default, cache = 256, metadata = nothing)</code></pre><p><code>SQLCatalog</code> encapsulates available database <code>tables</code>, the target SQL <code>dialect</code>, a <code>cache</code> of serialized queries, and an optional <code>metadata</code>.</p><p>Parameter <code>tables</code> is either a dictionary or a vector of <a href="#FunSQL.SQLTable"><code>SQLTable</code></a> objects, where the vector will be converted to a dictionary with table names as keys.  A table in the catalog can be included to a query using the <a href="#FunSQL.From-Tuple"><code>From</code></a> node.</p><p>Parameter <code>dialect</code> is a <a href="#FunSQL.SQLDialect"><code>SQLDialect</code></a> object describing the target SQL dialect.</p><p>Parameter <code>cache</code> specifies the size of the LRU cache containing results of the <a href="#FunSQL.render-Tuple{Any}"><code>render</code></a> function.  Set <code>cache</code> to <code>nothing</code> to disable the cache, or set <code>cache</code> to an arbitrary <code>Dict</code>-like object to provide a custom cache implementation.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id]);
+
+julia&gt; location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia&gt; catalog = SQLCatalog(person, location, dialect = :postgresql)
+SQLCatalog(SQLTable(:location, SQLColumn(:location_id), SQLColumn(:state)),
+           SQLTable(:person,
+                    SQLColumn(:person_id),
+                    SQLColumn(:year_of_birth),
+                    SQLColumn(:location_id)),
+           dialect = SQLDialect(:postgresql))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/catalogs.jl#L227-L266">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLColumn" href="#FunSQL.SQLColumn"><code>FunSQL.SQLColumn</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLColumn(; name, metadata = nothing)
+SQLColumn(name; metadata = nothing)</code></pre><p><code>SQLColumn</code> represents a column with the given <code>name</code> and optional <code>metadata</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/catalogs.jl#L33-L38">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLTable" href="#FunSQL.SQLTable"><code>FunSQL.SQLTable</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLTable(; qualifiers = [], name, columns, metadata = nothing)
+SQLTable(name; qualifiers = [], columns, metadata = nothing)
+SQLTable(name, columns...; qualifiers = [], metadata = nothing)</code></pre><p>The structure of a SQL table or a table-like entity (<code>TEMP TABLE</code>, <code>VIEW</code>, etc) for use as a reference in assembling SQL queries.</p><p>The <code>SQLTable</code> constructor expects the table <code>name</code>, an optional vector containing the table schema and other <code>qualifiers</code>, an ordered dictionary <code>columns</code> that maps names to columns, and an optional <code>metadata</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(qualifiers = [&quot;public&quot;],
+                         name = &quot;person&quot;,
+                         columns = [&quot;person_id&quot;, &quot;year_of_birth&quot;],
+                         metadata = (; is_view = false))
+SQLTable(qualifiers = [:public],
+         :person,
+         SQLColumn(:person_id),
+         SQLColumn(:year_of_birth),
+         metadata = [:is_view =&gt; false])</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/catalogs.jl#L77-L102">source</a></section></article><h2 id="SQLDialect"><a class="docs-heading-anchor" href="#SQLDialect"><code>SQLDialect</code></a><a id="SQLDialect-1"></a><a class="docs-heading-anchor-permalink" href="#SQLDialect" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLDialect" href="#FunSQL.SQLDialect"><code>FunSQL.SQLDialect</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLDialect(; name = :default, kws...)
+SQLDialect(template::SQLDialect; kws...)
+SQLDialect(name::Symbol, kws...)
+SQLDialect(ConnType::Type)</code></pre><p>Properties and capabilities of a particular SQL dialect.</p><p>Use <code>SQLDialect(name::Symbol)</code> to create one of the known dialects. The following names are recognized:</p><ul><li><code>:duckdb</code></li><li><code>:mysql</code></li><li><code>:postgresql</code></li><li><code>:redshift</code></li><li><code>:spark</code></li><li><code>:sqlite</code></li><li><code>:sqlserver</code></li></ul><p>Keyword parameters override individual properties of a dialect.  For details, check the source code.</p><p>Use <code>SQLDialect(ConnType::Type)</code> to detect the dialect based on the type of the database connection object.  The following types are recognized:</p><ul><li><code>DuckDB.DB</code></li><li><code>MySQL.Connection</code></li><li><code>LibPQ.Connection</code></li><li><code>SQLite.DB</code></li></ul><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; postgresql_dialect = SQLDialect(:postgresql)
+SQLDialect(:postgresql)
+
+julia&gt; postgresql_odbc_dialect = SQLDialect(:postgresql,
+                                            variable_prefix = &#39;?&#39;,
+                                            variable_style = :positional)
+SQLDialect(:postgresql, variable_prefix = &#39;?&#39;, variable_style = :POSITIONAL)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/dialects.jl#L53-L92">source</a></section></article><h2 id="SQLString"><a class="docs-heading-anchor" href="#SQLString"><code>SQLString</code></a><a id="SQLString-1"></a><a class="docs-heading-anchor-permalink" href="#SQLString" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLString" href="#FunSQL.SQLString"><code>FunSQL.SQLString</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SQLString(raw; columns = nothing, vars = Symbol[])</code></pre><p>Serialized SQL query.</p><p>Parameter <code>columns</code> is a vector describing the output columns.</p><p>Parameter <code>vars</code> is a vector of query parameters (created with <a href="#Var"><code>Var</code></a>) in the order they are expected by the <code>DBInterface.execute()</code> function.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(person);
+
+julia&gt; render(q)
+SQLString(&quot;&quot;&quot;
+          SELECT
+            &quot;person_1&quot;.&quot;person_id&quot;,
+            &quot;person_1&quot;.&quot;year_of_birth&quot;
+          FROM &quot;person&quot; AS &quot;person_1\&quot;&quot;&quot;&quot;,
+          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)])
+
+julia&gt; q = From(person) |&gt; Where(Fun.and(Get.year_of_birth .&gt;= Var.YEAR,
+                                         Get.year_of_birth .&lt; Var.YEAR .+ 10));
+
+julia&gt; render(q, dialect = :mysql)
+SQLString(&quot;&quot;&quot;
+          SELECT
+            `person_1`.`person_id`,
+            `person_1`.`year_of_birth`
+          FROM `person` AS `person_1`
+          WHERE
+            (`person_1`.`year_of_birth` &gt;= ?) AND
+            (`person_1`.`year_of_birth` &lt; (? + 10))&quot;&quot;&quot;,
+          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)],
+          vars = [:YEAR, :YEAR])
+
+julia&gt; render(q, dialect = :postgresql)
+SQLString(&quot;&quot;&quot;
+          SELECT
+            &quot;person_1&quot;.&quot;person_id&quot;,
+            &quot;person_1&quot;.&quot;year_of_birth&quot;
+          FROM &quot;person&quot; AS &quot;person_1&quot;
+          WHERE
+            (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= $1) AND
+            (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt; ($1 + 10))&quot;&quot;&quot;,
+          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)],
+          vars = [:YEAR])</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/strings.jl#L3-L55">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.pack" href="#FunSQL.pack"><code>FunSQL.pack</code></a> — <span class="docstring-category">Function</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">pack(sql::SQLString, vars::Union{Dict, NamedTuple})::Vector{Any}</code></pre><p>Convert a dictionary or a named tuple of query parameters to the positional form expected by <code>DBInterface.execute()</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(person) |&gt; Where(Fun.and(Get.year_of_birth .&gt;= Var.YEAR,
+                                         Get.year_of_birth .&lt; Var.YEAR .+ 10));
+
+julia&gt; sql = render(q, dialect = :mysql);
+
+julia&gt; pack(sql, (; YEAR = 1950))
+2-element Vector{Any}:
+ 1950
+ 1950
+
+julia&gt; sql = render(q, dialect = :postgresql);
+
+julia&gt; pack(sql, (; YEAR = 1950))
+1-element Vector{Any}:
+ 1950</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/strings.jl#L119-L144">source</a></section></article><h2 id="SQLNode"><a class="docs-heading-anchor" href="#SQLNode"><code>SQLNode</code></a><a id="SQLNode-1"></a><a class="docs-heading-anchor-permalink" href="#SQLNode" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.AbstractSQLNode" href="#FunSQL.AbstractSQLNode"><code>FunSQL.AbstractSQLNode</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A tabular or a scalar operation that can be expressed as a SQL query.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L6-L8">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.DuplicateLabelError" href="#FunSQL.DuplicateLabelError"><code>FunSQL.DuplicateLabelError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A duplicate label where unique labels are expected.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L274-L276">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.IllFormedError" href="#FunSQL.IllFormedError"><code>FunSQL.IllFormedError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A scalar operation where a tabular operation is expected.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L330-L332">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.InvalidArityError" href="#FunSQL.InvalidArityError"><code>FunSQL.InvalidArityError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Unexpected number of arguments.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L290-L292">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.InvalidGroupingSetsError" href="#FunSQL.InvalidGroupingSetsError"><code>FunSQL.InvalidGroupingSetsError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Grouping sets are specified incorrectly.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L360-L362">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.RebaseError" href="#FunSQL.RebaseError"><code>FunSQL.RebaseError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A node that cannot be rebased.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L345-L347">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.ReferenceError" href="#FunSQL.ReferenceError"><code>FunSQL.ReferenceError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>An undefined or an invalid reference.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L400-L402">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLNode" href="#FunSQL.SQLNode"><code>FunSQL.SQLNode</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>An opaque wrapper over an arbitrary SQL node.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L27-L29">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.TabularNode" href="#FunSQL.TabularNode"><code>FunSQL.TabularNode</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A node that produces tabular output.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L12-L14">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.TransliterationError" href="#FunSQL.TransliterationError"><code>FunSQL.TransliterationError</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Invalid application of the <a href="../test/nodes/#@funsql"><code>@funsql</code></a> macro.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L449-L451">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.@funsql-Tuple{Any}" href="#FunSQL.@funsql-Tuple{Any}"><code>FunSQL.@funsql</code></a> — <span class="docstring-category">Macro</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Convenient notation for assembling FunSQL queries.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes.jl#L491-L493">source</a></section></article><h2 id="Agg"><a class="docs-heading-anchor" href="#Agg"><code>Agg</code></a><a id="Agg-1"></a><a class="docs-heading-anchor-permalink" href="#Agg" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Agg-Tuple" href="#FunSQL.Agg-Tuple"><code>FunSQL.Agg</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Agg(; over = nothing, name, args = [], filter = nothing)
+Agg(name; over = nothing, args = [], filter = nothing)
+Agg(name, args...; over = nothing, filter = nothing)
+Agg.name(args...; over = nothing, filter = nothing)</code></pre><p>An application of an aggregate function.</p><p>An <code>Agg</code> node must be applied to the output of a <a href="#FunSQL.Group-Tuple"><code>Group</code></a> or a <a href="#FunSQL.Partition-Tuple"><code>Partition</code></a> node.  In a <code>Group</code> context, it is translated to a regular aggregate function, and in a <code>Partition</code> context, it is translated to a window function.</p><p><strong>Examples</strong></p><p><em>Number of patients per year of birth.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Group(Get.year_of_birth) |&gt;
+           Select(Get.year_of_birth, Agg.count());
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;</code></pre><p><em>Number of distinct states among all available locations.</em></p><pre><code class="language-julia-repl hljs">julia&gt; location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia&gt; q = From(:location) |&gt;
+           Group() |&gt;
+           Select(Agg.count_distinct(Get.state));
+
+julia&gt; print(render(q, tables = [location]))
+SELECT count(DISTINCT &quot;location_1&quot;.&quot;state&quot;) AS &quot;count_distinct&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;</code></pre><p><em>For each patient, show the date of their latest visit to a healthcare provider.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id]);
+
+julia&gt; visit_occurrence =
+           SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
+
+julia&gt; q = From(:person) |&gt;
+           LeftJoin(:visit_group =&gt; From(:visit_occurrence) |&gt;
+                                    Group(Get.person_id),
+                    on = (Get.person_id .== Get.visit_group.person_id)) |&gt;
+           Select(Get.person_id,
+                  :max_visit_start_date =&gt;
+                      Get.visit_group |&gt; Agg.max(Get.visit_start_date));
+
+julia&gt; print(render(q, tables = [person, visit_occurrence]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_group_1&quot;.&quot;max&quot; AS &quot;max_visit_start_date&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+LEFT JOIN (
+  SELECT
+    max(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) AS &quot;max&quot;,
+    &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  GROUP BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot;
+) AS &quot;visit_group_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)</code></pre><p><em>For each visit, show the number of days passed since the previous visit.</em></p><pre><code class="language-julia-repl hljs">julia&gt; visit_occurrence =
+           SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
+
+julia&gt; q = From(:visit_occurrence) |&gt;
+           Partition(Get.person_id,
+                     order_by = [Get.visit_start_date]) |&gt;
+           Select(Get.person_id,
+                  Get.visit_start_date,
+                  :gap =&gt; Get.visit_start_date .- Agg.lag(Get.visit_start_date));
+
+julia&gt; print(render(q, tables = [visit_occurrence]))
+SELECT
+  &quot;visit_occurrence_1&quot;.&quot;person_id&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;,
+  (&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; - (lag(&quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;) OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;))) AS &quot;gap&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/aggregate.jl#L26-L122">source</a></section></article><h2 id="Append"><a class="docs-heading-anchor" href="#Append"><code>Append</code></a><a id="Append-1"></a><a class="docs-heading-anchor-permalink" href="#Append" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Append-Tuple" href="#FunSQL.Append-Tuple"><code>FunSQL.Append</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Append(; over = nothing, args)
+Append(args...; over = nothing)</code></pre><p><code>Append</code> concatenates input datasets.</p><p>Only the columns that are present in every input dataset will be included to the output of <code>Append</code>.</p><p>An <code>Append</code> node is translated to a <code>UNION ALL</code> query:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+UNION ALL
+SELECT ...
+FROM $(args[1])
+UNION ALL
+...</code></pre><p><strong>Examples</strong></p><p><em>Show the dates of all measuments and observations.</em></p><pre><code class="language-julia-repl hljs">julia&gt; measurement = SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_date]);
+
+julia&gt; observation = SQLTable(:observation, columns = [:observation_id, :person_id, :observation_date]);
+
+julia&gt; q = From(:measurement) |&gt;
+           Define(:date =&gt; Get.measurement_date) |&gt;
+           Append(From(:observation) |&gt;
+                  Define(:date =&gt; Get.observation_date));
+
+julia&gt; print(render(q, tables = [measurement, observation]))
+SELECT
+  &quot;measurement_1&quot;.&quot;person_id&quot;,
+  &quot;measurement_1&quot;.&quot;measurement_date&quot; AS &quot;date&quot;
+FROM &quot;measurement&quot; AS &quot;measurement_1&quot;
+UNION ALL
+SELECT
+  &quot;observation_1&quot;.&quot;person_id&quot;,
+  &quot;observation_1&quot;.&quot;observation_date&quot; AS &quot;date&quot;
+FROM &quot;observation&quot; AS &quot;observation_1&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/append.jl#L14-L59">source</a></section></article><h2 id="As"><a class="docs-heading-anchor" href="#As"><code>As</code></a><a id="As-1"></a><a class="docs-heading-anchor-permalink" href="#As" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.As-Tuple" href="#FunSQL.As-Tuple"><code>FunSQL.As</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">As(; over = nothing, name)
+As(name; over = nothing)
+name =&gt; over</code></pre><p>In a scalar context, <code>As</code> specifies the name of the output column.  When applied to tabular data, <code>As</code> wraps the data in a nested record.</p><p>The arrow operator (<code>=&gt;</code>) is a shorthand notation for <code>As</code>.</p><p><strong>Examples</strong></p><p><em>Show all patient IDs.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt; Select(:id =&gt; Get.person_id);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT &quot;person_1&quot;.&quot;person_id&quot; AS &quot;id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre><p><em>Show all patients together with their state of residence.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id]);
+
+julia&gt; location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia&gt; q = From(:person) |&gt;
+           Join(From(:location) |&gt; As(:location),
+                on = Get.location_id .== Get.location.location_id) |&gt;
+           Select(Get.person_id, Get.location.state);
+
+julia&gt; print(render(q, tables = [person, location]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/as.jl#L16-L59">source</a></section></article><h2 id="Bind"><a class="docs-heading-anchor" href="#Bind"><code>Bind</code></a><a id="Bind-1"></a><a class="docs-heading-anchor-permalink" href="#Bind" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Bind-Tuple" href="#FunSQL.Bind-Tuple"><code>FunSQL.Bind</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Bind(; over = nothing; args)
+Bind(args...; over = nothing)</code></pre><p>The <code>Bind</code> node evaluates a query with parameters.  Specifically, <code>Bind</code> provides the values for <a href="#Var"><code>Var</code></a> parameters contained in the <code>over</code> node.</p><p>In a scalar context, the <code>Bind</code> node is translated to a correlated subquery. When <code>Bind</code> is applied to the <code>joinee</code> branch of a <a href="#FunSQL.Join-Tuple"><code>Join</code></a> node, it is translated to a <code>JOIN LATERAL</code> query.</p><p><strong>Examples</strong></p><p><em>Show patients with at least one visit to a heathcare provider.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id]);
+
+julia&gt; visit_occurrence = SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id]);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Fun.exists(From(:visit_occurrence) |&gt;
+                            Where(Get.person_id .== Var.PERSON_ID) |&gt;
+                            Bind(:PERSON_ID =&gt; Get.person_id)));
+
+julia&gt; print(render(q, tables = [person, visit_occurrence]))
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (EXISTS (
+  SELECT NULL AS &quot;_&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
+))</code></pre><p><em>Show all patients together with the date of their latest visit to a heathcare provider.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id]);
+
+julia&gt; visit_occurrence =
+           SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
+
+julia&gt; q = From(:person) |&gt;
+           LeftJoin(From(:visit_occurrence) |&gt;
+                    Where(Get.person_id .== Var.PERSON_ID) |&gt;
+                    Order(Get.visit_start_date |&gt; Desc()) |&gt;
+                    Limit(1) |&gt;
+                    Bind(:PERSON_ID =&gt; Get.person_id) |&gt;
+                    As(:visit),
+                    on = true) |&gt;
+            Select(Get.person_id, Get.visit.visit_start_date);
+
+julia&gt; print(render(q, tables = [person, visit_occurrence]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;visit_1&quot;.&quot;visit_start_date&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+LEFT JOIN LATERAL (
+  SELECT &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;
+  FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;
+  WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = &quot;person_1&quot;.&quot;person_id&quot;)
+  ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot; DESC
+  FETCH FIRST 1 ROW ONLY
+) AS &quot;visit_1&quot; ON TRUE</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/bind.jl#L22-L89">source</a></section></article><h2 id="Define"><a class="docs-heading-anchor" href="#Define"><code>Define</code></a><a id="Define-1"></a><a class="docs-heading-anchor-permalink" href="#Define" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Define-Tuple" href="#FunSQL.Define-Tuple"><code>FunSQL.Define</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Define(; over; args = [], before = nothing, after = nothing)
+Define(args...; over, before = nothing, after = nothing)</code></pre><p>The <code>Define</code> node adds or replaces output columns.</p><p>By default, new columns are added at the end of the column list while replaced columns retain their position.  Set <code>after = true</code> (<code>after = &lt;column&gt;</code>) to add both new and replaced columns at the end (after a specified column). Alternatively, set <code>before = true</code> (<code>before = &lt;column&gt;</code>) to add both new and replaced columns at the front (before the specified column).</p><p><strong>Examples</strong></p><p><em>Show patients who are at least 16 years old.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
+
+julia&gt; q = From(:person) |&gt;
+           Define(:age =&gt; Fun.now() .- Get.birth_datetime, before = :birth_datetime) |&gt;
+           Where(Get.age .&gt;= &quot;16 years&quot;);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_2&quot;.&quot;person_id&quot;,
+  &quot;person_2&quot;.&quot;age&quot;,
+  &quot;person_2&quot;.&quot;birth_datetime&quot;
+FROM (
+  SELECT
+    &quot;person_1&quot;.&quot;person_id&quot;,
+    (now() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;,
+    &quot;person_1&quot;.&quot;birth_datetime&quot;
+  FROM &quot;person&quot; AS &quot;person_1&quot;
+) AS &quot;person_2&quot;
+WHERE (&quot;person_2&quot;.&quot;age&quot; &gt;= &#39;16 years&#39;)</code></pre><p><em>Conceal the year of birth of patients born before 1930.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Define(:year_of_birth =&gt; Fun.case(Get.year_of_birth .&gt;= 1930,
+                                             Get.year_of_birth,
+                                             missing));
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  (CASE WHEN (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt;= 1930) THEN &quot;person_1&quot;.&quot;year_of_birth&quot; ELSE NULL END) AS &quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/define.jl#L27-L81">source</a></section></article><h2 id="From"><a class="docs-heading-anchor" href="#From"><code>From</code></a><a id="From-1"></a><a class="docs-heading-anchor-permalink" href="#From" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.From-Tuple" href="#FunSQL.From-Tuple"><code>FunSQL.From</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">From(; source)
+From(tbl::SQLTable)
+From(name::Symbol)
+From(^)
+From(df)
+From(f::SQLNode; columns::Vector{Symbol})
+From(::Nothing)</code></pre><p><code>From</code> outputs the content of a database table.</p><p>The parameter <code>source</code> could be one of:</p><ul><li>a <a href="#FunSQL.SQLTable"><code>SQLTable</code></a> object;</li><li>a <code>Symbol</code> value;</li><li>a <code>^</code> object;</li><li>a <code>DataFrame</code> or any Tables.jl-compatible dataset;</li><li>A <code>SQLNode</code> representing a table-valued function.  In this case, <code>From</code> also requires a keyword parameter <code>columns</code> with a list of output columns produced by the function.</li><li><code>nothing</code>.</li></ul><p>When <code>source</code> is a symbol, it can refer to either a table in <a href="#FunSQL.SQLCatalog"><code>SQLCatalog</code></a> or an intermediate dataset defined with the <a href="#With"><code>With</code></a> node.</p><p>The <code>From</code> node is translated to a SQL query with a <code>FROM</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $source</code></pre><p><code>From(^)</code> must be a component of <a href="#FunSQL.Iterate-Tuple"><code>Iterate</code></a>.  In the context of  <a href="#FunSQL.Iterate-Tuple"><code>Iterate</code></a>, it refers to the output of the previous iteration.</p><p><code>From(::DataFrame)</code> is translated to a <code>VALUES</code> clause.</p><p><code>From(nothing)</code> emits a dataset with one row and no columns and can usually be omitted.</p><p><strong>Examples</strong></p><p><em>List all patients.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(person);
+
+julia&gt; print(render(q))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre><p><em>List all patients.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre><p><em>Show all patients diagnosed with essential hypertension.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; condition_occurrence =
+           SQLTable(:condition_occurrence,
+                    columns = [:condition_occurrence_id, :person_id, :condition_concept_id]);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Fun.in(Get.person_id, From(:essential_hypertension) |&gt;
+                                       Select(Get.person_id))) |&gt;
+           With(:essential_hypertension =&gt;
+                    From(:condition_occurrence) |&gt;
+                    Where(Get.condition_concept_id .== 320128));
+
+julia&gt; print(render(q, tables = [person, condition_occurrence]))
+WITH &quot;essential_hypertension_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;condition_occurrence_1&quot;.&quot;person_id&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+  WHERE (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = 320128)
+)
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;person_id&quot; IN (
+  SELECT &quot;essential_hypertension_2&quot;.&quot;person_id&quot;
+  FROM &quot;essential_hypertension_1&quot; AS &quot;essential_hypertension_2&quot;
+))</code></pre><p><em>Show the current date.</em></p><pre><code class="language-julia-repl hljs">julia&gt; q = From(nothing) |&gt;
+           Select(Fun.current_date());
+
+julia&gt; print(render(q))
+SELECT CURRENT_DATE AS &quot;current_date&quot;
+
+julia&gt; q = Select(Fun.current_date());
+
+julia&gt; print(render(q))
+SELECT CURRENT_DATE AS &quot;current_date&quot;</code></pre><p>Query a <code>DataFrame</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; df = DataFrame(name = [&quot;SQL&quot;, &quot;Julia&quot;, &quot;FunSQL&quot;],
+                      year = [1974, 2012, 2021]);
+
+julia&gt; q = From(df) |&gt;
+           Group() |&gt;
+           Select(Agg.min(Get.year), Agg.max(Get.year));
+
+julia&gt; print(render(q))
+SELECT
+  min(&quot;values_1&quot;.&quot;year&quot;) AS &quot;min&quot;,
+  max(&quot;values_1&quot;.&quot;year&quot;) AS &quot;max&quot;
+FROM (
+  VALUES
+    (1974),
+    (2012),
+    (2021)
+) AS &quot;values_1&quot; (&quot;year&quot;)</code></pre><p>Parse comma-separated numbers.</p><pre><code class="language-julia-repl hljs">julia&gt; q = From(Fun.regexp_matches(&quot;2,3,5,7,11&quot;, &quot;(\\d+)&quot;, &quot;g&quot;),
+                columns = [:captures]) |&gt;
+           Select(Fun.&quot;CAST(?[1] AS INTEGER)&quot;(Get.captures));
+
+julia&gt; print(render(q, dialect = :postgresql))
+SELECT CAST(&quot;regexp_matches_1&quot;.&quot;captures&quot;[1] AS INTEGER) AS &quot;_&quot;
+FROM regexp_matches(&#39;2,3,5,7,11&#39;, &#39;(\d+)&#39;, &#39;g&#39;) AS &quot;regexp_matches_1&quot; (&quot;captures&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/from.jl#L63-L211">source</a></section></article><h2 id="Fun"><a class="docs-heading-anchor" href="#Fun"><code>Fun</code></a><a id="Fun-1"></a><a class="docs-heading-anchor-permalink" href="#Fun" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Fun-Tuple" href="#FunSQL.Fun-Tuple"><code>FunSQL.Fun</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Fun(; name, args = [])
+Fun(name; args = [])
+Fun(name, args...)
+Fun.name(args...)</code></pre><p>Application of a SQL function or a SQL operator.</p><p>A <code>Fun</code> node is also generated by broadcasting on <code>SQLNode</code> objects. Names of Julia operators (<code>==</code>, <code>!=</code>, <code>&amp;&amp;</code>, <code>||</code>, <code>!</code>) are replaced with their SQL equivalents (<code>=</code>, <code>&lt;&gt;</code>, <code>and</code>, <code>or</code>, <code>not</code>).</p><p>If <code>name</code> contains only symbols, or if <code>name</code> starts or ends with a space, the <code>Fun</code> node is translated to a SQL operator.</p><p>If <code>name</code> contains one or more <code>?</code> characters, it serves as a template of a SQL expression where <code>?</code> symbols are replaced with the given arguments. Use <code>??</code> to represent a literal <code>?</code> mark.  Wrap the template in parentheses if this is necessary to make the SQL expression unambiguous.</p><p>Certain names have a customized translation in order to generate common SQL functions and operators with irregular syntax:</p><table><tr><th style="text-align: left"><code>Fun</code> node</th><th style="text-align: left">SQL syntax</th></tr><tr><td style="text-align: left"><code>Fun.and(p₁, p₂, …)</code></td><td style="text-align: left"><code>p₁ AND p₂ AND …</code></td></tr><tr><td style="text-align: left"><code>Fun.between(x, y, z)</code></td><td style="text-align: left"><code>x BETWEEN y AND z</code></td></tr><tr><td style="text-align: left"><code>Fun.case(p, x, …)</code></td><td style="text-align: left"><code>CASE WHEN p THEN x … END</code></td></tr><tr><td style="text-align: left"><code>Fun.cast(x, &quot;TYPE&quot;)</code></td><td style="text-align: left"><code>CAST(x AS TYPE)</code></td></tr><tr><td style="text-align: left"><code>Fun.concat(s₁, s₂, …)</code></td><td style="text-align: left">dialect-specific, e.g., <code>(s₁ || s₂ || …)</code></td></tr><tr><td style="text-align: left"><code>Fun.current_date()</code></td><td style="text-align: left"><code>CURRENT_DATE</code></td></tr><tr><td style="text-align: left"><code>Fun.current_timestamp()</code></td><td style="text-align: left"><code>CURRENT_TIMESTAMP</code></td></tr><tr><td style="text-align: left"><code>Fun.exists(q)</code></td><td style="text-align: left"><code>EXISTS q</code></td></tr><tr><td style="text-align: left"><code>Fun.extract(&quot;FIELD&quot;, x)</code></td><td style="text-align: left"><code>EXTRACT(FIELD FROM x)</code></td></tr><tr><td style="text-align: left"><code>Fun.in(x, q)</code></td><td style="text-align: left"><code>x IN q</code></td></tr><tr><td style="text-align: left"><code>Fun.in(x, y₁, y₂, …)</code></td><td style="text-align: left"><code>x IN (y₁, y₂, …)</code></td></tr><tr><td style="text-align: left"><code>Fun.is_not_null(x)</code></td><td style="text-align: left"><code>x IS NOT NULL</code></td></tr><tr><td style="text-align: left"><code>Fun.is_null(x)</code></td><td style="text-align: left"><code>x IS NULL</code></td></tr><tr><td style="text-align: left"><code>Fun.like(x, y)</code></td><td style="text-align: left"><code>x LIKE y</code></td></tr><tr><td style="text-align: left"><code>Fun.not(p)</code></td><td style="text-align: left"><code>NOT p</code></td></tr><tr><td style="text-align: left"><code>Fun.not_between(x, y, z)</code></td><td style="text-align: left"><code>x NOT BETWEEN y AND z</code></td></tr><tr><td style="text-align: left"><code>Fun.not_exists(q)</code></td><td style="text-align: left"><code>NOT EXISTS q</code></td></tr><tr><td style="text-align: left"><code>Fun.not_in(x, q)</code></td><td style="text-align: left"><code>x NOT IN q</code></td></tr><tr><td style="text-align: left"><code>Fun.not_in(x, y₁, y₂, …)</code></td><td style="text-align: left"><code>x NOT IN (y₁, y₂, …)</code></td></tr><tr><td style="text-align: left"><code>Fun.not_like(x, y)</code></td><td style="text-align: left"><code>x NOT LIKE y</code></td></tr><tr><td style="text-align: left"><code>Fun.or(p₁, p₂, …)</code></td><td style="text-align: left"><code>p₁ OR p₂ OR …</code></td></tr></table><p><strong>Examples</strong></p><p><em>Replace missing values with N/A.</em></p><pre><code class="language-julia-repl hljs">julia&gt; location = SQLTable(:location, columns = [:location_id, :city]);
+
+julia&gt; q = From(:location) |&gt;
+           Select(Fun.coalesce(Get.city, &quot;N/A&quot;));
+
+julia&gt; print(render(q, tables = [location]))
+SELECT coalesce(&quot;location_1&quot;.&quot;city&quot;, &#39;N/A&#39;) AS &quot;coalesce&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;</code></pre><p><em>Find patients not born in 1980.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Get.year_of_birth .!= 1980);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &lt;&gt; 1980)</code></pre><p><em>For each patient, show their age in 2000.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Select(Fun.&quot;-&quot;(2000, Get.year_of_birth));
+
+julia&gt; print(render(q, tables = [person]))
+SELECT (2000 - &quot;person_1&quot;.&quot;year_of_birth&quot;) AS &quot;_&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre><p><em>Find invalid zip codes.</em></p><pre><code class="language-julia-repl hljs">julia&gt; location = SQLTable(:location, columns = [:location_id, :zip]);
+
+julia&gt; q = From(:location) |&gt;
+           Select(Fun.&quot; NOT SIMILAR TO &#39;[0-9]{5}&#39;&quot;(Get.zip));
+
+julia&gt; print(render(q, tables = [location]))
+SELECT (&quot;location_1&quot;.&quot;zip&quot; NOT SIMILAR TO &#39;[0-9]{5}&#39;) AS &quot;_&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;</code></pre><p><em>Extract the first 3 digits of the zip code.</em></p><pre><code class="language-julia-repl hljs">julia&gt; location = SQLTable(:location, columns = [:location_id, :zip]);
+
+julia&gt; q = From(:location) |&gt;
+           Select(Fun.&quot;SUBSTRING(? FROM ? FOR ?)&quot;(Get.zip, 1, 3));
+
+julia&gt; print(render(q, tables = [location]))
+SELECT SUBSTRING(&quot;location_1&quot;.&quot;zip&quot; FROM 1 FOR 3) AS &quot;_&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/function.jl#L38-L154">source</a></section></article><h2 id="Get"><a class="docs-heading-anchor" href="#Get"><code>Get</code></a><a id="Get-1"></a><a class="docs-heading-anchor-permalink" href="#Get" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Get-Tuple" href="#FunSQL.Get-Tuple"><code>FunSQL.Get</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Get(; over, name)
+Get(name; over)
+Get.name        Get.&quot;name&quot;      Get[name]       Get[&quot;name&quot;]
+over.name       over.&quot;name&quot;     over[name]      over[&quot;name&quot;]
+name</code></pre><p>A reference to a column of the input dataset.</p><p>When a column reference is ambiguous (e.g., with <a href="#FunSQL.Join-Tuple"><code>Join</code></a>), use <a href="#FunSQL.As-Tuple"><code>As</code></a> to disambiguate the columns, and a chained <code>Get</code> node (<code>Get.a.b.….z</code>) to refer to a column wrapped with <code>… |&gt; As(:b) |&gt; As(:a)</code>.</p><p><strong>Examples</strong></p><p><em>List patient IDs.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Select(Get(:person_id));
+
+julia&gt; print(render(q, tables = [person]))
+SELECT &quot;person_1&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre><p><em>Show patients with their state of residence.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id]);
+
+julia&gt; location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia&gt; q = From(:person) |&gt;
+           Join(From(:location) |&gt; As(:location),
+                on = Get.location_id .== Get.location.location_id) |&gt;
+           Select(Get.person_id, Get.location.state);
+
+julia&gt; print(render(q, tables = [person, location]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/get.jl#L16-L63">source</a></section></article><h2 id="Group"><a class="docs-heading-anchor" href="#Group"><code>Group</code></a><a id="Group-1"></a><a class="docs-heading-anchor-permalink" href="#Group" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Group-Tuple" href="#FunSQL.Group-Tuple"><code>FunSQL.Group</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Group(; over, by = [], sets = sets, name = nothing)
+Group(by...; over, sets = sets, name = nothing)</code></pre><p>The <code>Group</code> node summarizes the input dataset.</p><p>Specifically, <code>Group</code> outputs all unique values of the given grouping key. This key partitions the input rows into disjoint groups that are summarized by aggregate functions <a href="#Agg"><code>Agg</code></a> applied to the output of <code>Group</code>.  The parameter <code>sets</code> specifies the grouping sets, either with grouping mode indicators <code>:cube</code> or <code>:rollup</code>, or explicitly as <code>Vector{Vector{Symbol}}</code>. An optional parameter <code>name</code> specifies the field to hold the group.</p><p>The <code>Group</code> node is translated to a SQL query with a <code>GROUP BY</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+GROUP BY $by...</code></pre><p><strong>Examples</strong></p><p><em>Total number of patients.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Group() |&gt;
+           Select(Agg.count());
+
+julia&gt; print(render(q, tables = [person]))
+SELECT count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre><p><em>Number of patients per year of birth.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Group(Get.year_of_birth) |&gt;
+           Select(Get.year_of_birth, Agg.count());
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;</code></pre><p>The same example using an explicit group name.</p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Group(Get.year_of_birth, name = :person) |&gt;
+           Select(Get.year_of_birth, Get.person |&gt; Agg.count());
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;</code></pre><p><em>Number of patients per year of birth and the total number of patients.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Group(Get.year_of_birth, sets = :cube) |&gt;
+           Select(Get.year_of_birth, Agg.count());
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  count(*) AS &quot;count&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY CUBE(&quot;person_1&quot;.&quot;year_of_birth&quot;)</code></pre><p><em>Distinct states across all available locations.</em></p><pre><code class="language-julia-repl hljs">julia&gt; location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia&gt; q = From(:location) |&gt;
+           Group(Get.state);
+
+julia&gt; print(render(q, tables = [location]))
+SELECT DISTINCT &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;location&quot; AS &quot;location_1&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/group.jl#L72-L171">source</a></section></article><h2 id="Highlight"><a class="docs-heading-anchor" href="#Highlight"><code>Highlight</code></a><a id="Highlight-1"></a><a class="docs-heading-anchor-permalink" href="#Highlight" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Highlight-Tuple" href="#FunSQL.Highlight-Tuple"><code>FunSQL.Highlight</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Highlight(; over = nothing; color)
+Highlight(color; over = nothing)</code></pre><p>Highlight <code>over</code> with the given <code>color</code>.</p><p>The highlighted node is printed with the selected color when the query containing it is displayed.</p><p>Available colors can be found in <code>Base.text_colors</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; q = From(:person) |&gt;
+           Select(Get.person_id |&gt; Highlight(:bold))
+let q1 = From(:person),
+    q2 = q1 |&gt; Select(Get.person_id)
+    q2
+end</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/highlight.jl#L44-L65">source</a></section></article><h2 id="Iterate"><a class="docs-heading-anchor" href="#Iterate"><code>Iterate</code></a><a id="Iterate-1"></a><a class="docs-heading-anchor-permalink" href="#Iterate" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Iterate-Tuple" href="#FunSQL.Iterate-Tuple"><code>FunSQL.Iterate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Iterate(; over = nothing, iterator)
+Iterate(iterator; over = nothing)</code></pre><p><code>Iterate</code> generates the concatenated output of an iterated query.</p><p>The <code>over</code> query is evaluated first.  Then the <code>iterator</code> query is repeatedly applied: to the output of <code>over</code>, then to the output of its previous run, and so on, until the iterator produces no data.  All these outputs are concatenated to generate the output of <code>Iterate</code>.</p><p>The <code>iterator</code> query may explicitly refer to the output of the previous run using <code>From(^)</code> notation.</p><p>The <code>Iterate</code> node is translated to a recursive common table expression:</p><pre><code class="language-sql hljs">WITH RECURSIVE iterator AS (
+  SELECT ...
+  FROM $over
+  UNION ALL
+  SELECT ...
+  FROM $iterator
+)
+SELECT ...
+FROM iterator</code></pre><p><strong>Examples</strong></p><p><em>Calculate the factorial.</em></p><pre><code class="language-julia-repl hljs">julia&gt; q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
+           Iterate(From(^) |&gt;
+                   Where(Get.n .&lt; 10) |&gt;
+                   Define(:n =&gt; Get.n .+ 1, :f =&gt; Get.f .* (Get.n .+ 1)));
+
+julia&gt; print(render(q))
+WITH RECURSIVE &quot;__1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
+  SELECT
+    1 AS &quot;n&quot;,
+    1 AS &quot;f&quot;
+  UNION ALL
+  SELECT
+    (&quot;__2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
+    (&quot;__2&quot;.&quot;f&quot; * (&quot;__2&quot;.&quot;n&quot; + 1)) AS &quot;f&quot;
+  FROM &quot;__1&quot; AS &quot;__2&quot;
+  WHERE (&quot;__2&quot;.&quot;n&quot; &lt; 10)
+)
+SELECT
+  &quot;__3&quot;.&quot;n&quot;,
+  &quot;__3&quot;.&quot;f&quot;
+FROM &quot;__1&quot; AS &quot;__3&quot;</code></pre><p>*Calculate the factorial, with implicit <code>From(^)</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
+           Iterate(Where(Get.n .&lt; 10) |&gt;
+                   Define(:n =&gt; Get.n .+ 1, :f =&gt; Get.f .* (Get.n .+ 1)));
+
+julia&gt; print(render(q))
+WITH RECURSIVE &quot;__1&quot; (&quot;n&quot;, &quot;f&quot;) AS (
+  SELECT
+    1 AS &quot;n&quot;,
+    1 AS &quot;f&quot;
+  UNION ALL
+  SELECT
+    (&quot;__2&quot;.&quot;n&quot; + 1) AS &quot;n&quot;,
+    (&quot;__2&quot;.&quot;f&quot; * (&quot;__2&quot;.&quot;n&quot; + 1)) AS &quot;f&quot;
+  FROM &quot;__1&quot; AS &quot;__2&quot;
+  WHERE (&quot;__2&quot;.&quot;n&quot; &lt; 10)
+)
+SELECT
+  &quot;__3&quot;.&quot;n&quot;,
+  &quot;__3&quot;.&quot;f&quot;
+FROM &quot;__1&quot; AS &quot;__3&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/iterate.jl#L14-L93">source</a></section></article><h2 id="Join"><a class="docs-heading-anchor" href="#Join"><code>Join</code></a><a id="Join-1"></a><a class="docs-heading-anchor-permalink" href="#Join" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.CrossJoin-Tuple" href="#FunSQL.CrossJoin-Tuple"><code>FunSQL.CrossJoin</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>An alias for <code>Join(...; ..., on = true)</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/join.jl#L81-L83">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Join-Tuple" href="#FunSQL.Join-Tuple"><code>FunSQL.Join</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Join(; over = nothing, joinee, on, left = false, right = false, optional = false)
+Join(joinee; over = nothing, on, left = false, right = false, optional = false)
+Join(joinee, on; over = nothing, left = false, right = false, optional = false)</code></pre><p><code>Join</code> correlates two input datasets.</p><p>The <code>Join</code> node is translated to a query with a <code>JOIN</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+JOIN $joinee ON $on</code></pre><p>You can specify the join type:</p><ul><li><code>INNER JOIN</code> (the default);</li><li><code>LEFT JOIN</code> (<code>left = true</code> or <a href="#FunSQL.LeftJoin-Tuple"><code>LeftJoin</code></a>);</li><li><code>RIGHT JOIN</code> (<code>right = true</code>);</li><li><code>FULL JOIN</code> (both <code>left = true</code> and <code>right = true</code>);</li><li><code>CROSS JOIN</code> (<code>on = true</code>).</li></ul><p>When <code>optional</code> is set, the <code>JOIN</code> clause is omitted if the query does not depend on any columns from the <code>joinee</code> branch.</p><p>To make a lateral join, apply <a href="#Bind"><code>Bind</code></a> to the <code>joinee</code> branch.</p><p>Use <a href="#FunSQL.As-Tuple"><code>As</code></a> to disambiguate output columns.</p><p><strong>Examples</strong></p><p><em>Show patients with their state of residence.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :location_id]);
+
+julia&gt; location = SQLTable(:location, columns = [:location_id, :state]);
+
+julia&gt; q = From(:person) |&gt;
+           Join(:location =&gt; From(:location),
+                Get.location_id .== Get.location.location_id) |&gt;
+           Select(Get.person_id, Get.location.state);
+
+julia&gt; print(render(q, tables = [person, location]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;location_1&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+JOIN &quot;location&quot; AS &quot;location_1&quot; ON (&quot;person_1&quot;.&quot;location_id&quot; = &quot;location_1&quot;.&quot;location_id&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/join.jl#L21-L71">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.LeftJoin-Tuple" href="#FunSQL.LeftJoin-Tuple"><code>FunSQL.LeftJoin</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>An alias for <code>Join(...; ..., left = true)</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/join.jl#L75-L77">source</a></section></article><h2 id="Limit"><a class="docs-heading-anchor" href="#Limit"><code>Limit</code></a><a id="Limit-1"></a><a class="docs-heading-anchor-permalink" href="#Limit" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Limit-Tuple" href="#FunSQL.Limit-Tuple"><code>FunSQL.Limit</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Limit(; over = nothing, offset = nothing, limit = nothing)
+Limit(limit; over = nothing, offset = nothing)
+Limit(offset, limit; over = nothing)
+Limit(start:stop; over = nothing)</code></pre><p>The <code>Limit</code> node skips the first <code>offset</code> rows and then emits the next <code>limit</code> rows.</p><p>To make the output deterministic, <code>Limit</code> must be applied directly after an <a href="#FunSQL.Order-Tuple"><code>Order</code></a> node.</p><p>The <code>Limit</code> node is translated to a query with a <code>LIMIT</code> or a <code>FETCH</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+OFFSET $offset ROWS
+FETCH NEXT $limit ROWS ONLY</code></pre><p><strong>Examples</strong></p><p><em>Show the oldest patient.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Order(Get.year_of_birth) |&gt;
+           Limit(1);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
+FETCH FIRST 1 ROW ONLY</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/limit.jl#L21-L60">source</a></section></article><h2 id="Lit"><a class="docs-heading-anchor" href="#Lit"><code>Lit</code></a><a id="Lit-1"></a><a class="docs-heading-anchor-permalink" href="#Lit" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Lit-Tuple" href="#FunSQL.Lit-Tuple"><code>FunSQL.Lit</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Lit(; val)
+Lit(val)</code></pre><p>A SQL literal.</p><p>In a context where a SQL node is expected, <code>missing</code>, numbers, strings, and datetime values are automatically converted to SQL literals.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; q = Select(:null =&gt; missing,
+                  :boolean =&gt; true,
+                  :integer =&gt; 42,
+                  :text =&gt; &quot;SQL is fun!&quot;,
+                  :date =&gt; Date(2000));
+
+julia&gt; print(render(q))
+SELECT
+  NULL AS &quot;null&quot;,
+  TRUE AS &quot;boolean&quot;,
+  42 AS &quot;integer&quot;,
+  &#39;SQL is fun!&#39; AS &quot;text&quot;,
+  &#39;2000-01-01&#39; AS &quot;date&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/literal.jl#L13-L39">source</a></section></article><h2 id="Order"><a class="docs-heading-anchor" href="#Order"><code>Order</code></a><a id="Order-1"></a><a class="docs-heading-anchor-permalink" href="#Order" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Order-Tuple" href="#FunSQL.Order-Tuple"><code>FunSQL.Order</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Order(; over = nothing, by)
+Order(by...; over = nothing)</code></pre><p><code>Order</code> sorts the input rows <code>by</code> the given key.</p><p>The <code>Order</code>node is translated to a query with an <code>ORDER BY</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+ORDER BY $by...</code></pre><p>Specify the sort order with <a href="#FunSQL.Asc-Tuple{}"><code>Asc</code></a>, <a href="#FunSQL.Desc-Tuple{}"><code>Desc</code></a>, or <a href="#FunSQL.Sort-Tuple"><code>Sort</code></a>.</p><p><strong>Examples</strong></p><p><em>List patients ordered by their age.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Order(Get.year_of_birth);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/order.jl#L14-L46">source</a></section></article><h2 id="Over"><a class="docs-heading-anchor" href="#Over"><code>Over</code></a><a id="Over-1"></a><a class="docs-heading-anchor-permalink" href="#Over" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Over-Tuple" href="#FunSQL.Over-Tuple"><code>FunSQL.Over</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Over(; over = nothing, arg, materialized = nothing)
+Over(arg; over = nothing, materialized = nothing)</code></pre><p><code>base |&gt; Over(arg)</code> is an alias for <code>With(base, over = arg)</code>.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; condition_occurrence =
+           SQLTable(:condition_occurrence, columns = [:condition_occurrence_id,
+                                                      :person_id,
+                                                      :condition_concept_id]);
+
+julia&gt; q = From(:condition_occurrence) |&gt;
+           Where(Get.condition_concept_id .== 320128) |&gt;
+           As(:essential_hypertension) |&gt;
+           Over(From(:person) |&gt;
+                Where(Fun.in(Get.person_id, From(:essential_hypertension) |&gt;
+                                            Select(Get.person_id))));
+
+julia&gt; print(render(q, tables = [person, condition_occurrence]))
+WITH &quot;essential_hypertension_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;condition_occurrence_1&quot;.&quot;person_id&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+  WHERE (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = 320128)
+)
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;person_id&quot; IN (
+  SELECT &quot;essential_hypertension_2&quot;.&quot;person_id&quot;
+  FROM &quot;essential_hypertension_1&quot; AS &quot;essential_hypertension_2&quot;
+))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/over.jl#L15-L53">source</a></section></article><h2 id="Partition"><a class="docs-heading-anchor" href="#Partition"><code>Partition</code></a><a id="Partition-1"></a><a class="docs-heading-anchor-permalink" href="#Partition" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Partition-Tuple" href="#FunSQL.Partition-Tuple"><code>FunSQL.Partition</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Partition(; over, by = [], order_by = [], frame = nothing, name = nothing)
+Partition(by...; over, order_by = [], frame = nothing, name = nothing)</code></pre><p>The <code>Partition</code> node relates adjacent rows.</p><p>Specifically, <code>Partition</code> specifies how to relate each row to the adjacent rows in the same dataset.  The rows are partitioned <code>by</code> the given key and ordered within each partition using <code>order_by</code> key.  The parameter <code>frame</code> customizes the extent of related rows.  These related rows are summarized by aggregate functions <a href="#Agg"><code>Agg</code></a> applied to the output of <code>Partition</code>.  An optional parameter <code>name</code> specifies the field to hold the partition.</p><p>The <code>Partition</code> node is translated to a query with a <code>WINDOW</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+WINDOW w AS (PARTITION BY $by... ORDER BY $order_by...)</code></pre><p><strong>Examples</strong></p><p><em>Enumerate patients&#39; visits.</em></p><pre><code class="language-julia-repl hljs">julia&gt; visit_occurrence =
+           SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
+
+julia&gt; q = From(:visit_occurrence) |&gt;
+           Partition(Get.person_id, order_by = [Get.visit_start_date]) |&gt;
+           Select(Agg.row_number(), Get.visit_occurrence_id);
+
+julia&gt; print(render(q, tables = [visit_occurrence]))
+SELECT
+  (row_number() OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;</code></pre><p>The same example using an explicit partition name.</p><pre><code class="language-julia-repl hljs">julia&gt; visit_occurrence =
+           SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date]);
+
+julia&gt; q = From(:visit_occurrence) |&gt;
+           Partition(Get.person_id, order_by = [Get.visit_start_date], name = :visit_by_person) |&gt;
+           Select(Get.visit_by_person |&gt; Agg.row_number(), Get.visit_occurrence_id);
+
+julia&gt; print(render(q, tables = [visit_occurrence]))
+SELECT
+  (row_number() OVER (PARTITION BY &quot;visit_occurrence_1&quot;.&quot;person_id&quot; ORDER BY &quot;visit_occurrence_1&quot;.&quot;visit_start_date&quot;)) AS &quot;row_number&quot;,
+  &quot;visit_occurrence_1&quot;.&quot;visit_occurrence_id&quot;
+FROM &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot;</code></pre><p><em>Calculate the moving average of the number of patients by the year of birth.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Group(Get.year_of_birth) |&gt;
+           Partition(order_by = [Get.year_of_birth],
+                     frame = (mode = :range, start = -1, finish = 1)) |&gt;
+           Select(Get.year_of_birth, Agg.avg(Agg.count()));
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;year_of_birth&quot;,
+  (avg(count(*)) OVER (ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)) AS &quot;avg&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/partition.jl#L22-L96">source</a></section></article><h2 id="Select"><a class="docs-heading-anchor" href="#Select"><code>Select</code></a><a id="Select-1"></a><a class="docs-heading-anchor-permalink" href="#Select" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Select-Tuple" href="#FunSQL.Select-Tuple"><code>FunSQL.Select</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Select(; over; args)
+Select(args...; over)</code></pre><p>The <code>Select</code> node specifies the output columns.</p><pre><code class="language-sql hljs">SELECT $args...
+FROM $over</code></pre><p>Set the column labels with <a href="#FunSQL.As-Tuple"><code>As</code></a>.</p><p><strong>Examples</strong></p><p><em>List patient IDs and their age.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :birth_datetime]);
+
+julia&gt; q = From(:person) |&gt;
+           Select(Get.person_id,
+                  :age =&gt; Fun.now() .- Get.birth_datetime);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  (now() - &quot;person_1&quot;.&quot;birth_datetime&quot;) AS &quot;age&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/select.jl#L22-L52">source</a></section></article><h2 id="Sort,-Asc,-and-Desc"><a class="docs-heading-anchor" href="#Sort,-Asc,-and-Desc"><code>Sort</code>, <code>Asc</code>, and <code>Desc</code></a><a id="Sort,-Asc,-and-Desc-1"></a><a class="docs-heading-anchor-permalink" href="#Sort,-Asc,-and-Desc" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Asc-Tuple{}" href="#FunSQL.Asc-Tuple{}"><code>FunSQL.Asc</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Asc(; over = nothing, nulls = nothing)</code></pre><p>Ascending order indicator.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/sort.jl#L49-L53">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Desc-Tuple{}" href="#FunSQL.Desc-Tuple{}"><code>FunSQL.Desc</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Desc(; over = nothing, nulls = nothing)</code></pre><p>Descending order indicator.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/sort.jl#L57-L61">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Sort-Tuple" href="#FunSQL.Sort-Tuple"><code>FunSQL.Sort</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Sort(; over = nothing, value, nulls = nothing)
+Sort(value; over = nothing, nulls = nothing)
+Asc(; over = nothing, nulls = nothing)
+Desc(; over = nothing, nulls = nothing)</code></pre><p>Sort order indicator.</p><p>Use with <a href="#FunSQL.Order-Tuple"><code>Order</code></a> or <a href="#FunSQL.Partition-Tuple"><code>Partition</code></a> nodes.</p><p><strong>Examples</strong></p><p><em>List patients ordered by their age.</em></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Order(Get.year_of_birth |&gt; Desc(nulls = :first));
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot; DESC NULLS FIRST</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/sort.jl#L18-L45">source</a></section></article><h2 id="Var"><a class="docs-heading-anchor" href="#Var"><code>Var</code></a><a id="Var-1"></a><a class="docs-heading-anchor-permalink" href="#Var" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Var-Tuple" href="#FunSQL.Var-Tuple"><code>FunSQL.Var</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Var(; name)
+Var(name)
+Var.name        Var.&quot;name&quot;      Var[name]       Var[&quot;name&quot;]</code></pre><p>A reference to a query parameter.</p><p>Specify the value for the parameter with <a href="#Bind"><code>Bind</code></a> to create a correlated subquery or a lateral join.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Get.year_of_birth .&gt; Var.YEAR);
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; :YEAR)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/variable.jl#L13-L38">source</a></section></article><h2 id="Where"><a class="docs-heading-anchor" href="#Where"><code>Where</code></a><a id="Where-1"></a><a class="docs-heading-anchor-permalink" href="#Where" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.Where-Tuple" href="#FunSQL.Where-Tuple"><code>FunSQL.Where</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Where(; over = nothing, condition)
+Where(condition; over = nothing)</code></pre><p>The <code>Where</code> node filters the input rows by the given <code>condition</code>.</p><p><code>Where</code> is translated to a SQL query with a <code>WHERE</code> clause:</p><pre><code class="language-sql hljs">SELECT ...
+FROM $over
+WHERE $condition</code></pre><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Fun(&quot;&gt;&quot;, Get.year_of_birth, 2000));
+
+julia&gt; print(render(q, tables = [person]))
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/where.jl#L14-L42">source</a></section></article><h2 id="With"><a class="docs-heading-anchor" href="#With"><code>With</code></a><a id="With-1"></a><a class="docs-heading-anchor-permalink" href="#With" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.With-Tuple" href="#FunSQL.With-Tuple"><code>FunSQL.With</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">With(; over = nothing, args, materialized = nothing)
+With(args...; over = nothing, materialized = nothing)</code></pre><p><code>With</code> assigns a name to a temporary dataset.  The dataset content can be retrieved within the <code>over</code> query using the <a href="#FunSQL.From-Tuple"><code>From</code></a> node.</p><p><code>With</code> is translated to a common table expression:</p><pre><code class="nohighlight hljs">WITH $args...
+SELECT ...
+FROM $over</code></pre><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; condition_occurrence =
+           SQLTable(:condition_occurrence, columns = [:condition_occurrence_id,
+                                                      :person_id,
+                                                      :condition_concept_id]);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Fun.in(Get.person_id, From(:essential_hypertension) |&gt;
+                                       Select(Get.person_id))) |&gt;
+           With(:essential_hypertension =&gt;
+                    From(:condition_occurrence) |&gt;
+                    Where(Get.condition_concept_id .== 320128));
+
+julia&gt; print(render(q, tables = [person, condition_occurrence]))
+WITH &quot;essential_hypertension_1&quot; (&quot;person_id&quot;) AS (
+  SELECT &quot;condition_occurrence_1&quot;.&quot;person_id&quot;
+  FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+  WHERE (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = 320128)
+)
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;person_id&quot; IN (
+  SELECT &quot;essential_hypertension_2&quot;.&quot;person_id&quot;
+  FROM &quot;essential_hypertension_1&quot; AS &quot;essential_hypertension_2&quot;
+))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/with.jl#L23-L69">source</a></section></article><h2 id="WithExternal"><a class="docs-heading-anchor" href="#WithExternal"><code>WithExternal</code></a><a id="WithExternal-1"></a><a class="docs-heading-anchor-permalink" href="#WithExternal" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.WithExternal-Tuple" href="#FunSQL.WithExternal-Tuple"><code>FunSQL.WithExternal</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">WithExternal(; over = nothing, args, qualifiers = [], handler = nothing)
+WithExternal(args...; over = nothing, qualifiers = [], handler = nothing)</code></pre><p><code>WithExternal</code> assigns a name to a temporary dataset.  The dataset content can be retrieved within the <code>over</code> query using the <a href="#FunSQL.From-Tuple"><code>From</code></a> node.</p><p>The definition of the dataset is converted to a <code>Pair{SQLTable, SQLClause}</code> object and sent to <code>handler</code>, which can use it, for instance, to construct a <code>SELECT INTO</code> statement.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; person = SQLTable(:person, columns = [:person_id, :year_of_birth]);
+
+julia&gt; condition_occurrence =
+           SQLTable(:condition_occurrence, columns = [:condition_occurrence_id,
+                                                      :person_id,
+                                                      :condition_concept_id]);
+
+julia&gt; handler((tbl, def)) =
+           println(&quot;CREATE TEMP TABLE &quot;, render(ID(tbl.name)), &quot; AS\n&quot;,
+                   render(def), &quot;;\n&quot;);
+
+julia&gt; q = From(:person) |&gt;
+           Where(Fun.in(Get.person_id, From(:essential_hypertension) |&gt;
+                                       Select(Get.person_id))) |&gt;
+           WithExternal(:essential_hypertension =&gt;
+                            From(:condition_occurrence) |&gt;
+                            Where(Get.condition_concept_id .== 320128),
+                        handler = handler);
+
+julia&gt; print(render(q, tables = [person, condition_occurrence]))
+CREATE TEMP TABLE &quot;essential_hypertension&quot; AS
+SELECT &quot;condition_occurrence_1&quot;.&quot;person_id&quot;
+FROM &quot;condition_occurrence&quot; AS &quot;condition_occurrence_1&quot;
+WHERE (&quot;condition_occurrence_1&quot;.&quot;condition_concept_id&quot; = 320128);
+
+SELECT
+  &quot;person_1&quot;.&quot;person_id&quot;,
+  &quot;person_1&quot;.&quot;year_of_birth&quot;
+FROM &quot;person&quot; AS &quot;person_1&quot;
+WHERE (&quot;person_1&quot;.&quot;person_id&quot; IN (
+  SELECT &quot;essential_hypertension_1&quot;.&quot;person_id&quot;
+  FROM &quot;essential_hypertension&quot; AS &quot;essential_hypertension_1&quot;
+))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/nodes/with_external.jl#L28-L76">source</a></section></article><h2 id="SQLClause"><a class="docs-heading-anchor" href="#SQLClause"><code>SQLClause</code></a><a id="SQLClause-1"></a><a class="docs-heading-anchor-permalink" href="#SQLClause" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.AbstractSQLClause" href="#FunSQL.AbstractSQLClause"><code>FunSQL.AbstractSQLClause</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>A component of a SQL syntax tree.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses.jl#L6-L8">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SQLClause" href="#FunSQL.SQLClause"><code>FunSQL.SQLClause</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>An opaque wrapper over an arbitrary SQL clause.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses.jl#L21-L23">source</a></section></article><h2 id="AGG"><a class="docs-heading-anchor" href="#AGG"><code>AGG</code></a><a id="AGG-1"></a><a class="docs-heading-anchor-permalink" href="#AGG" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.AGG-Tuple" href="#FunSQL.AGG-Tuple"><code>FunSQL.AGG</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">AGG(; name, args = [], filter = nothing, over = nothing)
+AGG(name; args = [], filter = nothing, over = nothing)
+AGG(name, args...; filter = nothing, over = nothing)</code></pre><p>An application of an aggregate function.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = AGG(:max, :year_of_birth);
+
+julia&gt; print(render(c))
+max(&quot;year_of_birth&quot;)</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = AGG(:count, filter = FUN(&quot;&gt;&quot;, :year_of_birth, 1970));
+
+julia&gt; print(render(c))
+(count(*) FILTER (WHERE (&quot;year_of_birth&quot; &gt; 1970)))</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = AGG(:row_number, over = PARTITION(:year_of_birth));
+
+julia&gt; print(render(c))
+(row_number() OVER (PARTITION BY &quot;year_of_birth&quot;))</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/aggregate.jl#L23-L52">source</a></section></article><h2 id="AS"><a class="docs-heading-anchor" href="#AS"><code>AS</code></a><a id="AS-1"></a><a class="docs-heading-anchor-permalink" href="#AS" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.AS-Tuple" href="#FunSQL.AS-Tuple"><code>FunSQL.AS</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">AS(; over = nothing, name, columns = nothing)
+AS(name; over = nothing, columns = nothing)</code></pre><p>An <code>AS</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = ID(:person) |&gt; AS(:p);
+
+julia&gt; print(render(c))
+&quot;person&quot; AS &quot;p&quot;</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = ID(:person) |&gt; AS(:p, columns = [:person_id, :year_of_birth]);
+
+julia&gt; print(render(c))
+&quot;person&quot; AS &quot;p&quot; (&quot;person_id&quot;, &quot;year_of_birth&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/as.jl#L21-L42">source</a></section></article><h2 id="FROM"><a class="docs-heading-anchor" href="#FROM"><code>FROM</code></a><a id="FROM-1"></a><a class="docs-heading-anchor-permalink" href="#FROM" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.FROM-Tuple" href="#FunSQL.FROM-Tuple"><code>FunSQL.FROM</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">FROM(; over = nothing)
+FROM(over)</code></pre><p>A <code>FROM</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = ID(:person) |&gt; AS(:p) |&gt; FROM() |&gt; SELECT((:p, :person_id));
+
+julia&gt; print(render(c))
+SELECT &quot;p&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/from.jl#L13-L28">source</a></section></article><h2 id="FUN"><a class="docs-heading-anchor" href="#FUN"><code>FUN</code></a><a id="FUN-1"></a><a class="docs-heading-anchor-permalink" href="#FUN" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.FUN-Tuple" href="#FunSQL.FUN-Tuple"><code>FunSQL.FUN</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">FUN(; name, args = [])
+FUN(name; args = [])
+FUN(name, args...)</code></pre><p>An invocation of a SQL function or a SQL operator.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FUN(:concat, :city, &quot;, &quot;, :state);
+
+julia&gt; print(render(c))
+concat(&quot;city&quot;, &#39;, &#39;, &quot;state&quot;)</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = FUN(&quot;||&quot;, :city, &quot;, &quot;, :state);
+
+julia&gt; print(render(c))
+(&quot;city&quot; || &#39;, &#39; || &quot;state&quot;)</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = FUN(&quot;SUBSTRING(? FROM ? FOR ?)&quot;, :zip, 1, 3);
+
+julia&gt; print(render(c))
+SUBSTRING(&quot;zip&quot; FROM 1 FOR 3)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/function.jl#L19-L48">source</a></section></article><h2 id="GROUP"><a class="docs-heading-anchor" href="#GROUP"><code>GROUP</code></a><a id="GROUP-1"></a><a class="docs-heading-anchor-permalink" href="#GROUP" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.GROUP-Tuple" href="#FunSQL.GROUP-Tuple"><code>FunSQL.GROUP</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">GROUP(; over = nothing, by = [], sets = nothing)
+GROUP(by...; over = nothing, sets = nothing)</code></pre><p>A <code>GROUP BY</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           GROUP(:year_of_birth) |&gt;
+           SELECT(:year_of_birth, AGG(:count));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;year_of_birth&quot;,
+  count(*)
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/group.jl#L42-L62">source</a></section></article><h2 id="HAVING"><a class="docs-heading-anchor" href="#HAVING"><code>HAVING</code></a><a id="HAVING-1"></a><a class="docs-heading-anchor-permalink" href="#HAVING" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.HAVING-Tuple" href="#FunSQL.HAVING-Tuple"><code>FunSQL.HAVING</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">HAVING(; over = nothing, condition)
+HAVING(condition; over = nothing)</code></pre><p>A <code>HAVING</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           GROUP(:year_of_birth) |&gt;
+           HAVING(FUN(&quot;&gt;&quot;, AGG(:count), 10)) |&gt;
+           SELECT(:person_id);
+
+julia&gt; print(render(c))
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;
+HAVING (count(*) &gt; 10)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/having.jl#L16-L36">source</a></section></article><h2 id="ID"><a class="docs-heading-anchor" href="#ID"><code>ID</code></a><a id="ID-1"></a><a class="docs-heading-anchor-permalink" href="#ID" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.ID-Tuple" href="#FunSQL.ID-Tuple"><code>FunSQL.ID</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ID(; over = nothing, name)
+ID(name; over = nothing)
+ID(qualifiers, name)</code></pre><p>A SQL identifier.  Specify <code>over</code> or use the <code>|&gt;</code> operator to make a qualified identifier.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = ID(:person);
+
+julia&gt; print(render(c))
+&quot;person&quot;</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = ID(:p) |&gt; ID(:birth_datetime);
+
+julia&gt; print(render(c))
+&quot;p&quot;.&quot;birth_datetime&quot;</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = ID([:pg_catalog], :pg_database);
+
+julia&gt; print(render(c))
+&quot;pg_catalog&quot;.&quot;pg_database&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/identifier.jl#L24-L54">source</a></section></article><h2 id="JOIN"><a class="docs-heading-anchor" href="#JOIN"><code>JOIN</code></a><a id="JOIN-1"></a><a class="docs-heading-anchor-permalink" href="#JOIN" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.JOIN-Tuple" href="#FunSQL.JOIN-Tuple"><code>FunSQL.JOIN</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">JOIN(; over = nothing, joinee, on, left = false, right = false, lateral = false)
+JOIN(joinee; over = nothing, on, left = false, right = false, lateral = false)
+JOIN(joinee, on; over = nothing, left = false, right = false, lateral = false)</code></pre><p>A <code>JOIN</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:p =&gt; :person) |&gt;
+           JOIN(:l =&gt; :location,
+                on = FUN(&quot;=&quot;, (:p, :location_id), (:l, :location_id)),
+                left = true) |&gt;
+           SELECT((:p, :person_id), (:l, :state));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;p&quot;.&quot;person_id&quot;,
+  &quot;l&quot;.&quot;state&quot;
+FROM &quot;person&quot; AS &quot;p&quot;
+LEFT JOIN &quot;location&quot; AS &quot;l&quot; ON (&quot;p&quot;.&quot;location_id&quot; = &quot;l&quot;.&quot;location_id&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/join.jl#L27-L50">source</a></section></article><h2 id="LIMIT"><a class="docs-heading-anchor" href="#LIMIT"><code>LIMIT</code></a><a id="LIMIT-1"></a><a class="docs-heading-anchor-permalink" href="#LIMIT" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.LIMIT-Tuple" href="#FunSQL.LIMIT-Tuple"><code>FunSQL.LIMIT</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">LIMIT(; over = nothing, offset = nothing, limit = nothing, with_ties = false)
+LIMIT(limit; over = nothing, offset = nothing, with_ties = false)
+LIMIT(offset, limit; over = nothing, with_ties = false)
+LIMIT(start:stop; over = nothing, with_ties = false)</code></pre><p>A <code>LIMIT</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           LIMIT(1) |&gt;
+           SELECT(:person_id);
+
+julia&gt; print(render(c))
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+FETCH FIRST 1 ROW ONLY</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/limit.jl#L26-L46">source</a></section></article><h2 id="LIT"><a class="docs-heading-anchor" href="#LIT"><code>LIT</code></a><a id="LIT-1"></a><a class="docs-heading-anchor-permalink" href="#LIT" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.LIT-Tuple" href="#FunSQL.LIT-Tuple"><code>FunSQL.LIT</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">LIT(; val)
+LIT(val)</code></pre><p>A SQL literal.</p><p>In a context of a SQL clause, <code>missing</code>, numbers, strings and datetime values are automatically converted to SQL literals.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = LIT(missing);
+
+julia&gt; print(render(c))
+NULL</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = LIT(&quot;SQL is fun!&quot;);
+
+julia&gt; print(render(c))
+&#39;SQL is fun!&#39;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/literal.jl#L13-L37">source</a></section></article><h2 id="NOTE"><a class="docs-heading-anchor" href="#NOTE"><code>NOTE</code></a><a id="NOTE-1"></a><a class="docs-heading-anchor-permalink" href="#NOTE" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.NOTE-Tuple" href="#FunSQL.NOTE-Tuple"><code>FunSQL.NOTE</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">NOTE(; over = nothing, text, postfix = false)
+NOTE(text; over = nothing, postfix = false)</code></pre><p>A free-form prefix of postfix annotation.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:p =&gt; :person) |&gt;
+           NOTE(&quot;TABLESAMPLE SYSTEM (50)&quot;, postfix = true) |&gt;
+           SELECT((:p, :person_id));
+
+julia&gt; print(render(c))
+SELECT &quot;p&quot;.&quot;person_id&quot;
+FROM &quot;person&quot; AS &quot;p&quot; TABLESAMPLE SYSTEM (50)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/note.jl#L15-L32">source</a></section></article><h2 id="ORDER"><a class="docs-heading-anchor" href="#ORDER"><code>ORDER</code></a><a id="ORDER-1"></a><a class="docs-heading-anchor-permalink" href="#ORDER" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.ORDER-Tuple" href="#FunSQL.ORDER-Tuple"><code>FunSQL.ORDER</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ORDER(; over = nothing, by = [])
+ORDER(by...; over = nothing)</code></pre><p>An <code>ORDER BY</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           ORDER(:year_of_birth) |&gt;
+           SELECT(:person_id);
+
+julia&gt; print(render(c))
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY &quot;year_of_birth&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/order.jl#L16-L34">source</a></section></article><h2 id="PARTITION"><a class="docs-heading-anchor" href="#PARTITION"><code>PARTITION</code></a><a id="PARTITION-1"></a><a class="docs-heading-anchor-permalink" href="#PARTITION" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.PARTITION-Tuple" href="#FunSQL.PARTITION-Tuple"><code>FunSQL.PARTITION</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">PARTITION(; over = nothing, by = [], order_by = [], frame = nothing)
+PARTITION(by...; over = nothing, order_by = [], frame = nothing)</code></pre><p>A window definition clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           SELECT(:person_id,
+                  AGG(:row_number, over = PARTITION(:year_of_birth)));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;person_id&quot;,
+  (row_number() OVER (PARTITION BY &quot;year_of_birth&quot;))
+FROM &quot;person&quot;</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           WINDOW(:w1 =&gt; PARTITION(:year_of_birth),
+                  :w2 =&gt; :w1 |&gt; PARTITION(order_by = [:month_of_birth, :day_of_birth])) |&gt;
+           SELECT(:person_id, AGG(:row_number, over = :w2));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;person_id&quot;,
+  (row_number() OVER (&quot;w2&quot;))
+FROM &quot;person&quot;
+WINDOW
+  &quot;w1&quot; AS (PARTITION BY &quot;year_of_birth&quot;),
+  &quot;w2&quot; AS (&quot;w1&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           GROUP(:year_of_birth) |&gt;
+           SELECT(:year_of_birth,
+                  AGG(:avg,
+                      AGG(:count),
+                      over = PARTITION(order_by = [:year_of_birth],
+                                       frame = (mode = :range, start = -1, finish = 1))));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;year_of_birth&quot;,
+  (avg(count(*)) OVER (ORDER BY &quot;year_of_birth&quot; RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
+FROM &quot;person&quot;
+GROUP BY &quot;year_of_birth&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/partition.jl#L96-L148">source</a></section></article><h2 id="SELECT"><a class="docs-heading-anchor" href="#SELECT"><code>SELECT</code></a><a id="SELECT-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SELECT-Tuple" href="#FunSQL.SELECT-Tuple"><code>FunSQL.SELECT</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SELECT(; over = nothing, top = nothing, distinct = false, args)
+SELECT(args...; over = nothing, top = nothing, distinct = false)</code></pre><p>A <code>SELECT</code> clause.  Unlike raw SQL, <code>SELECT()</code> should be placed at the end of a clause chain.</p><p>Set <code>distinct</code> to <code>true</code> to add a <code>DISTINCT</code> modifier.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = SELECT(true, false);
+
+julia&gt; print(render(c))
+SELECT
+  TRUE,
+  FALSE</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:location) |&gt;
+           SELECT(distinct = true, :zip);
+
+julia&gt; print(render(c))
+SELECT DISTINCT &quot;zip&quot;
+FROM &quot;location&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/select.jl#L43-L71">source</a></section></article><h2 id="SORT,-ASC,-and-DESC"><a class="docs-heading-anchor" href="#SORT,-ASC,-and-DESC"><code>SORT</code>, <code>ASC</code>, and <code>DESC</code></a><a id="SORT,-ASC,-and-DESC-1"></a><a class="docs-heading-anchor-permalink" href="#SORT,-ASC,-and-DESC" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.ASC-Tuple{}" href="#FunSQL.ASC-Tuple{}"><code>FunSQL.ASC</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ASC(; over = nothing, nulls = nothing)</code></pre><p>Ascending order indicator.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/sort.jl#L80-L84">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.DESC-Tuple{}" href="#FunSQL.DESC-Tuple{}"><code>FunSQL.DESC</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DESC(; over = nothing, nulls = nothing)</code></pre><p>Descending order indicator.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/sort.jl#L88-L92">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.SORT-Tuple" href="#FunSQL.SORT-Tuple"><code>FunSQL.SORT</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">SORT(; over = nothing, value, nulls = nothing)
+SORT(value; over = nothing, nulls = nothing)
+ASC(; over = nothing, nulls = nothing)
+DESC(; over = nothing, nulls = nothing)</code></pre><p>Sort order options.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           ORDER(:year_of_birth |&gt; DESC()) |&gt;
+           SELECT(:person_id);
+
+julia&gt; print(render(c))
+SELECT &quot;person_id&quot;
+FROM &quot;person&quot;
+ORDER BY &quot;year_of_birth&quot; DESC</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/sort.jl#L56-L76">source</a></section></article><h2 id="UNION"><a class="docs-heading-anchor" href="#UNION"><code>UNION</code></a><a id="UNION-1"></a><a class="docs-heading-anchor-permalink" href="#UNION" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.UNION-Tuple" href="#FunSQL.UNION-Tuple"><code>FunSQL.UNION</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">UNION(; over = nothing, all = false, args)
+UNION(args...; over = nothing, all = false)</code></pre><p>A <code>UNION</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:measurement) |&gt;
+           SELECT(:person_id, :date =&gt; :measurement_date) |&gt;
+           UNION(all = true,
+                 FROM(:observation) |&gt;
+                 SELECT(:person_id, :date =&gt; :observation_date));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;person_id&quot;,
+  &quot;measurement_date&quot; AS &quot;date&quot;
+FROM &quot;measurement&quot;
+UNION ALL
+SELECT
+  &quot;person_id&quot;,
+  &quot;observation_date&quot; AS &quot;date&quot;
+FROM &quot;observation&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/union.jl#L18-L44">source</a></section></article><h2 id="VALUES"><a class="docs-heading-anchor" href="#VALUES"><code>VALUES</code></a><a id="VALUES-1"></a><a class="docs-heading-anchor-permalink" href="#VALUES" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.VALUES-Tuple" href="#FunSQL.VALUES-Tuple"><code>FunSQL.VALUES</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">VALUES(; rows)
+VALUES(rows)</code></pre><p>A <code>VALUES</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = VALUES([(&quot;SQL&quot;, 1974), (&quot;Julia&quot;, 2012), (&quot;FunSQL&quot;, 2021)]);
+
+julia&gt; print(render(c))
+VALUES
+  (&#39;SQL&#39;, 1974),
+  (&#39;Julia&#39;, 2012),
+  (&#39;FunSQL&#39;, 2021)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/values.jl#L13-L30">source</a></section></article><h2 id="VAR"><a class="docs-heading-anchor" href="#VAR"><code>VAR</code></a><a id="VAR-1"></a><a class="docs-heading-anchor-permalink" href="#VAR" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.VAR-Tuple" href="#FunSQL.VAR-Tuple"><code>FunSQL.VAR</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">VAR(; name)
+VAR(name)</code></pre><p>A placeholder in a parameterized query.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = VAR(:year);
+
+julia&gt; print(render(c))
+:year</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/variable.jl#L13-L27">source</a></section></article><h2 id="WHERE"><a class="docs-heading-anchor" href="#WHERE"><code>WHERE</code></a><a id="WHERE-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.WHERE-Tuple" href="#FunSQL.WHERE-Tuple"><code>FunSQL.WHERE</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">WHERE(; over = nothing, condition)
+WHERE(condition; over = nothing)</code></pre><p>A <code>WHERE</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:location) |&gt;
+           WHERE(FUN(&quot;=&quot;, :zip, &quot;60614&quot;)) |&gt;
+           SELECT(:location_id);
+
+julia&gt; print(render(c))
+SELECT &quot;location_id&quot;
+FROM &quot;location&quot;
+WHERE (&quot;zip&quot; = &#39;60614&#39;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/where.jl#L16-L34">source</a></section></article><h2 id="WINDOW"><a class="docs-heading-anchor" href="#WINDOW"><code>WINDOW</code></a><a id="WINDOW-1"></a><a class="docs-heading-anchor-permalink" href="#WINDOW" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.WINDOW-Tuple" href="#FunSQL.WINDOW-Tuple"><code>FunSQL.WINDOW</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">WINDOW(; over = nothing, args)
+WINDOW(args...; over = nothing)</code></pre><p>A <code>WINDOW</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           WINDOW(:w1 =&gt; PARTITION(:year_of_birth),
+                  :w2 =&gt; :w1 |&gt; PARTITION(order_by = [:month_of_birth, :day_of_birth])) |&gt;
+           SELECT(:person_id, AGG(&quot;row_number&quot;, over = :w2));
+
+julia&gt; print(render(c))
+SELECT
+  &quot;person_id&quot;,
+  (row_number() OVER (&quot;w2&quot;))
+FROM &quot;person&quot;
+WINDOW
+  &quot;w1&quot; AS (PARTITION BY &quot;year_of_birth&quot;),
+  &quot;w2&quot; AS (&quot;w1&quot; ORDER BY &quot;month_of_birth&quot;, &quot;day_of_birth&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/window.jl#L16-L39">source</a></section></article><h2 id="WITH"><a class="docs-heading-anchor" href="#WITH"><code>WITH</code></a><a id="WITH-1"></a><a class="docs-heading-anchor-permalink" href="#WITH" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="FunSQL.WITH-Tuple" href="#FunSQL.WITH-Tuple"><code>FunSQL.WITH</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">WITH(; over = nothing, recursive = false, args)
+WITH(args...; over = nothing, recursive = false)</code></pre><p>A <code>WITH</code> clause.</p><p><strong>Examples</strong></p><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:person) |&gt;
+           WHERE(FUN(:in, :person_id,
+                          FROM(:essential_hypertension) |&gt;
+                          SELECT(:person_id))) |&gt;
+           SELECT(:person_id, :year_of_birth) |&gt;
+           WITH(FROM(:condition_occurrence) |&gt;
+                WHERE(FUN(&quot;=&quot;, :condition_concept_id, 320128)) |&gt;
+                SELECT(:person_id) |&gt;
+                AS(:essential_hypertension));
+
+julia&gt; print(render(c))
+WITH &quot;essential_hypertension&quot; AS (
+  SELECT &quot;person_id&quot;
+  FROM &quot;condition_occurrence&quot;
+  WHERE (&quot;condition_concept_id&quot; = 320128)
+)
+SELECT
+  &quot;person_id&quot;,
+  &quot;year_of_birth&quot;
+FROM &quot;person&quot;
+WHERE (&quot;person_id&quot; IN (
+  SELECT &quot;person_id&quot;
+  FROM &quot;essential_hypertension&quot;
+))</code></pre><pre><code class="language-julia-repl hljs">julia&gt; c = FROM(:essential_hypertension) |&gt;
+           SELECT(*) |&gt;
+           WITH(recursive = true,
+                FROM(:concept) |&gt;
+                WHERE(FUN(&quot;=&quot;, :concept_id, 320128)) |&gt;
+                SELECT(:concept_id, :concept_name) |&gt;
+                UNION(all = true,
+                      FROM(:eh =&gt; :essential_hypertension) |&gt;
+                      JOIN(:cr =&gt; :concept_relationship,
+                           FUN(&quot;=&quot;, (:eh, :concept_id), (:cr, :concept_id_1))) |&gt;
+                      JOIN(:c =&gt; :concept,
+                           FUN(&quot;=&quot;, (:cr, :concept_id_2), (:c, :concept_id))) |&gt;
+                      WHERE(FUN(&quot;=&quot;, (:cr, :relationship_id), &quot;Subsumes&quot;)) |&gt;
+                      SELECT((:c, :concept_id), (:c, :concept_name))) |&gt;
+                AS(:essential_hypertension, columns = [:concept_id, :concept_name]));
+
+julia&gt; print(render(c))
+WITH RECURSIVE &quot;essential_hypertension&quot; (&quot;concept_id&quot;, &quot;concept_name&quot;) AS (
+  SELECT
+    &quot;concept_id&quot;,
+    &quot;concept_name&quot;
+  FROM &quot;concept&quot;
+  WHERE (&quot;concept_id&quot; = 320128)
+  UNION ALL
+  SELECT
+    &quot;c&quot;.&quot;concept_id&quot;,
+    &quot;c&quot;.&quot;concept_name&quot;
+  FROM &quot;essential_hypertension&quot; AS &quot;eh&quot;
+  JOIN &quot;concept_relationship&quot; AS &quot;cr&quot; ON (&quot;eh&quot;.&quot;concept_id&quot; = &quot;cr&quot;.&quot;concept_id_1&quot;)
+  JOIN &quot;concept&quot; AS &quot;c&quot; ON (&quot;cr&quot;.&quot;concept_id_2&quot; = &quot;c&quot;.&quot;concept_id&quot;)
+  WHERE (&quot;cr&quot;.&quot;relationship_id&quot; = &#39;Subsumes&#39;)
+)
+SELECT *
+FROM &quot;essential_hypertension&quot;</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/MechanicalRabbit/FunSQL.jl/blob/bb19ed5d3c98f2db8cc7bf73d451a9b6cb8a3672/src/clauses/with.jl#L18-L89">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../guide/">« Usage Guide</a><a class="docs-footer-nextpage" href="../examples/">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Saturday 7 September 2024 15:23">Saturday 7 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
