@@ -18,7 +18,7 @@ const duckdb_reflect_clause =
            :column => (:c, :column_name))
 const mysql_reflect_clause =
     FROM(:c => (:information_schema, :columns)) |>
-    WHERE(FUN("=", (:c, :table_schema), FUN(:coalesce, VAR(:schema), FUN("DATABASE ")))) |>
+    WHERE(FUN("=", (:c, :table_schema), FUN(:coalesce, VAR(:schema), FUN("DATABASE")))) |>
     ORDER((:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
     SELECT(:schema => (:c, :table_schema),
            :name => (:c, :table_name),
