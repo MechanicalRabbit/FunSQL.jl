@@ -1,5 +1,10 @@
 # Release Notes
 
+## v0.14.3
+
+* Fix MySQL reflection.  Thanks to Alexander Plavin.
+
+
 ## v0.14.2
 
 * Add DuckDB support.  Thanks to Alexander Plavin.
