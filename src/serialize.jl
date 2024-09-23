@@ -632,14 +632,14 @@ function serialize!(c::LimitClause, ctx)
     start = c.offset
     count = c.limit
     start !== nothing || count !== nothing || return
-    if ctx.dialect.limit_style === LIMIT_STYLE.MYSQL
+    if ctx.dialect.limit_style == LIMIT_STYLE.MYSQL
         newline(ctx)
         print(ctx, "LIMIT ")
         if start !== nothing
             print(ctx, start, ", ")
         end
         print(ctx, count !== nothing ? count : "18446744073709551615")
-    elseif ctx.dialect.limit_style == LIMIT_STYLE.POSTGRESQL
+    elseif ctx.dialect.limit_style in (LIMIT_STYLE.POSTGRESQL, LIMIT_STYLE.ADQL)
         if count !== nothing
             newline(ctx)
             print(ctx, "LIMIT ", count)
@@ -648,7 +648,7 @@ function serialize!(c::LimitClause, ctx)
             newline(ctx)
             print(ctx, "OFFSET ", start)
         end
-    elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLITE
+    elseif ctx.dialect.limit_style == LIMIT_STYLE.SQLITE
         newline(ctx)
         print(ctx, "LIMIT ", count !== nothing ? count : -1)
         if start !== nothing
@@ -806,11 +806,18 @@ function serialize!(c::SelectClause, ctx)
     if top !== nothing
         limit = top.limit
         with_ties = top.with_ties
-    elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLSERVER
+    elseif ctx.dialect.limit_style == LIMIT_STYLE.SQLSERVER
         if @dissect(over, limit_over |> LIMIT(offset = nothing, limit = limit, with_ties = with_ties))
             over = limit_over
         elseif nested && @dissect(over, ORDER())
             offset_0_rows = true
+        end
+    elseif ctx.dialect.limit_style == LIMIT_STYLE.ADQL
+        if @dissect(over, limit_over |> LIMIT(offset = offset, limit = limit, with_ties = with_ties))
+            over = limit_over
+            if offset !== nothing
+                over = LIMIT(over = over, offset = offset)
+            end
         end
     end
     print(ctx, "SELECT")
