@@ -279,19 +279,20 @@ end
 # Isolated subquery.
 mutable struct IsolatedNode <: AbstractSQLNode
     idx::Int
+    type::RowType
 
-    IsolatedNode(; idx) =
-        new(idx)
+    IsolatedNode(; idx, type) =
+        new(idx, type)
 end
 
-IsolatedNode(idx) =
-    IsolatedNode(idx = idx)
+IsolatedNode(idx, type) =
+    IsolatedNode(idx = idx, type = type)
 
 Isolated(args...; kws...) =
     IsolatedNode(args...; kws...) |> SQLNode
 
 PrettyPrinting.quoteof(n::IsolatedNode, ctx::QuoteContext) =
-    Expr(:call, nameof(Isolated), n.idx)
+    Expr(:call, nameof(Isolated), n.idx, quoteof(n.type))
 
 dissect(scr::Symbol, ::typeof(Isolated), pats::Vector{Any}) =
     dissect(scr, IsolatedNode, pats)
