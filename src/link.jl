@@ -52,13 +52,6 @@ function dismantle_scalar(ns::Vector{SQLNode}, ctx)
     SQLNode[dismantle_scalar(n, ctx) for n in ns]
 end
 
-function dismantle_scalar(n::TabularNode, ctx)
-    n′ = dismantle(convert(SQLNode, n), ctx)
-    push!(ctx.defs, n′)
-    ref = lastindex(ctx.defs)
-    Isolated(ref)
-end
-
 function dismantle_scalar(n::AggregateNode, ctx)
     args′ = dismantle_scalar(n.args, ctx)
     filter′ = n.filter !== nothing ? dismantle_scalar(n.filter, ctx) : nothing
@@ -167,8 +160,17 @@ end
 dismantle(n::ResolvedNode, ctx) =
     dismantle(n.over, ctx)
 
-dismantle_scalar(n::ResolvedNode, ctx) =
-    dismantle_scalar(n.over, ctx)
+function dismantle_scalar(n::ResolvedNode, ctx)
+    t = n.type
+    if t isa RowType
+        n′ = dismantle(n.over, ctx)
+        push!(ctx.defs, n′)
+        ref = lastindex(ctx.defs)
+        Isolated(ref, t)
+    else
+        dismantle_scalar(n.over, ctx)
+    end
+end
 
 function dismantle(n::SelectNode, ctx)
     over′ = dismantle(n.over, ctx)
@@ -539,6 +541,12 @@ function gather!(n::IsolatedNode, ctx)
     def = ctx.defs[n.idx]
     !@dissect(def, Linked()) || return
     refs = SQLNode[]
+    for (f, ft) in n.type.fields
+        if ft isa ScalarType
+            push!(refs, Get(f))
+            break
+        end
+    end
     def′ = Linked(refs, over = link(def, ctx, refs))
     ctx.defs[n.idx] = def′
     nothing

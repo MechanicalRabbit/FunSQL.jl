@@ -915,7 +915,7 @@ A `Bind` node can be created with `@funsql` notation.
       "person_1"."location_id"
     FROM "person" AS "person_1"
     WHERE (EXISTS (
-      SELECT NULL AS "_"
+      SELECT "visit_occurrence_1"."visit_occurrence_id"
       FROM "visit_occurrence" AS "visit_occurrence_1"
       WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
     ))
@@ -945,7 +945,7 @@ subquery.
       GROUP BY "visit_occurrence_1"."person_id"
     ) AS "visit_occurrence_2"
     WHERE (EXISTS (
-      SELECT NULL AS "_"
+      SELECT "observation_1"."observation_id"
       FROM "observation" AS "observation_1"
       WHERE
         ("observation_1"."person_id" = "visit_occurrence_2"."person_id") AND
@@ -1193,7 +1193,7 @@ A function invocation may include a nested query.
     print(render(q))
     #=>
     SELECT (EXISTS (
-      SELECT NULL AS "_"
+      SELECT "person_1"."person_id"
       FROM "person" AS "person_1"
       WHERE ("person_1"."year_of_birth" > 1950)
     )) AS "exists"
