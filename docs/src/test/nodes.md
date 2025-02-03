@@ -20,7 +20,7 @@ We start with specifying the database model.
         SQLTable(:person, columns = [:person_id, :gender_concept_id, :year_of_birth, :month_of_birth, :day_of_birth, :birth_datetime, :location_id])
 
     const visit_occurrence =
-        SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_start_date, :visit_end_date])
+        SQLTable(:visit_occurrence, columns = [:visit_occurrence_id, :person_id, :visit_concept_id, :visit_start_date, :visit_end_date])
 
     const measurement =
         SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_concept_id, :measurement_date])
@@ -810,163 +810,6 @@ column.
     =#
 
 
-## Variables
-
-A query variable is created with the `Var` constructor.
-
-    e = Var(:YEAR)
-    #-> Var.YEAR
-
-Alternatively, use shorthand notation.
-
-    Var.YEAR
-    #-> Var.YEAR
-
-    Var."YEAR"
-    #-> Var.YEAR
-
-    Var[:YEAR]
-    #-> Var.YEAR
-
-    Var["YEAR"]
-    #-> Var.YEAR
-
-A variable could be created with `@funsql` notation.
-
-    @funsql :YEAR
-    #-> Var.YEAR
-
-Unbound query variables are serialized as query parameters.
-
-    q = From(person) |>
-        Where(Get.year_of_birth .> Var.YEAR)
-
-    sql = render(q)
-
-    print(sql)
-    #=>
-    SELECT
-      "person_1"."person_id",
-      ⋮
-      "person_1"."location_id"
-    FROM "person" AS "person_1"
-    WHERE ("person_1"."year_of_birth" > :YEAR)
-    =#
-
-    sql.vars
-    #-> [:YEAR]
-
-Query variables could be bound using the `Bind` constructor.
-
-    q0(person_id) =
-        From(visit_occurrence) |>
-        Where(Get.person_id .== Var.PERSON_ID) |>
-        Bind(:PERSON_ID => person_id)
-
-    q0(1)
-    #-> (…) |> Bind(…)
-
-    display(q0(1))
-    #=>
-    let visit_occurrence = SQLTable(:visit_occurrence, …),
-        q1 = From(visit_occurrence),
-        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
-        q2 |> Bind(1 |> As(:PERSON_ID))
-    end
-    =#
-
-    print(render(q0(1)))
-    #=>
-    SELECT
-      "visit_occurrence_1"."visit_occurrence_id",
-      "visit_occurrence_1"."person_id",
-      "visit_occurrence_1"."visit_start_date",
-      "visit_occurrence_1"."visit_end_date"
-    FROM "visit_occurrence" AS "visit_occurrence_1"
-    WHERE ("visit_occurrence_1"."person_id" = 1)
-    =#
-
-A `Bind` node can be created with `@funsql` notation.
-
-    q = @funsql begin
-        from(visit_occurrence)
-        filter(person_id == :PERSON_ID)
-        bind(:PERSON_ID => person_id)
-    end
-
-    display(q)
-    #=>
-    let q1 = From(:visit_occurrence),
-        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
-        q2 |> Bind(Get.person_id |> As(:PERSON_ID))
-    end
-    =#
-
-`Bind` lets us create correlated subqueries.
-
-    q = From(person) |>
-        Where(Fun.exists(q0(Get.person_id)))
-
-    print(render(q))
-    #=>
-    SELECT
-      "person_1"."person_id",
-      ⋮
-      "person_1"."location_id"
-    FROM "person" AS "person_1"
-    WHERE (EXISTS (
-      SELECT "visit_occurrence_1"."visit_occurrence_id"
-      FROM "visit_occurrence" AS "visit_occurrence_1"
-      WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
-    ))
-    =#
-
-When an argument to `Bind` is an aggregate, it must be evaluated in a nested
-subquery.
-
-    q0(person_id, date) =
-        From(observation) |>
-        Where(Fun.and(Get.person_id .== Var.PERSON_ID,
-                      Get.observation_date .>= Var.DATE)) |>
-        Bind(:PERSON_ID => person_id, :DATE => date)
-
-    q = From(visit_occurrence) |>
-        Group(Get.person_id) |>
-        Where(Fun.exists(q0(Get.person_id, Agg.max(Get.visit_start_date))))
-
-    print(render(q))
-    #=>
-    SELECT "visit_occurrence_2"."person_id"
-    FROM (
-      SELECT
-        "visit_occurrence_1"."person_id",
-        max("visit_occurrence_1"."visit_start_date") AS "max"
-      FROM "visit_occurrence" AS "visit_occurrence_1"
-      GROUP BY "visit_occurrence_1"."person_id"
-    ) AS "visit_occurrence_2"
-    WHERE (EXISTS (
-      SELECT "observation_1"."observation_id"
-      FROM "observation" AS "observation_1"
-      WHERE
-        ("observation_1"."person_id" = "visit_occurrence_2"."person_id") AND
-        ("observation_1"."observation_date" >= "visit_occurrence_2"."max")
-    ))
-    =#
-
-An empty `Bind` can be created.
-
-    Bind(args = [])
-    #-> Bind(args = [])
-
-`Bind` requires that all variables have a unique name.
-
-    Bind(:PERSON_ID => 1, :PERSON_ID => 2)
-    #=>
-    ERROR: FunSQL.DuplicateLabelError: `PERSON_ID` is used more than once in:
-    Bind(1 |> As(:PERSON_ID), 2 |> As(:PERSON_ID))
-    =#
-
-
 ## Functions and Operators
 
 A function or an operator invocation is created with the `Fun` constructor.
@@ -1344,6 +1187,281 @@ FunSQL can simplify logical expressions.
       ⋮
       "person_1"."location_id"
     FROM "person" AS "person_1"
+    =#
+
+
+## Scalar Subqueries
+
+In SQL, a scalar expression may contain a subquery.  This subquery should select
+one column and should produce zero or one row (unless used as an argument of
+`IN` or `EXISTS`).  Such subqueries can be constructed with FunSQL.
+
+    p = From(concept) |>
+        Where(Fun.and(Get.vocabulary_id .== "Visit", Get.concept_code .== "IP")) |>
+        Select(Get.concept_name)
+
+    print(render(p))
+    #=>
+    SELECT "concept_1"."concept_name"
+    FROM "concept" AS "concept_1"
+    WHERE
+      ("concept_1"."vocabulary_id" = 'Visit') AND
+      ("concept_1"."concept_code" = 'IP')
+    =#
+
+    q = Select(p)
+
+    print(render(q))
+    #=>
+    SELECT (
+      SELECT "concept_1"."concept_name"
+      FROM "concept" AS "concept_1"
+      WHERE
+        ("concept_1"."vocabulary_id" = 'Visit') AND
+        ("concept_1"."concept_code" = 'IP')
+    ) AS "concept"
+    =#
+
+When a subquery is used in a scalar context, FunSQL automatically selects
+its first column, which often makes an explicit `Select` unnecessary.
+
+    p = From(concept) |>
+        Where(Fun.and(Get.vocabulary_id .== "Visit", Get.concept_code .== "IP"))
+
+    print(render(p))
+    #=>
+    SELECT
+      "concept_1"."concept_id",
+      "concept_1"."vocabulary_id",
+      "concept_1"."concept_code",
+      "concept_1"."concept_name"
+    FROM "concept" AS "concept_1"
+    WHERE
+      ("concept_1"."vocabulary_id" = 'Visit') AND
+      ("concept_1"."concept_code" = 'IP')
+    =#
+
+    q = From(visit_occurrence) |>
+        Where(Get.visit_concept_id .== p)
+
+    print(render(q))
+    #=>
+    SELECT
+      "visit_occurrence_1"."visit_occurrence_id",
+      "visit_occurrence_1"."person_id",
+      "visit_occurrence_1"."visit_concept_id",
+      "visit_occurrence_1"."visit_start_date",
+      "visit_occurrence_1"."visit_end_date"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    WHERE ("visit_occurrence_1"."visit_concept_id" = (
+      SELECT "concept_1"."concept_id"
+      FROM "concept" AS "concept_1"
+      WHERE
+        ("concept_1"."vocabulary_id" = 'Visit') AND
+        ("concept_1"."concept_code" = 'IP')
+    ))
+    =#
+
+If the subquery explicitly selects more than one column, an extra `SELECT`
+clause is added.
+
+    p = From(concept) |>
+        Where(Fun.and(Get.vocabulary_id .== "Visit", Get.concept_code .== "IP")) |>
+        Select(Get.concept_id, Get.concept_name)
+
+    q = Select(p)
+
+    print(render(q))
+    #=>
+    SELECT (
+      SELECT "concept_2"."concept_id"
+      FROM (
+        SELECT
+          "concept_1"."concept_id",
+          "concept_1"."concept_name"
+        FROM "concept" AS "concept_1"
+        WHERE
+          ("concept_1"."vocabulary_id" = 'Visit') AND
+          ("concept_1"."concept_code" = 'IP')
+      ) AS "concept_2"
+    ) AS "concept"
+    =#
+
+If no columns are selected, a column containing `NULL` is added.
+
+    p = From(concept) |>
+        Where(Fun.and(Get.vocabulary_id .== "Visit", Get.concept_code .== "IP")) |>
+        Select(args = [])
+
+    q = Select(p)
+
+    print(render(q))
+    #=>
+    SELECT (
+      SELECT NULL AS "_"
+      FROM "concept" AS "concept_1"
+      WHERE
+        ("concept_1"."vocabulary_id" = 'Visit') AND
+        ("concept_1"."concept_code" = 'IP')
+    ) AS "concept"
+    =#
+
+
+## Variables
+
+A query variable is created with the `Var` constructor.
+
+    e = Var(:YEAR)
+    #-> Var.YEAR
+
+Alternatively, use shorthand notation.
+
+    Var.YEAR
+    #-> Var.YEAR
+
+    Var."YEAR"
+    #-> Var.YEAR
+
+    Var[:YEAR]
+    #-> Var.YEAR
+
+    Var["YEAR"]
+    #-> Var.YEAR
+
+A variable could be created with `@funsql` notation.
+
+    @funsql :YEAR
+    #-> Var.YEAR
+
+Unbound query variables are serialized as query parameters.
+
+    q = From(person) |>
+        Where(Get.year_of_birth .> Var.YEAR)
+
+    sql = render(q)
+
+    print(sql)
+    #=>
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE ("person_1"."year_of_birth" > :YEAR)
+    =#
+
+    sql.vars
+    #-> [:YEAR]
+
+Query variables could be bound using the `Bind` constructor.
+
+    q0(person_id) =
+        From(visit_occurrence) |>
+        Where(Get.person_id .== Var.PERSON_ID) |>
+        Bind(:PERSON_ID => person_id)
+
+    q0(1)
+    #-> (…) |> Bind(…)
+
+    display(q0(1))
+    #=>
+    let visit_occurrence = SQLTable(:visit_occurrence, …),
+        q1 = From(visit_occurrence),
+        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
+        q2 |> Bind(1 |> As(:PERSON_ID))
+    end
+    =#
+
+    print(render(q0(1)))
+    #=>
+    SELECT
+      "visit_occurrence_1"."visit_occurrence_id",
+      "visit_occurrence_1"."person_id",
+      "visit_occurrence_1"."visit_concept_id",
+      "visit_occurrence_1"."visit_start_date",
+      "visit_occurrence_1"."visit_end_date"
+    FROM "visit_occurrence" AS "visit_occurrence_1"
+    WHERE ("visit_occurrence_1"."person_id" = 1)
+    =#
+
+A `Bind` node can be created with `@funsql` notation.
+
+    q = @funsql begin
+        from(visit_occurrence)
+        filter(person_id == :PERSON_ID)
+        bind(:PERSON_ID => person_id)
+    end
+
+    display(q)
+    #=>
+    let q1 = From(:visit_occurrence),
+        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
+        q2 |> Bind(Get.person_id |> As(:PERSON_ID))
+    end
+    =#
+
+`Bind` lets us create correlated subqueries.
+
+    q = From(person) |>
+        Where(Fun.exists(q0(Get.person_id)))
+
+    print(render(q))
+    #=>
+    SELECT
+      "person_1"."person_id",
+      ⋮
+      "person_1"."location_id"
+    FROM "person" AS "person_1"
+    WHERE (EXISTS (
+      SELECT "visit_occurrence_1"."visit_occurrence_id"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      WHERE ("visit_occurrence_1"."person_id" = "person_1"."person_id")
+    ))
+    =#
+
+When an argument to `Bind` is an aggregate, it must be evaluated in a nested
+subquery.
+
+    q0(person_id, date) =
+        From(observation) |>
+        Where(Fun.and(Get.person_id .== Var.PERSON_ID,
+                      Get.observation_date .>= Var.DATE)) |>
+        Bind(:PERSON_ID => person_id, :DATE => date)
+
+    q = From(visit_occurrence) |>
+        Group(Get.person_id) |>
+        Where(Fun.exists(q0(Get.person_id, Agg.max(Get.visit_start_date))))
+
+    print(render(q))
+    #=>
+    SELECT "visit_occurrence_2"."person_id"
+    FROM (
+      SELECT
+        "visit_occurrence_1"."person_id",
+        max("visit_occurrence_1"."visit_start_date") AS "max"
+      FROM "visit_occurrence" AS "visit_occurrence_1"
+      GROUP BY "visit_occurrence_1"."person_id"
+    ) AS "visit_occurrence_2"
+    WHERE (EXISTS (
+      SELECT "observation_1"."observation_id"
+      FROM "observation" AS "observation_1"
+      WHERE
+        ("observation_1"."person_id" = "visit_occurrence_2"."person_id") AND
+        ("observation_1"."observation_date" >= "visit_occurrence_2"."max")
+    ))
+    =#
+
+An empty `Bind` can be created.
+
+    Bind(args = [])
+    #-> Bind(args = [])
+
+`Bind` requires that all variables have a unique name.
+
+    Bind(:PERSON_ID => 1, :PERSON_ID => 2)
+    #=>
+    ERROR: FunSQL.DuplicateLabelError: `PERSON_ID` is used more than once in:
+    Bind(1 |> As(:PERSON_ID), 2 |> As(:PERSON_ID))
     =#
 
 
@@ -3410,12 +3528,14 @@ values of unmatched rows.
     SELECT
       "visit_occurrence_2"."visit_occurrence_id",
       "visit_occurrence_2"."person_id",
+      "visit_occurrence_2"."visit_concept_id",
       "visit_occurrence_2"."visit_start_date",
       "visit_occurrence_2"."visit_end_date"
     FROM (
       SELECT
         "visit_occurrence_1"."visit_occurrence_id",
         "visit_occurrence_1"."person_id",
+        "visit_occurrence_1"."visit_concept_id",
         "visit_occurrence_1"."visit_start_date",
         "visit_occurrence_1"."visit_end_date",
         (row_number() OVER (ORDER BY "visit_occurrence_1"."visit_start_date")) AS "row_number"
