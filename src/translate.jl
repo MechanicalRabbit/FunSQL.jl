@@ -38,6 +38,30 @@ function complete(a::Assemblage)
     clause
 end
 
+# Add a SELECT clause aligned with the exported references.
+function complete_aligned(a::Assemblage, ctx)
+    aligned =
+        length(a.cols) == length(ctx.refs) &&
+        all(a.repl[ref] === name for (name, ref) in zip(keys(a.cols), ctx.refs))
+    !aligned || return complete(a)
+    if !@dissect(a.clause, SELECT() || UNION())
+        alias = nothing
+        clause = a.clause
+    else
+        alias = allocate_alias(ctx, a)
+        clause = FROM(AS(over = a.clause, name = alias))
+    end
+    subs = make_subs(a, alias)
+    repl = Dict{SQLNode, Symbol}()
+    cols = OrderedDict{Symbol, SQLClause}()
+    for ref in ctx.refs
+        name = repl[ref] = a.repl[ref]
+        cols[name] = subs[ref]
+    end
+    a′ = Assemblage(a.name, clause, repl = repl, cols = cols)
+    complete(a′)
+end
+
 # Build node->clause map assuming that the assemblage will be extended.
 function make_subs(a::Assemblage, ::Nothing)::Dict{SQLNode, SQLClause}
     subs = Dict{SQLNode, SQLClause}()
@@ -186,12 +210,13 @@ end
 function translate(n::SQLNode)
     @dissect(n, WithContext(over = Linked(over = n′, refs = refs), catalog = catalog, defs = defs)) || throw(IllFormedError())
     ctx = TranslateContext(catalog = catalog, defs = defs)
-    base = assemble(n′, TranslateContext(ctx, refs = refs))
+    ctx′ = TranslateContext(ctx, refs = refs)
+    base = assemble(n′, ctx′)
     columns = nothing
-    if !isempty(base.cols)
-        columns = [SQLColumn(col) for col in keys(base.cols)]
+    if !isempty(refs)
+        columns = [SQLColumn(base.repl[ref]) for ref in refs]
     end
-    c = complete(base)
+    c = complete_aligned(base, ctx′)
     with_args = SQLClause[]
     for cte_a in ctx.ctes
         !cte_a.external || continue
@@ -300,13 +325,12 @@ function translate(n::FunctionNode, ctx)
 end
 
 function translate(n::IsolatedNode, ctx)
-    base = assemble(ctx.defs[n.idx], ctx)
-    complete(base)
+    translate(ctx.defs[n.idx], ctx)
 end
 
 function translate(n::LinkedNode, ctx)
-    base = assemble(n.over, TranslateContext(ctx, refs = n.refs))
-    complete(base)
+    base = assemble(n, ctx)
+    complete_aligned(base, TranslateContext(ctx, refs = n.refs))
 end
 
 function translate(n::LiteralNode, ctx)
