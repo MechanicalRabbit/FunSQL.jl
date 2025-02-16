@@ -25,6 +25,7 @@ import .VARIABLE_STYLE.VariableStyle
 module LIMIT_STYLE
 
 @enum LimitStyle::UInt8 begin
+    ADQL
     ANSI
     MYSQL
     POSTGRESQL
@@ -33,6 +34,8 @@ module LIMIT_STYLE
 end
 
 Base.convert(::Type{LimitStyle}, s::Symbol) =
+    s in (:adql, :ADQL) ?
+        ADQL :
     s in (:ansi, :ANSI) ?
         ANSI :
     s in (:mysql, :MYSQL) ?
@@ -44,7 +47,7 @@ Base.convert(::Type{LimitStyle}, s::Symbol) =
     s in (:sqlserver, :SQLSERVER) ?
         SQLSERVER :
     throw(DomainError(QuoteNode(s),
-                      "expected :ansi, :mysql, :postgresql, :sqlite, or :sqlserver"))
+                      "expected :adql, :ansi, :mysql, :postgresql, :sqlite, or :sqlserver"))
 
 end
 
