@@ -1,5 +1,11 @@
 # Release Notes
 
+## v0.15.0
+
+* When a query is used in a scalar context, such as an `IN` expression,
+  make it return the first column only (see #75).
+
+
 ## v0.14.3
 
 * Fix MySQL reflection.  Thanks to Alexander Plavin.
