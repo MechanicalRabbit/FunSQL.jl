@@ -2,8 +2,10 @@
 
 ## v0.15.0
 
-* When a query is used in a scalar context, such as an `IN` expression,
-  make it return the first column only (see #75).
+* **Breaking change:** when a query is used in a scalar context, such as
+  an `IN` expression, make it return the first column only (see #75).
+  Previously, such query would `SELECT NULL` unless the query ends with
+  an explicit `Select()`.
 
 
 ## v0.14.3
