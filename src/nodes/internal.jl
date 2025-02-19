@@ -203,29 +203,21 @@ PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
 
 
 # Annotated Join node.
-struct JoinRouter
-    label_set::Set{Symbol}
-    group::Bool
-end
-
-PrettyPrinting.quoteof(r::JoinRouter) =
-    Expr(:call, :JoinRouter, quoteof(r.label_set), quoteof(r.group))
-
 struct RoutedJoinNode <: TabularNode
     joinee::SQLQuery
     on::SQLQuery
-    router::JoinRouter
+    name::Symbol
     left::Bool
     right::Bool
     lateral::Bool
     optional::Bool
 
-    RoutedJoinNode(; joinee, on, router, left, right, lateral = false, optional = false) =
-        new(joinee, on, router, left, right, lateral, optional)
+    RoutedJoinNode(; joinee, on, name = label(joinee), left, right, lateral = false, optional = false) =
+        new(joinee, on, name, left, right, lateral, optional)
 end
 
-RoutedJoinNode(joinee, on; router, left = false, right = false, lateral = false, optional = false) =
-    RoutedJoinNode(joinee = joinee, on = on, router, left = left, right = right, lateral = lateral, optional = optional)
+RoutedJoinNode(joinee, on; name = label(joinee), left = false, right = false, lateral = false, optional = false) =
+    RoutedJoinNode(name = name, on = on, router, left = left, right = right, lateral = lateral, optional = optional)
 
 const RoutedJoin = SQLQueryCtor{RoutedJoinNode}(:RoutedJoin)
 
@@ -234,7 +226,7 @@ function PrettyPrinting.quoteof(n::RoutedJoinNode, ctx::QuoteContext)
     if !ctx.limit
         push!(ex.args, quoteof(n.joinee, ctx))
         push!(ex.args, quoteof(n.on, ctx))
-        push!(ex.args, Expr(:kw, :router, quoteof(n.router)))
+        push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
         if n.left
             push!(ex.args, Expr(:kw, :left, n.left))
         end

@@ -56,6 +56,7 @@ export
     funsql_group,
     funsql_highlight,
     funsql_in,
+    funsql_into,
     funsql_iterate,
     funsql_is_not_null,
     funsql_is_null,

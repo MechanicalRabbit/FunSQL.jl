@@ -16,8 +16,7 @@ AsNode(name) =
     As(name; tail = nothing)
     name => tail
 
-In a scalar context, `As` specifies the name of the output column.  When
-applied to tabular data, `As` wraps the data in a nested record.
+`As` specifies the name of the output column.
 
 The arrow operator (`=>`) is a shorthand notation for `As`.
 
@@ -35,19 +34,19 @@ SELECT "person_1"."person_id" AS "id"
 FROM "person" AS "person_1"
 ```
 
-*Show all patients together with their state of residence.*
+*Show all patients together with their primary care provider.*
 
 ```jldoctest
-julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :location_id]);
+julia> person = SQLTable(:person, columns = [:person_id, :year_of_birth, :provider_id]);
 
-julia> location = SQLTable(:location, columns = [:location_id, :state]);
+julia> provider = SQLTable(:provider, columns = [:provider_id, :provider_name]);
 
 julia> q = From(:person) |>
-           Join(From(:location) |> As(:location),
-                on = Get.location_id .== Get.location.location_id) |>
-           Select(Get.person_id, Get.location.state);
+           Join(From(:provider) |> As(:pcp),
+                on = Get.provider_id .== Get.pcp.provider_id) |>
+           Select(Get.person_id, Get.pcp.provider_name);
 
-julia> print(render(q, tables = [person, location]))
+julia> print(render(q, tables = [person, provider]))
 SELECT
   "person_1"."person_id",
   "location_1"."state"
