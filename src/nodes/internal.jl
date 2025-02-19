@@ -202,30 +202,22 @@ PrettyPrinting.quoteof(n::FromFunctionNode, ctx::QuoteContext) =
          Expr(:kw, :columns, Expr(:vect, [QuoteNode(col) for col in n.columns]...)))
 
 # Annotated Join node.
-struct JoinRouter
-    label_set::Set{Symbol}
-    group::Bool
-end
-
-PrettyPrinting.quoteof(r::JoinRouter) =
-    Expr(:call, nameof(JoinRouter), quoteof(r.label_set), quoteof(r.group))
-
 mutable struct RoutedJoinNode <: TabularNode
     over::Union{SQLNode, Nothing}
     joinee::SQLNode
     on::SQLNode
-    router::JoinRouter
+    name::Symbol
     left::Bool
     right::Bool
     lateral::Bool
     optional::Bool
 
-    RoutedJoinNode(; over, joinee, on, router, left, right, lateral = false, optional = false) =
-        new(over, joinee, on, router, left, right, lateral, optional)
+    RoutedJoinNode(; over, joinee, on, name = label(joinee), left, right, lateral = false, optional = false) =
+        new(over, joinee, on, name, left, right, lateral, optional)
 end
 
-RoutedJoinNode(joinee, on; over = nothing, router, left = false, right = false, lateral = false, optional = false) =
-    RoutedJoinNode(over = over, joinee = joinee, on = on, router, left = left, right = right, lateral = lateral, optional = optional)
+RoutedJoinNode(joinee, on; over = nothing, name = label(joinee), left = false, right = false, lateral = false, optional = false) =
+    RoutedJoinNode(over = over, name = name, on = on, router, left = left, right = right, lateral = lateral, optional = optional)
 
 RoutedJoin(args...; kws...) =
     RoutedJoinNode(args...; kws...) |> SQLNode
@@ -235,7 +227,7 @@ function PrettyPrinting.quoteof(n::RoutedJoinNode, ctx::QuoteContext)
     if !ctx.limit
         push!(ex.args, quoteof(n.joinee, ctx))
         push!(ex.args, quoteof(n.on, ctx))
-        push!(ex.args, Expr(:kw, :router, quoteof(n.router)))
+        push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
         if n.left
             push!(ex.args, Expr(:kw, :left, n.left))
         end
