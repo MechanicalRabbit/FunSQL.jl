@@ -160,9 +160,8 @@ end
 
 function resolve(n::AsNode, ctx)
     over′ = resolve(n.over, ctx)
-    t = row_type(over′)
     n′ = As(name = n.name, over = over′)
-    Resolved(RowType(FieldTypeMap(n.name => t)), over = n′)
+    Resolved(type(over′), over = n′)
 end
 
 function resolve_scalar(n::AsNode, ctx)
@@ -357,6 +356,13 @@ resolve(n::HighlightNode, ctx) =
 resolve_scalar(n::HighlightNode, ctx) =
     resolve_scalar(n.over, ctx)
 
+function resolve(n::IntoNode, ctx)
+    over′ = resolve(n.over, ctx)
+    t = row_type(over′)
+    n′ = Into(name = n.name, over = over′)
+    Resolved(RowType(FieldTypeMap(n.name => t)), over = n′)
+end
+
 function resolve(n::IterateNode, ctx)
     over′ = resolve(n.over, ResolveContext(ctx, knot_type = nothing, implicit_knot = false))
     t = row_type(over′)
@@ -374,21 +380,18 @@ end
 function resolve(n::JoinNode, ctx)
     over′ = resolve(n.over, ctx)
     lt = row_type(over′)
+    name = label(n.joinee)
     joinee′ = resolve(n.joinee, ResolveContext(ctx, row_type = lt, implicit_knot = false))
     rt = row_type(joinee′)
     fields = FieldTypeMap()
     for (f, ft) in lt.fields
-        fields[f] = get(rt.fields, f, ft)
+        fields[f] = ft
     end
-    for (f, ft) in rt.fields
-        if !haskey(fields, f)
-            fields[f] = ft
-        end
-    end
-    group = rt.group isa EmptyType ? lt.group : rt.group
+    fields[name] = rt
+    group = lt.group
     t = RowType(fields, group)
     on′ = resolve_scalar(n.on, ctx, t)
-    n′ = Join(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right, optional = n.optional)
+    n′ = RoutedJoin(over = over′, joinee = joinee′, on = on′, name = name, left = n.left, right = n.right, optional = n.optional)
     Resolved(t, over = n′)
 end
 
@@ -491,16 +494,7 @@ function resolve(n::Union{WithNode, WithExternalNode}, ctx)
         v = get(ctx.cte_types, name, nothing)
         depth = 1 + (v !== nothing ? v[1] : 0)
         t = row_type(args′[i])
-        cte_t = get(t.fields, name, EmptyType())
-        if !(cte_t isa RowType)
-            throw(
-                ReferenceError(
-                    REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE,
-                    name = name,
-                    path = get_path(ctx)))
-
-        end
-        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, cte_t))
+        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, t))
     end
     ctx′ = ResolveContext(ctx, cte_types = cte_types′)
     over′ = resolve(n.over, ctx′)
