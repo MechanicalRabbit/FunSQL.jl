@@ -22,16 +22,26 @@ struct LinkContext
             knot_refs)
 end
 
-function link(n::SQLNode)
-    @dissect(n, WithContext(over = over, catalog = catalog)) || throw(ILLFormedError())
-    ctx = LinkContext(catalog)
-    t = row_type(over)
+function _select(t::RowType)
     refs = SQLNode[]
     for (f, ft) in t.fields
         if ft isa ScalarType
             push!(refs, Get(f))
+        else
+            nested_refs = _select(ft)
+            for nested_ref in nested_refs
+                push!(refs, Nested(over = nested_ref, name = f))
+            end
         end
     end
+    refs
+end
+
+function link(n::SQLNode)
+    @dissect(n, WithContext(over = over, catalog = catalog)) || throw(ILLFormedError())
+    ctx = LinkContext(catalog)
+    t = row_type(over)
+    refs = _select(t)
     over′ = Linked(refs, over = link(dismantle(over, ctx), ctx, refs))
     WithContext(over = over′, catalog = catalog, defs = ctx.defs)
 end
@@ -539,12 +549,9 @@ end
 function gather!(n::IsolatedNode, ctx)
     def = ctx.defs[n.idx]
     !@dissect(def, Linked()) || return
-    refs = SQLNode[]
-    for (f, ft) in n.type.fields
-        if ft isa ScalarType
-            push!(refs, Get(f))
-            break
-        end
+    refs = _select(n.type)
+    if !isempty(refs)
+        refs = refs[1:1]
     end
     def′ = Linked(refs, over = link(def, ctx, refs))
     ctx.defs[n.idx] = def′
