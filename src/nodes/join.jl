@@ -6,21 +6,22 @@ mutable struct JoinNode <: TabularNode
     left::Bool
     right::Bool
     optional::Bool
+    swap::Bool
 
-    JoinNode(; joinee, on, left = false, right = false, optional = false) =
-        new(joinee, on, left, right, optional)
+    JoinNode(; joinee, on, left = false, right = false, optional = false, swap = false) =
+        new(joinee, on, left, right, optional, swap)
 end
 
-JoinNode(joinee; on, left = false, right = false, optional = false) =
-    JoinNode(; joinee, on, left, right, optional)
+JoinNode(joinee; on, left = false, right = false, optional = false, swap = false) =
+    JoinNode(; joinee, on, left, right, optional, swap)
 
-JoinNode(joinee, on; left = false, right = false, optional = false) =
-    JoinNode(; joinee, on, left, right, optional)
+JoinNode(joinee, on; left = false, right = false, optional = false, swap = false) =
+    JoinNode(; joinee, on, left, right, optional, swap)
 
 """
-    Join(; joinee, on, left = false, right = false, optional = false)
-    Join(joinee; on, left = false, right = false, optional = false)
-    Join(joinee, on; left = false, right = false, optional = false)
+    Join(; joinee, on, left = false, right = false, optional = false, swap = false)
+    Join(joinee; on, left = false, right = false, optional = false, swap = false)
+    Join(joinee, on; left = false, right = false, optional = false, swap = false)
 
 `Join` correlates two input datasets.
 
@@ -102,8 +103,14 @@ function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
         if n.optional
             push!(ex.args, Expr(:kw, :optional, n.optional))
         end
+        if n.swap
+            push!(ex.args, Expr(:kw, :swap, n.swap))
+        end
     else
         push!(ex.args, :…)
     end
     ex
 end
+
+label(n::JoinNode) =
+    n.swap ? label(n.joinee) : label(n.over)
