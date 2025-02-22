@@ -378,6 +378,9 @@ function resolve(n::IterateNode, ctx)
 end
 
 function resolve(n::JoinNode, ctx)
+    if n.swap
+        return resolve(JoinNode(over = n.joinee, joinee = n.over, on = n.on, left = n.right, right = n.left, optional = n.optional), ctx)
+    end
     over′ = resolve(n.over, ctx)
     lt = row_type(over′)
     name = label(n.joinee)
