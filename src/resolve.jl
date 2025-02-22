@@ -422,6 +422,10 @@ function resolve(n::IterateNode, ctx)
 end
 
 function resolve(n::JoinNode, ctx)
+    if n.swap
+        ctx′ = ResolveContext(Ctx, tail = n.joinee)
+        return resolve(JoinNode(joinee = ctx.tail, on = n.on, left = n.right, right = n.left, optional = n.optional), ctx′)
+    end
     tail′ = resolve(ctx)
     lt = row_type(tail′)
     name = label(n.joinee)
