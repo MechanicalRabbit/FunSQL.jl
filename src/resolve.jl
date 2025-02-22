@@ -423,7 +423,7 @@ end
 
 function resolve(n::JoinNode, ctx)
     if n.swap
-        ctx′ = ResolveContext(Ctx, tail = n.joinee)
+        ctx′ = ResolveContext(ctx, tail = n.joinee)
         return resolve(JoinNode(joinee = ctx.tail, on = n.on, left = n.right, right = n.left, optional = n.optional), ctx′)
     end
     tail′ = resolve(ctx)
@@ -504,6 +504,33 @@ function resolve(n::SelectNode, ctx)
     end
     q′ = Select(args = args′, label_map = n.label_map, tail = tail′)
     Resolved(RowType(fields), tail = q′)
+end
+
+function resolve(n::ShowNode, ctx)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
+    for name in n.names
+        ft = get(t.fields, name, EmptyType())
+        if ft isa EmptyType
+            throw(
+                ReferenceError(
+                    REFERENCE_ERROR_TYPE.UNDEFINED_NAME,
+                    name = name,
+                    path = get_path(ctx)))
+        end
+    end
+    fields = FieldTypeMap()
+    for (f, ft) in t.fields
+        if f in keys(n.label_map)
+            if ft isa ScalarType
+                ft = ScalarType(visible = n.visible)
+            else
+                ft = RowType(ft.fields, ft.group, visible = n.visible)
+            end
+        end
+        fields[f] = ft
+    end
+    Resolved(RowType(fields, t.group, visible = t.visible), tail = tail′)
 end
 
 function resolve_scalar(n::SortNode, ctx)

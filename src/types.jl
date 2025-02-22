@@ -13,17 +13,27 @@ PrettyPrinting.quoteof(::EmptyType) =
     Expr(:call, nameof(EmptyType))
 
 struct ScalarType <: AbstractSQLType
+    visible::Bool
+
+    ScalarType(; visible = true) =
+        new(visible)
 end
 
-PrettyPrinting.quoteof(::ScalarType) =
-    Expr(:call, nameof(ScalarType))
+function PrettyPrinting.quoteof(t::ScalarType)
+    ex = Expr(:call, nameof(ScalarType))
+    if !t.visible
+        push!(ex.args, Expr(:kw, :visible, t.visible))
+    end
+    ex
+end
 
 struct RowType <: AbstractSQLType
     fields::OrderedDict{Symbol, Union{ScalarType, RowType}}
     group::Union{EmptyType, RowType}
+    visible::Bool
 
-    RowType(fields, group = EmptyType()) =
-        new(fields, group)
+    RowType(fields, group = EmptyType(); visible = true) =
+        new(fields, group, visible)
 end
 
 const FieldTypeMap = OrderedDict{Symbol, Union{ScalarType, RowType}}
@@ -43,6 +53,9 @@ function PrettyPrinting.quoteof(t::RowType)
     if !(t.group isa EmptyType)
         push!(ex.args, Expr(:kw, :group, quoteof(t.group)))
     end
+    if !t.visible
+        push!(ex.args, Expr(:kw, :visible, t.visible))
+    end
     ex
 end
 
@@ -54,8 +67,8 @@ const EMPTY_ROW = RowType()
 Base.intersect(::AbstractSQLType, ::AbstractSQLType) =
     EmptyType()
 
-Base.intersect(::ScalarType, ::ScalarType) =
-    ScalarType()
+Base.intersect(t1::ScalarType, t2::ScalarType) =
+    ScalarType(visible = t1.visible || t2.visible)
 
 function Base.intersect(t1::RowType, t2::RowType)
     if t1 === t2
@@ -71,7 +84,7 @@ function Base.intersect(t1::RowType, t2::RowType)
         end
     end
     group = intersect(t1.group, t2.group)
-    RowType(fields, group)
+    RowType(fields, group, visible = t1.visible || t2.visible)
 end
 
 
@@ -96,6 +109,9 @@ function Base.issubset(t1::RowType, t2::RowType)
         end
     end
     if !issubset(t1.group, t2.group)
+        return false
+    end
+    if !t1.visible && t2.visible
         return false
     end
     return true
