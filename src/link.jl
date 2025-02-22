@@ -24,8 +24,10 @@ end
 
 function _select(t::RowType)
     refs = SQLNode[]
+    t.visible || return refs
     for (f, ft) in t.fields
         if ft isa ScalarType
+            ft.visible || continue
             push!(refs, Get(f))
         else
             nested_refs = _select(ft)

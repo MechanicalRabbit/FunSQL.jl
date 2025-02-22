@@ -464,6 +464,33 @@ function resolve(n::SelectNode, ctx)
     Resolved(RowType(fields), over = n′)
 end
 
+function resolve(n::ShowNode, ctx)
+    over′ = resolve(n.over, ctx)
+    t = row_type(over′)
+    for name in n.names
+        ft = get(t.fields, name, EmptyType())
+        if ft isa EmptyType
+            throw(
+                ReferenceError(
+                    REFERENCE_ERROR_TYPE.UNDEFINED_NAME,
+                    name = name,
+                    path = get_path(ctx)))
+        end
+    end
+    fields = FieldTypeMap()
+    for (f, ft) in t.fields
+        if f in keys(n.label_map)
+            if ft isa ScalarType
+                ft = ScalarType(visible = n.visible)
+            else
+                ft = RowType(ft.fields, ft.group, visible = n.visible)
+            end
+        end
+        fields[f] = ft
+    end
+    Resolved(RowType(fields, t.group, visible = t.visible), over = over′)
+end
+
 function resolve_scalar(n::SortNode, ctx)
     over′ = resolve_scalar(n.over, ctx)
     n′ = Sort(over = over′, value = n.value, nulls = n.nulls)
