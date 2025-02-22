@@ -54,17 +54,19 @@ terminal(q::SQLQuery) =
 Chain(q′, q) =
     convert(SQLQuery, q)(q′)
 
-label(q::SQLQuery) =
-    @something label(q.head) label(q.tail)
+function label(q::SQLQuery; default = :_)
+    l = label(q.head)
+    l !== nothing ? l : label(q.tail; default)
+end
 
 label(n::AbstractSQLNode) =
     nothing
 
-label(::Nothing) =
-    :_
+label(::Nothing; default = :_) =
+    default
 
-label(q) =
-    label(convert(SQLQuery, q))
+label(q; default = :_) =
+    label(convert(SQLQuery, q); default)
 
 
 # A variant of SQLQuery for assembling a chain of identifiers.
@@ -922,6 +924,7 @@ include("nodes/order.jl")
 include("nodes/over.jl")
 include("nodes/partition.jl")
 include("nodes/select.jl")
+include("nodes/show.jl")
 include("nodes/sort.jl")
 include("nodes/variable.jl")
 include("nodes/where.jl")

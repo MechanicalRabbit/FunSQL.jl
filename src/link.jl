@@ -27,13 +27,15 @@ end
 
 function _select(t::RowType)
     refs = SQLQuery[]
+    t.visible || return refs
     for (f, ft) in t.fields
         if ft isa ScalarType
+            ft.visible || continue
             push!(refs, Get(f))
         else
             nested_refs = _select(ft)
             for nested_ref in nested_refs
-                push!(refs, Nested(over = nested_ref, name = f))
+                push!(refs, Nested(name = f, tail = nested_ref))
             end
         end
     end

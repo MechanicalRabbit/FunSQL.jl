@@ -54,6 +54,7 @@ export
     funsql_from,
     funsql_fun,
     funsql_group,
+    funsql_hide,
     funsql_highlight,
     funsql_in,
     funsql_into,
@@ -83,6 +84,7 @@ export
     funsql_rank,
     funsql_row_number,
     funsql_select,
+    funsql_show,
     funsql_sort,
     funsql_sum,
     funsql_with
