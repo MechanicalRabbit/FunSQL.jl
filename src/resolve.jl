@@ -160,9 +160,8 @@ end
 
 function resolve(n::AsNode, ctx)
     over′ = resolve(n.over, ctx)
-    t = row_type(over′)
     n′ = As(name = n.name, over = over′)
-    Resolved(RowType(FieldTypeMap(n.name => t)), over = n′)
+    Resolved(type(over′), over = n′)
 end
 
 function resolve_scalar(n::AsNode, ctx)
@@ -357,6 +356,13 @@ resolve(n::HighlightNode, ctx) =
 resolve_scalar(n::HighlightNode, ctx) =
     resolve_scalar(n.over, ctx)
 
+function resolve(n::IntoNode, ctx)
+    over′ = resolve(n.over, ctx)
+    t = row_type(over′)
+    n′ = Into(name = n.name, over = over′)
+    Resolved(RowType(FieldTypeMap(n.name => t)), over = n′)
+end
+
 function resolve(n::IterateNode, ctx)
     over′ = resolve(n.over, ResolveContext(ctx, knot_type = nothing, implicit_knot = false))
     t = row_type(over′)
@@ -372,23 +378,23 @@ function resolve(n::IterateNode, ctx)
 end
 
 function resolve(n::JoinNode, ctx)
+    if n.swap
+        return resolve(JoinNode(over = n.joinee, joinee = n.over, on = n.on, left = n.right, right = n.left, optional = n.optional), ctx)
+    end
     over′ = resolve(n.over, ctx)
     lt = row_type(over′)
+    name = label(n.joinee)
     joinee′ = resolve(n.joinee, ResolveContext(ctx, row_type = lt, implicit_knot = false))
     rt = row_type(joinee′)
     fields = FieldTypeMap()
     for (f, ft) in lt.fields
-        fields[f] = get(rt.fields, f, ft)
+        fields[f] = ft
     end
-    for (f, ft) in rt.fields
-        if !haskey(fields, f)
-            fields[f] = ft
-        end
-    end
-    group = rt.group isa EmptyType ? lt.group : rt.group
+    fields[name] = rt
+    group = lt.group
     t = RowType(fields, group)
     on′ = resolve_scalar(n.on, ctx, t)
-    n′ = Join(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right, optional = n.optional)
+    n′ = RoutedJoin(over = over′, joinee = joinee′, on = on′, name = name, left = n.left, right = n.right, optional = n.optional)
     Resolved(t, over = n′)
 end
 
@@ -458,6 +464,33 @@ function resolve(n::SelectNode, ctx)
     Resolved(RowType(fields), over = n′)
 end
 
+function resolve(n::ShowNode, ctx)
+    over′ = resolve(n.over, ctx)
+    t = row_type(over′)
+    for name in n.names
+        ft = get(t.fields, name, EmptyType())
+        if ft isa EmptyType
+            throw(
+                ReferenceError(
+                    REFERENCE_ERROR_TYPE.UNDEFINED_NAME,
+                    name = name,
+                    path = get_path(ctx)))
+        end
+    end
+    fields = FieldTypeMap()
+    for (f, ft) in t.fields
+        if f in keys(n.label_map)
+            if ft isa ScalarType
+                ft = ScalarType(visible = n.visible)
+            else
+                ft = RowType(ft.fields, ft.group, visible = n.visible)
+            end
+        end
+        fields[f] = ft
+    end
+    Resolved(RowType(fields, t.group, visible = t.visible), over = over′)
+end
+
 function resolve_scalar(n::SortNode, ctx)
     over′ = resolve_scalar(n.over, ctx)
     n′ = Sort(over = over′, value = n.value, nulls = n.nulls)
@@ -491,16 +524,7 @@ function resolve(n::Union{WithNode, WithExternalNode}, ctx)
         v = get(ctx.cte_types, name, nothing)
         depth = 1 + (v !== nothing ? v[1] : 0)
         t = row_type(args′[i])
-        cte_t = get(t.fields, name, EmptyType())
-        if !(cte_t isa RowType)
-            throw(
-                ReferenceError(
-                    REFERENCE_ERROR_TYPE.INVALID_TABLE_REFERENCE,
-                    name = name,
-                    path = get_path(ctx)))
-
-        end
-        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, cte_t))
+        cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, t))
     end
     ctx′ = ResolveContext(ctx, cte_types = cte_types′)
     over′ = resolve(n.over, ctx′)
