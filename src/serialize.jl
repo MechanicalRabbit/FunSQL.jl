@@ -12,7 +12,7 @@ mutable struct SerializeContext <: IO
 end
 
 function serialize(c::SQLClause)
-    @dissect(c, WITH_CONTEXT(over = c′, dialect = dialect, columns = columns)) || throw(IllFormedError())
+    @dissect(c, WITH_CONTEXT(over = (local c′), dialect = (local dialect), columns = (local columns))) || throw(IllFormedError())
     ctx = SerializeContext(dialect)
     serialize!(c′, ctx)
     raw = String(take!(ctx.io))
@@ -384,7 +384,7 @@ end
 arity(::Val{:count_distinct}) = 0:1
 
 function serialize!(::Val{:cast}, args::Vector{SQLClause}, ctx)
-    if length(args) == 2 && @dissect(args[2], LIT(val = t)) && t isa AbstractString
+    if length(args) == 2 && @dissect(args[2], LIT(val = (local t))) && t isa AbstractString
         print(ctx, "CAST(")
         serialize!(args[1], ctx)
         print(ctx, " AS ", t, ')')
@@ -407,7 +407,7 @@ end
 arity(::Val{:concat}) = 2
 
 function serialize!(::Val{:extract}, args::Vector{SQLClause}, ctx)
-    if length(args) == 2 && @dissect(args[1], LIT(val = f)) && f isa AbstractString
+    if length(args) == 2 && @dissect(args[1], LIT(val = (local f))) && f isa AbstractString
         print(ctx, "EXTRACT(", f, " FROM ")
         serialize!(args[2], ctx)
         print(ctx, ')')
@@ -577,9 +577,9 @@ function serialize!(c::HavingClause, ctx)
     end
     newline(ctx)
     print(ctx, "HAVING")
-    if @dissect(c.condition, FUN(name = :and, args = args)) && length(args) >= 2
+    if @dissect(c.condition, FUN(name = :and, args = (local args))) && length(args) >= 2
         serialize_lines!(args, ctx, sep = "AND")
-    elseif @dissect(c.condition, FUN(name = :or, args = args)) && length(args) >= 2
+    elseif @dissect(c.condition, FUN(name = :or, args = (local args))) && length(args) >= 2
         serialize_lines!(args, ctx, sep = "OR")
     else
         print(ctx, ' ')
@@ -807,7 +807,7 @@ function serialize!(c::SelectClause, ctx)
         limit = top.limit
         with_ties = top.with_ties
     elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLSERVER
-        if @dissect(over, limit_over |> LIMIT(offset = nothing, limit = limit, with_ties = with_ties))
+        if @dissect(over, (local limit_over) |> LIMIT(offset = nothing, limit = (local limit), with_ties = (local with_ties)))
             over = limit_over
         elseif nested && @dissect(over, ORDER())
             offset_0_rows = true
@@ -966,9 +966,9 @@ function serialize!(c::WhereClause, ctx)
     end
     newline(ctx)
     print(ctx, "WHERE")
-    if @dissect(c.condition, FUN(name = :and, args = args)) && length(args) >= 2
+    if @dissect(c.condition, FUN(name = :and, args = (local args))) && length(args) >= 2
         serialize_lines!(args, ctx, sep = "AND")
-    elseif @dissect(c.condition, FUN(name = :or, args = args)) && length(args) >= 2
+    elseif @dissect(c.condition, FUN(name = :or, args = (local args))) && length(args) >= 2
         serialize_lines!(args, ctx, sep = "OR")
     else
         print(ctx, ' ')
@@ -1001,7 +1001,7 @@ function serialize!(c::WithClause, ctx)
             else
                 first = false
             end
-            if @dissect(arg, AS(name = name, columns = columns, over = arg))
+            if @dissect(arg, AS(name = (local name), columns = (local columns), over = (local arg)))
                 serialize!(name, ctx)
                 if columns !== nothing
                     print(ctx, " (")

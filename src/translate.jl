@@ -16,7 +16,7 @@ end
 function complete(cols::OrderedDict{Symbol, SQLClause})
     args = SQLClause[]
     for (name, col) in cols
-        if !(@dissect(col, ID(name = id_name)) && id_name == name)
+        if !(@dissect(col, ID(name = (local id_name))) && id_name == name)
             col = AS(over = col, name = name)
         end
         push!(args, col)
@@ -139,7 +139,7 @@ end
 function aligned_columns(refs, repl, args)
     length(refs) == length(args) || return false
     for (ref, arg) in zip(refs, args)
-        if !(@dissect(arg, ID(name = name) || AS(name = name)) && name === repl[ref])
+        if !(@dissect(arg, ID(name = (local name)) || AS(name = (local name))) && name === repl[ref])
             return false
         end
     end
@@ -208,7 +208,7 @@ function allocate_alias(ctx::TranslateContext, alias::Symbol)
 end
 
 function translate(n::SQLNode)
-    @dissect(n, WithContext(over = Linked(over = n′, refs = refs), catalog = catalog, defs = defs)) || throw(IllFormedError())
+    @dissect(n, WithContext(over = Linked(over = (local n′), refs = (local refs)), catalog = (local catalog), defs = (local defs))) || throw(IllFormedError())
     ctx = TranslateContext(catalog = catalog, defs = defs)
     ctx′ = TranslateContext(ctx, refs = refs)
     base = assemble(n′, ctx′)
@@ -288,7 +288,7 @@ function translate(n::FunctionNode, ctx)
         args′ = SQLClause[]
         for arg in args
             if @dissect(arg, LIT(val = true))
-            elseif @dissect(arg, FUN(name = :and, args = args′′))
+            elseif @dissect(arg, FUN(name = :and, args = (local args′′)))
                 append!(args′, args′′)
             else
                 push!(args′, arg)
@@ -304,7 +304,7 @@ function translate(n::FunctionNode, ctx)
         args′ = SQLClause[]
         for arg in args
             if @dissect(arg, LIT(val = false))
-            elseif @dissect(arg, FUN(name = :or, args = args′′))
+            elseif @dissect(arg, FUN(name = :or, args = (local args′′)))
                 append!(args′, args′′)
             else
                 push!(args′, arg)
@@ -317,7 +317,7 @@ function translate(n::FunctionNode, ctx)
             return args[1]
         end
     elseif n.name === :not
-        if length(args) == 1 && @dissect(args[1], LIT(val = val)) && val isa Bool
+        if length(args) == 1 && @dissect(args[1], LIT(val = (local val))) && val isa Bool
             return LIT(!val)
         end
     end
@@ -394,7 +394,7 @@ function assemble(n::AppendNode, ctx)
         if a.name !== a_name
             a_name = :union
         end
-        if @dissect(a.clause, over |> SELECT(args = args)) && aligned_columns(urefs, repl, args) && !@dissect(over, ORDER() || LIMIT())
+        if @dissect(a.clause, (local over) |> SELECT(args = (local args))) && aligned_columns(urefs, repl, args) && !@dissect(over, ORDER() || LIMIT())
             push!(cs, a.clause)
             continue
         elseif !@dissect(a.clause, SELECT() || UNION() || ORDER() || LIMIT())
@@ -420,7 +420,7 @@ end
 function assemble(n::AsNode, ctx)
     refs′ = SQLNode[]
     for ref in ctx.refs
-        if @dissect(ref, over |> Nested())
+        if @dissect(ref, (local over) |> Nested())
             push!(refs′, over)
         else
             push!(refs′, ref)
@@ -429,7 +429,7 @@ function assemble(n::AsNode, ctx)
     base = assemble(n.over, TranslateContext(ctx, refs = refs′))
     repl′ = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, over |> Nested())
+        if @dissect(ref, (local over) |> Nested())
             repl′[ref] = base.repl[over]
         else
             repl′[ref] = base.repl[ref]
@@ -465,7 +465,7 @@ function assemble(n::DefineNode, ctx)
     repl = Dict{SQLNode, Symbol}()
     trns = Pair{SQLNode, SQLClause}[]
     for ref in ctx.refs
-        if @dissect(ref, nothing |> Get(name = name)) && name in keys(tr_cache)
+        if @dissect(ref, nothing |> Get(name = (local name))) && name in keys(tr_cache)
             push!(trns, ref => tr_cache[name])
         else
             push!(trns, ref => subs[ref])
@@ -479,7 +479,7 @@ function assemble(n::FromFunctionNode, ctx)
     seen = Set{Symbol}()
     column_set = Set(n.columns)
     for ref in ctx.refs
-        @dissect(ref, nothing |> Get(name = name)) && name in column_set || error()
+        @dissect(ref, nothing |> Get(name = (local name))) && name in column_set || error()
         if !(name in seen)
             push!(seen, name)
         end
@@ -494,7 +494,7 @@ function assemble(n::FromFunctionNode, ctx)
     end
     repl = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, nothing |> Get(name = name))
+        if @dissect(ref, nothing |> Get(name = (local name)))
             repl[ref] = name
         end
     end
@@ -522,7 +522,7 @@ assemble(::FromNothingNode, ctx) =
 function unwrap_repl(a::Assemblage)
     repl′ = Dict{SQLNode, Symbol}()
     for (ref, name) in a.repl
-        @dissect(ref, over |> Nested()) || error()
+        @dissect(ref, (local over) |> Nested()) || error()
         repl′[over] = name
     end
     Assemblage(a.name, a.clause, cols = a.cols, repl = repl′)
@@ -545,7 +545,7 @@ end
 function assemble(n::FromTableNode, ctx)
     seen = Set{Symbol}()
     for ref in ctx.refs
-        @dissect(ref, nothing |> Get(name = name)) && name in keys(n.table.columns) || error()
+        @dissect(ref, nothing |> Get(name = (local name))) && name in keys(n.table.columns) || error()
         if !(name in seen)
             push!(seen, name)
         end
@@ -560,7 +560,7 @@ function assemble(n::FromTableNode, ctx)
     end
     repl = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, nothing |> Get(name = name))
+        if @dissect(ref, nothing |> Get(name = (local name)))
             repl[ref] = name
         end
     end
@@ -572,7 +572,7 @@ function assemble(n::FromValuesNode, ctx)
     column_set = Set{Symbol}(columns)
     seen = Set{Symbol}()
     for ref in ctx.refs
-        @dissect(ref, nothing |> Get(name = name)) && name in column_set || error()
+        @dissect(ref, nothing |> Get(name = (local name))) && name in column_set || error()
         if !(name in seen)
             push!(seen, name)
         end
@@ -615,7 +615,7 @@ function assemble(n::FromValuesNode, ctx)
     end
     repl = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, nothing |> Get(name = name))
+        if @dissect(ref, nothing |> Get(name = (local name)))
             repl[ref] = name
         end
     end
@@ -628,7 +628,7 @@ function assemble(n::GroupNode, ctx)
         return assemble(nothing, ctx)
     end
     base = assemble(n.over, ctx)
-    if @dissect(base.clause, tail := nothing || FROM() || JOIN() || WHERE())
+    if @dissect(base.clause, local tail = nothing || FROM() || JOIN() || WHERE())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
@@ -638,12 +638,12 @@ function assemble(n::GroupNode, ctx)
     by = SQLClause[subs[key] for key in n.by]
     trns = Pair{SQLNode, SQLClause}[]
     for ref in ctx.refs
-        if @dissect(ref, nothing |> Get(name = name))
+        if @dissect(ref, nothing |> Get(name = (local name)))
             @assert name in keys(n.label_map)
             push!(trns, ref => by[n.label_map[name]])
         elseif @dissect(ref, nothing |> Agg())
             push!(trns, ref => translate(ref, ctx, subs))
-        elseif @dissect(ref, (over := nothing |> Agg()) |> Nested())
+        elseif @dissect(ref, (local over = nothing |> Agg()) |> Nested())
             push!(trns, ref => translate(over, ctx, subs))
         end
     end
@@ -695,7 +695,7 @@ function assemble(n::IterateNode, ctx)
     end
     cs = SQLClause[]
     for (arg, a) in (n.over => left, n.iterator => right)
-        if @dissect(a.clause, over |> SELECT(args = args)) && aligned_columns(urefs, repl, args) && !@dissect(over, ORDER() || LIMIT())
+        if @dissect(a.clause, (local over) |> SELECT(args = (local args))) && aligned_columns(urefs, repl, args) && !@dissect(over, ORDER() || LIMIT())
             push!(cs, a.clause)
             continue
         elseif !@dissect(a.clause, SELECT() || UNION() || ORDER() || LIMIT())
@@ -736,7 +736,7 @@ end
 
 function assemble(n::LimitNode, ctx)
     base = assemble(n.over, ctx)
-    if @dissect(base.clause, tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING() || ORDER())
+    if @dissect(base.clause, local tail = nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING() || ORDER())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
@@ -780,7 +780,7 @@ end
 function assemble(n::OrderNode, ctx)
     base = assemble(n.over, ctx)
     @assert !isempty(n.by)
-    if @dissect(base.clause, tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
+    if @dissect(base.clause, local tail = nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
@@ -821,7 +821,7 @@ end
 
 function assemble(n::PartitionNode, ctx)
     base = assemble(n.over, ctx)
-    if @dissect(base.clause, tail := nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
+    if @dissect(base.clause, local tail = nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
@@ -839,7 +839,7 @@ function assemble(n::PartitionNode, ctx)
         if @dissect(ref, nothing |> Agg()) && n.name === nothing
             push!(trns, ref => partition |> translate(ref, ctx′))
             has_aggregates = true
-        elseif @dissect(ref, (over := nothing |> Agg()) |> Nested(name = name)) && name === n.name
+        elseif @dissect(ref, (local over = nothing |> Agg()) |> Nested(name = (local name))) && name === n.name
             push!(trns, ref => partition |> translate(over, ctx′))
             has_aggregates = true
         else
@@ -856,7 +856,7 @@ _outer_safe(a::Assemblage) =
 
 function assemble(n::RoutedJoinNode, ctx)
     left = assemble(n.over, ctx)
-    if @dissect(left.clause, tail := FROM() || JOIN()) && (!n.right || _outer_safe(left))
+    if @dissect(left.clause, local tail = FROM() || JOIN()) && (!n.right || _outer_safe(left))
         left_alias = nothing
     else
         left_alias = allocate_alias(ctx, left)
@@ -869,7 +869,7 @@ function assemble(n::RoutedJoinNode, ctx)
     else
         right = assemble(n.joinee, ctx)
     end
-    if @dissect(right.clause, (joinee := (ID() || AS())) |> FROM()) && (!n.left || _outer_safe(right))
+    if @dissect(right.clause, (local joinee = (ID() || AS())) |> FROM()) && (!n.left || _outer_safe(right))
         for (ref, name) in right.repl
             subs[ref] = right.cols[name]
         end
@@ -915,20 +915,20 @@ function assemble(n::SelectNode, ctx)
     cols = OrderedDict{Symbol, SQLClause}([name => ID(name) for name in keys(cols)])
     repl = Dict{SQLNode, Symbol}()
     for ref in ctx.refs
-        @dissect(ref, nothing |> Get(name = name)) || error()
+        @dissect(ref, nothing |> Get(name = (local name))) || error()
         repl[ref] = name
     end
     Assemblage(base.name, c, cols = cols, repl = repl)
 end
 
 function merge_conditions(c1, c2)
-    if @dissect(c1, FUN(name = :and, args = args1))
-        if @dissect(c2, FUN(name = :and, args = args2))
+    if @dissect(c1, FUN(name = :and, args = (local args1)))
+        if @dissect(c2, FUN(name = :and, args = (local args2)))
             return FUN(:and, args1..., args2...)
         else
             return FUN(:and, args1..., c2)
         end
-    elseif @dissect(c2, FUN(name = :and, args = args2))
+    elseif @dissect(c2, FUN(name = :and, args = (local args2)))
         return FUN(:and, c1, args2...)
     else
         return FUN(:and, c1, c2)
@@ -938,18 +938,18 @@ end
 function assemble(n::WhereNode, ctx)
     base = assemble(n.over, ctx)
     if @dissect(base.clause, nothing || FROM() || JOIN() || WHERE() || HAVING()) ||
-       @dissect(base.clause, GROUP(by = by)) && !isempty(by)
+       @dissect(base.clause, GROUP(by = (local by))) && !isempty(by)
         subs = make_subs(base, nothing)
         condition = translate(n.condition, ctx, subs)
         if @dissect(condition, LIT(val = true))
             return base
         end
-        if @dissect(base.clause, tail |> WHERE(condition = tail_condition))
+        if @dissect(base.clause, (local tail) |> WHERE(condition = (local tail_condition)))
             condition = merge_conditions(tail_condition, condition)
             c = WHERE(over = tail, condition = condition)
         elseif @dissect(base.clause, GROUP())
             c = HAVING(over = base.clause, condition = condition)
-        elseif @dissect(base.clause, tail |> HAVING(condition = tail_condition))
+        elseif @dissect(base.clause, (local tail) |> HAVING(condition = (local tail_condition)))
             condition = merge_conditions(tail_condition, condition)
             c = HAVING(over = tail, condition = condition)
         else

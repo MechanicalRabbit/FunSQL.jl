@@ -12,23 +12,24 @@ function dissect(@nospecialize(val), @nospecialize(pat))
 end
 
 function dissect(scr::Symbol, @nospecialize(pat))
-    if pat isa Symbol
-        if pat === :_
-            :(true)
-        elseif pat === :nothing || pat === :missing
-            :($scr === $pat)
-        else
-            :(local $pat = $scr; true)
-        end
+    if pat === :_
+        :(true)
+    elseif pat === :nothing || pat === :missing
+        :($scr === $pat)
     elseif pat isa Bool
         :($scr === $pat)
     elseif pat isa QuoteNode && pat.value isa Symbol
         :($scr === $pat)
     elseif pat isa Expr
         nargs = length(pat.args)
-        if pat.head === :(:=) && nargs == 2
-            ex1 = dissect(scr, pat.args[1])
-            ex2 = dissect(scr, pat.args[2])
+        if pat.head === :local && nargs == 1 &&
+                (local var = pat.args[1]) isa Symbol
+            :(local $var = $scr; true)
+        elseif pat.head === :local && nargs === 1 &&
+                (local pat′ = pat.args[1]) isa Expr && pat′.head === :(=) &&
+                length(pat′.args) == 2 && (local var = pat′.args[1]) isa Symbol
+            ex1 = :(local $var = $scr; true)
+            ex2 = dissect(scr, pat′.args[2])
             :($ex2 && $ex1)
         elseif pat.head === :(::) && nargs == 1
             :($scr isa $(pat.args[1]))
@@ -41,8 +42,10 @@ function dissect(scr::Symbol, @nospecialize(pat))
         elseif pat.head === :kw && nargs == 2
             dissect(:($scr.$(pat.args[1])), pat.args[2])
         elseif pat.head === :call && nargs >= 1 &&
-                                     (local f = pat.args[1]; f isa Symbol)
+                (local f = pat.args[1]) isa Symbol
             dissect(scr, getfield(FunSQL, f), pat.args[2:end])
+        elseif pat.head === :($) && nargs == 1
+            :(isequal($scr, $(pat.args[1])))
         else
             error("invalid pattern: $(repr(pat))")
         end
@@ -114,7 +117,9 @@ end
 
 function dissect(scr::Symbol, ::Type{GlobalRef}, pats::Vector{Any})
     if length(pats) == 2
-        return :($scr isa GlobalRef && $scr.mod == $(pats[1]) && $scr.name === $(pats[2]))
+        ex1 = dissect(:($scr.mod), pats[1])
+        ex2 = dissect(:($scr.name), pats[2])
+        return :($scr isa GlobalRef && $ex1 && $ex2)
     end
     error("invalid pattern: $(repr(pats))")
 end

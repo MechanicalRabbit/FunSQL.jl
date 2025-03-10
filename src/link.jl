@@ -23,7 +23,7 @@ struct LinkContext
 end
 
 function link(n::SQLNode)
-    @dissect(n, WithContext(over = over, catalog = catalog)) || throw(ILLFormedError())
+    @dissect(n, WithContext(over = (local over), catalog = (local catalog))) || throw(ILLFormedError())
     ctx = LinkContext(catalog)
     t = row_type(over)
     refs = SQLNode[]
@@ -221,7 +221,7 @@ end
 function link(n::AsNode, ctx)
     refs = SQLNode[]
     for ref in ctx.refs
-        if @dissect(ref, over |> Nested(name = name))
+        if @dissect(ref, (local over) |> Nested(name = (local name)))
             @assert name == n.name
             push!(refs, over)
         else
@@ -241,7 +241,7 @@ function link(n::DefineNode, ctx)
     refs = SQLNode[]
     seen = Set{Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, nothing |> Get(name = name)) && name in keys(n.label_map)
+        if @dissect(ref, nothing |> Get(name = (local name))) && name in keys(n.label_map)
             push!(seen, name)
         else
             push!(refs, ref)
@@ -300,13 +300,13 @@ function link(n::GroupNode, ctx)
     if has_aggregates
         ctx′ = LinkContext(ctx, refs = refs)
         for ref in ctx.refs
-            if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> Nested(name = name)) && name === n.name) ||
-               (@dissect(ref, nothing |> Agg(args = args, filter = filter)) && n.name === nothing)
+            if (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter)) |> Nested(name = (local name))) && name === n.name) ||
+               (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter))) && n.name === nothing)
                 gather!(args, ctx′)
                 if filter !== nothing
                     gather!(filter, ctx′)
                 end
-            elseif @dissect(ref, nothing |> Get(name = name)) && name in keys(n.label_map)
+            elseif @dissect(ref, nothing |> Get(name = (local name))) && name in keys(n.label_map)
                 # Force evaluation in a nested subquery.
                 push!(refs, n.by[n.label_map[name]])
             end
@@ -352,13 +352,13 @@ function link(n::IterateNode, ctx)
 end
 
 function route(r::JoinRouter, ref::SQLNode)
-    if @dissect(ref, over |> Nested(name = name)) && name in r.label_set
+    if @dissect(ref, (local over) |> Nested(name = (local name))) && name in r.label_set
         return 1
     end
-    if @dissect(ref, Get(name = name)) && name in r.label_set
+    if @dissect(ref, Get(name = (local name))) && name in r.label_set
         return 1
     end
-    if @dissect(ref, over |> Agg()) && r.group
+    if @dissect(ref, (local over) |> Agg()) && r.group
         return 1
     end
     return -1
@@ -424,8 +424,8 @@ function link(n::PartitionNode, ctx)
     ctx′ = LinkContext(ctx, refs = imm_refs)
     has_aggregates = false
     for ref in ctx.refs
-        if (@dissect(ref, nothing |> Agg(args = args, filter = filter) |> Nested(name = name)) && name === n.name) ||
-            (@dissect(ref, nothing |> Agg(args = args, filter = filter)) && n.name === nothing)
+        if (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter)) |> Nested(name = (local name))) && name === n.name) ||
+            (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter))) && n.name === nothing)
             gather!(args, ctx′)
             if filter !== nothing
                 gather!(filter, ctx′)
