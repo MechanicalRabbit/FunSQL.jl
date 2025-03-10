@@ -38,22 +38,22 @@ get_path(ctx::ResolveContext) =
     copy(ctx.path)
 
 function row_type(n::SQLNode)
-    @dissect(n, Resolved(type = type::RowType)) || throw(IllFormedError())
+    @dissect(n, Resolved(type = (local type)::RowType)) || throw(IllFormedError())
     type
 end
 
 function scalar_type(n::SQLNode)
-    @dissect(n, Resolved(type = type::ScalarType)) || throw(IllFormedError())
+    @dissect(n, Resolved(type = (local type)::ScalarType)) || throw(IllFormedError())
     type
 end
 
 function type(n::SQLNode)
-    @dissect(n, Resolved(type = t)) || throw(IllFormedError())
+    @dissect(n, Resolved(type = (local t))) || throw(IllFormedError())
     t
 end
 
 function resolve(n::SQLNode)
-    @dissect(n, WithContext(over = n′, catalog = catalog)) || throw(IllFormedError())
+    @dissect(n, WithContext(over = (local n′), catalog = (local catalog))) || throw(IllFormedError())
     ctx = ResolveContext(catalog)
     WithContext(over = resolve(n′, ctx), catalog = catalog)
 end
@@ -107,7 +107,7 @@ function resolve_scalar(n::TabularNode, ctx)
 end
 
 function unnest(node, base, ctx)
-    while @dissect(node, over |> Get(name = name))
+    while @dissect(node, (local over) |> Get(name = (local name)))
         base = Nested(over = base, name = name)
         node = over
     end

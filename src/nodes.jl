@@ -506,23 +506,23 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         else
             return QuoteNode(ex)
         end
-    elseif @dissect(ex, QuoteNode(name::Symbol))
+    elseif @dissect(ex, QuoteNode((local name)::Symbol))
         # :name
         return :(Var($ex))
     elseif ex isa Expr
-        if @dissect(ex, Expr(:($), arg))
+        if @dissect(ex, Expr(:($), (local arg)))
             # $(...)
             return esc(arg)
-        elseif @dissect(ex, Expr(:macrocall, ref := GlobalRef(Core, Symbol("@doc")), ln::LineNumberNode, doc, arg))
+        elseif @dissect(ex, Expr(:macrocall, (local ref = GlobalRef($Core, $(Symbol("@doc")))), (local ln)::LineNumberNode, (local doc), (local arg)))
             # "..." ...
-            if @dissect(arg, name::Symbol || Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), ::LineNumberNode, name::String))
+            if @dissect(arg, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String))
                 arg = Symbol("funsql_$name")
             else
                 ctx = TransliterateContext(ctx, src = ln)
                 arg = transliterate(arg, ctx)
             end
             return Expr(:macrocall, ref, ln, doc, arg)
-        elseif @dissect(ex, Expr(:(=), Expr(:call, name::Symbol || Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), ::LineNumberNode, name::String), args...), body))
+        elseif @dissect(ex, Expr(:(=), Expr(:call, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String), (local args)...), (local body)))
             # name(args...) = body
             ctx = TransliterateContext(ctx, decl = true)
             trs = Any[transliterate(arg, ctx) for arg in args]
@@ -530,109 +530,109 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return Expr(:(=),
                         :($(esc(Symbol("funsql_$name")))($(trs...))),
                         transliterate(body, ctx))
-        elseif @dissect(ex, Expr(:(=), name::Symbol, arg))
+        elseif @dissect(ex, Expr(:(=), (local name)::Symbol, (local arg)))
             # name = arg
             return Expr(:(=), esc(name), transliterate(arg, ctx))
         elseif ctx.decl && @dissect(ex, Expr(:(::), _::Symbol, _))
             # name::t
             return esc(ex)
-        elseif @dissect(ex, Expr(:kw, key, arg))
+        elseif @dissect(ex, Expr(:kw, (local key), (local arg)))
             # key = arg
             ctx = TransliterateContext(ctx, decl = true)
             ctx′ = TransliterateContext(ctx, decl = false)
             return Expr(:kw, transliterate(key, ctx), transliterate(arg, ctx′))
-        elseif @dissect(ex, Expr(:(...), arg))
+        elseif @dissect(ex, Expr(:(...), (local arg)))
             # arg...
             return Expr(:(...), transliterate(arg, ctx))
-        elseif @dissect(ex, Expr(:parameters, args...))
+        elseif @dissect(ex, Expr(:parameters, (local args)...))
             # ; args...
             return Expr(:parameters, Any[transliterate(arg, ctx) for arg in args]...)
-        elseif @dissect(ex, Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), ::LineNumberNode, name::String))
+        elseif @dissect(ex, Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String))
             # `name`
             return QuoteNode(Symbol(name))
-        elseif @dissect(ex, Expr(:call, Expr(:., over, QuoteNode(name)), args...))
+        elseif @dissect(ex, Expr(:call, Expr(:., (local over), QuoteNode(local name)), (local args)...))
             # over.name(args...)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, name, args...), ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:macrocall, Expr(:., over, Expr(:quote, ex′)), args...))
+        elseif @dissect(ex, Expr(:macrocall, Expr(:., (local over), Expr(:quote, (local ex′))), (local args)...))
             # over.`name`
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:macrocall, ex′, args...), ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:., over, Expr(:quote, arg)))
+        elseif @dissect(ex, Expr(:., (local over), Expr(:quote, (local arg))))
             # over.`name` (Julia ≥ 1.10)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(arg, ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:call, Expr(:macrocall, Expr(:., over, Expr(:quote, ex′)), args...), args′...))
+        elseif @dissect(ex, Expr(:call, Expr(:macrocall, Expr(:., (local over), Expr(:quote, (local ex′))), (local args)...), (local args′)...))
             # over.`name`(args...)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, Expr(:macrocall, ex′, args...), args′...), ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:call, Expr(:., over, Expr(:quote, arg)), args...))
+        elseif @dissect(ex, Expr(:call, Expr(:., (local over), Expr(:quote, (local arg))), (local args)...))
             # over.`name`(args...) (Julia ≥ 1.10)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, arg, args...), ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:., over, QuoteNode(name)))
+        elseif @dissect(ex, Expr(:., (local over), QuoteNode((local name))))
             # over.name
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(name, ctx)
             return :(Chain($tr1, $tr2))
-        elseif @dissect(ex, Expr(:call, :(=>), name := QuoteNode(_::Symbol), arg))
+        elseif @dissect(ex, Expr(:call, :(=>), (local name = QuoteNode(_::Symbol)), (local arg)))
             # :name => arg
             tr = transliterate(arg, ctx)
             return :($name => $tr)
-        elseif @dissect(ex, Expr(:call, :(=>), name, arg))
+        elseif @dissect(ex, Expr(:call, :(=>), (local name), (local arg)))
             # name => arg
             tr1 = transliterate(name, ctx)
             tr2 = transliterate(arg, ctx)
             return :($tr1 => $tr2)
-        elseif @dissect(ex, Expr(:call, :(:), arg1, arg2))
+        elseif @dissect(ex, Expr(:call, :(:), (local arg1), (local arg2)))
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg2, ctx)
             return :($tr1:$tr2)
-        elseif @dissect(ex, Expr(:vect, args...))
+        elseif @dissect(ex, Expr(:vect, (local args)...))
             # [args...]
             return Expr(:vect, Any[transliterate(arg, ctx) for arg in args]...)
-        elseif @dissect(ex, Expr(:tuple, args...))
+        elseif @dissect(ex, Expr(:tuple, (local args)...))
             # (args...)
             return Expr(:tuple, Any[transliterate(arg, ctx) for arg in args]...)
-        elseif @dissect(ex, Expr(:comparison, arg1, arg2::Symbol, arg3))
+        elseif @dissect(ex, Expr(:comparison, (local arg1), (local arg2)::Symbol, (local arg3)))
             # Chained comparison.
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
             return :($(esc(Symbol("funsql_$arg2")))($tr1, $tr2))
-        elseif @dissect(ex, Expr(:comparison, arg1, arg2::Symbol, arg3, args...))
+        elseif @dissect(ex, Expr(:comparison, (local arg1), (local arg2)::Symbol, (local arg3), (local args)...))
             # Chained comparison.
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
             tr3 = transliterate(Expr(:comparison, arg3, args...), ctx)
             return :(Fun(:and, $(esc(Symbol("funsql_$arg2")))($tr1, $tr2), $tr3))
-        elseif @dissect(ex, Expr(:(&&), args...))
+        elseif @dissect(ex, Expr(:(&&), (local args)...))
             # &&(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :(Fun(:and, args = [$(trs...)]))
-        elseif @dissect(ex, Expr(:(||), args...))
+        elseif @dissect(ex, Expr(:(||), (local args)...))
             # ||(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :(Fun(:or, args = [$(trs...)]))
-        elseif @dissect(ex, Expr(:call, op := :+ || :-, arg := :Inf))
+        elseif @dissect(ex, Expr(:call, (local op = :+ || :-), (local arg = :Inf)))
             # ±Inf
             tr = transliterate(arg, ctx)
             return Expr(:call, op, tr)
-        elseif @dissect(ex, Expr(:call, name::Symbol, args...))
+        elseif @dissect(ex, Expr(:call, (local name)::Symbol, (local args)...))
             # name(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :($(esc(Symbol("funsql_$name")))($(trs...)))
-        elseif @dissect(ex, Expr(:call, Expr(:macrocall, GlobalRef(Core, Symbol("@cmd")), ::LineNumberNode, name::String), args...))
+        elseif @dissect(ex, Expr(:call, Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String), (local args)...))
             # `name`(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :($(esc(Symbol("funsql_$name")))($(trs...)))
-        elseif @dissect(ex, Expr(:block, args...))
+        elseif @dissect(ex, Expr(:block, (local args)...))
             # begin; args...; end
-            if all(@dissect(arg, ::LineNumberNode || Expr(:(=), _...) || Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), _...))
+            if all(@dissect(arg, ::LineNumberNode || Expr(:(=), _...) || Expr(:macrocall, GlobalRef($Core, $(Symbol("@doc"))), _...))
                    for arg in args)
                 trs = Any[]
                 for arg in args
@@ -656,20 +656,20 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
                 end
                 return tr
             end
-        elseif @dissect(ex, Expr(:if, arg1, arg2))
+        elseif @dissect(ex, Expr(:if, (local arg1), (local arg2)))
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg2, ctx)
             return :(Fun(:case, $tr1, $tr2))
-        elseif @dissect(ex, Expr(:if, arg1, arg2, arg3))
+        elseif @dissect(ex, Expr(:if, (local arg1), (local arg2), (local arg3)))
             trs = Any[transliterate(arg1, ctx),
                       transliterate(arg2, ctx)]
-            while @dissect(arg3, Expr(:if || :elseif, arg1′, arg2′, arg3′))
+            while @dissect(arg3, Expr(:if || :elseif, (local arg1′), (local arg2′), (local arg3′)))
                 push!(trs,
                       transliterate(arg1′, ctx),
                       transliterate(arg2′, ctx))
                 arg3 = arg3′
             end
-            if @dissect(arg3, Expr(:if || :elseif, arg1′, arg2′))
+            if @dissect(arg3, Expr(:if || :elseif, (local arg1′), (local arg2′)))
                 push!(trs,
                       transliterate(arg1′, ctx),
                       transliterate(arg2′, ctx))
