@@ -79,6 +79,15 @@ function serialize!(val::AbstractString, ctx)
     print(ctx, '\'', val, '\'')
 end
 
+function serialize!(val::AbstractVector{<:AbstractString}, ctx)
+    print(ctx, '[')
+    for (i, v) in enumerate(val)
+        i == 1 || print(ctx, ", ")
+        serialize!(v, ctx)
+    end
+    print(ctx, ']')
+end
+
 serialize!(val::Dates.AbstractTime, ctx) =
     print(ctx, '\'', val, '\'')
 
