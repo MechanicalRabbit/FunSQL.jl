@@ -6,15 +6,16 @@ mutable struct SerializeContext <: IO
     level::Int
     nested::Bool
     vars::Vector{Symbol}
+    tail::Union{SQLSyntax, Nothing}
 
-    SerializeContext(dialect) =
-        new(dialect, IOBuffer(), 0, false, Symbol[])
+    SerializeContext(dialect, tail) =
+        new(dialect, IOBuffer(), 0, false, Symbol[], tail)
 end
 
-function serialize(c::SQLClause)
-    @dissect(c, WITH_CONTEXT(over = (local c′), dialect = (local dialect), columns = (local columns))) || throw(IllFormedError())
-    ctx = SerializeContext(dialect)
-    serialize!(c′, ctx)
+function serialize(s::SQLSyntax)
+    @dissect(s, WITH_CONTEXT(tail = (local s′), dialect = (local dialect), columns = (local columns))) || throw(IllFormedError())
+    ctx = SerializeContext(dialect, s′)
+    serialize!(ctx)
     raw = String(take!(ctx.io))
     SQLString(raw, columns = columns, vars = ctx.vars)
 end
@@ -82,14 +83,27 @@ end
 serialize!(val::Dates.AbstractTime, ctx) =
     print(ctx, '\'', val, '\'')
 
-function serialize!(c::SQLClause, ctx::SerializeContext)
-    serialize!(c[], ctx)
+function serialize!(ctx::SerializeContext)
+    tail = ctx.tail
+    if tail !== nothing
+        ctx.tail = tail.tail
+        serialize!(tail.head, ctx)
+        ctx.tail = tail
+    end
     nothing
 end
 
-function serialize!(cs::AbstractVector{SQLClause}, ctx; sep = nothing)
+function serialize!(s::SQLSyntax, ctx::SerializeContext)
+    tail = ctx.tail
+    ctx.tail = s.tail
+    serialize!(s.head, ctx)
+    ctx.tail = tail
+    nothing
+end
+
+function serialize!(ss::AbstractVector{SQLSyntax}, ctx; sep = nothing)
     first = true
-    for c in cs
+    for s in ss
         if !first
             if sep === nothing
                 print(ctx, ", ")
@@ -99,20 +113,20 @@ function serialize!(cs::AbstractVector{SQLClause}, ctx; sep = nothing)
         else
             first = false
         end
-        serialize!(c, ctx)
+        serialize!(s, ctx)
     end
 end
 
-function serialize_lines!(cs::AbstractVector{SQLClause}, ctx; sep = nothing)
-    !isempty(cs) || return
-    if length(cs) == 1
+function serialize_lines!(ss::AbstractVector{SQLSyntax}, ctx; sep = nothing)
+    !isempty(ss) || return
+    if length(ss) == 1
         print(ctx, ' ')
-        serialize!(cs[1], ctx)
+        serialize!(ss[1], ctx)
     else
         ctx.level += 1
         newline(ctx)
         first = true
-        for c in cs
+        for s in ss
             if !first
                 if sep === nothing
                     print(ctx, ',')
@@ -123,7 +137,7 @@ function serialize_lines!(cs::AbstractVector{SQLClause}, ctx; sep = nothing)
             else
                 first = false
             end
-            serialize!(c, ctx)
+            serialize!(s, ctx)
         end
         ctx.level -= 1
     end
@@ -200,7 +214,7 @@ macro serialize!(tmpl, args, ctx)
     end
 end
 
-function serialize_operator!(op::String, args::Vector{SQLClause}, ctx)
+function serialize_operator!(op::String, args::Vector{SQLSyntax}, ctx)
     if isempty(args)
         print(ctx, op)
     elseif length(args) == 1
@@ -214,7 +228,7 @@ function serialize_operator!(op::String, args::Vector{SQLClause}, ctx)
     end
 end
 
-function serialize_postfix_operator!(op::String, args::Vector{SQLClause}, ctx)
+function serialize_postfix_operator!(op::String, args::Vector{SQLSyntax}, ctx)
     if isempty(args)
         print(ctx, op)
     elseif length(args) == 1
@@ -228,13 +242,13 @@ function serialize_postfix_operator!(op::String, args::Vector{SQLClause}, ctx)
     end
 end
 
-function serialize_function!(name::String, args::Vector{SQLClause}, ctx)
+function serialize_function!(name::String, args::Vector{SQLSyntax}, ctx)
     print(ctx, name, '(')
     serialize!(args, ctx)
     print(ctx, ')')
 end
 
-function serialize_template!(@nospecialize(chunks::Tuple{Vararg{String}}), args::Vector{SQLClause}, ctx)
+function serialize_template!(@nospecialize(chunks::Tuple{Vararg{String}}), args::Vector{SQLSyntax}, ctx)
     for k = 1:lastindex(chunks)-1
         print(ctx, chunks[k])
         if k <= length(args)
@@ -244,7 +258,7 @@ function serialize_template!(@nospecialize(chunks::Tuple{Vararg{String}}), args:
     print(ctx, chunks[end])
 end
 
-@generated serialize!(::Val{N}, args::Vector{SQLClause}, ctx) where {N} =
+@generated serialize!(::Val{N}, args::Vector{SQLSyntax}, ctx) where {N} =
     :(@serialize! $(string(N)) args ctx)
 
 arity(name::Symbol) =
@@ -274,7 +288,7 @@ end
 for (name, op, default) in ((:and, "AND", true),
                             (:or, "OR", false))
     @eval begin
-        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLClause}, ctx)
+        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLSyntax}, ctx)
             if isempty(args)
                 serialize!($default, ctx)
             elseif length(args) == 1
@@ -293,7 +307,7 @@ end
 for (name, op, default) in ((:in, "IN", false),
                             (:not_in, "NOT IN", true))
     @eval begin
-        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLClause}, ctx)
+        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLSyntax}, ctx)
             if length(args) <= 1
                 serialize!($default, ctx)
             else
@@ -315,51 +329,51 @@ for (name, op, default) in ((:in, "IN", false),
     end
 end
 
-serialize!(::Val{Symbol("not in")}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{Symbol("not in")}, args::Vector{SQLSyntax}, ctx) =
     serialize!(Val(:not_in), args, ctx)
 
-serialize!(::Val{:not}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:not}, args::Vector{SQLSyntax}, ctx) =
     @serialize! "NOT " args ctx
 
 arity(::Val{:not}) = 1:1
 
-serialize!(::Val{:exists}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:exists}, args::Vector{SQLSyntax}, ctx) =
     @serialize! "EXISTS " args ctx
 
 arity(::Val{:exists}) = 1:1
 
-serialize!(::Val{:not_exists}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:not_exists}, args::Vector{SQLSyntax}, ctx) =
     @serialize! "NOT EXISTS " args ctx
 
 arity(::Val{:not_exists}) = 1:1
 
-serialize!(::Val{:is_null}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:is_null}, args::Vector{SQLSyntax}, ctx) =
     @serialize! " IS NULL" args ctx
 
 arity(::Val{:is_null}) = 1:1
 
-serialize!(::Val{Symbol("is null")}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{Symbol("is null")}, args::Vector{SQLSyntax}, ctx) =
     serialize!(Val(:is_null), args, ctx)
 
-serialize!(::Val{:is_not_null}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:is_not_null}, args::Vector{SQLSyntax}, ctx) =
     @serialize! " IS NOT NULL" args ctx
 
 arity(::Val{:is_not_null}) = 1:1
 
-serialize!(::Val{Symbol("is not null")}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{Symbol("is not null")}, args::Vector{SQLSyntax}, ctx) =
     serialize!(Val(:is_not_null), args, ctx)
 
-serialize!(::Val{:like}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:like}, args::Vector{SQLSyntax}, ctx) =
     @serialize! " LIKE " args ctx
 
 arity(::Val{:like}) = 2:2
 
-serialize!(::Val{:not_like}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{:not_like}, args::Vector{SQLSyntax}, ctx) =
     @serialize! " NOT LIKE " args ctx
 
 arity(::Val{:not_like}) = 2:2
 
-function serialize!(::Val{:count}, args::Vector{SQLClause}, ctx)
+function serialize!(::Val{:count}, args::Vector{SQLSyntax}, ctx)
     print(ctx, "count(")
     if isempty(args)
         print(ctx, "*")
@@ -371,7 +385,7 @@ end
 
 arity(::Val{:count}) = 0:1
 
-function serialize!(::Val{:count_distinct}, args::Vector{SQLClause}, ctx)
+function serialize!(::Val{:count_distinct}, args::Vector{SQLSyntax}, ctx)
     print(ctx, "count(DISTINCT ")
     if isempty(args)
         print(ctx, "*")
@@ -383,7 +397,7 @@ end
 
 arity(::Val{:count_distinct}) = 0:1
 
-function serialize!(::Val{:cast}, args::Vector{SQLClause}, ctx)
+function serialize!(::Val{:cast}, args::Vector{SQLSyntax}, ctx)
     if length(args) == 2 && @dissect(args[2], LIT(val = (local t))) && t isa AbstractString
         print(ctx, "CAST(")
         serialize!(args[1], ctx)
@@ -395,7 +409,7 @@ end
 
 arity(::Val{:cast}) = 2:2
 
-function serialize!(::Val{:concat}, args::Vector{SQLClause}, ctx)
+function serialize!(::Val{:concat}, args::Vector{SQLSyntax}, ctx)
     concat_operator = ctx.dialect.concat_operator
     if concat_operator !== nothing
         serialize_operator!(string(concat_operator), args, ctx)
@@ -406,7 +420,7 @@ end
 
 arity(::Val{:concat}) = 2
 
-function serialize!(::Val{:extract}, args::Vector{SQLClause}, ctx)
+function serialize!(::Val{:extract}, args::Vector{SQLSyntax}, ctx)
     if length(args) == 2 && @dissect(args[1], LIT(val = (local f))) && f isa AbstractString
         print(ctx, "EXTRACT(", f, " FROM ")
         serialize!(args[2], ctx)
@@ -421,7 +435,7 @@ arity(::Val{:extract}) = 2:2
 for (name, op) in ((:between, " BETWEEN "),
                    (:not_between, " NOT BETWEEN "))
     @eval begin
-        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLClause}, ctx)
+        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLSyntax}, ctx)
             if length(args) == 3
                 print(ctx, '(')
                 serialize!(args[1], ctx)
@@ -439,13 +453,13 @@ for (name, op) in ((:between, " BETWEEN "),
     end
 end
 
-serialize!(::Val{Symbol("not between")}, args::Vector{SQLClause}, ctx) =
+serialize!(::Val{Symbol("not between")}, args::Vector{SQLSyntax}, ctx) =
     serialize!(Val(:not_between), args, ctx)
 
 for (name, op) in ((:current_date, "CURRENT_DATE"),
                    (:current_timestamp, "CURRENT_TIMESTAMP"))
     @eval begin
-        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLClause}, ctx)
+        function serialize!(::Val{$(QuoteNode(name))}, args::Vector{SQLSyntax}, ctx)
             if isempty(args)
                 print(ctx, $op)
             else
@@ -459,7 +473,7 @@ for (name, op) in ((:current_date, "CURRENT_DATE"),
     end
 end
 
-function serialize!(::Val{:case}, args::Vector{SQLClause}, ctx)
+function serialize!(::Val{:case}, args::Vector{SQLSyntax}, ctx)
     print(ctx, "(CASE")
     nargs = length(args)
     for (i, arg) in enumerate(args)
@@ -496,16 +510,16 @@ function serialize!(c::AggregateClause, ctx)
 end
 
 function serialize!(c::AsClause, ctx)
-    over = c.over
+    tail = ctx.tail
     columns = c.columns
-    if @dissect(over, PARTITION())
+    if @dissect(tail, PARTITION())
         @assert columns === nothing
         serialize!(c.name, ctx)
         print(ctx, " AS (")
-        serialize!(over, ctx)
+        serialize!(ctx)
         print(ctx, ')')
-    elseif over !== nothing
-        serialize!(over, ctx)
+    elseif tail !== nothing
+        serialize!(ctx)
         print(ctx, " AS ")
         serialize!(c.name, ctx)
         if columns !== nothing
@@ -519,10 +533,9 @@ end
 function serialize!(c::FromClause, ctx)
     newline(ctx)
     print(ctx, "FROM")
-    over = c.over
-    if over !== nothing
+    if ctx.tail !== nothing
         print(ctx, ' ')
-        serialize!(over, ctx)
+        serialize!(ctx)
     end
 end
 
@@ -531,10 +544,7 @@ function serialize!(c::FunctionClause, ctx)
 end
 
 function serialize!(c::GroupClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     !isempty(c.by) || return
     newline(ctx)
     print(ctx, "GROUP BY")
@@ -571,10 +581,7 @@ function serialize!(c::GroupClause, ctx)
 end
 
 function serialize!(c::HavingClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     newline(ctx)
     print(ctx, "HAVING")
     if @dissect(c.condition, FUN(name = :and, args = (local args))) && length(args) >= 2
@@ -588,19 +595,15 @@ function serialize!(c::HavingClause, ctx)
 end
 
 function serialize!(c::IdentifierClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
+    if ctx.tail !== nothing
+        serialize!(ctx)
         print(ctx, '.')
     end
     serialize!(c.name, ctx)
 end
 
 function serialize!(c::JoinClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     newline(ctx)
     cross = !c.left && !c.right && @dissect(c.on, LIT(val = true))
     if cross
@@ -625,10 +628,7 @@ function serialize!(c::JoinClause, ctx)
 end
 
 function serialize!(c::LimitClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     start = c.offset
     count = c.limit
     start !== nothing || count !== nothing || return
@@ -673,23 +673,19 @@ serialize!(c::LiteralClause, ctx) =
     serialize!(c.val, ctx)
 
 function serialize!(c::NoteClause, ctx)
-    over = c.over
-    if over === nothing
+    if ctx.tail === nothing
         print(ctx, c.text)
     elseif c.postfix
-        serialize!(over, ctx)
+        serialize!(ctx)
         print(ctx, ' ', c.text)
     else
         print(ctx, c.text, ' ')
-        serialize!(over, ctx)
+        serialize!(ctx)
     end
 end
 
 function serialize!(c::OrderClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     !isempty(c.by) || return
     newline(ctx)
     print(ctx, "ORDER BY")
@@ -761,8 +757,8 @@ end
 
 function serialize!(c::PartitionClause, ctx)
     need_space = false
-    if c.over !== nothing
-        serialize!(c.over, ctx)
+    if ctx.tail !== nothing
+        serialize!(ctx)
         need_space = true
     end
     if !isempty(c.by)
@@ -798,7 +794,7 @@ function serialize!(c::SelectClause, ctx)
         newline(ctx)
     end
     ctx.nested = true
-    over = c.over
+    tail = ctx.tail
     limit = nothing
     with_ties = false
     offset_0_rows = false
@@ -807,9 +803,9 @@ function serialize!(c::SelectClause, ctx)
         limit = top.limit
         with_ties = top.with_ties
     elseif ctx.dialect.limit_style === LIMIT_STYLE.SQLSERVER
-        if @dissect(over, (local limit_over) |> LIMIT(offset = nothing, limit = (local limit), with_ties = (local with_ties)))
-            over = limit_over
-        elseif nested && @dissect(over, ORDER())
+        if @dissect(tail, (local limit_tail) |> LIMIT(offset = nothing, limit = (local limit), with_ties = (local with_ties)))
+            tail = limit_tail
+        elseif nested && @dissect(tail, ORDER())
             offset_0_rows = true
         end
     end
@@ -824,8 +820,8 @@ function serialize!(c::SelectClause, ctx)
         print(ctx, " DISTINCT")
     end
     serialize_lines!(c.args, ctx)
-    if over !== nothing
-        serialize!(over, ctx)
+    if tail !== nothing
+        serialize!(tail, ctx)
     end
     if offset_0_rows
         newline(ctx)
@@ -840,10 +836,7 @@ function serialize!(c::SelectClause, ctx)
 end
 
 function serialize!(c::SortClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     if c.value == VALUE_ORDER.ASC
         print(ctx, " ASC")
     elseif c.value == VALUE_ORDER.DESC
@@ -864,10 +857,7 @@ function serialize!(c::UnionClause, ctx)
         newline(ctx)
     end
     ctx.nested = false
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     for arg in c.args
         newline(ctx)
         print(ctx, "UNION")
@@ -960,10 +950,7 @@ function serialize!(c::VariableClause, ctx)
 end
 
 function serialize!(c::WhereClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     newline(ctx)
     print(ctx, "WHERE")
     if @dissect(c.condition, FUN(name = :and, args = (local args))) && length(args) >= 2
@@ -977,10 +964,7 @@ function serialize!(c::WhereClause, ctx)
 end
 
 function serialize!(c::WindowClause, ctx)
-    over = c.over
-    if over !== nothing
-        serialize!(over, ctx)
-    end
+    serialize!(ctx)
     !isempty(c.args) || return
     newline(ctx)
     print(ctx, "WINDOW")
@@ -1001,7 +985,7 @@ function serialize!(c::WithClause, ctx)
             else
                 first = false
             end
-            if @dissect(arg, AS(name = (local name), columns = (local columns), over = (local arg)))
+            if @dissect(arg, AS(name = (local name), columns = (local columns), tail = (local arg)))
                 serialize!(name, ctx)
                 if columns !== nothing
                     print(ctx, " (")
@@ -1017,7 +1001,5 @@ function serialize!(c::WithClause, ctx)
         end
         newline(ctx)
     end
-    if c.over !== nothing
-        serialize!(c.over, ctx)
-    end
+    serialize!(ctx)
 end

@@ -1,30 +1,28 @@
 # WITH clause.
 
 mutable struct WithClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
     recursive::Bool
-    args::Vector{SQLClause}
+    args::Vector{SQLSyntax}
 
     WithClause(;
-               over = nothing,
                recursive = false,
                args) =
-        new(over, recursive, args)
+        new(recursive, args)
 end
 
-WithClause(args...; over = nothing, recursive = false) =
-    WithClause(over = over, recursive = recursive, args = SQLClause[args...])
+WithClause(args...; recursive = false) =
+    WithClause(; recursive, args = SQLSyntax[args...])
 
 """
-    WITH(; over = nothing, recursive = false, args)
-    WITH(args...; over = nothing, recursive = false)
+    WITH(; recursive = false, args, tail = nothing)
+    WITH(args...; recursive = false, tail = nothing)
 
 A `WITH` clause.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            WHERE(FUN(:in, :person_id,
                           FROM(:essential_hypertension) |>
                           SELECT(:person_id))) |>
@@ -34,7 +32,7 @@ julia> c = FROM(:person) |>
                 SELECT(:person_id) |>
                 AS(:essential_hypertension));
 
-julia> print(render(c))
+julia> print(render(s))
 WITH "essential_hypertension" AS (
   SELECT "person_id"
   FROM "condition_occurrence"
@@ -51,7 +49,7 @@ WHERE ("person_id" IN (
 ```
 
 ```jldoctest
-julia> c = FROM(:essential_hypertension) |>
+julia> s = FROM(:essential_hypertension) |>
            SELECT(*) |>
            WITH(recursive = true,
                 FROM(:concept) |>
@@ -67,7 +65,7 @@ julia> c = FROM(:essential_hypertension) |>
                       SELECT((:c, :concept_id), (:c, :concept_name))) |>
                 AS(:essential_hypertension, columns = [:concept_id, :concept_name]));
 
-julia> print(render(c))
+julia> print(render(s))
 WITH RECURSIVE "essential_hypertension" ("concept_id", "concept_name") AS (
   SELECT
     "concept_id",
@@ -87,14 +85,10 @@ SELECT *
 FROM "essential_hypertension"
 ```
 """
-WITH(args...; kws...) =
-    WithClause(args...; kws...) |> SQLClause
-
-dissect(scr::Symbol, ::typeof(WITH), pats::Vector{Any}) =
-    dissect(scr, WithClause, pats)
+const WITH = SQLSyntaxCtor{WithClause}
 
 function PrettyPrinting.quoteof(c::WithClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(WITH))
+    ex = Expr(:call, :WITH)
     if c.recursive !== false
         push!(ex.args, Expr(:kw, :recursive, c.recursive))
     end
@@ -103,12 +97,5 @@ function PrettyPrinting.quoteof(c::WithClause, ctx::QuoteContext)
     else
         append!(ex.args, quoteof(c.args, ctx))
     end
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::WithClause, c′) =
-    WithClause(over = rebase(c.over, c′), args = c.args, recursive = c.recursive)
-

@@ -19,18 +19,16 @@ A placeholder in a parameterized query.
 # Examples
 
 ```jldoctest
-julia> c = VAR(:year);
+julia> s = VAR(:year);
 
-julia> print(render(c))
+julia> print(render(s))
 :year
 ```
 """
-VAR(args...; kws...) =
-    VariableClause(args...; kws...) |> SQLClause
+const VAR = SQLSyntaxCtor{VariableClause}
 
-dissect(scr::Symbol, ::typeof(VAR), pats::Vector{Any}) =
-    dissect(scr, VariableClause, pats)
+terminal(::Type{VariableClause}) =
+    true
 
 PrettyPrinting.quoteof(c::VariableClause, ctx::QuoteContext) =
-    Expr(:call, nameof(VAR), quoteof(c.name))
-
+    Expr(:call, :VAR, quoteof(c.name))

@@ -1,45 +1,28 @@
 # FROM clause.
 
 mutable struct FromClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
-
-    FromClause(; over = nothing) =
-        new(over)
 end
 
-FromClause(over) =
-    FromClause(over = over)
-
 """
-    FROM(; over = nothing)
-    FROM(over)
+    FROM(; tail = nothing)
+    FROM(source)
 
 A `FROM` clause.
 
 # Examples
 
 ```jldoctest
-julia> c = ID(:person) |> AS(:p) |> FROM() |> SELECT((:p, :person_id));
+julia> s = ID(:person) |> AS(:p) |> FROM() |> SELECT((:p, :person_id));
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT "p"."person_id"
 FROM "person" AS "p"
 ```
 """
-FROM(args...; kws...) =
-    FromClause(args...; kws...) |> SQLClause
+const FROM = SQLSyntaxCtor{FromClause}
 
-dissect(scr::Symbol, ::typeof(FROM), pats::Vector{Any}) =
-    dissect(scr, FromClause, pats)
+FROM(source) =
+    FROM(tail = source)
 
-function PrettyPrinting.quoteof(c::FromClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(FROM))
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
-    ex
-end
-
-rebase(c::FromClause, c′) =
-    FromClause(over = rebase(c.over, c′))
-
+PrettyPrinting.quoteof(c::FromClause, ctx::QuoteContext) =
+    Expr(:call, :FROM)

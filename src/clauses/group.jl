@@ -19,15 +19,13 @@ end
 import .GROUPING_MODE.GroupingMode
 
 mutable struct GroupClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
-    by::Vector{SQLClause}
+    by::Vector{SQLSyntax}
     sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
 
     function GroupClause(;
-                over = nothing,
-                by = SQLClause[],
+                by = SQLSyntax[],
                 sets = nothing)
-        c = new(over, by, sets isa Symbol ? convert(GroupingMode, sets) : sets)
+        c = new(by, sets isa Symbol ? convert(GroupingMode, sets) : sets)
         s = c.sets
         if s isa Vector{Vector{Int}} && !checkbounds(Bool, c.by, s)
             throw(DomainError(s, "sets are out of bounds"))
@@ -36,23 +34,23 @@ mutable struct GroupClause <: AbstractSQLClause
     end
 end
 
-GroupClause(by...; over = nothing, sets = nothing) =
-    GroupClause(over = over, by = SQLClause[by...], sets = sets)
+GroupClause(by...; sets = nothing) =
+    GroupClause(; by = SQLSyntax[by...], sets)
 
 """
-    GROUP(; over = nothing, by = [], sets = nothing)
-    GROUP(by...; over = nothing, sets = nothing)
+    GROUP(; by = [], sets = nothing, tail = nothing)
+    GROUP(by...; sets = nothing, tail = nothing)
 
 A `GROUP BY` clause.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            GROUP(:year_of_birth) |>
            SELECT(:year_of_birth, AGG(:count));
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT
   "year_of_birth",
   count(*)
@@ -60,25 +58,14 @@ FROM "person"
 GROUP BY "year_of_birth"
 ```
 """
-GROUP(args...; kws...) =
-    GroupClause(args...; kws...) |> SQLClause
-
-dissect(scr::Symbol, ::typeof(GROUP), pats::Vector{Any}) =
-    dissect(scr, GroupClause, pats)
+const GROUP = SQLSyntaxCtor{GroupClause}
 
 function PrettyPrinting.quoteof(c::GroupClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(GROUP))
+    ex = Expr(:call, :GROUP)
     append!(ex.args, quoteof(c.by, ctx))
     s = c.sets
     if s !== nothing
         push!(ex.args, Expr(:kw, :sets, s isa GroupingMode ? QuoteNode(Symbol(s)) : s))
     end
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::GroupClause, c′) =
-    GroupClause(over = rebase(c.over, c′), by = c.by, sets = c.sets)
-

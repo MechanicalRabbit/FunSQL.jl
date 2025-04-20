@@ -1,53 +1,37 @@
 # HAVING clause.
 
 mutable struct HavingClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
-    condition::SQLClause
+    condition::SQLSyntax
 
-    HavingClause(;
-                 over = nothing,
-                 condition) =
-        new(over, condition)
+    HavingClause(; condition) =
+        new(condition)
 end
 
-HavingClause(condition; over = nothing) =
-    HavingClause(over = over, condition = condition)
+HavingClause(condition) =
+    HavingClause(; condition)
 
 """
-    HAVING(; over = nothing, condition)
-    HAVING(condition; over = nothing)
+    HAVING(; condition, tail = nothing)
+    HAVING(condition, tail = nothing)
 
 A `HAVING` clause.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            GROUP(:year_of_birth) |>
            HAVING(FUN(">", AGG(:count), 10)) |>
            SELECT(:person_id);
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT "person_id"
 FROM "person"
 GROUP BY "year_of_birth"
 HAVING (count(*) > 10)
 ```
 """
-HAVING(args...; kws...) =
-    HavingClause(args...; kws...) |> SQLClause
+const HAVING = SQLSyntaxCtor{HavingClause}
 
-dissect(scr::Symbol, ::typeof(HAVING), pats::Vector{Any}) =
-    dissect(scr, HavingClause, pats)
-
-function PrettyPrinting.quoteof(c::HavingClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(HAVING), quoteof(c.condition, ctx))
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
-    ex
-end
-
-rebase(c::HavingClause, c′) =
-    HavingClause(over = rebase(c.over, c′), condition = c.condition)
-
+PrettyPrinting.quoteof(c::HavingClause, ctx::QuoteContext) =
+    Expr(:call, :HAVING, quoteof(c.condition, ctx))

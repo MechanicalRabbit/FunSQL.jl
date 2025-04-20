@@ -1,36 +1,34 @@
 # UNION clause.
 
 mutable struct UnionClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
     all::Bool
-    args::Vector{SQLClause}
+    args::Vector{SQLSyntax}
 
     UnionClause(;
-               over = nothing,
                all = false,
                args) =
-        new(over, all, args)
+        new(all, args)
 end
 
-UnionClause(args...; over = nothing, all = false) =
-    UnionClause(over = over, all = all, args = SQLClause[args...])
+UnionClause(args...; all = false) =
+    UnionClause(; all, args = SQLSyntax[args...])
 
 """
-    UNION(; over = nothing, all = false, args)
-    UNION(args...; over = nothing, all = false)
+    UNION(; all = false, args, tail = nothing)
+    UNION(args...; all = false, tail = nothing)
 
 A `UNION` clause.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:measurement) |>
+julia> s = FROM(:measurement) |>
            SELECT(:person_id, :date => :measurement_date) |>
            UNION(all = true,
                  FROM(:observation) |>
                  SELECT(:person_id, :date => :observation_date));
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT
   "person_id",
   "measurement_date" AS "date"
@@ -42,14 +40,10 @@ SELECT
 FROM "observation"
 ```
 """
-UNION(args...; kws...) =
-    UnionClause(args...; kws...) |> SQLClause
-
-dissect(scr::Symbol, ::typeof(UNION), pats::Vector{Any}) =
-    dissect(scr, UnionClause, pats)
+const UNION = SQLSyntaxCtor{UnionClause}
 
 function PrettyPrinting.quoteof(c::UnionClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(UNION))
+    ex = Expr(:call, :UNION)
     if c.all !== false
         push!(ex.args, Expr(:kw, :all, c.all))
     end
@@ -58,12 +52,5 @@ function PrettyPrinting.quoteof(c::UnionClause, ctx::QuoteContext)
     else
         append!(ex.args, quoteof(c.args, ctx))
     end
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::UnionClause, c′) =
-    UnionClause(over = rebase(c.over, c′), args = c.args, all = c.all)
-

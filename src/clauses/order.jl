@@ -1,52 +1,38 @@
 # ORDER BY clause.
 
 mutable struct OrderClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
-    by::Vector{SQLClause}
+    by::Vector{SQLSyntax}
 
-    OrderClause(;
-                over = nothing,
-                by = SQLClause[]) =
-        new(over, by)
+    OrderClause(; by = SQLSyntax[]) =
+        new(by)
 end
 
-OrderClause(by...; over = nothing) =
-    OrderClause(over = over, by = SQLClause[by...])
+OrderClause(by...) =
+    OrderClause(by = SQLSyntax[by...])
 
 """
-    ORDER(; over = nothing, by = [])
-    ORDER(by...; over = nothing)
+    ORDER(; by = [], tail = nothing)
+    ORDER(by...; tail = nothing)
 
 An `ORDER BY` clause.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            ORDER(:year_of_birth) |>
            SELECT(:person_id);
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT "person_id"
 FROM "person"
 ORDER BY "year_of_birth"
 ```
 """
-ORDER(args...; kws...) =
-    OrderClause(args...; kws...) |> SQLClause
-
-dissect(scr::Symbol, ::typeof(ORDER), pats::Vector{Any}) =
-    dissect(scr, OrderClause, pats)
+const ORDER = SQLSyntaxCtor{OrderClause}
 
 function PrettyPrinting.quoteof(c::OrderClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(ORDER))
+    ex = Expr(:call, :ORDER)
     append!(ex.args, quoteof(c.by, ctx))
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::OrderClause, c′) =
-    OrderClause(over = rebase(c.over, c′), by = c.by)
-
