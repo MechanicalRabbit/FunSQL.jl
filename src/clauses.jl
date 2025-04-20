@@ -1,7 +1,7 @@
 # Syntactic structure of a SQL query.
 
 
-# Base type.
+# Base abstract type of a node in a SQL syntax tree.
 
 """
 A component of a SQL syntax tree.
@@ -9,60 +9,43 @@ A component of a SQL syntax tree.
 abstract type AbstractSQLClause
 end
 
-function dissect(scr::Symbol, ClauseType::Type{<:AbstractSQLClause}, pats::Vector{Any})
-    scr_core = gensym(:scr_core)
-    ex = Expr(:&&, :($scr_core isa $ClauseType), Any[dissect(scr_core, pat) for pat in pats]...)
-    :($scr isa SQLClause && (local $scr_core = $scr[]; $ex))
-end
+terminal(::Type{<:AbstractSQLClause}) =
+    false
+
+terminal(c::C) where {C <: AbstractSQLClause} =
+    terminal(C)
 
 
-# Opaque wrapper that serves as a specialization barrier.
+# Opaque linked list of SQL clauses.
 
 """
-An opaque wrapper over an arbitrary SQL clause.
+SQL syntax tree represented as a linked list of SQL clauses.
 """
-struct SQLClause <: AbstractSQLClause
-    core::AbstractSQLClause
+struct SQLSyntax
+    tail::Union{SQLSyntax, Nothing}
+    head::AbstractSQLClause
 
-    SQLClause(@nospecialize core::AbstractSQLClause) =
-        new(core)
+    SQLSyntax(@nospecialize head::AbstractSQLClause) =
+        new(nothing, head)
+
+    SQLSyntax(tail, @nospecialize head::AbstractSQLClause) =
+        new(tail, head)
 end
 
-Base.getindex(c::SQLClause) =
-    c.core
+Base.convert(::Type{SQLSyntax}, @nospecialize c::AbstractSQLClause) =
+    SQLSyntax(c)
 
-Base.convert(::Type{SQLClause}, c::SQLClause) =
-    c
+terminal(s::SQLSyntax) =
+    s.tail !== nothing ? terminal(s.tail) : terminal(s.head)
 
-Base.convert(::Type{SQLClause}, @nospecialize c::AbstractSQLClause) =
-    SQLClause(c)
-
-Base.convert(::Type{SQLClause}, obj) =
-    convert(SQLClause, convert(AbstractSQLClause, obj)::AbstractSQLClause)
-
-(c::AbstractSQLClause)(c′) =
-    c(convert(SQLClause, c′))
-
-(c::AbstractSQLClause)(c′::SQLClause) =
-    rebase(c, c′)
-
-rebase(c::SQLClause, c′) =
-    convert(SQLClause, rebase(c[], c′))
-
-rebase(::Nothing, c′) =
-    c′
+(s::SQLSyntax)(s′) =
+    SQLSyntax(s.tail !== nothing ? s.tail(s′) : s′, s.head)
 
 Base.:(==)(@nospecialize(::AbstractSQLClause), @nospecialize(::AbstractSQLClause)) =
     false
 
-Base.:(==)(c1::SQLClause, c2::SQLClause) =
-    c1[] == c2[]
-
-Base.:(==)(c1::SQLClause, @nospecialize(c2::AbstractSQLClause)) =
-    c1[] == c2
-
-Base.:(==)(@nospecialize(c1::AbstractSQLClause), c2::SQLClause) =
-    c1 == c2[]
+Base.:(==)(s1::SQLSyntax, s2::SQLSyntax) =
+    s1.head == s2.head && s1.tail == s2.tail
 
 @generated function Base.:(==)(c1::C, c2::C) where {C <: AbstractSQLClause}
     exs = Expr[]
@@ -72,8 +55,8 @@ Base.:(==)(@nospecialize(c1::AbstractSQLClause), c2::SQLClause) =
     Expr(:||, :(c1 === c2), Expr(:&&, exs...))
 end
 
-Base.hash(c::SQLClause, h::UInt) =
-    hash(c[], h)
+Base.hash(s::SQLSyntax, h::UInt) =
+    s.tail !== nothing ? hash(s.tail, hash(s.head, h)) : hash(s.head, h)
 
 @generated function Base.hash(c::AbstractSQLClause, h::UInt)
     ex = :(h + $(hash(c)))
@@ -86,36 +69,37 @@ end
 
 # Pretty-printing.
 
-Base.show(io::IO, c::AbstractSQLClause) =
+Base.show(io::IO, c::Union{AbstractSQLClause, SQLSyntax}) =
     print(io, quoteof(c, limit = true))
 
-Base.show(io::IO, ::MIME"text/plain", c::AbstractSQLClause) =
+Base.show(io::IO, ::MIME"text/plain", c::Union{AbstractSQLClause, SQLSyntax}) =
     pprint(io, c)
 
-function PrettyPrinting.quoteof(c::SQLClause; limit::Bool = false, unwrap::Bool = false)
+function PrettyPrinting.quoteof(s::SQLSyntax; limit::Bool = false, head_only::Bool = false)
     ctx = QuoteContext(limit = limit)
-    ex = quoteof(c[], ctx)
-    if unwrap
-        ex = Expr(:ref, ex)
+    ex = quoteof(s, ctx)
+    if head_only
+        ex = Expr(:., ex, QuoteNode(:head))
     end
     ex
 end
 
 PrettyPrinting.quoteof(c::AbstractSQLClause; limit::Bool = false) =
-    quoteof(convert(SQLClause, c), limit = limit, unwrap = true)
+    quoteof(convert(SQLSyntax, c), limit = limit, head_only = true)
 
-PrettyPrinting.quoteof(c::SQLClause, ctx::QuoteContext) =
-    if !ctx.limit
-        quoteof(c[], ctx)
-    else
-        :…
+function PrettyPrinting.quoteof(s::SQLSyntax, ctx::QuoteContext)
+    ex = quoteof(s.head, ctx)
+    if s.tail !== nothing
+        ex = Expr(:call, :|>, !ctx.limit ? quoteof(s.tail, ctx) : :…, ex)
     end
+    ex
+end
 
-PrettyPrinting.quoteof(cs::Vector{SQLClause}, ctx::QuoteContext) =
-    if isempty(cs)
+PrettyPrinting.quoteof(ss::Vector{SQLSyntax}, ctx::QuoteContext) =
+    if isempty(ss)
         Any[]
     elseif !ctx.limit
-        Any[quoteof(c, ctx) for c in cs]
+        Any[quoteof(s, ctx) for s in ss]
     else
         Any[:…]
     end
@@ -128,6 +112,36 @@ PrettyPrinting.quoteof(names::Vector{Symbol}, ctx::QuoteContext) =
     else
         Any[:…]
     end
+
+
+# Support for clause constructors.
+
+abstract type SQLSyntaxCtor{T}
+end
+
+SQLSyntaxCtor{C}(args...; tail = nothing, kws...) where {C<:AbstractSQLClause} =
+    SQLSyntax(tail, C(args...; kws...))
+
+function dissect(scr::Symbol, ::Type{SQLSyntaxCtor{C}}, pats::Vector{Any}) where {C<:AbstractSQLClause}
+    head_pats = Any[]
+    tail_pats = Any[]
+    for pat in pats
+        if pat isa Expr && pat.head === :kw && length(pat.args) == 2 && pat.args[1] === :tail
+            push!(tail_pats, pat.args[2])
+        else
+            push!(head_pats, pat)
+        end
+    end
+    scr_head = gensym(:scr_head)
+    head_ex = Expr(:&&, :($scr_head isa $C), Any[dissect(scr_head, pat) for pat in head_pats]...)
+    ex = Expr(:&&, :($scr isa SQLSyntax), :(local $scr_head = $scr.head; $head_ex))
+    if !isempty(tail_pats)
+        scr_tail = gensym(:scr_tail)
+        tail_ex = Expr(:&&, Any[dissect(scr_tail, pat) for pat in tail_pats]...)
+        push!(ex.args, :(local $scr_tail = $scr.tail; $tail_ex))
+    end
+    ex
+end
 
 
 # Concrete clause types.

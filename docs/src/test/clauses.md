@@ -3,33 +3,33 @@
     using FunSQL:
         AGG, AS, ASC, DESC, FROM, FUN, GROUP, HAVING, ID, JOIN, LIMIT, LIT,
         NOTE, ORDER, PARTITION, SELECT, SORT, UNION, VALUES, VAR, WHERE,
-        WINDOW, WITH, pack, render
+        WINDOW, WITH, SQLTable, pack, render
 
-The syntactic structure of a SQL query is represented as a tree of `SQLClause`
-objects.  Different types of clauses are created by specialized constructors
+The syntactic structure of a SQL query is represented as a tree of `SQLSyntax`
+objects.  Different types of syntax nodes are created by specialized constructors
 and connected using the chain (`|>`) operator.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         SELECT(:person_id, :year_of_birth)
     #-> (…) |> SELECT(…)
 
-Displaying a `SQLClause` object shows how it was constructed.
+Displaying a `SQLSyntax` object shows how it was constructed.
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth))
 
-A `SQLClause` object wraps a concrete clause object, which can be accessed
-using the indexing operator.
+A `SQLSyntax` object is a linked list consisting of a concrete `head` clause
+and an optional `tail`.
 
-    c[]
-    #-> ((…) |> SELECT(…))[]
+    display(s.head)
+    #-> SELECT(ID(:person_id), ID(:year_of_birth)).head
 
-    display(c[])
-    #-> (ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth)))[]
+    display(s.tail)
+    #-> ID(:person) |> FROM()
 
 To generate SQL, we use function `render()`.
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT
       "person_id",
@@ -42,17 +42,17 @@ To generate SQL, we use function `render()`.
 
 A SQL literal is created using a `LIT()` constructor.
 
-    c = LIT("SQL is fun!")
+    s = LIT("SQL is fun!")
     #-> LIT("SQL is fun!")
 
 Values of certain Julia data types are automatically converted to SQL
-literals when they are used in the context of a SQL clause.
+literals when they are used as arguments of clause constructors.
 
     using Dates
 
-    c = SELECT(missing, true, 42, "SQL is fun!", Date(2000))
+    s = SELECT(missing, true, 42, "SQL is fun!", Date(2000))
 
-    display(c)
+    display(s)
     #=>
     SELECT(LIT(missing),
            LIT(true),
@@ -61,7 +61,7 @@ literals when they are used in the context of a SQL clause.
            LIT(Dates.Date("2000-01-01")))
     =#
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT
       NULL,
@@ -73,21 +73,21 @@ literals when they are used in the context of a SQL clause.
 
 Some values may render differently depending on the dialect.
 
-    c = LIT(false)
+    s = LIT(false)
 
-    print(render(c, dialect = :sqlserver))
+    print(render(s, dialect = :sqlserver))
     #-> (1 = 0)
 
 A quote character in a string literal is represented by a pair of quotes.
 
-    c = LIT("O'Hare")
+    s = LIT("O'Hare")
 
-    print(render(c))
+    print(render(s))
     #-> 'O''Hare'
 
 Some dialects use backslash to escape quote characters.
 
-    print(render(c, dialect = :spark))
+    print(render(s, dialect = :spark))
     #-> 'O\'Hare'
 
 
@@ -95,46 +95,65 @@ Some dialects use backslash to escape quote characters.
 
 A SQL identifier is created with `ID()` constructor.
 
-    c = ID(:person)
+    s = ID(:person)
     #-> ID(:person)
 
-    display(c)
+    display(s)
     #-> ID(:person)
 
-    print(render(c))
+    print(render(s))
     #-> "person"
 
 Serialization of an identifier depends on the SQL dialect.
 
-    print(render(c, dialect = :sqlserver))
+    print(render(s, dialect = :sqlserver))
     #-> [person]
 
 A quote character in an identifier is properly escaped.
 
-    c = ID("year of \"birth\"")
+    s = ID("year of \"birth\"")
 
-    print(render(c))
+    print(render(s))
     #-> "year of ""birth"""
 
 A qualified identifier is created using the chain operator.
 
-    c = ID(:person) |> ID(:year_of_birth)
+    s = ID(:person) |> ID(:year_of_birth)
     #-> (…) |> ID(:year_of_birth)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> ID(:year_of_birth)
 
-    print(render(c))
+    print(render(s))
     #-> "person"."year_of_birth"
 
-Symbols and pairs of symbols are automatically converted to SQL identifiers
-when they are used in the context of a SQL clause.
+There are several shorthands for creating qualified identifiers.
 
-    c = FROM(:p => :person) |> SELECT((:p, :person_id))
-    display(c)
+    display(ID(:public, :person))
+    #-> ID(:public) |> ID(:person)
+
+    display(ID(:public, :person, :year_of_birth))
+    #-> ID(:public) |> ID(:person) |> ID(:year_of_birth)
+
+    display(ID([:public, :person], :year_of_birth))
+    #-> ID(:public) |> ID(:person) |> ID(:year_of_birth)
+
+    t = SQLTable(qualifiers = [:public], :person, :person_id, :year_of_birth)
+
+    display(ID(t))
+    #-> ID(:public) |> ID(:person)
+
+    display(FROM(t))
+    #-> ID(:public) |> ID(:person) |> FROM()
+
+Symbols and pairs of symbols are automatically converted to SQL identifiers
+when they are used as arguments of clause constructors.
+
+    s = FROM(:p => :person) |> SELECT((:p, :person_id))
+    display(s)
     #-> ID(:person) |> AS(:p) |> FROM() |> SELECT(ID(:p) |> ID(:person_id))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "p"."person_id"
     FROM "person" AS "p"
@@ -145,34 +164,34 @@ when they are used in the context of a SQL clause.
 
 Placeholder parameters to a SQL query are created with `VAR()` constructor.
 
-    c = VAR(:YEAR)
+    s = VAR(:YEAR)
     #-> VAR(:YEAR)
 
-    display(c)
+    display(s)
     #-> VAR(:YEAR)
 
-    print(render(c))
+    print(render(s))
     #-> :YEAR
 
 Rendering of a SQL parameter depends on the chosen dialect.
 
-    print(render(c, dialect = :sqlite))
+    print(render(s, dialect = :sqlite))
     #-> ?1
 
-    print(render(c, dialect = :postgresql))
+    print(render(s, dialect = :postgresql))
     #-> $1
 
-    print(render(c, dialect = :mysql))
+    print(render(s, dialect = :mysql))
     #-> ?
 
 Function `pack()` converts named parameters to a positional form.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         WHERE(FUN(:or, FUN("=", :gender_concept_id, VAR(:GENDER)),
                        FUN("=", :gender_source_concept_id, VAR(:GENDER)))) |>
         SELECT(:person_id)
 
-    sql = render(c, dialect = :sqlite)
+    sql = render(s, dialect = :sqlite)
 
     print(sql)
     #=>
@@ -195,7 +214,7 @@ Function `pack()` converts named parameters to a positional form.
 If the dialect does not support numbered parameters, `pack()` may need to
 duplicate parameter values.
 
-    sql = render(c, dialect = :mysql)
+    sql = render(s, dialect = :mysql)
 
     print(sql)
     #=>
@@ -214,151 +233,151 @@ duplicate parameter values.
 
 An application of a SQL function is created with `FUN()` constructor.
 
-    c = FUN(:concat, :city, ", ", :state)
+    s = FUN(:concat, :city, ", ", :state)
     #-> FUN("concat", …)
 
-    display(c)
+    display(s)
     #-> FUN("concat", ID(:city), LIT(", "), ID(:state))
 
-    print(render(c))
+    print(render(s))
     #-> concat("city", ', ', "state")
 
-    c = FUN(:now)
+    s = FUN(:now)
     #-> FUN("now")
 
-    print(render(c))
+    print(render(s))
     #-> now()
 
 `FUN()` with an empty name generates a comma-separated list of values.
 
-    c = FUN("", "60614", "60615")
+    s = FUN("", "60614", "60615")
 
-    print(render(c))
+    print(render(s))
     #-> ('60614', '60615')
 
 A name that contains only symbol characters is considered an operator.
 
-    c = FUN("||", :city, ", ", :state)
+    s = FUN("||", :city, ", ", :state)
 
-    print(render(c))
+    print(render(s))
     #-> ("city" || ', ' || "state")
 
 To create an operator containing alphabetical characters, add a leading or a
 trailing space to its name.
 
-    c = FUN(" IS DISTINCT FROM ", :zip, missing)
+    s = FUN(" IS DISTINCT FROM ", :zip, missing)
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" IS DISTINCT FROM NULL)
 
-    c = FUN(" IS DISTINCT FROM", :zip, missing)
+    s = FUN(" IS DISTINCT FROM", :zip, missing)
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" IS DISTINCT FROM NULL)
 
-    c = FUN(" COLLATE \"C\"", :zip)
+    s = FUN(" COLLATE \"C\"", :zip)
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" COLLATE "C")
 
-    c = FUN("DATE ", "2000-01-01")
+    s = FUN("DATE ", "2000-01-01")
 
-    print(render(c))
+    print(render(s))
     #-> (DATE '2000-01-01')
 
-    c = FUN("CURRENT_TIME ")
+    s = FUN("CURRENT_TIME ")
 
-    print(render(c))
+    print(render(s))
     #-> CURRENT_TIME
 
-    c = FUN(" CURRENT_TIME")
+    s = FUN(" CURRENT_TIME")
 
-    print(render(c))
+    print(render(s))
     #-> CURRENT_TIME
 
 To create a SQL expression with irregular syntax, supply `FUN()` with a
 *template* string.
 
-    c = FUN("SUBSTRING(? FROM ? FOR ?)", :zip, 1, 3)
+    s = FUN("SUBSTRING(? FROM ? FOR ?)", :zip, 1, 3)
 
-    print(render(c))
+    print(render(s))
     #-> SUBSTRING("zip" FROM 1 FOR 3)
 
-    c = FUN("?::date", "2000-01-01")
+    s = FUN("?::date", "2000-01-01")
 
-    print(render(c))
+    print(render(s))
     #-> '2000-01-01'::date
 
 Write `??` to  use `?` in an operator name or a template.
 
-    c = FUN("??-", "(1,0)", "(0,0)")
+    s = FUN("??-", "(1,0)", "(0,0)")
 
-    print(render(c))
+    print(render(s))
     #-> ('(1,0)' ?- '(0,0)')
 
-    c = FUN("('(?,?)'::point ??| '(?,?)'::point)", 0, 1, 0, 0)
+    s = FUN("('(?,?)'::point ??| '(?,?)'::point)", 0, 1, 0, 0)
 
-    print(render(c))
+    print(render(s))
     #-> ('(0,1)'::point ?| '(0,0)'::point)
 
 Some functions and operators have specialized serializers.
 
-    c = FUN(:and)
+    s = FUN(:and)
 
-    print(render(c))
+    print(render(s))
     #-> TRUE
 
-    c = FUN(:and, true)
+    s = FUN(:and, true)
 
-    print(render(c))
+    print(render(s))
     #-> TRUE
 
-    c = FUN(:and, true, false)
+    s = FUN(:and, true, false)
 
-    print(render(c))
+    print(render(s))
     #-> (TRUE AND FALSE)
 
-    c = FUN(:or)
+    s = FUN(:or)
 
-    print(render(c))
+    print(render(s))
     #-> FALSE
 
-    c = FUN(:or, true)
+    s = FUN(:or, true)
 
-    print(render(c))
+    print(render(s))
     #-> TRUE
 
-    c = FUN(:or, true, false)
+    s = FUN(:or, true, false)
 
-    print(render(c))
+    print(render(s))
     #-> (TRUE OR FALSE)
 
-    c = FUN(:not, true)
+    s = FUN(:not, true)
 
-    print(render(c))
+    print(render(s))
     #-> (NOT TRUE)
 
-    c = FUN(:concat, :city, ", ", :state)
+    s = FUN(:concat, :city, ", ", :state)
 
-    print(render(c))
+    print(render(s))
     #-> concat("city", ', ', "state")
 
-    print(render(c, dialect = :sqlite))
+    print(render(s, dialect = :sqlite))
     #-> ("city" || ', ' || "state")
 
-    c = FUN(:in, :zip)
+    s = FUN(:in, :zip)
 
-    print(render(c))
+    print(render(s))
     #-> FALSE
 
-    c = FUN(:in, :zip, "60614", "60615")
+    s = FUN(:in, :zip, "60614", "60615")
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" IN ('60614', '60615'))
 
-    c = SELECT(FUN(:in, "60615", FROM(:location) |> SELECT(:zip)))
+    s = SELECT(FUN(:in, "60615", FROM(:location) |> SELECT(:zip)))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT ('60615' IN (
       SELECT "zip"
@@ -366,19 +385,19 @@ Some functions and operators have specialized serializers.
     ))
     =#
 
-    c = FUN(:not_in, :zip)
+    s = FUN(:not_in, :zip)
 
-    print(render(c))
+    print(render(s))
     #-> TRUE
 
-    c = FUN(:not_in, :zip, "60614", "60615")
+    s = FUN(:not_in, :zip, "60614", "60615")
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" NOT IN ('60614', '60615'))
 
-    c = SELECT(FUN(:not_in, "60615", FROM(:location) |> SELECT(:zip)))
+    s = SELECT(FUN(:not_in, "60615", FROM(:location) |> SELECT(:zip)))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT ('60615' NOT IN (
       SELECT "zip"
@@ -386,11 +405,11 @@ Some functions and operators have specialized serializers.
     ))
     =#
 
-    c = SELECT(FUN(:exists, FROM(:location) |>
+    s = SELECT(FUN(:exists, FROM(:location) |>
                             WHERE(FUN("=", :zip, "60615")) |>
                             SELECT(missing)))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT (EXISTS (
       SELECT NULL
@@ -399,11 +418,11 @@ Some functions and operators have specialized serializers.
     ))
     =#
 
-    c = SELECT(FUN(:not_exists, FROM(:location) |>
+    s = SELECT(FUN(:not_exists, FROM(:location) |>
                                 WHERE(FUN("=", :zip, "60615")) |>
                                 SELECT(missing)))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT (NOT EXISTS (
       SELECT NULL
@@ -412,69 +431,69 @@ Some functions and operators have specialized serializers.
     ))
     =#
 
-    c = FUN(:is_null, :zip)
+    s = FUN(:is_null, :zip)
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" IS NULL)
 
-    c = FUN(:is_not_null, :zip)
+    s = FUN(:is_not_null, :zip)
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" IS NOT NULL)
 
-    c = FUN(:like, :zip, "606%")
+    s = FUN(:like, :zip, "606%")
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" LIKE '606%')
 
-    c = FUN(:not_like, :zip, "606%")
+    s = FUN(:not_like, :zip, "606%")
 
-    print(render(c))
+    print(render(s))
     #-> ("zip" NOT LIKE '606%')
 
-    c = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer")
+    s = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer")
 
-    print(render(c))
+    print(render(s))
     #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' END)
 
-    c = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer", "millenial")
+    s = FUN(:case, FUN("<", :year_of_birth, 1970), "boomer", "millenial")
 
-    print(render(c))
+    print(render(s))
     #-> (CASE WHEN ("year_of_birth" < 1970) THEN 'boomer' ELSE 'millenial' END)
 
-    c = FUN(:cast, "2020-01-01", "DATE")
+    s = FUN(:cast, "2020-01-01", "DATE")
 
-    print(render(c))
+    print(render(s))
     #-> CAST('2020-01-01' AS DATE)
 
-    c = FUN(:extract, "YEAR", c)
+    s = FUN(:extract, "YEAR", s)
 
-    print(render(c))
+    print(render(s))
     #-> EXTRACT(YEAR FROM CAST('2020-01-01' AS DATE))
 
-    c = FUN(:between, :year_of_birth, 1950, 2000)
+    s = FUN(:between, :year_of_birth, 1950, 2000)
 
-    print(render(c))
+    print(render(s))
     #-> ("year_of_birth" BETWEEN 1950 AND 2000)
 
-    c = FUN(:not_between, :year_of_birth, 1950, 2000)
+    s = FUN(:not_between, :year_of_birth, 1950, 2000)
 
-    print(render(c))
+    print(render(s))
     #-> ("year_of_birth" NOT BETWEEN 1950 AND 2000)
 
-    c = FUN(:current_date)
+    s = FUN(:current_date)
 
-    print(render(c))
+    print(render(s))
     #-> CURRENT_DATE
 
-    c = FUN(:current_date, 1)
+    s = FUN(:current_date, 1)
 
-    print(render(c))
+    print(render(s))
     #-> CURRENT_DATE(1)
 
-    c = FUN(:current_timestamp)
+    s = FUN(:current_timestamp)
 
-    print(render(c))
+    print(render(s))
     #-> CURRENT_TIMESTAMP
 
 
@@ -482,112 +501,111 @@ Some functions and operators have specialized serializers.
 
 Aggregate SQL functions have a specialized `AGG()` constructor.
 
-    c = AGG(:max, :year_of_birth)
+    s = AGG(:max, :year_of_birth)
     #-> AGG("max", …)
 
-    display(c)
+    display(s)
     #-> AGG("max", ID(:year_of_birth))
 
-    print(render(c))
+    print(render(s))
     #-> max("year_of_birth")
 
 Some well-known aggregate functions with irregular syntax are supported.
 
-    c = AGG(:count)
+    s = AGG(:count)
     #-> AGG("count")
 
-    display(c)
+    display(s)
     #-> AGG("count")
 
-    print(render(c))
+    print(render(s))
     #-> count(*)
 
-    c = AGG(:count_distinct, :zip)
+    s = AGG(:count_distinct, :zip)
 
-    print(render(c))
+    print(render(s))
     #-> count(DISTINCT "zip")
 
 Otherwise, a template name can be used.
 
-    c = AGG("string_agg(DISTINCT ?, ',' ORDER BY ?)", :zip, :zip)
+    s = AGG("string_agg(DISTINCT ?, ',' ORDER BY ?)", :zip, :zip)
 
-    print(render(c))
+    print(render(s))
     #-> string_agg(DISTINCT "zip", ',' ORDER BY "zip")
 
 An aggregate function may have a `FILTER` modifier.
 
-    c = AGG(:count, filter = FUN(">", :year_of_birth, 1970))
+    s = AGG(:count, filter = FUN(">", :year_of_birth, 1970))
 
-    display(c)
+    display(s)
     #-> AGG("count", filter = FUN(">", ID(:year_of_birth), LIT(1970)))
 
-    print(render(c))
+    print(render(s))
     #-> (count(*) FILTER (WHERE ("year_of_birth" > 1970)))
 
 A window function can be created by adding an `OVER` modifier.
 
-    c = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]) |>
-        AGG("row_number")
+    s = AGG("row_number", over = PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
 
-    display(c)
+    display(s)
     #=>
     AGG("row_number",
         over = PARTITION(ID(:year_of_birth),
                          order_by = [ID(:month_of_birth), ID(:day_of_birth)]))
     =#
 
-    print(render(c))
+    print(render(s))
     #-> (row_number() OVER (PARTITION BY "year_of_birth" ORDER BY "month_of_birth", "day_of_birth"))
 
-    c = AGG("row_number", over = :w)
+    s = AGG("row_number", over = :w)
 
-    print(render(c))
+    print(render(s))
     #-> (row_number() OVER ("w"))
 
 The `PARTITION` clause may contain a frame specification including the frame
 mode, frame endpoints, and frame exclusion.
 
-    c = PARTITION(order_by = [:year_of_birth], frame = :groups)
+    s = PARTITION(order_by = [:year_of_birth], frame = :groups)
     #-> PARTITION(order_by = […], frame = :GROUPS)
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" GROUPS UNBOUNDED PRECEDING
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :rows,))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :rows,))
     #-> PARTITION(order_by = […], frame = :ROWS)
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" ROWS UNBOUNDED PRECEDING
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -1, finish = 1, exclude = :current_row))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -1, finish = 1, exclude = :current_row))
     #-> PARTITION(order_by = […], frame = (mode = :RANGE, start = -1, finish = 1, exclude = :CURRENT_ROW))
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING EXCLUDE CURRENT ROW
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -Inf, finish = 0))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = -Inf, finish = 0))
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = 0, finish = Inf))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, start = 0, finish = Inf))
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :no_others))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :no_others))
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE NO OTHERS
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :group))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :group))
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE GROUP
 
-    c = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :ties))
+    s = PARTITION(order_by = [:year_of_birth], frame = (mode = :range, exclude = :ties))
 
-    print(render(c))
+    print(render(s))
     #-> ORDER BY "year_of_birth" RANGE UNBOUNDED PRECEDING EXCLUDE TIES
 
 
@@ -595,22 +613,22 @@ mode, frame endpoints, and frame exclusion.
 
 An `AS` clause is created with `AS()` constructor.
 
-    c = ID(:person) |> AS(:p)
+    s = ID(:person) |> AS(:p)
     #-> (…) |> AS(:p)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> AS(:p)
 
-    print(render(c))
+    print(render(s))
     #-> "person" AS "p"
 
 A pair expression is automatically converted to an `AS` clause.
 
-    c = FROM(:p => :person)
-    display(c)
+    s = FROM(:p => :person)
+    display(s)
     #-> ID(:person) |> AS(:p) |> FROM()
 
-    print(render(c |> SELECT((:p, :person_id))))
+    print(render(s |> SELECT((:p, :person_id))))
     #=>
     SELECT "p"."person_id"
     FROM "person" AS "p"
@@ -621,13 +639,13 @@ A pair expression is automatically converted to an `AS` clause.
 
 A `FROM` clause is created with `FROM()` constructor.
 
-    c = FROM(:person)
+    s = FROM(:person)
     #-> (…) |> FROM()
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM()
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -640,13 +658,13 @@ A `SELECT` clause is created with `SELECT()` constructor.  While in SQL,
 `SELECT` typically opens a query, in FunSQL, `SELECT()` should be placed
 at the end of a clause chain.
 
-    c = :person |> FROM() |> SELECT(:person_id, :year_of_birth)
+    s = :person |> FROM() |> SELECT(:person_id, :year_of_birth)
     #-> (…) |> SELECT(…)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> SELECT(ID(:person_id), ID(:year_of_birth))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT
       "person_id",
@@ -656,13 +674,13 @@ at the end of a clause chain.
 
 The `DISTINCT` modifier can be added from the constructor.
 
-    c = FROM(:location) |> SELECT(distinct = true, :zip)
+    s = FROM(:location) |> SELECT(distinct = true, :zip)
     #-> (…) |> SELECT(…)
 
-    display(c)
+    display(s)
     #-> ID(:location) |> FROM() |> SELECT(distinct = true, ID(:zip))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT DISTINCT "zip"
     FROM "location"
@@ -670,22 +688,22 @@ The `DISTINCT` modifier can be added from the constructor.
 
 A `TOP` modifier could be specified.
 
-    c = FROM(:person) |> SELECT(top = 1, :person_id)
+    s = FROM(:person) |> SELECT(top = 1, :person_id)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> SELECT(top = 1, ID(:person_id))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT TOP 1 "person_id"
     FROM "person"
     =#
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         ORDER(:year_of_birth) |>
         SELECT(top = (limit = 1, with_ties = true), :person_id)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     FROM() |>
@@ -693,7 +711,7 @@ A `TOP` modifier could be specified.
     SELECT(top = (limit = 1, with_ties = true), ID(:person_id))
     =#
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT TOP 1 WITH TIES "person_id"
     FROM "person"
@@ -702,14 +720,14 @@ A `TOP` modifier could be specified.
 
 A `SELECT` clause with an empty list of arguments can be created explicitly.
 
-    c = SELECT(args = [])
+    s = SELECT(args = [])
     #-> SELECT(…)
 
 Rendering a nested `SELECT` clause adds parentheses around it.
 
-    c = :location |> FROM() |> SELECT(:state, :zip) |> FROM() |> SELECT(:zip)
+    s = :location |> FROM() |> SELECT(:state, :zip) |> FROM() |> SELECT(:zip)
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "zip"
     FROM (
@@ -725,13 +743,13 @@ Rendering a nested `SELECT` clause adds parentheses around it.
 
 A `WHERE` clause is created with `WHERE()` constructor.
 
-    c = FROM(:person) |> WHERE(FUN(">", :year_of_birth, 2000))
+    s = FROM(:person) |> WHERE(FUN(">", :year_of_birth, 2000))
     #-> (…) |> WHERE(…)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> WHERE(FUN(">", ID(:year_of_birth), LIT(2000)))
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -744,13 +762,13 @@ A `WHERE` clause is created with `WHERE()` constructor.
 A `LIMIT/OFFSET` (or `OFFSET/FETCH`) clause is created with `LIMIT()`
 constructor.
 
-    c = FROM(:person) |> LIMIT(10)
+    s = FROM(:person) |> LIMIT(10)
     #-> (…) |> LIMIT(10)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> LIMIT(10)
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -759,28 +777,28 @@ constructor.
 
 Many SQL dialects represent `LIMIT` clause with a non-standard syntax.
 
-    print(render(c |> SELECT(:person_id), dialect = :mysql))
+    print(render(s |> SELECT(:person_id), dialect = :mysql))
     #=>
     SELECT `person_id`
     FROM `person`
     LIMIT 10
     =#
 
-    print(render(c |> SELECT(:person_id), dialect = :postgresql))
+    print(render(s |> SELECT(:person_id), dialect = :postgresql))
     #=>
     SELECT "person_id"
     FROM "person"
     LIMIT 10
     =#
 
-    print(render(c |> SELECT(:person_id), dialect = :sqlite))
+    print(render(s |> SELECT(:person_id), dialect = :sqlite))
     #=>
     SELECT "person_id"
     FROM "person"
     LIMIT 10
     =#
 
-    print(render(c |> SELECT(:person_id), dialect = :sqlserver))
+    print(render(s |> SELECT(:person_id), dialect = :sqlserver))
     #=>
     SELECT TOP 10 [person_id]
     FROM [person]
@@ -789,12 +807,12 @@ Many SQL dialects represent `LIMIT` clause with a non-standard syntax.
 Both limit (the number of rows) and offset (number of rows to skip) can
 be specified.
 
-    c = FROM(:person) |> LIMIT(100, 10) |> SELECT(:person_id)
+    s = FROM(:person) |> LIMIT(100, 10) |> SELECT(:person_id)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> LIMIT(100, 10) |> SELECT(ID(:person_id))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -802,14 +820,14 @@ be specified.
     FETCH NEXT 10 ROWS ONLY
     =#
 
-    print(render(c, dialect = :mysql))
+    print(render(s, dialect = :mysql))
     #=>
     SELECT `person_id`
     FROM `person`
     LIMIT 100, 10
     =#
 
-    print(render(c, dialect = :postgresql))
+    print(render(s, dialect = :postgresql))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -817,7 +835,7 @@ be specified.
     OFFSET 100
     =#
 
-    print(render(c, dialect = :sqlite))
+    print(render(s, dialect = :sqlite))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -825,7 +843,7 @@ be specified.
     OFFSET 100
     =#
 
-    print(render(c, dialect = :sqlserver))
+    print(render(s, dialect = :sqlserver))
     #=>
     SELECT [person_id]
     FROM [person]
@@ -835,9 +853,9 @@ be specified.
 
 Alternatively, both limit and offset can be specified as a unit range.
 
-    c = FROM(:person) |> LIMIT(101:110)
+    s = FROM(:person) |> LIMIT(101:110)
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -847,33 +865,33 @@ Alternatively, both limit and offset can be specified as a unit range.
 
 It is possible to specify the offset without the limit.
 
-    c = FROM(:person) |> LIMIT(offset = 100) |> SELECT(:person_id)
+    s = FROM(:person) |> LIMIT(offset = 100) |> SELECT(:person_id)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> LIMIT(100, nothing) |> SELECT(ID(:person_id))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "person_id"
     FROM "person"
     OFFSET 100 ROWS
     =#
 
-    print(render(c, dialect = :mysql))
+    print(render(s, dialect = :mysql))
     #=>
     SELECT `person_id`
     FROM `person`
     LIMIT 100, 18446744073709551615
     =#
 
-    print(render(c, dialect = :postgresql))
+    print(render(s, dialect = :postgresql))
     #=>
     SELECT "person_id"
     FROM "person"
     OFFSET 100
     =#
 
-    print(render(c, dialect = :sqlite))
+    print(render(s, dialect = :sqlite))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -881,7 +899,7 @@ It is possible to specify the offset without the limit.
     OFFSET 100
     =#
 
-    print(render(c, dialect = :sqlserver))
+    print(render(s, dialect = :sqlserver))
     #=>
     SELECT [person_id]
     FROM [person]
@@ -890,12 +908,12 @@ It is possible to specify the offset without the limit.
 
 It is possible to specify the limit with ties.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         ORDER(:year_of_birth) |>
         LIMIT(10, with_ties = true) |>
         SELECT(:person_id)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     FROM() |>
@@ -904,7 +922,7 @@ It is possible to specify the limit with ties.
     SELECT(ID(:person_id))
     =#
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -915,7 +933,7 @@ It is possible to specify the limit with ties.
 SQL Server prohibits `ORDER BY` without limiting in a nested query, so FunSQL
 automatically adds `OFFSET 0` clause to the query.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         ORDER(:year_of_birth) |>
         SELECT(:person_id, :gender_concept_id) |>
         AS(:person) |>
@@ -923,7 +941,7 @@ automatically adds `OFFSET 0` clause to the query.
         WHERE(FUN("=", :gender_concept_id, 8507)) |>
         SELECT(:person_id)
 
-    print(render(c, dialect = :sqlserver))
+    print(render(s, dialect = :sqlserver))
     #=>
     SELECT [person_id]
     FROM (
@@ -942,11 +960,11 @@ automatically adds `OFFSET 0` clause to the query.
 
 A `JOIN` clause is created with `JOIN()` constructor.
 
-    c = FROM(:p => :person) |>
+    s = FROM(:p => :person) |>
         JOIN(:l => :location, FUN("=", (:p, :location_id), (:l, :location_id)), left = true)
     #-> (…) |> JOIN(…)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     AS(:p) |>
@@ -956,7 +974,7 @@ A `JOIN` clause is created with `JOIN()` constructor.
          left = true)
     =#
 
-    print(render(c |> SELECT((:p, :person_id), (:l, :state))))
+    print(render(s |> SELECT((:p, :person_id), (:l, :state))))
     #=>
     SELECT
       "p"."person_id",
@@ -967,11 +985,11 @@ A `JOIN` clause is created with `JOIN()` constructor.
 
 Different types of `JOIN` are supported.
 
-    c = FROM(:p => :person) |>
+    s = FROM(:p => :person) |>
         JOIN(:op => :observation_period,
              on = FUN("=", (:p, :person_id), (:op, :person_id)))
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     AS(:p) |>
@@ -980,7 +998,7 @@ Different types of `JOIN` are supported.
          FUN("=", ID(:p) |> ID(:person_id), ID(:op) |> ID(:person_id)))
     =#
 
-    print(render(c |> SELECT((:p, :person_id), (:op, :observation_period_start_date))))
+    print(render(s |> SELECT((:p, :person_id), (:op, :observation_period_start_date))))
     #=>
     SELECT
       "p"."person_id",
@@ -989,12 +1007,12 @@ Different types of `JOIN` are supported.
     JOIN "observation_period" AS "op" ON ("p"."person_id" = "op"."person_id")
     =#
 
-    c = FROM(:l => :location) |>
+    s = FROM(:l => :location) |>
         JOIN(:cs => :care_site,
              on = FUN("=", (:l, :location_id), (:cs, :location_id)),
              right = true)
 
-    display(c)
+    display(s)
     #=>
     ID(:location) |>
     AS(:l) |>
@@ -1004,7 +1022,7 @@ Different types of `JOIN` are supported.
          right = true)
     =#
 
-    print(render(c |> SELECT((:cs, :care_site_name), (:l, :state))))
+    print(render(s |> SELECT((:cs, :care_site_name), (:l, :state))))
     #=>
     SELECT
       "cs"."care_site_name",
@@ -1013,13 +1031,13 @@ Different types of `JOIN` are supported.
     RIGHT JOIN "care_site" AS "cs" ON ("l"."location_id" = "cs"."location_id")
     =#
 
-    c = FROM(:p => :person) |>
+    s = FROM(:p => :person) |>
         JOIN(:pr => :provider,
              on = FUN("=", (:p, :provider_id), (:pr, :provider_id)),
              left = true,
              right = true)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     AS(:p) |>
@@ -1030,7 +1048,7 @@ Different types of `JOIN` are supported.
          right = true)
     =#
 
-    print(render(c |> SELECT((:p, :person_id), (:pr, :npi))))
+    print(render(s |> SELECT((:p, :person_id), (:pr, :npi))))
     #=>
     SELECT
       "p"."person_id",
@@ -1041,11 +1059,11 @@ Different types of `JOIN` are supported.
 
 To render a `CROSS JOIN`, set the join condition to `true`.
 
-    c = FROM(:p1 => :person) |>
+    s = FROM(:p1 => :person) |>
         JOIN(:p2 => :person,
              on = true)
 
-    print(render(c |> SELECT((:p1, :person_id), (:p2, :person_id))))
+    print(render(s |> SELECT((:p1, :person_id), (:p2, :person_id))))
     #=>
     SELECT
       "p1"."person_id",
@@ -1056,7 +1074,7 @@ To render a `CROSS JOIN`, set the join condition to `true`.
 
 A `JOIN LATERAL` clause can be created.
 
-    c = FROM(:p => :person) |>
+    s = FROM(:p => :person) |>
         JOIN(:vo => FROM(:vo => :visit_occurrence) |>
                     WHERE(FUN("=", (:p, :person_id), (:vo, :person_id))) |>
                     ORDER((:vo, :visit_start_date) |> DESC()) |>
@@ -1066,7 +1084,7 @@ A `JOIN LATERAL` clause can be created.
              left = true,
              lateral = true)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     AS(:p) |>
@@ -1084,7 +1102,7 @@ A `JOIN LATERAL` clause can be created.
          lateral = true)
     =#
 
-    print(render(c |> SELECT((:p, :person_id), (:vo, :visit_start_date))))
+    print(render(s |> SELECT((:p, :person_id), (:vo, :visit_start_date))))
     #=>
     SELECT
       "p"."person_id",
@@ -1104,13 +1122,13 @@ A `JOIN LATERAL` clause can be created.
 
 A `GROUP BY` clause is created with `GROUP` constructor.
 
-    c = FROM(:person) |> GROUP(:year_of_birth)
+    s = FROM(:person) |> GROUP(:year_of_birth)
     #-> (…) |> GROUP(…)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> GROUP(ID(:year_of_birth))
 
-    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    print(render(s |> SELECT(:year_of_birth, AGG(:count))))
     #=>
     SELECT
       "year_of_birth",
@@ -1122,10 +1140,10 @@ A `GROUP BY` clause is created with `GROUP` constructor.
 A `GROUP` constructor accepts an empty partition list, in which case, it is not
 rendered.
 
-    c = FROM(:person) |> GROUP()
+    s = FROM(:person) |> GROUP()
     #-> (…) |> GROUP()
 
-    print(render(c |> SELECT(AGG(:count))))
+    print(render(s |> SELECT(AGG(:count))))
     #=>
     SELECT count(*)
     FROM "person"
@@ -1133,10 +1151,10 @@ rendered.
 
 `GROUP` can accept the grouping mode or a vector of grouping sets.
 
-    c = FROM(:person) |> GROUP(:year_of_birth, sets = :ROLLUP)
+    s = FROM(:person) |> GROUP(:year_of_birth, sets = :ROLLUP)
     #-> (…) |> GROUP(…, sets = :ROLLUP)
 
-    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    print(render(s |> SELECT(:year_of_birth, AGG(:count))))
     #=>
     SELECT
       "year_of_birth",
@@ -1145,10 +1163,10 @@ rendered.
     GROUP BY ROLLUP("year_of_birth")
     =#
 
-    c = FROM(:person) |> GROUP(:year_of_birth, sets = :CUBE)
+    s = FROM(:person) |> GROUP(:year_of_birth, sets = :CUBE)
     #-> (…) |> GROUP(…, sets = :CUBE)
 
-    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    print(render(s |> SELECT(:year_of_birth, AGG(:count))))
     #=>
     SELECT
       "year_of_birth",
@@ -1157,10 +1175,10 @@ rendered.
     GROUP BY CUBE("year_of_birth")
     =#
 
-    c = FROM(:person) |> GROUP(:year_of_birth, sets = [[1], Int[]])
+    s = FROM(:person) |> GROUP(:year_of_birth, sets = [[1], Int[]])
     #-> (…) |> GROUP(…, sets = [[1], Int64[]])
 
-    print(render(c |> SELECT(:year_of_birth, AGG(:count))))
+    print(render(s |> SELECT(:year_of_birth, AGG(:count))))
     #=>
     SELECT
       "year_of_birth",
@@ -1182,12 +1200,12 @@ rendered.
 
 A `HAVING` clause is created with `HAVING()` constructor.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         GROUP(:year_of_birth) |>
         HAVING(FUN(">", AGG(:count), 10))
     #-> (…) |> HAVING(…)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     FROM() |>
@@ -1195,7 +1213,7 @@ A `HAVING` clause is created with `HAVING()` constructor.
     HAVING(FUN(">", AGG("count"), LIT(10)))
     =#
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -1208,13 +1226,13 @@ A `HAVING` clause is created with `HAVING()` constructor.
 
 An `ORDER BY` clause is created with `ORDER` constructor.
 
-    c = FROM(:person) |> ORDER(:year_of_birth)
+    s = FROM(:person) |> ORDER(:year_of_birth)
     #-> (…) |> ORDER(…)
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> ORDER(ID(:year_of_birth))
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -1224,10 +1242,10 @@ An `ORDER BY` clause is created with `ORDER` constructor.
 An `ORDER` constructor accepts an empty list, in which case, it is not
 rendered.
 
-    c = FROM(:person) |> ORDER()
+    s = FROM(:person) |> ORDER()
     #-> (…) |> ORDER()
 
-    print(render(c |> SELECT(:person_id)))
+    print(render(s |> SELECT(:person_id)))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -1235,12 +1253,12 @@ rendered.
 
 It is possible to specify ascending or descending order of the sort column.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         ORDER(:year_of_birth |> DESC(nulls = :first),
               :person_id |> ASC()) |>
         SELECT(:person_id)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     FROM() |>
@@ -1249,7 +1267,7 @@ It is possible to specify ascending or descending order of the sort column.
     SELECT(ID(:person_id))
     =#
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -1260,12 +1278,12 @@ It is possible to specify ascending or descending order of the sort column.
 
 Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         ORDER(:year_of_birth |> SORT(:desc, nulls = :last),
               :person_id |> SORT(:asc)) |>
         SELECT(:person_id)
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "person_id"
     FROM "person"
@@ -1279,14 +1297,14 @@ Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
 
 `UNION` and `UNION ALL` clauses are created with `UNION()` constructor.
 
-    c = FROM(:measurement) |>
+    s = FROM(:measurement) |>
         SELECT(:person_id, :date => :measurement_date) |>
         UNION(all = true,
               FROM(:observation) |>
               SELECT(:person_id, :date => :observation_date))
     #-> (…) |> UNION(all = true, …)
 
-    display(c)
+    display(s)
     #=>
     ID(:measurement) |>
     FROM() |>
@@ -1297,7 +1315,7 @@ Instead of `ASC` and `DESC`, a generic `SORT` constructor can be used.
           SELECT(ID(:person_id), ID(:observation_date) |> AS(:date)))
     =#
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT
       "person_id",
@@ -1317,7 +1335,7 @@ A `UNION` clause with no subqueries can be created explicitly.
 
 Rendering a nested `UNION` clause adds parentheses around it.
 
-    c = FROM(:measurement) |>
+    s = FROM(:measurement) |>
         SELECT(:person_id, :date => :measurement_date) |>
         UNION(all = true,
               FROM(:observation) |>
@@ -1327,7 +1345,7 @@ Rendering a nested `UNION` clause adds parentheses around it.
         WHERE(FUN(">", ID(:date), Date(2000))) |>
         SELECT(ID(:person_id))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT "person_id"
     FROM (
@@ -1349,13 +1367,13 @@ Rendering a nested `UNION` clause adds parentheses around it.
 
 A `VALUES` clause is created with `VALUES()` constructor.
 
-    c = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
+    s = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
     #-> VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
 
-    display(c)
+    display(s)
     #-> VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)])
 
-    print(render(c))
+    print(render(s))
     #=>
     VALUES
       ('SQL', 1974),
@@ -1365,7 +1383,7 @@ A `VALUES` clause is created with `VALUES()` constructor.
 
 MySQL has special syntax for rows.
 
-    print(render(c, dialect = :mysql))
+    print(render(s, dialect = :mysql))
     #=>
     VALUES
       ROW('SQL', 1974),
@@ -1376,16 +1394,16 @@ MySQL has special syntax for rows.
 When `VALUES` clause contains a single row, it is emitted on the same
 line.
 
-    c = VALUES([("SQL", 1974)])
+    s = VALUES([("SQL", 1974)])
 
-    print(render(c))
+    print(render(s))
     #-> VALUES ('SQL', 1974)
 
 `VALUES` accepts a vector of scalar values.
 
-    c = VALUES(["SQL", "Julia", "FunSQL"])
+    s = VALUES(["SQL", "Julia", "FunSQL"])
 
-    print(render(c))
+    print(render(s))
     #=>
     VALUES
       'SQL',
@@ -1395,12 +1413,12 @@ line.
 
 When `VALUES` is nested in a `FROM` clause, it is wrapped in parentheses.
 
-    c = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)]) |>
+    s = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)]) |>
         AS(:values, columns = [:name, :year]) |>
         FROM() |>
         SELECT(FUN("*"))
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT *
     FROM (
@@ -1416,12 +1434,12 @@ When `VALUES` is nested in a `FROM` clause, it is wrapped in parentheses.
 
 A `WINDOW` clause is created with `WINDOW()` constructor.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         WINDOW(:w1 => PARTITION(:gender_concept_id),
                :w2 => :w1 |> PARTITION(:year_of_birth, order_by = [:month_of_birth, :day_of_birth]))
     #-> (…) |> WINDOW(…)
 
-    display(c)
+    display(s)
     #=>
     ID(:person) |>
     FROM() |>
@@ -1432,7 +1450,7 @@ A `WINDOW` clause is created with `WINDOW()` constructor.
            AS(:w2))
     =#
 
-    print(render(c |> SELECT(:w1 |> AGG("row_number"), :w2 |> AGG("row_number"))))
+    print(render(s |> SELECT(AGG("row_number", over = :w1), AGG("row_number", over = :w2))))
     #=>
     SELECT
       (row_number() OVER ("w1")),
@@ -1446,13 +1464,13 @@ A `WINDOW` clause is created with `WINDOW()` constructor.
 The `WINDOW()` constructor accepts an empty list of partitions, in which case,
 it is not rendered.
 
-    c = FROM(:person) |>
+    s = FROM(:person) |>
         WINDOW(args = [])
 
-    display(c)
+    display(s)
     #-> ID(:person) |> FROM() |> WINDOW(args = [])
 
-    print(render(c |> SELECT(AGG("row_number", over = PARTITION()))))
+    print(render(s |> SELECT(AGG("row_number", over = PARTITION()))))
     #=>
     SELECT (row_number() OVER ())
     FROM "person"
@@ -1488,12 +1506,12 @@ The `AS` clause that defines a common table expression is created using the
 
 The `WITH` clause is created using the `WITH()` constructor.
 
-    c = FROM(:essential_hypertension_with_descendants) |>
+    s = FROM(:essential_hypertension_with_descendants) |>
         SELECT(*) |>
         WITH(recursive = true, cte1, cte2)
     #-> (…) |> WITH(recursive = true, …)
 
-    display(c)
+    display(s)
     #=>
     ID(:essential_hypertension_with_descendants) |>
     FROM() |>
@@ -1525,7 +1543,7 @@ The `WITH` clause is created using the `WITH()` constructor.
             columns = [:concept_id, :concept_name]))
     =#
 
-    print(render(c))
+    print(render(s))
     #=>
     WITH RECURSIVE "essential_hypertension" AS (
       SELECT
@@ -1585,14 +1603,13 @@ The `MATERIALIZED` annotation can be added using `NOTE`.
 
 A `WITH` clause without any common table expressions will be omitted.
 
-    c = FROM(:condition_occurrence) |>
+    s = FROM(:condition_occurrence) |>
         SELECT(*) |>
         WITH(args = [])
     #-> (…) |> WITH(args = [])
 
-    print(render(c))
+    print(render(s))
     #=>
     SELECT *
     FROM "condition_occurrence"
     =#
-

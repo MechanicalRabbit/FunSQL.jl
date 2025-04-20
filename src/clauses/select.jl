@@ -24,25 +24,23 @@ function PrettyPrinting.quoteof(t::SelectTop)
 end
 
 mutable struct SelectClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
     top::Union{SelectTop, Nothing}
     distinct::Bool
-    args::Vector{SQLClause}
+    args::Vector{SQLSyntax}
 
     SelectClause(;
-                 over = nothing,
                  top = nothing,
                  distinct = false,
                  args) =
-        new(over, top, distinct, args)
+        new(top, distinct, args)
 end
 
-SelectClause(args...; over = nothing, top = nothing, distinct = false) =
-    SelectClause(over = over, top = top, distinct = distinct, args = SQLClause[args...])
+SelectClause(args...; top = nothing, distinct = false) =
+    SelectClause(; top, distinct, args = SQLSyntax[args...])
 
 """
-    SELECT(; over = nothing, top = nothing, distinct = false, args)
-    SELECT(args...; over = nothing, top = nothing, distinct = false)
+    SELECT(; top = nothing, distinct = false, args, tail = nothing)
+    SELECT(args...; top = nothing, distinct = false, tail = nothing)
 
 A `SELECT` clause.  Unlike raw SQL, `SELECT()` should be placed at the end of a
 clause chain.
@@ -52,31 +50,27 @@ Set `distinct` to `true` to add a `DISTINCT` modifier.
 # Examples
 
 ```jldoctest
-julia> c = SELECT(true, false);
+julia> s = SELECT(true, false);
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT
   TRUE,
   FALSE
 ```
 
 ```jldoctest
-julia> c = FROM(:location) |>
+julia> s = FROM(:location) |>
            SELECT(distinct = true, :zip);
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT DISTINCT "zip"
 FROM "location"
 ```
 """
-SELECT(args...; kws...) =
-    SelectClause(args...; kws...) |> SQLClause
-
-dissect(scr::Symbol, ::typeof(SELECT), pats::Vector{Any}) =
-    dissect(scr, SelectClause, pats)
+const SELECT = SQLSyntaxCtor{SelectClause}
 
 function PrettyPrinting.quoteof(c::SelectClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(SELECT))
+    ex = Expr(:call, :SELECT)
     if c.top !== nothing
         push!(ex.args, Expr(:kw, :top, quoteof(c.top)))
     end
@@ -88,12 +82,5 @@ function PrettyPrinting.quoteof(c::SelectClause, ctx::QuoteContext)
     else
         append!(ex.args, quoteof(c.args, ctx))
     end
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::SelectClause, c′) =
-    SelectClause(over = rebase(c.over, c′), top = c.top, distinct = c.distinct, args = c.args)
-

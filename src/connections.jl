@@ -86,11 +86,11 @@ end
 
 """
     DBInterface.prepare(conn::SQLConnection, sql::SQLNode)::SQLStatement
-    DBInterface.prepare(conn::SQLConnection, sql::SQLClause)::SQLStatement
+    DBInterface.prepare(conn::SQLConnection, sql::SQLSyntax)::SQLStatement
 
 Serialize the query node and return a prepared SQL statement.
 """
-DBInterface.prepare(conn::SQLConnection, sql::Union{AbstractSQLNode, AbstractSQLClause}) =
+DBInterface.prepare(conn::SQLConnection, sql::Union{SQLNode, SQLSyntax}) =
     DBInterface.prepare(conn, render(conn, sql))
 
 """
@@ -106,20 +106,20 @@ DBInterface.prepare(conn::SQLConnection, str::AbstractString) =
 
 """
     DBInterface.execute(conn::SQLConnection, sql::SQLNode; params...)
-    DBInterface.execute(conn::SQLConnection, sql::SQLClause; params...)
+    DBInterface.execute(conn::SQLConnection, sql::SQLSyntax; params...)
 
 Serialize and execute the query node.
 """
-DBInterface.execute(conn::SQLConnection, sql::Union{AbstractSQLNode, AbstractSQLClause}; params...) =
+DBInterface.execute(conn::SQLConnection, sql::Union{SQLNode, SQLSyntax}; params...) =
     DBInterface.execute(conn, sql, values(params))
 
 """
     DBInterface.execute(conn::SQLConnection, sql::SQLNode, params)
-    DBInterface.execute(conn::SQLConnection, sql::SQLClause, params)
+    DBInterface.execute(conn::SQLConnection, sql::SQLSyntax, params)
 
 Serialize and execute the query node.
 """
-DBInterface.execute(conn::SQLConnection, sql::Union{AbstractSQLNode, AbstractSQLClause}, params) =
+DBInterface.execute(conn::SQLConnection, sql::Union{SQLNode, SQLSyntax}, params) =
     DBInterface.execute(DBInterface.prepare(conn, sql), params)
 
 DBInterface.close!(conn::SQLConnection) =

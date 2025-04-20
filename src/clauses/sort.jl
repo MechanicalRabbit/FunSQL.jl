@@ -39,46 +39,43 @@ end
 import .NULLS_ORDER.NullsOrder
 
 mutable struct SortClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
     value::ValueOrder
     nulls::Union{NullsOrder, Nothing}
 
     SortClause(;
-               over = nothing,
                value,
                nulls = nothing) =
-        new(over, value, nulls)
+        new(value, nulls)
 end
 
-SortClause(value; over = nothing, nulls = nothing) =
-    SortClause(over = over, value = value, nulls = nulls)
+SortClause(value; nulls = nothing) =
+    SortClause(; value, nulls)
 
 """
-    SORT(; over = nothing, value, nulls = nothing)
-    SORT(value; over = nothing, nulls = nothing)
-    ASC(; over = nothing, nulls = nothing)
-    DESC(; over = nothing, nulls = nothing)
+    SORT(; value, nulls = nothing, tail = nothing)
+    SORT(value; nulls = nothing, tail = nothing)
+    ASC(; nulls = nothing, tail = nothing)
+    DESC(; nulls = nothing, tail = nothing)
 
 Sort order options.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            ORDER(:year_of_birth |> DESC()) |>
            SELECT(:person_id);
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT "person_id"
 FROM "person"
 ORDER BY "year_of_birth" DESC
 ```
 """
-SORT(args...; kws...) =
-    SortClause(args...; kws...) |> SQLClause
+SORT = SQLSyntaxCtor{SortClause}
 
 """
-    ASC(; over = nothing, nulls = nothing)
+    ASC(; over = nothing, nulls = nothing, tail = nothing)
 
 Ascending order indicator.
 """
@@ -86,33 +83,23 @@ ASC(; kws...) =
     SORT(VALUE_ORDER.ASC; kws...)
 
 """
-    DESC(; over = nothing, nulls = nothing)
+    DESC(; over = nothing, nulls = nothing, tail = nothing)
 
 Descending order indicator.
 """
 DESC(; kws...) =
     SORT(VALUE_ORDER.DESC; kws...)
 
-dissect(scr::Symbol, ::typeof(SORT), pats::Vector{Any}) =
-    dissect(scr, SortClause, pats)
-
 function PrettyPrinting.quoteof(c::SortClause, ctx::QuoteContext)
     if c.value == VALUE_ORDER.ASC
-        ex = Expr(:call, nameof(ASC))
+        ex = Expr(:call, :ASC)
     elseif c.value == VALUE_ORDER.DESC
-        ex = Expr(:call, nameof(DESC))
+        ex = Expr(:call, :DESC)
     else
-        ex = Expr(:call, nameof(SORT), QuoteNode(Symbol(c.value)))
+        ex = Expr(:call, :SORT, QuoteNode(Symbol(c.value)))
     end
     if c.nulls !== nothing
         push!(ex.args, Expr(:kw, :nulls, QuoteNode(Symbol(c.nulls))))
     end
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::SortClause, c′) =
-    SortClause(over = rebase(c.over, c′), value = c.value, nulls = c.nulls)
-

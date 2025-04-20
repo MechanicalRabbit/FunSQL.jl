@@ -16,6 +16,11 @@ abstract type TabularNode <: AbstractSQLNode
 end
 
 function dissect(scr::Symbol, NodeType::Type{<:AbstractSQLNode}, pats::Vector{Any})
+    for pat in pats
+        if pat isa Expr && pat.head === :kw && length(pat.args) == 2 && pat.args[1] === :tail
+            pat.args[1] = :over
+        end
+    end
     scr_core = gensym(:scr_core)
     ex = Expr(:&&, :($scr_core isa $NodeType), Any[dissect(scr_core, pat) for pat in pats]...)
     :($scr isa SQLNode && (local $scr_core = $scr[]; $ex))
@@ -65,6 +70,9 @@ label(::Nothing) =
         return :(:_)
     end
 end
+
+rebase(::Nothing, n′) =
+    n′
 
 rebase(n::SQLNode, n′) =
     convert(SQLNode, rebase(n[], n′))

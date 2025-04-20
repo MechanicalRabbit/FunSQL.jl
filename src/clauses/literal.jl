@@ -8,7 +8,7 @@ mutable struct LiteralClause <: AbstractSQLClause
 end
 
 LiteralClause(val) =
-    LiteralClause(val = val)
+    LiteralClause(; val)
 
 """
     LIT(; val)
@@ -22,28 +22,26 @@ are automatically converted to SQL literals.
 # Examples
 
 ```jldoctest
-julia> c = LIT(missing);
+julia> s = LIT(missing);
 
-julia> print(render(c))
+julia> print(render(s))
 NULL
 ```
 
 ```jldoctest
-julia> c = LIT("SQL is fun!");
+julia> s = LIT("SQL is fun!");
 
-julia> print(render(c))
+julia> print(render(s))
 'SQL is fun!'
 ```
 """
-LIT(args...; kws...) =
-    LiteralClause(args...; kws...) |> SQLClause
+LIT = SQLSyntaxCtor{LiteralClause}
 
-dissect(scr::Symbol, ::typeof(LIT), pats::Vector{Any}) =
-    dissect(scr, LiteralClause, pats)
+Base.convert(::Type{SQLSyntax}, val::SQLLiteralType) =
+    LIT(val)
 
-Base.convert(::Type{AbstractSQLClause}, val::SQLLiteralType) =
-    LiteralClause(val)
+terminal(::Type{LiteralClause}) =
+    true
 
 PrettyPrinting.quoteof(c::LiteralClause, ::QuoteContext) =
-    Expr(:call, nameof(LIT), c.val)
-
+    Expr(:call, :LIT, c.val)

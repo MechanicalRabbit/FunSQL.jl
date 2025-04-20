@@ -10,10 +10,7 @@ Create a [`SQLCatalog`](@ref) object and serialize the query node.
 render(n; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache = nothing) =
     render(SQLCatalog(tables = tables, dialect = dialect, cache = cache), n)
 
-render(conn::SQLConnection, n) =
-    render(conn.catalog, n)
-
-render(catalog::SQLCatalog, n) =
+render(catalog::Union{SQLConnection, SQLCatalog}, n) =
     render(catalog, convert(SQLNode, n))
 
 """
@@ -71,21 +68,26 @@ function render(catalog::SQLCatalog, n::SQLNode)
     sql
 end
 
-render(catalog::SQLCatalog, c::AbstractSQLClause) =
-    render(catalog.dialect, c)
-
-render(dialect::SQLDialect, c::AbstractSQLClause) =
-    render(dialect, convert(SQLClause, c))
+render(conn::SQLConnection, n::SQLNode) =
+    render(conn.catalog, n)
 
 """
     render(dialect::Union{SQLConnection, SQLCatalog, SQLDialect},
-           clause::SQLClause)::SQLString
+           syntax::SQLSyntax)::SQLString
 
 Serialize the syntax tree of a SQL query.
 """
-function render(dialect::SQLDialect, c::SQLClause)
-    c = WITH_CONTEXT(over = c, dialect = dialect)
-    sql = serialize(c)
+function render(dialect::SQLDialect, s::SQLSyntax)
+    s = WITH_CONTEXT(tail = s, dialect = dialect)
+    sql = serialize(s)
     sql
 end
 
+render(conn::SQLConnection, s::SQLSyntax) =
+    render(conn.catalog, s)
+
+render(catalog::SQLCatalog, s::SQLSyntax) =
+    render(catalog.dialect, s)
+
+render(dialect::Union{SQLConnection, SQLCatalog, SQLDialect}, s) =
+    render(dialect, convert(SQLSyntax, s))

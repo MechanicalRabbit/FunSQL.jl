@@ -81,32 +81,31 @@ function PrettyPrinting.quoteof(f::PartitionFrame)
 end
 
 mutable struct PartitionClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
-    by::Vector{SQLClause}
-    order_by::Vector{SQLClause}
+    by::Vector{SQLSyntax}
+    order_by::Vector{SQLSyntax}
     frame::Union{PartitionFrame, Nothing}
 
-    PartitionClause(; over = nothing, by = SQLClause[], order_by = SQLClause[], frame = nothing) =
-        new(over, by, order_by, frame)
+    PartitionClause(; by = SQLSyntax[], order_by = SQLSyntax[], frame = nothing) =
+        new(by, order_by, frame)
 end
 
-PartitionClause(by...; over = nothing, order_by = SQLClause[], frame = nothing) =
-    PartitionClause(over = over, by = SQLClause[by...], order_by = order_by, frame = frame)
+PartitionClause(by...; order_by = SQLSyntax[], frame = nothing) =
+    PartitionClause(; by = SQLSyntax[by...], order_by, frame)
 
 """
-    PARTITION(; over = nothing, by = [], order_by = [], frame = nothing)
-    PARTITION(by...; over = nothing, order_by = [], frame = nothing)
+    PARTITION(; by = [], order_by = [], frame = nothing, tail = nothing)
+    PARTITION(by...; order_by = [], frame = nothing, tail = nothing)
 
 A window definition clause.
 
 # Examples
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            SELECT(:person_id,
                   AGG(:row_number, over = PARTITION(:year_of_birth)));
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT
   "person_id",
   (row_number() OVER (PARTITION BY "year_of_birth"))
@@ -114,12 +113,12 @@ FROM "person"
 ```
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            WINDOW(:w1 => PARTITION(:year_of_birth),
                   :w2 => :w1 |> PARTITION(order_by = [:month_of_birth, :day_of_birth])) |>
            SELECT(:person_id, AGG(:row_number, over = :w2));
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT
   "person_id",
   (row_number() OVER ("w2"))
@@ -130,7 +129,7 @@ WINDOW
 ```
 
 ```jldoctest
-julia> c = FROM(:person) |>
+julia> s = FROM(:person) |>
            GROUP(:year_of_birth) |>
            SELECT(:year_of_birth,
                   AGG(:avg,
@@ -138,7 +137,7 @@ julia> c = FROM(:person) |>
                       over = PARTITION(order_by = [:year_of_birth],
                                        frame = (mode = :range, start = -1, finish = 1))));
 
-julia> print(render(c))
+julia> print(render(s))
 SELECT
   "year_of_birth",
   (avg(count(*)) OVER (ORDER BY "year_of_birth" RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING))
@@ -146,14 +145,10 @@ FROM "person"
 GROUP BY "year_of_birth"
 ```
 """
-PARTITION(args...; kws...) =
-    PartitionClause(args...; kws...) |> SQLClause
-
-dissect(scr::Symbol, ::typeof(PARTITION), pats::Vector{Any}) =
-    dissect(scr, PartitionClause, pats)
+const PARTITION = SQLSyntaxCtor{PartitionClause}
 
 function PrettyPrinting.quoteof(c::PartitionClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(PARTITION))
+    ex = Expr(:call, :PARTITION)
     append!(ex.args, quoteof(c.by, ctx))
     if !isempty(c.order_by)
         push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(c.order_by, ctx)...)))
@@ -161,12 +156,5 @@ function PrettyPrinting.quoteof(c::PartitionClause, ctx::QuoteContext)
     if c.frame !== nothing
         push!(ex.args, Expr(:kw, :frame, quoteof(c.frame)))
     end
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
-    end
     ex
 end
-
-rebase(c::PartitionClause, c′) =
-    PartitionClause(over = rebase(c.over, c′), by = c.by, order_by = c.order_by, frame = c.frame)
-

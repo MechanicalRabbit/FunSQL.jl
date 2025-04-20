@@ -1,77 +1,74 @@
-# SQL identifier (possibly qualified).
+# SQL identifier.
 
 mutable struct IdentifierClause <: AbstractSQLClause
-    over::Union{SQLClause, Nothing}
     name::Symbol
 
-    IdentifierClause(;
-                     over = nothing,
-                     name::Union{Symbol, AbstractString}) =
-        new(over, Symbol(name))
+    IdentifierClause(; name::Union{Symbol, AbstractString}) =
+        new(Symbol(name))
 end
 
-IdentifierClause(name; over = nothing) =
-    IdentifierClause(over = over, name = name)
-
-function IdentifierClause(qualifiers, name)
-    over = nothing
-    for ql in qualifiers
-        over = IdentifierClause(over = over, name = ql) |> SQLClause
-    end
-    IdentifierClause(over = over, name = name)
-end
+IdentifierClause(name) =
+    IdentifierClause(; name)
 
 """
-    ID(; over = nothing, name)
-    ID(name; over = nothing)
-    ID(qualifiers, name)
+    ID(; name, tail = nothing)
+    ID(name; tail = nothing)
+    ID(qualifiers..., name; tail = nothing)
 
-A SQL identifier.  Specify `over` or use the `|>` operator to make a qualified
-identifier.
+A SQL identifier.  Use the `|>` operator to make a qualified identifier.
 
 # Examples
 
 ```jldoctest
-julia> c = ID(:person);
+julia> s = ID(:person);
 
-julia> print(render(c))
+julia> print(render(s))
 "person"
 ```
 
 ```jldoctest
-julia> c = ID(:p) |> ID(:birth_datetime);
+julia> s = ID(:p) |> ID(:birth_datetime);
 
-julia> print(render(c))
+julia> print(render(s))
 "p"."birth_datetime"
 ```
 
 ```jldoctest
-julia> c = ID([:pg_catalog], :pg_database);
+julia> s = ID([:pg_catalog], :pg_database);
 
-julia> print(render(c))
+julia> print(render(s))
 "pg_catalog"."pg_database"
 ```
 """
-ID(args...; kws...) =
-    IdentifierClause(args...; kws...) |> SQLClause
+const ID = SQLSyntaxCtor{IdentifierClause}
 
-dissect(scr::Symbol, ::typeof(ID), pats::Vector{Any}) =
-    dissect(scr, IdentifierClause, pats)
+ID(qualifier::Union{Symbol, AbstractString}, name::Union{Symbol, AbstractString}; tail = nothing) =
+    ID(tail = ID(qualifier; tail), name = name)
 
-Base.convert(::Type{AbstractSQLClause}, name::Symbol) =
-    IdentifierClause(name)
+ID(name1::Union{Symbol, AbstractString}, name2::Union{Symbol, AbstractString}, names::Union{Symbol, AbstractString}...; tail = nothing) =
+    ID(tail = ID(name1; tail), name2, names...)
 
-Base.convert(::Type{AbstractSQLClause}, qname::Tuple{Symbol, Symbol}) =
-    IdentifierClause(qname[2], over = IdentifierClause(qname[1]))
-
-function PrettyPrinting.quoteof(c::IdentifierClause, ctx::QuoteContext)
-    ex = Expr(:call, nameof(ID), quoteof(c.name))
-    if c.over !== nothing
-        ex = Expr(:call, :|>, quoteof(c.over, ctx), ex)
+function ID(qualifiers::AbstractVector{<:Union{Symbol, AbstractString}}, name::Union{Symbol, AbstractString}; tail = nothing)
+    for q in qualifiers
+        tail = ID(tail = tail, name = q)
     end
-    ex
+    ID(; tail, name)
 end
 
-rebase(c::IdentifierClause, c′) =
-    IdentifierClause(over = rebase(c.over, c′), name = c.name)
+ID(t::SQLTable) =
+    ID(t.qualifiers, t.name)
 
+Base.convert(::Type{SQLSyntax}, name::Symbol) =
+    ID(name)
+
+Base.convert(::Type{SQLSyntax}, qname::Tuple{Symbol, Vararg{Symbol}}) =
+    ID(qname...)
+
+Base.convert(::Type{SQLSyntax}, qname::Tuple{Vector{Symbol}, Symbol}) =
+    ID(qname...)
+
+Base.convert(::Type{SQLSyntax}, t::SQLTable) =
+    ID(t)
+
+PrettyPrinting.quoteof(c::IdentifierClause, ctx::QuoteContext) =
+    Expr(:call, :ID, quoteof(c.name))

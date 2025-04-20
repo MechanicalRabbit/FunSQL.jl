@@ -2,19 +2,19 @@
 
 mutable struct FunctionClause <: AbstractSQLClause
     name::Symbol
-    args::Vector{SQLClause}
+    args::Vector{SQLSyntax}
 
     FunctionClause(;
                    name::Union{Symbol, AbstractString},
-                   args = SQLClause[]) =
+                   args = SQLSyntax[]) =
         new(Symbol(name), args)
 end
 
-FunctionClause(name; args = SQLClause[]) =
-    FunctionClause(name = name, args = args)
+FunctionClause(name; args = SQLSyntax[]) =
+    FunctionClause(; name, args)
 
 FunctionClause(name, args...) =
-    FunctionClause(name, args = SQLClause[args...])
+    FunctionClause(; name, args = SQLSyntax[args...])
 
 """
     FUN(; name, args = [])
@@ -26,34 +26,30 @@ An invocation of a SQL function or a SQL operator.
 # Examples
 
 ```jldoctest
-julia> c = FUN(:concat, :city, ", ", :state);
+julia> s = FUN(:concat, :city, ", ", :state);
 
-julia> print(render(c))
+julia> print(render(s))
 concat("city", ', ', "state")
 ```
 
 ```jldoctest
-julia> c = FUN("||", :city, ", ", :state);
+julia> s = FUN("||", :city, ", ", :state);
 
-julia> print(render(c))
+julia> print(render(s))
 ("city" || ', ' || "state")
 ```
 
 ```jldoctest
-julia> c = FUN("SUBSTRING(? FROM ? FOR ?)", :zip, 1, 3);
+julia> s = FUN("SUBSTRING(? FROM ? FOR ?)", :zip, 1, 3);
 
-julia> print(render(c))
+julia> print(render(s))
 SUBSTRING("zip" FROM 1 FOR 3)
 ```
 """
-FUN(args...; kws...) =
-    FunctionClause(args...; kws...) |> SQLClause
+const FUN = SQLSyntaxCtor{FunctionClause}
 
-Base.convert(::Type{AbstractSQLClause}, ::typeof(*)) =
-    FunctionClause(:*)
-
-dissect(scr::Symbol, ::typeof(FUN), pats::Vector{Any}) =
-    dissect(scr, FunctionClause, pats)
+Base.convert(::Type{SQLSyntax}, ::typeof(*)) =
+    FUN(:*)
 
 PrettyPrinting.quoteof(c::FunctionClause, ctx::QuoteContext) =
-    Expr(:call, nameof(FUN), string(c.name), quoteof(c.args, ctx)...)
+    Expr(:call, :FUN, string(c.name), quoteof(c.args, ctx)...)

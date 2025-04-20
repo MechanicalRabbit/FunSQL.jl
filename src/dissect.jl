@@ -57,7 +57,7 @@ end
 function dissect(scr::Symbol, ::typeof(|>), pats::Vector{Any})
     if length(pats) == 2 && (local call = pats[2]; call isa Expr)
         if call.head === :call
-            pat = Expr(:call, call.args..., Expr(:kw, :over, pats[1]))
+            pat = Expr(:call, call.args..., Expr(:kw, :tail, pats[1]))
             return dissect(scr, pat)
         elseif call.head === :||
             return Expr(call.head, Any[dissect(scr, Expr(:call, :|>, pats[1], arg))

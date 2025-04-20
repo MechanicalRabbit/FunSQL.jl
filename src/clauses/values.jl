@@ -19,21 +19,19 @@ A `VALUES` clause.
 # Examples
 
 ```jldoctest
-julia> c = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)]);
+julia> s = VALUES([("SQL", 1974), ("Julia", 2012), ("FunSQL", 2021)]);
 
-julia> print(render(c))
+julia> print(render(s))
 VALUES
   ('SQL', 1974),
   ('Julia', 2012),
   ('FunSQL', 2021)
 ```
 """
-VALUES(args...; kws...) =
-    ValuesClause(args...; kws...) |> SQLClause
+VALUES = SQLSyntaxCtor{ValuesClause}
 
-dissect(scr::Symbol, ::typeof(VALUES), pats::Vector{Any}) =
-    dissect(scr, ValuesClause, pats)
+terminal(::Type{ValuesClause}) =
+    true
 
 PrettyPrinting.quoteof(c::ValuesClause, ::QuoteContext) =
-    Expr(:call, nameof(VALUES), c.rows)
-
+    Expr(:call, :VALUES, c.rows)

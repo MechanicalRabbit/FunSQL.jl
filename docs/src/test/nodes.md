@@ -2519,7 +2519,7 @@ for a `CREATE TABLE AS` or `SELECT INTO` statement.
 
     with_external_handler((tbl, def)) =
         println("CREATE TEMP TABLE ",
-                render(ID(tbl.qualifiers, tbl.name)),
+                render(ID(tbl)),
                 " (", join([render(ID(c.name)) for (n, c) in tbl.columns], ", "), ") AS\n",
                 render(def), ";\n")
 
@@ -4266,40 +4266,38 @@ On the next stage, the query object is converted to a SQL syntax tree.
     end;
     #=>
     ┌ Debug: FunSQL.translate
-    │ WITH_CONTEXT(
-    │     over = ID(:person) |>
-    │            AS(:person_1) |>
-    │            FROM() |>
-    │            WHERE(FUN("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
-    │            SELECT(ID(:person_1) |> ID(:person_id),
-    │                   ID(:person_1) |> ID(:location_id)) |>
-    │            AS(:person_2) |>
-    │            FROM() |>
-    │            JOIN(ID(:location) |>
-    │                 AS(:location_1) |>
-    │                 FROM() |>
-    │                 WHERE(FUN("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
-    │                 SELECT(ID(:location_1) |> ID(:location_id)) |>
-    │                 AS(:location_2),
-    │                 FUN("=",
-    │                     ID(:person_2) |> ID(:location_id),
-    │                     ID(:location_2) |> ID(:location_id))) |>
-    │            JOIN(ID(:visit_occurrence) |>
-    │                 AS(:visit_occurrence_1) |>
-    │                 FROM() |>
-    │                 GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
-    │                 SELECT(AGG("max",
-    │                            ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
-    │                        AS(:max),
-    │                        ID(:visit_occurrence_1) |> ID(:person_id)) |>
-    │                 AS(:visit_group_1),
-    │                 FUN("=",
-    │                     ID(:person_2) |> ID(:person_id),
-    │                     ID(:visit_group_1) |> ID(:person_id)),
-    │                 left = true) |>
-    │            SELECT(ID(:person_2) |> ID(:person_id),
-    │                   ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date)),
-    │     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
+    │ ID(:person) |>
+    │ AS(:person_1) |>
+    │ FROM() |>
+    │ WHERE(FUN("<=", ID(:person_1) |> ID(:year_of_birth), LIT(2000))) |>
+    │ SELECT(ID(:person_1) |> ID(:person_id), ID(:person_1) |> ID(:location_id)) |>
+    │ AS(:person_2) |>
+    │ FROM() |>
+    │ JOIN(ID(:location) |>
+    │      AS(:location_1) |>
+    │      FROM() |>
+    │      WHERE(FUN("=", ID(:location_1) |> ID(:state), LIT("IL"))) |>
+    │      SELECT(ID(:location_1) |> ID(:location_id)) |>
+    │      AS(:location_2),
+    │      FUN("=",
+    │          ID(:person_2) |> ID(:location_id),
+    │          ID(:location_2) |> ID(:location_id))) |>
+    │ JOIN(ID(:visit_occurrence) |>
+    │      AS(:visit_occurrence_1) |>
+    │      FROM() |>
+    │      GROUP(ID(:visit_occurrence_1) |> ID(:person_id)) |>
+    │      SELECT(AGG("max", ID(:visit_occurrence_1) |> ID(:visit_start_date)) |>
+    │             AS(:max),
+    │             ID(:visit_occurrence_1) |> ID(:person_id)) |>
+    │      AS(:visit_group_1),
+    │      FUN("=",
+    │          ID(:person_2) |> ID(:person_id),
+    │          ID(:visit_group_1) |> ID(:person_id)),
+    │      left = true) |>
+    │ SELECT(ID(:person_2) |> ID(:person_id),
+    │        ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date)) |>
+    │ WITH_CONTEXT(columns = [SQLColumn(:person_id),
+    │                         SQLColumn(:max_visit_start_date)])
     └ @ FunSQL …
     =#
 
