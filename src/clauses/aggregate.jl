@@ -1,6 +1,6 @@
 # Aggregate functions.
 
-mutable struct AggregateClause <: AbstractSQLClause
+struct AggregateClause <: AbstractSQLClause
     name::Symbol
     args::Vector{SQLSyntax}
     filter::Union{SQLSyntax, Nothing}

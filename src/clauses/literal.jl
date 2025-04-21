@@ -1,6 +1,6 @@
 # Literal value.
 
-mutable struct LiteralClause <: AbstractSQLClause
+struct LiteralClause <: AbstractSQLClause
     val
 
     LiteralClause(; val) =

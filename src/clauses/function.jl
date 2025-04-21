@@ -1,6 +1,6 @@
 # SQL functions.
 
-mutable struct FunctionClause <: AbstractSQLClause
+struct FunctionClause <: AbstractSQLClause
     name::Symbol
     args::Vector{SQLSyntax}
 

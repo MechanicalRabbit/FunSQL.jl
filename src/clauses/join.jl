@@ -1,6 +1,6 @@
 # JOIN clause.
 
-mutable struct JoinClause <: AbstractSQLClause
+struct JoinClause <: AbstractSQLClause
     joinee::SQLSyntax
     on::SQLSyntax
     left::Bool

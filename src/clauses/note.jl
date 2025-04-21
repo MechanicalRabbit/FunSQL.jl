@@ -1,6 +1,6 @@
 # A free-form annotation.
 
-mutable struct NoteClause <: AbstractSQLClause
+struct NoteClause <: AbstractSQLClause
     text::String
     postfix::Bool
 

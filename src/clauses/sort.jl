@@ -38,7 +38,7 @@ end
 
 import .NULLS_ORDER.NullsOrder
 
-mutable struct SortClause <: AbstractSQLClause
+struct SortClause <: AbstractSQLClause
     value::ValueOrder
     nulls::Union{NullsOrder, Nothing}
 

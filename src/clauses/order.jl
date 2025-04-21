@@ -1,6 +1,6 @@
 # ORDER BY clause.
 
-mutable struct OrderClause <: AbstractSQLClause
+struct OrderClause <: AbstractSQLClause
     by::Vector{SQLSyntax}
 
     OrderClause(; by = SQLSyntax[]) =
