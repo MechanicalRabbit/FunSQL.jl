@@ -23,7 +23,7 @@ function PrettyPrinting.quoteof(t::SelectTop)
     end
 end
 
-mutable struct SelectClause <: AbstractSQLClause
+struct SelectClause <: AbstractSQLClause
     top::Union{SelectTop, Nothing}
     distinct::Bool
     args::Vector{SQLSyntax}

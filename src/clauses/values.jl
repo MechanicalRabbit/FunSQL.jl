@@ -1,6 +1,6 @@
 # VALUES clause.
 
-mutable struct ValuesClause <: AbstractSQLClause
+struct ValuesClause <: AbstractSQLClause
     rows::Vector
 
     ValuesClause(; rows) =

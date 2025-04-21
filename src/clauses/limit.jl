@@ -1,6 +1,6 @@
 # LIMIT clause.
 
-mutable struct LimitClause <: AbstractSQLClause
+struct LimitClause <: AbstractSQLClause
     offset::Union{Int, Nothing}
     limit::Union{Int, Nothing}
     with_ties::Bool

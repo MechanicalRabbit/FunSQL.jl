@@ -1,6 +1,6 @@
 # SQL identifier.
 
-mutable struct IdentifierClause <: AbstractSQLClause
+struct IdentifierClause <: AbstractSQLClause
     name::Symbol
 
     IdentifierClause(; name::Union{Symbol, AbstractString}) =

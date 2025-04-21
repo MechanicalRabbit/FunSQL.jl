@@ -1,6 +1,6 @@
 # WITH clause.
 
-mutable struct WithClause <: AbstractSQLClause
+struct WithClause <: AbstractSQLClause
     recursive::Bool
     args::Vector{SQLSyntax}
 

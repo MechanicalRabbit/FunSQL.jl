@@ -1,6 +1,6 @@
 # SQL placeholder parameter.
 
-mutable struct VariableClause <: AbstractSQLClause
+struct VariableClause <: AbstractSQLClause
     name::Symbol
 
     VariableClause(; name::Union{Symbol, AbstractString}) =

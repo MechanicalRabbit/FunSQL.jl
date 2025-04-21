@@ -2,7 +2,7 @@
 
 # Context holder for the serialize pass.
 
-mutable struct WithContextClause <: AbstractSQLClause
+struct WithContextClause <: AbstractSQLClause
     dialect::SQLDialect
     columns::Union{Vector{SQLColumn}, Nothing}
 

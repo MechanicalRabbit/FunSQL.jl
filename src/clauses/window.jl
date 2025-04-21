@@ -1,6 +1,6 @@
 # WINDOW clause.
 
-mutable struct WindowClause <: AbstractSQLClause
+struct WindowClause <: AbstractSQLClause
     args::Vector{SQLSyntax}
 
     WindowClause(; args) =

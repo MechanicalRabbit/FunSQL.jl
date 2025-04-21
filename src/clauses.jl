@@ -45,7 +45,7 @@ Base.:(==)(@nospecialize(::AbstractSQLClause), @nospecialize(::AbstractSQLClause
     false
 
 Base.:(==)(s1::SQLSyntax, s2::SQLSyntax) =
-    s1.head == s2.head && s1.tail == s2.tail
+    s1 === s2 || s1.head == s2.head && s1.tail == s2.tail
 
 @generated function Base.:(==)(c1::C, c2::C) where {C <: AbstractSQLClause}
     exs = Expr[]

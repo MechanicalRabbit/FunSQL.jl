@@ -1,6 +1,6 @@
 # WHERE clause.
 
-mutable struct WhereClause <: AbstractSQLClause
+struct WhereClause <: AbstractSQLClause
     condition::SQLSyntax
 
     WhereClause(; condition) =

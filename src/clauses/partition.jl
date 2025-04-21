@@ -80,7 +80,7 @@ function PrettyPrinting.quoteof(f::PartitionFrame)
     ex
 end
 
-mutable struct PartitionClause <: AbstractSQLClause
+struct PartitionClause <: AbstractSQLClause
     by::Vector{SQLSyntax}
     order_by::Vector{SQLSyntax}
     frame::Union{PartitionFrame, Nothing}

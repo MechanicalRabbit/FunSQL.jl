@@ -1,6 +1,6 @@
 # UNION clause.
 
-mutable struct UnionClause <: AbstractSQLClause
+struct UnionClause <: AbstractSQLClause
     all::Bool
     args::Vector{SQLSyntax}
 

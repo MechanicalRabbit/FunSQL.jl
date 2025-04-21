@@ -1,6 +1,6 @@
 # AS clause.
 
-mutable struct AsClause <: AbstractSQLClause
+struct AsClause <: AbstractSQLClause
     name::Symbol
     columns::Union{Vector{Symbol}, Nothing}
 

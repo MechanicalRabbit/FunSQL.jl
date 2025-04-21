@@ -1,6 +1,6 @@
 # FROM clause.
 
-mutable struct FromClause <: AbstractSQLClause
+struct FromClause <: AbstractSQLClause
 end
 
 """

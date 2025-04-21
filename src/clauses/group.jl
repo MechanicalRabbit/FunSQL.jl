@@ -18,7 +18,7 @@ end
 
 import .GROUPING_MODE.GroupingMode
 
-mutable struct GroupClause <: AbstractSQLClause
+struct GroupClause <: AbstractSQLClause
     by::Vector{SQLSyntax}
     sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
 

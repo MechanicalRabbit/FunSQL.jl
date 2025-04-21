@@ -1,6 +1,6 @@
 # HAVING clause.
 
-mutable struct HavingClause <: AbstractSQLClause
+struct HavingClause <: AbstractSQLClause
     condition::SQLSyntax
 
     HavingClause(; condition) =
