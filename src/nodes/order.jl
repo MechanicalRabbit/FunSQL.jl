@@ -1,19 +1,18 @@
 # Sorting.
 
-mutable struct OrderNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    by::Vector{SQLNode}
+struct OrderNode <: TabularNode
+    by::Vector{SQLQuery}
 
-    OrderNode(; over = nothing, by) =
-        new(over, by)
+    OrderNode(; by) =
+        new(by)
 end
 
-OrderNode(by...; over = nothing) =
-    OrderNode(over = over, by = SQLNode[by...])
+OrderNode(by...) =
+    OrderNode(by = SQLQuery[by...])
 
 """
-    Order(; over = nothing, by)
-    Order(by...; over = nothing)
+    Order(; by, tail = nothing)
+    Order(by...; tail = nothing)
 
 `Order` sorts the input rows `by` the given key.
 
@@ -44,23 +43,16 @@ FROM "person" AS "person_1"
 ORDER BY "person_1"."year_of_birth"
 ```
 """
-Order(args...; kws...) =
-    OrderNode(args...; kws...) |> SQLNode
+const Order = SQLQueryCtor{OrderNode}(:Order)
 
 const funsql_order = Order
 
-dissect(scr::Symbol, ::typeof(Order), pats::Vector{Any}) =
-    dissect(scr, OrderNode, pats)
-
 function PrettyPrinting.quoteof(n::OrderNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Order))
+    ex = Expr(:call, :Order)
     if isempty(n.by)
         push!(ex.args, Expr(:kw, :by, Expr(:vect)))
     else
         append!(ex.args, quoteof(n.by, ctx))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

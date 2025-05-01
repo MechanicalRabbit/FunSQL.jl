@@ -85,7 +85,7 @@ SELECT *
 FROM "essential_hypertension"
 ```
 """
-const WITH = SQLSyntaxCtor{WithClause}
+const WITH = SQLSyntaxCtor{WithClause}(:WITH)
 
 function PrettyPrinting.quoteof(c::WithClause, ctx::QuoteContext)
     ex = Expr(:call, :WITH)

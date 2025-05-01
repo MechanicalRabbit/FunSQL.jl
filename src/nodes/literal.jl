@@ -8,7 +8,7 @@ mutable struct LiteralNode <: AbstractSQLNode
 end
 
 LiteralNode(val) =
-    LiteralNode(val = val)
+    LiteralNode(; val)
 
 """
     Lit(; val)
@@ -37,17 +37,16 @@ SELECT
   '2000-01-01' AS "date"
 ```
 """
-Lit(args...; kws...) =
-    LiteralNode(args...; kws...) |> SQLNode
+const Lit = SQLQueryCtor{LiteralNode}(:Lit)
 
-dissect(scr::Symbol, ::typeof(Lit), pats::Vector{Any}) =
-    dissect(scr, LiteralNode, pats)
+Base.convert(::Type{SQLQuery}, val::SQLLiteralType) =
+    Lit(val)
 
-Base.convert(::Type{AbstractSQLNode}, val::SQLLiteralType) =
-    LiteralNode(val)
+Base.convert(::Type{SQLQuery}, ref::Base.RefValue) =
+    Lit(ref.x)
 
-Base.convert(::Type{AbstractSQLNode}, ref::Base.RefValue) =
-    LiteralNode(ref.x)
+terminal(::Type{LiteralNode}) =
+    true
 
 PrettyPrinting.quoteof(n::LiteralNode, ctx::QuoteContext) =
-    Expr(:call, nameof(Lit), n.val)
+    Expr(:call, :Lit, n.val)

@@ -1,25 +1,23 @@
 # Sort ordering.
 
-mutable struct SortNode <: AbstractSQLNode
-    over::Union{SQLNode, Nothing}
+struct SortNode <: AbstractSQLNode
     value::ValueOrder
     nulls::Union{NullsOrder, Nothing}
 
     SortNode(;
-             over = nothing,
              value,
              nulls = nothing) =
-        new(over, value, nulls)
+        new(value, nulls)
 end
 
-SortNode(value; over = nothing, nulls = nothing) =
-    SortNode(over = over, value = value, nulls = nulls)
+SortNode(value; nulls = nothing) =
+    SortNode(; value, nulls)
 
 """
-    Sort(; over = nothing, value, nulls = nothing)
-    Sort(value; over = nothing, nulls = nothing)
-    Asc(; over = nothing, nulls = nothing)
-    Desc(; over = nothing, nulls = nothing)
+    Sort(; value, nulls = nothing, tail = nothing)
+    Sort(value; nulls = nothing, tail = nothing)
+    Asc(; nulls = nothing, tail = nothing)
+    Desc(; nulls = nothing, tail = nothing)
 
 Sort order indicator.
 
@@ -43,8 +41,7 @@ FROM "person" AS "person_1"
 ORDER BY "person_1"."year_of_birth" DESC NULLS FIRST
 ```
 """
-Sort(args...; kws...) =
-    SortNode(args...; kws...) |> SQLNode
+const Sort = SQLQueryCtor{SortNode}(:Sort)
 
 """
     Asc(; over = nothing, nulls = nothing)
@@ -68,22 +65,16 @@ const funsql_asc = Asc
 
 const funsql_desc = Desc
 
-dissect(scr::Symbol, ::typeof(Sort), pats::Vector{Any}) =
-    dissect(scr, SortNode, pats)
-
 function PrettyPrinting.quoteof(n::SortNode, ctx::QuoteContext)
     if n.value == VALUE_ORDER.ASC
-        ex = Expr(:call, nameof(Asc))
+        ex = Expr(:call, :Asc)
     elseif n.value == VALUE_ORDER.DESC
-        ex = Expr(:call, nameof(Desc))
+        ex = Expr(:call, :Desc)
     else
-        ex = Expr(:call, nameof(Sort), QuoteNode(Symbol(n.value)))
+        ex = Expr(:call, :Sort, QuoteNode(Symbol(n.value)))
     end
     if n.nulls !== nothing
         push!(ex.args, Expr(:kw, :nulls, QuoteNode(Symbol(n.nulls))))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

@@ -267,13 +267,13 @@ SQLCatalog(SQLTable(:location, SQLColumn(:location_id), SQLColumn(:state)),
 struct SQLCatalog <: AbstractDict{Symbol, SQLTable}
     tables::Dict{Symbol, SQLTable}
     dialect::SQLDialect
-    cache::Any # Union{AbstractDict{SQLNode, SQLString}, Nothing}
+    cache::Any # Union{AbstractDict{SQLQuery, SQLString}, Nothing}
     metadata::SQLMetadata
 
     function SQLCatalog(; tables = Dict{Symbol, SQLTable}(), dialect = :default, cache = default_cache_maxsize, metadata = nothing)
         table_map = _table_map(tables)
         if cache isa Number
-            cache = LRU{SQLNode, SQLString}(maxsize = cache)
+            cache = LRU{SQLQuery, SQLString}(maxsize = cache)
         end
         new(table_map, dialect, cache, _metadata(metadata))
     end
@@ -311,7 +311,7 @@ function PrettyPrinting.quoteof(c::SQLCatalog)
     cache = c.cache
     if cache === nothing
         push!(ex.args, Expr(:kw, :cache, nothing))
-    elseif cache isa LRU{SQLNode, SQLString}
+    elseif cache isa LRU{SQLQuery, SQLString}
         if cache.maxsize != default_cache_maxsize
             push!(ex.args, Expr(:kw, :cache, cache.maxsize))
         end
@@ -336,7 +336,7 @@ function Base.show(io::IO, c::SQLCatalog)
     cache = c.cache
     if cache === nothing
         print(io, ", cache = nothing")
-    elseif cache isa LRU{SQLNode, SQLString}
+    elseif cache isa LRU{SQLQuery, SQLString}
         if cache.maxsize != default_cache_maxsize
             print(io, ", cache = ", cache.maxsize)
         end

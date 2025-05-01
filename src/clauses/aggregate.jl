@@ -50,7 +50,7 @@ julia> print(render(s))
 (row_number() OVER (PARTITION BY "year_of_birth"))
 ```
 """
-const AGG = SQLSyntaxCtor{AggregateClause}
+const AGG = SQLSyntaxCtor{AggregateClause}(:AGG)
 
 function PrettyPrinting.quoteof(c::AggregateClause, ctx::QuoteContext)
     ex = Expr(:call, :AGG, string(c.name))

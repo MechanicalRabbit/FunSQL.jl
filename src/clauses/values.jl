@@ -28,7 +28,7 @@ VALUES
   ('FunSQL', 2021)
 ```
 """
-VALUES = SQLSyntaxCtor{ValuesClause}
+const VALUES = SQLSyntaxCtor{ValuesClause}(:VALUES)
 
 terminal(::Type{ValuesClause}) =
     true

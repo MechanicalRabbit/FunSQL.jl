@@ -29,7 +29,7 @@ FROM "person"
 ORDER BY "year_of_birth"
 ```
 """
-const ORDER = SQLSyntaxCtor{OrderClause}
+const ORDER = SQLSyntaxCtor{OrderClause}(:ORDER)
 
 function PrettyPrinting.quoteof(c::OrderClause, ctx::QuoteContext)
     ex = Expr(:call, :ORDER)

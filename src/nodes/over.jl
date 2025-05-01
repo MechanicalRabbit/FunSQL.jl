@@ -1,22 +1,21 @@
 # Over node.
 
-mutable struct OverNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    arg::SQLNode
+struct OverNode <: TabularNode
+    arg::SQLQuery
     materialized::Union{Bool, Nothing}
 
-    OverNode(; over = nothing, arg, materialized = nothing) =
-        new(over, arg, materialized)
+    OverNode(; arg, materialized = nothing) =
+        new(arg, materialized)
 end
 
-OverNode(arg; over = nothing, materialized = nothing) =
-    OverNode(over = over, arg = arg, materialized = materialized)
+OverNode(arg; materialized = nothing) =
+    OverNode(arg = arg, materialized = materialized)
 
 """
-    Over(; over = nothing, arg, materialized = nothing)
-    Over(arg; over = nothing, materialized = nothing)
+    Over(; arg, materialized = nothing, tail = nothing)
+    Over(arg; materialized = nothing, tail = nothing)
 
-`base |> Over(arg)` is an alias for `With(base, over = arg)`.
+`base |> Over(arg)` is an alias for `With(base, tail = arg)`.
 
 # Examples
 
@@ -51,21 +50,14 @@ WHERE ("person_1"."person_id" IN (
 ))
 ```
 """
-Over(args...; kws...) =
-    OverNode(args...; kws...) |> SQLNode
+const Over = SQLQueryCtor{OverNode}(:Over)
 
 const funsql_over = Over
 
-dissect(scr::Symbol, ::typeof(Over), pats::Vector{Any}) =
-    dissect(scr, OverNode, pats)
-
 function PrettyPrinting.quoteof(n::OverNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Over), quoteof(n.arg, ctx))
+    ex = Expr(:call, :Over, quoteof(n.arg, ctx))
     if n.materialized !== nothing
         push!(ex.args, Expr(:kw, :materialized, n.materialized))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

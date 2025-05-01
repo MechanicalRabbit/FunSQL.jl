@@ -28,24 +28,22 @@ end
 PrettyPrinting.tile_expr_or_repr(w::EscWrapper, pr = -1) =
     PrettyPrinting.tile(w)
 
-mutable struct HighlightNode <: AbstractSQLNode
-    over::Union{SQLNode, Nothing}
+struct HighlightNode <: AbstractSQLNode
     color::Symbol
 
     HighlightNode(;
-           over = nothing,
            color::Union{Symbol, AbstractString}) =
-        new(over, Symbol(color))
+        new(Symbol(color))
 end
 
-HighlightNode(color; over = nothing) =
-    HighlightNode(over = over, color = color)
+HighlightNode(color) =
+    HighlightNode(color = color)
 
 """
-    Highlight(; over = nothing; color)
-    Highlight(color; over = nothing)
+    Highlight(; color, tail = nothing)
+    Highlight(color; tail = nothing)
 
-Highlight `over` with the given `color`.
+Highlight `tail` with the given `color`.
 
 The highlighted node is printed with the selected color when the query
 containing it is displayed.
@@ -63,24 +61,10 @@ let q1 = From(:person),
 end
 ```
 """
-Highlight(args...; kws...) =
-    HighlightNode(args...; kws...) |> SQLNode
+const Highlight = SQLQueryCtor{HighlightNode}(:Highlight)
 
 const funsql_highlight = Highlight
 
-dissect(scr::Symbol, ::typeof(Highlight), pats::Vector{Any}) =
-    dissect(scr, HighlightNode, pats)
-
 function PrettyPrinting.quoteof(n::HighlightNode, ctx::QuoteContext)
-    if ctx.limit
-        ex = Expr(:call, nameof(Highlight), quoteof(n.color))
-        if n.over !== nothing
-            ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
-        end
-        return ex
-    end
-    push!(ctx.colors, n.color)
-    ex = quoteof(n.over, ctx)
-    pop!(ctx.colors)
-    EscWrapper(ex, n.color, copy(ctx.colors))
+    Expr(:call, :Highlight, quoteof(n.color))
 end

@@ -1,22 +1,20 @@
 # AS wrapper.
 
-mutable struct AsNode <: AbstractSQLNode
-    over::Union{SQLNode, Nothing}
+struct AsNode <: AbstractSQLNode
     name::Symbol
 
     AsNode(;
-           over = nothing,
            name::Union{Symbol, AbstractString}) =
-        new(over, Symbol(name))
+        new(Symbol(name))
 end
 
-AsNode(name; over = nothing) =
-    AsNode(over = over, name = name)
+AsNode(name) =
+    AsNode(name = name)
 
 """
-    As(; over = nothing, name)
-    As(name; over = nothing)
-    name => over
+    As(; name, tail = nothing)
+    As(name; tail = nothing)
+    name => tail
 
 In a scalar context, `As` specifies the name of the output column.  When
 applied to tabular data, `As` wraps the data in a nested record.
@@ -57,23 +55,15 @@ FROM "person" AS "person_1"
 JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
 ```
 """
-As(args...; kws...) =
-    AsNode(args...; kws...) |> SQLNode
+const As = SQLQueryCtor{AsNode}(:As)
 
 const funsql_as = As
 
-dissect(scr::Symbol, ::typeof(As), pats::Vector{Any}) =
-    dissect(scr, AsNode, pats)
-
-Base.convert(::Type{AbstractSQLNode}, p::Pair{<:Union{Symbol, AbstractString}}) =
-    AsNode(name = first(p), over = convert(SQLNode, last(p)))
+Base.convert(::Type{SQLQuery}, p::Pair{<:Union{Symbol, AbstractString}}) =
+    SQLQuery(last(p), AsNode(name = first(p)))
 
 function PrettyPrinting.quoteof(n::AsNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(As), quoteof(n.name))
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
-    end
-    ex
+    Expr(:call, :As, quoteof(n.name))
 end
 
 label(n::AsNode) =

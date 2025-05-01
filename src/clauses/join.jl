@@ -46,7 +46,7 @@ FROM "person" AS "p"
 LEFT JOIN "location" AS "l" ON ("p"."location_id" = "l"."location_id")
 ```
 """
-const JOIN = SQLSyntaxCtor{JoinClause}
+const JOIN = SQLSyntaxCtor{JoinClause}(:JOIN)
 
 function PrettyPrinting.quoteof(c::JoinClause, ctx::QuoteContext)
     ex = Expr(:call, :JOIN, quoteof([c.joinee, c.on], ctx)...)

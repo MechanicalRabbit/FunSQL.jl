@@ -6,9 +6,9 @@ struct Assemblage
     name::Symbol                            # Base name for the alias.
     syntax::Union{SQLSyntax, Nothing}       # A SQL subquery (possibly without SELECT clause).
     cols::OrderedDict{Symbol, SQLSyntax}    # SELECT arguments, if necessary.
-    repl::Dict{SQLNode, Symbol}             # Maps a reference node to a column alias.
+    repl::Dict{SQLQuery, Symbol}            # Maps a reference node to a column alias.
 
-    Assemblage(name, syntax; cols = OrderedDict{Symbol, SQLSyntax}(), repl = Dict{SQLNode, Symbol}()) =
+    Assemblage(name, syntax; cols = OrderedDict{Symbol, SQLSyntax}(), repl = Dict{SQLQuery, Symbol}()) =
         new(name, syntax, cols, repl)
 end
 
@@ -52,7 +52,7 @@ function complete_aligned(a::Assemblage, ctx)
         syntax = FROM(AS(tail = a.syntax, name = alias))
     end
     subs = make_subs(a, alias)
-    repl = Dict{SQLNode, Symbol}()
+    repl = Dict{SQLQuery, Symbol}()
     cols = OrderedDict{Symbol, SQLSyntax}()
     for ref in ctx.refs
         name = repl[ref] = a.repl[ref]
@@ -63,8 +63,8 @@ function complete_aligned(a::Assemblage, ctx)
 end
 
 # Build node->syntax map assuming that the assemblage will be extended.
-function make_subs(a::Assemblage, ::Nothing)::Dict{SQLNode, SQLSyntax}
-    subs = Dict{SQLNode, SQLSyntax}()
+function make_subs(a::Assemblage, ::Nothing)::Dict{SQLQuery, SQLSyntax}
+    subs = Dict{SQLQuery, SQLSyntax}()
     for (ref, name) in a.repl
         subs[ref] = a.cols[name]
     end
@@ -73,7 +73,7 @@ end
 
 # Build node->syntax map assuming that the assemblage will be completed.
 function make_subs(a::Assemblage, alias::Symbol)
-    subs = Dict{SQLNode, SQLSyntax}()
+    subs = Dict{SQLQuery, SQLSyntax}()
     cache = Dict{Symbol, SQLSyntax}()
     for (ref, name) in a.repl
         subs[ref] = get(cache, name) do
@@ -84,8 +84,8 @@ function make_subs(a::Assemblage, alias::Symbol)
 end
 
 # Build a node->alias map and implicit SELECT columns for a UNION query.
-function make_repl_cols(refs::Vector{SQLNode})::Tuple{Dict{SQLNode, Symbol}, OrderedDict{Symbol, SQLSyntax}}
-    repl = Dict{SQLNode, Symbol}()
+function make_repl_cols(refs::Vector{SQLQuery})::Tuple{Dict{SQLQuery, Symbol}, OrderedDict{Symbol, SQLSyntax}}
+    repl = Dict{SQLQuery, Symbol}()
     cols = OrderedDict{Symbol, SQLSyntax}()
     dups = Dict{Symbol, Int}()
     for ref in refs
@@ -107,8 +107,8 @@ function make_repl_cols(refs::Vector{SQLNode})::Tuple{Dict{SQLNode, Symbol}, Ord
 end
 
 # Build a node->alias map and SELECT columns.
-function make_repl_cols(trns::Vector{Pair{SQLNode, SQLSyntax}})::Tuple{Dict{SQLNode, Symbol}, OrderedDict{Symbol, SQLSyntax}}
-    repl = Dict{SQLNode, Symbol}()
+function make_repl_cols(trns::Vector{Pair{SQLQuery, SQLSyntax}})::Tuple{Dict{SQLQuery, Symbol}, OrderedDict{Symbol, SQLSyntax}}
+    repl = Dict{SQLQuery, Symbol}()
     cols = OrderedDict{Symbol, SQLSyntax}()
     dups = Dict{Symbol, Int}()
     renames = Dict{Tuple{Symbol, SQLSyntax}, Symbol}()
@@ -162,30 +162,33 @@ end
 
 struct TranslateContext
     catalog::SQLCatalog
-    defs::Vector{SQLNode}
+    tail::Union{SQLQuery, Nothing}
+    defs::Vector{SQLQuery}
     aliases::Dict{Symbol, Int}
     recursive::Ref{Bool}
     ctes::Vector{CTEAssemblage}
     cte_map::Base.ImmutableDict{Tuple{Symbol, Int}, Int}
     knot::Int
-    refs::Vector{SQLNode}
+    refs::Vector{SQLQuery}
     vars::Base.ImmutableDict{Tuple{Symbol, Int}, SQLSyntax}
-    subs::Dict{SQLNode, SQLSyntax}
+    subs::Dict{SQLQuery, SQLSyntax}
 
     TranslateContext(; catalog, defs) =
         new(catalog,
+            nothing,
             defs,
             Dict{Symbol, Int}(),
             Ref(false),
             CTEAssemblage[],
             Base.ImmutableDict{Tuple{Symbol, Int}, Int}(),
             0,
-            SQLNode[],
+            SQLQuery[],
             Base.ImmutableDict{Tuple{Symbol, Int}, SQLSyntax}(),
             Dict{Int, SQLSyntax}())
 
-    function TranslateContext(ctx::TranslateContext; cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs)
+    function TranslateContext(ctx::TranslateContext; tail = ctx.tail, cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs)
         new(ctx.catalog,
+            tail,
             ctx.defs,
             ctx.aliases,
             ctx.recursive,
@@ -207,11 +210,11 @@ function allocate_alias(ctx::TranslateContext, alias::Symbol)
     Symbol(alias, '_', n)
 end
 
-function translate(n::SQLNode)
-    @dissect(n, WithContext(over = Linked(over = (local n′), refs = (local refs)), catalog = (local catalog), defs = (local defs))) || throw(IllFormedError())
+function translate(q::SQLQuery)
+    @dissect(q, (local q′) |> Linked(refs = (local refs)) |> WithContext(catalog = (local catalog), defs = (local defs))) || throw(IllFormedError())
     ctx = TranslateContext(catalog = catalog, defs = defs)
     ctx′ = TranslateContext(ctx, refs = refs)
-    base = assemble(n′, ctx′)
+    base = assemble(q′, ctx′)
     columns = nothing
     if !isempty(refs)
         columns = [SQLColumn(base.repl[ref]) for ref in refs]
@@ -238,24 +241,28 @@ function translate(n::SQLNode)
     WITH_CONTEXT(tail = c, dialect = ctx.catalog.dialect, columns = columns)
 end
 
-function translate(n::SQLNode, ctx)
-    c = get(ctx.subs, n, nothing)
+function translate(q::SQLQuery, ctx)
+    c = get(ctx.subs, q, nothing)
     if c === nothing
-        c = convert(SQLSyntax, translate(n[], ctx))
+        c = convert(SQLSyntax, translate(q.head, TranslateContext(ctx, tail = q.tail)))
     end
     c
 end
 
-function translate(ns::Vector{SQLNode}, ctx)
-    SQLSyntax[translate(n, ctx) for n in ns]
+function translate(ctx::TranslateContext)
+    translate(ctx.tail, ctx)
+end
+
+function translate(qs::Vector{SQLQuery}, ctx)
+    SQLSyntax[translate(q, ctx) for q in qs]
 end
 
 translate(::Nothing, ctx) =
     nothing
 
-function translate(n, ctx::TranslateContext, subs::Dict{SQLNode, SQLSyntax})
+function translate(q, ctx::TranslateContext, subs::Dict{SQLQuery, SQLSyntax})
     ctx′ = TranslateContext(ctx, subs = subs)
-    translate(n, ctx′)
+    translate(q, ctx′)
 end
 
 function translate(n::AggregateNode, ctx)
@@ -265,7 +272,7 @@ function translate(n::AggregateNode, ctx)
 end
 
 function translate(n::AsNode, ctx)
-    translate(n.over, ctx)
+    translate(ctx)
 end
 
 function translate(n::BindNode, ctx)
@@ -275,7 +282,7 @@ function translate(n::BindNode, ctx)
         vars′ = Base.ImmutableDict(vars′, (name, depth) => translate(n.args[i], ctx))
     end
     ctx′ = TranslateContext(ctx, vars = vars′)
-    translate(n.over, ctx′)
+    translate(ctx′)
 end
 
 function translate(n::BoundVariableNode, ctx)
@@ -338,19 +345,22 @@ function translate(n::LiteralNode, ctx)
 end
 
 function translate(n::ResolvedNode, ctx)
-    translate(n.over, ctx)
+    translate(ctx)
 end
 
 translate(n::SortNode, ctx) =
-    SORT(tail = translate(n.over, ctx), value = n.value, nulls = n.nulls)
+    SORT(value = n.value, nulls = n.nulls, tail = translate(ctx))
 
 function translate(n::VariableNode, ctx)
     VAR(n.name)
 end
 
-function assemble(n::SQLNode, ctx)
-    assemble(n[], ctx)
+function assemble(q::SQLQuery, ctx)
+    assemble(q.head, TranslateContext(ctx, tail = q.tail))
 end
+
+assemble(ctx::TranslateContext) =
+    assemble(ctx.tail, ctx)
 
 function assemble(::Nothing, ctx)
     @assert isempty(ctx.refs)
@@ -358,13 +368,13 @@ function assemble(::Nothing, ctx)
 end
 
 function assemble(n::AppendNode, ctx)
-    base = assemble(n.over, ctx)
-    branches = [n.over => base]
+    base = assemble(ctx)
+    branches = [ctx.tail => base]
     for arg in n.args
         push!(branches, arg => assemble(arg, ctx))
     end
-    dups = Dict{SQLNode, SQLNode}()
-    seen = Dict{Symbol, SQLNode}()
+    dups = Dict{SQLQuery, SQLQuery}()
+    seen = Dict{Symbol, SQLQuery}()
     for ref in ctx.refs
         name = base.repl[ref]
         if name in keys(seen)
@@ -377,7 +387,7 @@ function assemble(n::AppendNode, ctx)
             seen[name] = ref
         end
     end
-    urefs = SQLNode[]
+    urefs = SQLQuery[]
     for ref in ctx.refs
         if !(ref in keys(dups))
             push!(urefs, ref)
@@ -402,7 +412,7 @@ function assemble(n::AppendNode, ctx)
             tail = a.syntax
         else
             alias = allocate_alias(ctx, a)
-            tail = FROM(AS(tail = complete(a), name = alias))
+            tail = FROM(AS(name = alias, tail = complete(a)))
         end
         subs = make_subs(a, alias)
         cols = OrderedDict{Symbol, SQLSyntax}()
@@ -410,27 +420,27 @@ function assemble(n::AppendNode, ctx)
             name = repl[ref]
             cols[name] = subs[ref]
         end
-        s = SELECT(tail = tail, args = complete(cols))
+        s = SELECT(args = complete(cols), tail = tail)
         push!(ss, s)
     end
-    s = UNION(tail = ss[1], all = true, args = ss[2:end])
+    s = UNION(all = true, args = ss[2:end], tail = ss[1])
     Assemblage(a_name, s, repl = repl, cols = dummy_cols)
 end
 
 function assemble(n::AsNode, ctx)
-    refs′ = SQLNode[]
+    refs′ = SQLQuery[]
     for ref in ctx.refs
-        if @dissect(ref, (local over) |> Nested())
-            push!(refs′, over)
+        if @dissect(ref, (local tail) |> Nested())
+            push!(refs′, tail)
         else
             push!(refs′, ref)
         end
     end
-    base = assemble(n.over, TranslateContext(ctx, refs = refs′))
-    repl′ = Dict{SQLNode, Symbol}()
+    base = assemble(TranslateContext(ctx, refs = refs′))
+    repl′ = Dict{SQLQuery, Symbol}()
     for ref in ctx.refs
-        if @dissect(ref, (local over) |> Nested())
-            repl′[ref] = base.repl[over]
+        if @dissect(ref, (local tail) |> Nested())
+            repl′[ref] = base.repl[tail]
         else
             repl′[ref] = base.repl[ref]
         end
@@ -445,25 +455,25 @@ function assemble(n::BindNode, ctx)
         vars′ = Base.ImmutableDict(vars′, (name, depth) => translate(n.args[i], ctx))
     end
     ctx′ = TranslateContext(ctx, vars = vars′)
-    assemble(n.over, ctx′)
+    assemble(ctx′)
 end
 
 function assemble(n::DefineNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if !@dissect(base.syntax, SELECT() || UNION())
         base_alias = nothing
         s = base.syntax
     else
         base_alias = allocate_alias(ctx, base)
-        s = FROM(AS(tail = complete(base), name = base_alias))
+        s = FROM(AS(name = base_alias, tail = complete(base)))
     end
     subs = make_subs(base, base_alias)
     tr_cache = Dict{Symbol, SQLSyntax}()
     for (f, i) in n.label_map
         tr_cache[f] = translate(n.args[i], ctx, subs)
     end
-    repl = Dict{SQLNode, Symbol}()
-    trns = Pair{SQLNode, SQLSyntax}[]
+    repl = Dict{SQLQuery, Symbol}()
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         if @dissect(ref, nothing |> Get(name = (local name))) && name in keys(tr_cache)
             push!(trns, ref => tr_cache[name])
@@ -484,21 +494,22 @@ function assemble(n::FromFunctionNode, ctx)
             push!(seen, name)
         end
     end
-    over = translate(n.over, ctx)
-    alias = allocate_alias(ctx, label(n.over))
-    s = FROM(AS(tail = over, name = alias, columns = n.columns))
+    tail = translate(ctx)
+    lbl = label(ctx.tail)
+    alias = allocate_alias(ctx, lbl)
+    s = FROM(AS(name = alias, columns = n.columns, tail = tail))
     cols = OrderedDict{Symbol, SQLSyntax}()
     for col in n.columns
         col in seen || continue
-        cols[col] = ID(tail = alias, name = col)
+        cols[col] = ID(name = col, tail = alias)
     end
-    repl = Dict{SQLNode, Symbol}()
+    repl = Dict{SQLQuery, Symbol}()
     for ref in ctx.refs
         if @dissect(ref, nothing |> Get(name = (local name)))
             repl[ref] = name
         end
     end
-    Assemblage(label(n.over), s, cols = cols, repl = repl)
+    Assemblage(lbl, s, cols = cols, repl = repl)
 end
 
 function assemble(n::FromIterateNode, ctx)
@@ -506,9 +517,9 @@ function assemble(n::FromIterateNode, ctx)
     name = cte_a.a.name
     alias = allocate_alias(ctx, name)
     tbl = convert(SQLSyntax, (cte_a.qualifiers, cte_a.name))
-    s = FROM(AS(tail = tbl, name = alias))
+    s = FROM(AS(name = alias, tail = tbl))
     subs = make_subs(cte_a.a, alias)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -520,10 +531,10 @@ assemble(::FromNothingNode, ctx) =
     assemble(nothing, ctx)
 
 function unwrap_repl(a::Assemblage)
-    repl′ = Dict{SQLNode, Symbol}()
+    repl′ = Dict{SQLQuery, Symbol}()
     for (ref, name) in a.repl
-        @dissect(ref, (local over) |> Nested()) || error()
-        repl′[over] = name
+        @dissect(ref, (local tail) |> Nested()) || error()
+        repl′[tail] = name
     end
     Assemblage(a.name, a.syntax, cols = a.cols, repl = repl′)
 end
@@ -532,9 +543,9 @@ function assemble(n::FromTableExpressionNode, ctx)
     cte_a = ctx.ctes[ctx.cte_map[(n.name, n.depth)]]
     alias = allocate_alias(ctx, n.name)
     tbl = convert(SQLSyntax, (cte_a.qualifiers, cte_a.name))
-    s = FROM(AS(tail = tbl, name = alias))
+    s = FROM(AS(name = alias, tail = tbl))
     subs = make_subs(unwrap_repl(cte_a.a), alias)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -552,13 +563,13 @@ function assemble(n::FromTableNode, ctx)
     end
     alias = allocate_alias(ctx, n.table.name)
     tbl = convert(SQLSyntax, (n.table.qualifiers, n.table.name))
-    s = FROM(AS(tail = tbl, name = alias))
+    s = FROM(AS(name = alias, tail = tbl))
     cols = OrderedDict{Symbol, SQLSyntax}()
     for (name, col) in n.table.columns
         name in seen || continue
-        cols[name] = ID(tail = alias, name = col.name)
+        cols[name] = ID(name = col.name, tail = alias)
     end
-    repl = Dict{SQLNode, Symbol}()
+    repl = Dict{SQLQuery, Symbol}()
     for ref in ctx.refs
         if @dissect(ref, nothing |> Get(name = (local name)))
             repl[ref] = name
@@ -599,7 +610,7 @@ function assemble(n::FromValuesNode, ctx)
         s = FROM(AS(alias, columns = column_aliases, tail = VALUES(rows)))
         for col in columns
             col in seen || continue
-            cols[col] = ID(tail = alias, name = col)
+            cols[col] = ID(name = col, tail = alias)
         end
     else
         column_prefix = ctx.catalog.dialect.values_column_prefix
@@ -609,11 +620,11 @@ function assemble(n::FromValuesNode, ctx)
         for col in columns
             col in seen || continue
             name = Symbol(column_prefix, column_index)
-            cols[col] = ID(tail = alias, name = name)
+            cols[col] = ID(name = name, tail = alias)
             column_index += 1
         end
     end
-    repl = Dict{SQLNode, Symbol}()
+    repl = Dict{SQLQuery, Symbol}()
     for ref in ctx.refs
         if @dissect(ref, nothing |> Get(name = (local name)))
             repl[ref] = name
@@ -627,24 +638,24 @@ function assemble(n::GroupNode, ctx)
     if isempty(n.by) && !has_aggregates # NOOP: already processed in link()
         return assemble(nothing, ctx)
     end
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if @dissect(base.syntax, local tail = nothing || FROM() || JOIN() || WHERE())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
-        tail = FROM(AS(tail = complete(base), name = base_alias))
+        tail = FROM(AS(name = base_alias, tail = complete(base)))
     end
     subs = make_subs(base, base_alias)
     by = SQLSyntax[subs[key] for key in n.by]
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         if @dissect(ref, nothing |> Get(name = (local name)))
             @assert name in keys(n.label_map)
             push!(trns, ref => by[n.label_map[name]])
         elseif @dissect(ref, nothing |> Agg())
             push!(trns, ref => translate(ref, ctx, subs))
-        elseif @dissect(ref, (local over = nothing |> Agg()) |> Nested())
-            push!(trns, ref => translate(over, ctx, subs))
+        elseif @dissect(ref, (local tail = nothing |> Agg()) |> Nested())
+            push!(trns, ref => translate(tail, ctx, subs))
         end
     end
     if !has_aggregates && n.sets === nothing
@@ -655,10 +666,10 @@ function assemble(n::GroupNode, ctx)
     repl, cols = make_repl_cols(trns)
     @assert !isempty(cols)
     if has_aggregates || n.sets !== nothing
-        s = GROUP(tail = tail, by = by, sets = n.sets)
+        s = GROUP(by = by, sets = n.sets, tail = tail)
     else
         args = complete(cols)
-        s = SELECT(tail = tail, distinct = true, args = args)
+        s = SELECT(distinct = true, args = args, tail = tail)
         cols = OrderedDict{Symbol, SQLSyntax}([name => ID(name) for name in keys(cols)])
     end
     return Assemblage(base.name, s, cols = cols, repl = repl)
@@ -666,10 +677,10 @@ end
 
 function assemble(n::IterateNode, ctx)
     ctx′ = TranslateContext(ctx, vars = Base.ImmutableDict{Tuple{Symbol, Int}, SQLSyntax}())
-    left = assemble(n.over, ctx)
-    repl = Dict{SQLNode, Symbol}()
-    dups = Dict{SQLNode, SQLNode}()
-    seen = Dict{Symbol, SQLNode}()
+    left = assemble(ctx)
+    repl = Dict{SQLQuery, Symbol}()
+    dups = Dict{SQLQuery, SQLQuery}()
+    seen = Dict{Symbol, SQLQuery}()
     for ref in ctx.refs
         !in(ref, keys(repl)) || continue
         name = left.repl[ref]
@@ -687,14 +698,14 @@ function assemble(n::IterateNode, ctx)
     knot = lastindex(ctx.ctes)
     ctx = TranslateContext(ctx, knot = knot)
     right = assemble(n.iterator, ctx)
-    urefs = SQLNode[]
+    urefs = SQLQuery[]
     for ref in ctx.refs
         !(ref in keys(dups)) || continue
         dups[ref] = ref
         push!(urefs, ref)
     end
     ss = SQLSyntax[]
-    for (arg, a) in (n.over => left, n.iterator => right)
+    for (arg, a) in (ctx.tail => left, n.iterator => right)
         if @dissect(a.syntax, (local tail) |> SELECT(args = (local args))) && aligned_columns(urefs, repl, args) && !@dissect(tail, ORDER() || LIMIT())
             push!(ss, a.syntax)
             continue
@@ -703,7 +714,7 @@ function assemble(n::IterateNode, ctx)
             tail = a.syntax
         else
             alias = allocate_alias(ctx, a)
-            tail = FROM(AS(tail = complete(a), name = alias))
+            tail = FROM(AS(name = alias, tail = complete(a)))
         end
         subs = make_subs(a, alias)
         cols = OrderedDict{Symbol, SQLSyntax}()
@@ -711,10 +722,10 @@ function assemble(n::IterateNode, ctx)
             name = left.repl[ref]
             cols[name] = subs[ref]
         end
-        s = SELECT(tail = tail, args = complete(cols))
+        s = SELECT(args = complete(cols), tail = tail)
         push!(ss, s)
     end
-    union_syntax = UNION(tail = ss[1], all = true, args = ss[2:end])
+    union_syntax = UNION(all = true, args = ss[2:end], tail = ss[1])
     cols = OrderedDict{Symbol, SQLSyntax}()
     for ref in urefs
         name = left.repl[ref]
@@ -724,9 +735,9 @@ function assemble(n::IterateNode, ctx)
     ctx.ctes[knot] = CTEAssemblage(union, name = union_alias)
     ctx.recursive[] = true
     alias = allocate_alias(ctx, union)
-    s = FROM(AS(tail = ID(union_alias), name = alias))
+    s = FROM(AS(name = alias, tail = ID(union_alias)))
     subs = make_subs(union, alias)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -735,16 +746,16 @@ function assemble(n::IterateNode, ctx)
 end
 
 function assemble(n::LimitNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if @dissect(base.syntax, local tail = nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING() || ORDER())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
-        tail = FROM(AS(tail = complete(base), name = base_alias))
+        tail = FROM(AS(name = base_alias, tail = complete(base)))
     end
-    s = LIMIT(tail = tail, offset = n.offset, limit = n.limit)
+    s = LIMIT(offset = n.offset, limit = n.limit, tail = tail)
     subs = make_subs(base, base_alias)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -753,7 +764,7 @@ function assemble(n::LimitNode, ctx)
 end
 
 function assemble(n::LinkedNode, ctx)
-    a = assemble(n.over, TranslateContext(ctx, refs = n.refs))
+    a = assemble(TranslateContext(ctx, refs = n.refs))
     n.n_ext_refs < length(n.refs) || return a
     dups = Set{Symbol}()
     for (k, ref) in enumerate(n.refs)
@@ -761,9 +772,9 @@ function assemble(n::LinkedNode, ctx)
         if col in dups
             if k > n.n_ext_refs
                 alias = allocate_alias(ctx, a)
-                s = FROM(AS(tail = complete(a), name = alias))
+                s = FROM(AS(name = alias, tail = complete(a)))
                 subs = make_subs(a, alias)
-                trns = Pair{SQLNode, SQLSyntax}[]
+                trns = Pair{SQLQuery, SQLSyntax}[]
                 for ref in n.refs
                     push!(trns, ref => subs[ref])
                 end
@@ -778,18 +789,18 @@ function assemble(n::LinkedNode, ctx)
 end
 
 function assemble(n::OrderNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     @assert !isempty(n.by)
     if @dissect(base.syntax, local tail = nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
-        tail = FROM(AS(tail = complete(base), name = base_alias))
+        tail = FROM(AS(name = base_alias, tail = complete(base)))
     end
     subs = make_subs(base, base_alias)
     by = translate(n.by, ctx, subs)
-    s = ORDER(tail = tail, by = by)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    s = ORDER(by = by, tail = tail)
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -798,7 +809,7 @@ function assemble(n::OrderNode, ctx)
 end
 
 function assemble(n::PaddingNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if isempty(ctx.refs)
         return base
     end
@@ -807,11 +818,11 @@ function assemble(n::PaddingNode, ctx)
         s = base.syntax
     else
         base_alias = allocate_alias(ctx, base)
-        s = FROM(AS(tail = complete(base), name = base_alias))
+        s = FROM(AS(name = base_alias, tail = complete(base)))
     end
     subs = make_subs(base, base_alias)
-    repl = Dict{SQLNode, Symbol}()
-    trns = Pair{SQLNode, SQLSyntax}[]
+    repl = Dict{SQLQuery, Symbol}()
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => translate(ref, ctx, subs))
     end
@@ -820,28 +831,28 @@ function assemble(n::PaddingNode, ctx)
 end
 
 function assemble(n::PartitionNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if @dissect(base.syntax, local tail = nothing || FROM() || JOIN() || WHERE() || GROUP() || HAVING())
         base_alias = nothing
     else
         base_alias = allocate_alias(ctx, base)
-        tail = FROM(AS(tail = complete(base), name = base_alias))
+        tail = FROM(AS(name = base_alias, tail = complete(base)))
     end
-    s = WINDOW(tail = tail, args = [])
+    s = WINDOW(args = [], tail = tail)
     subs = make_subs(base, base_alias)
     ctx′ = TranslateContext(ctx, subs = subs)
     by = translate(n.by, ctx′)
     order_by = translate(n.order_by, ctx′)
     partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     has_aggregates = false
     for ref in ctx.refs
         if @dissect(ref, nothing |> Agg()) && n.name === nothing
             @dissect(translate(ref, ctx′), AGG(name = (local name), args = (local args), filter = (local filter))) || error()
             push!(trns, ref => AGG(; name, args, filter, over = partition))
             has_aggregates = true
-        elseif @dissect(ref, (local over = nothing |> Agg()) |> Nested(name = (local name))) && name === n.name
-            @dissect(translate(over, ctx′), AGG(name = (local name), args = (local args), filter = (local filter))) || error()
+        elseif @dissect(ref, (local tail = nothing |> Agg()) |> Nested(name = (local name))) && name === n.name
+            @dissect(translate(tail, ctx′), AGG(name = (local name), args = (local args), filter = (local filter))) || error()
             push!(trns, ref => AGG(; name, args, filter, over = partition))
             has_aggregates = true
         else
@@ -857,12 +868,12 @@ _outer_safe(a::Assemblage) =
     all(@dissect(col, (nothing |> ID() |> ID())) for col in values(a.cols))
 
 function assemble(n::RoutedJoinNode, ctx)
-    left = assemble(n.over, ctx)
+    left = assemble(ctx)
     if @dissect(left.syntax, local tail = FROM() || JOIN()) && (!n.right || _outer_safe(left))
         left_alias = nothing
     else
         left_alias = allocate_alias(ctx, left)
-        tail = FROM(AS(tail = complete(left), name = left_alias))
+        tail = FROM(AS(name = left_alias, tail = complete(left)))
     end
     lateral = n.lateral
     subs = make_subs(left, left_alias)
@@ -880,17 +891,17 @@ function assemble(n::RoutedJoinNode, ctx)
         end
     else
         right_alias = allocate_alias(ctx, right)
-        joinee = AS(tail = complete(right), name = right_alias)
+        joinee = AS(name = right_alias, tail = complete(right))
         right_cache = Dict{Symbol, SQLSyntax}()
         for (ref, name) in right.repl
             subs[ref] = get(right_cache, name) do
-                ID(tail = right_alias, name = name)
+                ID(name = name, tail = right_alias)
             end
         end
     end
     on = translate(n.on, ctx, subs)
-    s = JOIN(tail = tail, joinee = joinee, on = on, left = n.left, right = n.right, lateral = lateral)
-    trns = Pair{SQLNode, SQLSyntax}[]
+    s = JOIN(joinee = joinee, on = on, left = n.left, right = n.right, lateral = lateral, tail = tail)
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -899,13 +910,13 @@ function assemble(n::RoutedJoinNode, ctx)
 end
 
 function assemble(n::SelectNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if !@dissect(base.syntax, SELECT() || UNION())
         base_alias = nothing
         tail = base.syntax
     else
         base_alias = allocate_alias(ctx, base)
-        tail = FROM(AS(tail = complete(base), name = base_alias))
+        tail = FROM(AS(name = base_alias, tail = complete(base)))
     end
     subs = make_subs(base, base_alias)
     cols = OrderedDict{Symbol, SQLSyntax}()
@@ -913,9 +924,9 @@ function assemble(n::SelectNode, ctx)
         col = n.args[i]
         cols[name] = translate(col, ctx, subs)
     end
-    s = SELECT(tail = tail, args = complete(cols))
+    s = SELECT(args = complete(cols), tail = tail)
     cols = OrderedDict{Symbol, SQLSyntax}([name => ID(name) for name in keys(cols)])
-    repl = Dict{SQLNode, Symbol}()
+    repl = Dict{SQLQuery, Symbol}()
     for ref in ctx.refs
         @dissect(ref, nothing |> Get(name = (local name))) || error()
         repl[ref] = name
@@ -938,7 +949,7 @@ function merge_conditions(s1, s2)
 end
 
 function assemble(n::WhereNode, ctx)
-    base = assemble(n.over, ctx)
+    base = assemble(ctx)
     if @dissect(base.syntax, nothing || FROM() || JOIN() || WHERE() || HAVING()) ||
        @dissect(base.syntax, GROUP(by = (local by))) && !isempty(by)
         subs = make_subs(base, nothing)
@@ -953,21 +964,21 @@ function assemble(n::WhereNode, ctx)
             s = HAVING(tail = base.syntax, condition = condition)
         elseif @dissect(base.syntax, (local tail) |> HAVING(condition = (local tail_condition)))
             condition = merge_conditions(tail_condition, condition)
-            s = HAVING(tail = tail, condition = condition)
+            s = HAVING(condition = condition, tail = tail)
         else
-            s = WHERE(tail = base.syntax, condition = condition)
+            s = WHERE(condition = condition, tail = base.syntax)
         end
     else
         base_alias = allocate_alias(ctx, base)
-        tail = FROM(AS(tail = complete(base), name = base_alias))
+        tail = FROM(AS(name = base_alias, tail = complete(base)))
         subs = make_subs(base, base_alias)
         condition = translate(n.condition, ctx, subs)
         if @dissect(condition, LIT(val = true))
             return base
         end
-        s = WHERE(tail = tail, condition = condition)
+        s = WHERE(condition = condition, tail = tail)
     end
-    trns = Pair{SQLNode, SQLSyntax}[]
+    trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         push!(trns, ref => subs[ref])
     end
@@ -987,7 +998,7 @@ function assemble(n::WithNode, ctx)
         depth = _cte_depth(ctx.cte_map, name) + 1
         cte_map′ = Base.ImmutableDict(cte_map′, (name, depth) => lastindex(ctx.ctes))
     end
-    assemble(n.over, TranslateContext(ctx, cte_map = cte_map′))
+    assemble(TranslateContext(ctx, cte_map = cte_map′))
 end
 
 function assemble(n::WithExternalNode, ctx)
@@ -1009,5 +1020,5 @@ function assemble(n::WithExternalNode, ctx)
         depth = _cte_depth(ctx.cte_map, name) + 1
         cte_map′ = Base.ImmutableDict(cte_map′, (name, depth) => lastindex(ctx.ctes))
     end
-    assemble(n.over, TranslateContext(ctx, cte_map = cte_map′))
+    assemble(TranslateContext(ctx, cte_map = cte_map′))
 end

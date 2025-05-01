@@ -1,29 +1,28 @@
 # A With-like node that creates definitions for SELECT INTO statements.
 
 mutable struct WithExternalNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    args::Vector{SQLNode}
+    args::Vector{SQLQuery}
     qualifiers::Vector{Symbol}
     handler
     label_map::OrderedDict{Symbol, Int}
 
-    function WithExternalNode(; over = nothing, args, qualifiers = Symbol[], handler = nothing, label_map = nothing)
+    function WithExternalNode(; args, qualifiers = Symbol[], handler = nothing, label_map = nothing)
         if label_map !== nothing
-            new(over, args, qualifiers, handler, label_map)
+            new(args, qualifiers, handler, label_map)
         else
             qualifiers =
                 !isa(qualifiers, Vector{Symbol}) ?
                     Symbol[Symbol(ql) for ql in qualifiers] :
                     qualifiers
-            n = new(over, args, qualifiers, handler, OrderedDict{Symbol, Int}())
+            n = new(args, qualifiers, handler, OrderedDict{Symbol, Int}())
             populate_label_map!(n)
             n
         end
     end
 end
 
-WithExternalNode(args...; over = nothing, qualifiers = Symbol[], handler = nothing) =
-    WithExternalNode(over = over, args = SQLNode[args...], qualifiers = qualifiers, handler = handler)
+WithExternalNode(args...; qualifiers = Symbol[], handler = nothing) =
+    WithExternalNode(args = SQLQuery[args...], qualifiers = qualifiers, handler = handler)
 
 """
     WithExternal(; over = nothing, args, qualifiers = [], handler = nothing)
@@ -74,14 +73,10 @@ WHERE ("person_1"."person_id" IN (
 ))
 ```
 """
-WithExternal(args...; kws...) =
-    WithExternalNode(args...; kws...) |> SQLNode
-
-dissect(scr::Symbol, ::typeof(WithExternal), pats::Vector{Any}) =
-    dissect(scr, WithExternalNode, pats)
+const WithExternal = SQLQueryCtor{WithExternalNode}(:WithExternal)
 
 function PrettyPrinting.quoteof(n::WithExternalNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(WithExternal))
+    ex = Expr(:call, :WithExternal)
     if isempty(n.args)
         push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
@@ -92,9 +87,6 @@ function PrettyPrinting.quoteof(n::WithExternalNode, ctx::QuoteContext)
     end
     if n.handler !== nothing
         push!(ex.args, Expr(:kw, :handler, nameof(n.handler)))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

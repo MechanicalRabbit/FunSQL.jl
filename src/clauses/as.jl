@@ -37,7 +37,7 @@ julia> print(render(s))
 "person" AS "p" ("person_id", "year_of_birth")
 ```
 """
-const AS = SQLSyntaxCtor{AsClause}
+const AS = SQLSyntaxCtor{AsClause}(:AS)
 
 Base.convert(::Type{SQLSyntax}, p::Pair{Symbol}) =
     SQLSyntax(last(p), AsClause(name = first(p)))

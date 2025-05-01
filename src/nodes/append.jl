@@ -1,19 +1,18 @@
 # Append (UNION ALL) node.
 
-mutable struct AppendNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    args::Vector{SQLNode}
+struct AppendNode <: TabularNode
+    args::Vector{SQLQuery}
 
-    AppendNode(; over = nothing, args) =
-        new(over, args)
+    AppendNode(; args) =
+        new(args)
 end
 
-AppendNode(args...; over = nothing) =
-    AppendNode(over = over, args = SQLNode[args...])
+AppendNode(args...) =
+    AppendNode(args = SQLQuery[args...])
 
 """
-    Append(; over = nothing, args)
-    Append(args...; over = nothing)
+    Append(; args, tail = nothing)
+    Append(args...; tail = nothing)
 
 `Append` concatenates input datasets.
 
@@ -57,31 +56,16 @@ SELECT
 FROM "observation" AS "observation_1"
 ```
 """
-Append(args...; kws...) =
-    AppendNode(args...; kws...) |> SQLNode
+const Append = SQLQueryCtor{AppendNode}(:Append)
 
 const funsql_append = Append
 
-dissect(scr::Symbol, ::typeof(Append), pats::Vector{Any}) =
-    dissect(scr, AppendNode, pats)
-
 function PrettyPrinting.quoteof(n::AppendNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Append))
+    ex = Expr(:call, :Append)
     if isempty(n.args)
         push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
         append!(ex.args, quoteof(n.args, ctx))
     end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
-    end
     ex
-end
-
-function label(n::AppendNode)
-    lbl = label(n.over)
-    for l in n.args
-        label(l) === lbl || return :union
-    end
-    lbl
 end

@@ -1,39 +1,40 @@
 # Function and operator calls.
 
-mutable struct FunctionNode <: AbstractSQLNode
+struct FunctionNode <: AbstractSQLNode
     name::Symbol
-    args::Vector{SQLNode}
+    args::Vector{SQLQuery}
 
     function FunctionNode(;
                           name::Union{Symbol, AbstractString},
-                          args = SQLNode[])
-        n = new(Symbol(name), args)
-        renameoperators!(n)
+                          args = SQLQuery[])
+        n = new(_renameoperators(Symbol(name)), args)
         checkarity!(n)
         n
     end
 end
 
 # Rename Julia operators to SQL equivalents.
-function renameoperators!(n::FunctionNode)
-    if n.name === :(==)
-        n.name = Symbol("=")
-    elseif n.name === :(!=)
-        n.name = Symbol("<>")
-    elseif n.name === :(||)
-        n.name = :or
-    elseif n.name === :(&&)
-        n.name = :and
-    elseif n.name === :(!)
-        n.name = :not
+function _renameoperators(name::Symbol)
+    if name === :(==)
+        Symbol("=")
+    elseif name === :(!=)
+        Symbol("<>")
+    elseif name === :(||)
+        :or
+    elseif name === :(&&)
+        :and
+    elseif name === :(!)
+        :not
+    else
+        name
     end
 end
 
-FunctionNode(name; args = SQLNode[]) =
+FunctionNode(name; args = SQLQuery[]) =
     FunctionNode(name = name, args = args)
 
 FunctionNode(name, args...) =
-    FunctionNode(name = name, args = SQLNode[args...])
+    FunctionNode(name = name, args = SQLQuery[args...])
 
 """
     Fun(; name, args = [])
@@ -152,20 +153,19 @@ SELECT SUBSTRING("location_1"."zip" FROM 1 FOR 3) AS "_"
 FROM "location" AS "location_1"
 ```
 """
-Fun(args...; kws...) =
-    FunctionNode(args...; kws...) |> SQLNode
+const Fun = SQLQueryCtor{FunctionNode}(:Fun)
 
 const funsql_fun = Fun
 
-dissect(scr::Symbol, ::typeof(Fun), pats::Vector{Any}) =
-    dissect(scr, FunctionNode, pats)
-
 transliterate(::typeof(Fun), name::Symbol, ctx::TransliterateContext, @nospecialize(args...)) =
-    Fun(name, args = [transliterate(SQLNode, arg, ctx) for arg in args])
+    Fun(name, args = [transliterate(SQLQuery, arg, ctx) for arg in args])
+
+terminal(::Type{FunctionNode}) =
+    true
 
 PrettyPrinting.quoteof(n::FunctionNode, ctx::QuoteContext) =
     Expr(:call,
-         Expr(:., nameof(Fun),
+         Expr(:., :Fun,
                   QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))),
          quoteof(n.args, ctx)...)
 
@@ -183,8 +183,7 @@ FunClosure(name::AbstractString) =
     FunClosure(Symbol(name))
 
 Base.show(io::IO, f::FunClosure) =
-    print(io, Expr(:., nameof(Fun),
-                       QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
+    print(io, Expr(:., :Fun, QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
 
 Base.getproperty(::typeof(Fun), name::Symbol) =
     FunClosure(name)
@@ -192,11 +191,11 @@ Base.getproperty(::typeof(Fun), name::Symbol) =
 Base.getproperty(::typeof(Fun), name::AbstractString) =
     FunClosure(name)
 
-(f::FunClosure)(args...) =
-    Fun(f.name, args = SQLNode[args...])
+(ctor::FunClosure)(args...) =
+    Fun(ctor.name, args = SQLQuery[args...])
 
-(f::FunClosure)(; args = SQLNode[]) =
-    Fun(f.name, args = args)
+(ctor::FunClosure)(; args = SQLQuery[]) =
+    Fun(ctor.name, args = args)
 
 
 # Common SQL functions and operators.
@@ -246,23 +245,23 @@ const funsql_not_like = FunClosure(:not_like)
 struct FunStyle <: Base.BroadcastStyle
 end
 
-Base.BroadcastStyle(::Type{<:AbstractSQLNode}) =
+Base.BroadcastStyle(::Type{<:Union{SQLQuery, SQLGetQuery}}) =
     FunStyle()
 
 Base.BroadcastStyle(::FunStyle, ::Base.Broadcast.DefaultArrayStyle{0}) =
     FunStyle()
 
-Base.broadcastable(n::AbstractSQLNode) =
-    n
+Base.broadcastable(q::Union{SQLQuery, SQLGetQuery}) =
+    q
 
 Base.Broadcast.instantiate(bc::Base.Broadcast.Broadcasted{FunStyle}) =
     bc
 
 Base.copy(bc::Base.Broadcast.Broadcasted{FunStyle}) =
-    Fun(nameof(bc.f), args = SQLNode[bc.args...])
+    Fun(nameof(bc.f), args = SQLQuery[bc.args...])
 
-Base.convert(::Type{AbstractSQLNode}, bc::Base.Broadcast.Broadcasted{FunStyle}) =
-    FunctionNode(nameof(bc.f), args = SQLNode[bc.args...])
+Base.convert(::Type{SQLQuery}, bc::Base.Broadcast.Broadcasted{FunStyle}) =
+    Fun(nameof(bc.f), args = SQLQuery[bc.args...])
 
 # Broadcasting over && and ||.
 
@@ -275,12 +274,12 @@ end
 
 if VERSION >= v"1.7"
     Base.Broadcast.broadcasted(::Base.Broadcast.AndAnd,
-                               arg1::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode},
-                               arg2::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode}) =
+                               arg1::Union{Base.Broadcast.Broadcasted{FunStyle}, SQLQuery, SQLGetQuery},
+                               arg2::Union{Base.Broadcast.Broadcasted{FunStyle}, SQLQuery, SQLGetQuery}) =
         Base.Broadcast.broadcasted(DUMMY_CONNECTIVES.var"&&", arg1, arg2)
 
     Base.Broadcast.broadcasted(::Base.Broadcast.OrOr,
-                               arg1::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode},
-                               arg2::Union{Base.Broadcast.Broadcasted{FunStyle}, AbstractSQLNode}) =
+                               arg1::Union{Base.Broadcast.Broadcasted{FunStyle}, SQLQuery, SQLGetQuery},
+                               arg2::Union{Base.Broadcast.Broadcasted{FunStyle}, SQLQuery, SQLGetQuery}) =
         Base.Broadcast.broadcasted(DUMMY_CONNECTIVES.var"||", arg1, arg2)
 end

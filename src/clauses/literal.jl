@@ -35,7 +35,7 @@ julia> print(render(s))
 'SQL is fun!'
 ```
 """
-LIT = SQLSyntaxCtor{LiteralClause}
+const LIT = SQLSyntaxCtor{LiteralClause}(:LIT)
 
 Base.convert(::Type{SQLSyntax}, val::SQLLiteralType) =
     LIT(val)

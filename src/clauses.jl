@@ -28,8 +28,12 @@ struct SQLSyntax
     SQLSyntax(@nospecialize head::AbstractSQLClause) =
         new(nothing, head)
 
-    SQLSyntax(tail, @nospecialize head::AbstractSQLClause) =
+    function SQLSyntax(tail, head::AbstractSQLClause)
+        if tail !== nothing && terminal(head)
+            throw(RebaseError(path = [SQLSyntax(head)]))
+        end
         new(tail, head)
+    end
 end
 
 Base.convert(::Type{SQLSyntax}, @nospecialize c::AbstractSQLClause) =
@@ -116,13 +120,17 @@ PrettyPrinting.quoteof(names::Vector{Symbol}, ctx::QuoteContext) =
 
 # Support for clause constructors.
 
-abstract type SQLSyntaxCtor{T}
+struct SQLSyntaxCtor{C<:AbstractSQLClause}
+    id::Symbol
 end
 
-SQLSyntaxCtor{C}(args...; tail = nothing, kws...) where {C<:AbstractSQLClause} =
+Base.show(io::IO, @nospecialize ctor::SQLSyntaxCtor{C}) where {C} =
+    print(io, ctor.id)
+
+(::SQLSyntaxCtor{C})(args...; tail = nothing, kws...) where {C} =
     SQLSyntax(tail, C(args...; kws...))
 
-function dissect(scr::Symbol, ::Type{SQLSyntaxCtor{C}}, pats::Vector{Any}) where {C<:AbstractSQLClause}
+function dissect(scr::Symbol, ::SQLSyntaxCtor{C}, pats::Vector{Any}) where {C<:AbstractSQLClause}
     head_pats = Any[]
     tail_pats = Any[]
     for pat in pats

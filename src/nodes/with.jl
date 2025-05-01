@@ -1,28 +1,27 @@
 # With node.
 
-mutable struct WithNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    args::Vector{SQLNode}
+struct WithNode <: TabularNode
+    args::Vector{SQLQuery}
     materialized::Union{Bool, Nothing}
     label_map::OrderedDict{Symbol, Int}
 
-    function WithNode(; over = nothing, args, materialized = nothing, label_map = nothing)
+    function WithNode(; args, materialized = nothing, label_map = nothing)
         if label_map !== nothing
-            new(over, args, materialized, label_map)
+            new(args, materialized, label_map)
         else
-            n = new(over, args, materialized, OrderedDict{Symbol, Int}())
+            n = new(args, materialized, OrderedDict{Symbol, Int}())
             populate_label_map!(n)
             n
         end
     end
 end
 
-WithNode(args...; over = nothing, materialized = nothing) =
-    WithNode(over = over, args = SQLNode[args...], materialized = materialized)
+WithNode(args...; materialized = nothing) =
+    WithNode(args = SQLQuery[args...], materialized = materialized)
 
 """
-    With(; over = nothing, args, materialized = nothing)
-    With(args...; over = nothing, materialized = nothing)
+    With(; args, materialized = nothing, tail = nothing)
+    With(args...; materialized = nothing, tail = nothing)
 
 `With` assigns a name to a temporary dataset.  The dataset content can be
 retrieved within the `over` query using the [`From`](@ref) node.
@@ -67,16 +66,12 @@ WHERE ("person_1"."person_id" IN (
 ))
 ```
 """
-With(args...; kws...) =
-    WithNode(args...; kws...) |> SQLNode
+const With = SQLQueryCtor{WithNode}(:With)
 
 const funsql_with = With
 
-dissect(scr::Symbol, ::typeof(With), pats::Vector{Any}) =
-    dissect(scr, WithNode, pats)
-
 function PrettyPrinting.quoteof(n::WithNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(With))
+    ex = Expr(:call, :With)
     if isempty(n.args)
         push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
@@ -84,9 +79,6 @@ function PrettyPrinting.quoteof(n::WithNode, ctx::QuoteContext)
     end
     if n.materialized !== nothing
         push!(ex.args, Expr(:kw, :materialized, n.materialized))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

@@ -1,28 +1,27 @@
 # Truncating.
 
-mutable struct LimitNode <: TabularNode
-    over::Union{SQLNode, Nothing}
+struct LimitNode <: TabularNode
     offset::Union{Int, Nothing}
     limit::Union{Int, Nothing}
 
-    LimitNode(; over = nothing, offset = nothing, limit = nothing) =
-        new(over, offset, limit)
+    LimitNode(; offset = nothing, limit = nothing) =
+        new(offset, limit)
 end
 
-LimitNode(limit; over = nothing, offset = nothing) =
-    LimitNode(over = over, offset = offset, limit = limit)
+LimitNode(limit; offset = nothing) =
+    LimitNode(; offset, limit)
 
-LimitNode(offset, limit; over = nothing) =
-    LimitNode(over = over, offset = offset, limit = limit)
+LimitNode(offset, limit) =
+    LimitNode(; offset, limit)
 
-LimitNode(range::UnitRange; over = nothing) =
-    LimitNode(over = over, offset = first(range) - 1, limit = length(range))
+LimitNode(range::UnitRange) =
+    LimitNode(offset = first(range) - 1, limit = length(range))
 
 """
-    Limit(; over = nothing, offset = nothing, limit = nothing)
-    Limit(limit; over = nothing, offset = nothing)
-    Limit(offset, limit; over = nothing)
-    Limit(start:stop; over = nothing)
+    Limit(; offset = nothing, limit = nothing, tail = nothing)
+    Limit(limit; offset = nothing, tail = nothing)
+    Limit(offset, limit; tail = nothing)
+    Limit(start:stop; tail = nothing)
 
 The `Limit` node skips the first `offset` rows and then emits the next `limit`
 rows.
@@ -58,22 +57,15 @@ ORDER BY "person_1"."year_of_birth"
 FETCH FIRST 1 ROW ONLY
 ```
 """
-Limit(args...; kws...) =
-    LimitNode(args...; kws...) |> SQLNode
+const Limit = SQLQueryCtor{LimitNode}(:Limit)
 
 const funsql_limit = Limit
 
-dissect(scr::Symbol, ::typeof(Limit), pats::Vector{Any}) =
-    dissect(scr, LimitNode, pats)
-
 function PrettyPrinting.quoteof(n::LimitNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Limit))
+    ex = Expr(:call, :Limit)
     if n.offset !== nothing
         push!(ex.args, n.offset)
     end
     push!(ex.args, n.limit)
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
-    end
     ex
 end

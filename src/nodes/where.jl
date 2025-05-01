@@ -1,19 +1,18 @@
 # Where node.
 
-mutable struct WhereNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    condition::SQLNode
+struct WhereNode <: TabularNode
+    condition::SQLQuery
 
-    WhereNode(; over = nothing, condition) =
-        new(over, condition)
+    WhereNode(; condition) =
+        new(condition)
 end
 
-WhereNode(condition; over = nothing) =
-    WhereNode(over = over, condition = condition)
+WhereNode(condition) =
+    WhereNode(; condition)
 
 """
-    Where(; over = nothing, condition)
-    Where(condition; over = nothing)
+    Where(; condition, tail = nothing)
+    Where(condition; tail = nothing)
 
 The `Where` node filters the input rows by the given `condition`.
 
@@ -40,18 +39,9 @@ FROM "person" AS "person_1"
 WHERE ("person_1"."year_of_birth" > 2000)
 ```
 """
-Where(args...; kws...) =
-    WhereNode(args...; kws...) |> SQLNode
+const Where = SQLQueryCtor{WhereNode}(:Where)
 
 const funsql_filter = Where
 
-dissect(scr::Symbol, ::typeof(Where), pats::Vector{Any}) =
-    dissect(scr, WhereNode, pats)
-
-function PrettyPrinting.quoteof(n::WhereNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Where), quoteof(n.condition, ctx))
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
-    end
-    ex
-end
+PrettyPrinting.quoteof(n::WhereNode, ctx::QuoteContext) =
+    Expr(:call, :Where, quoteof(n.condition, ctx))

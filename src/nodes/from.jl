@@ -11,7 +11,7 @@ struct ValuesSource <: AbstractSource
 end
 
 struct FunctionSource <: AbstractSource
-    node::SQLNode
+    query::SQLQuery
     columns::Vector{Symbol}
 end
 
@@ -27,9 +27,9 @@ _from_source(source::Symbol) =
 _from_source(::typeof(^)) =
     IterateSource()
 
-function _from_source(node::AbstractSQLNode;
+function _from_source(query::SQLQuery;
                       columns::AbstractVector{<:Union{Symbol, AbstractString}})
-    source = FunctionSource(node,
+    source = FunctionSource(query,
                             !isa(columns, Vector{Symbol}) ?
                                 Symbol[Symbol(col) for col in columns] :
                                 columns)
@@ -50,7 +50,7 @@ function _from_source(source)
     ValuesSource(columns)
 end
 
-mutable struct FromNode <: TabularNode
+struct FromNode <: TabularNode
     source::Union{SQLTable, Symbol, IterateSource, ValuesSource, FunctionSource, Nothing}
 
     FromNode(; source, kws...) =
@@ -66,7 +66,7 @@ FromNode(source; kws...) =
     From(name::Symbol)
     From(^)
     From(df)
-    From(f::SQLNode; columns::Vector{Symbol})
+    From(f::SQLQuery; columns::Vector{Symbol})
     From(::Nothing)
 
 `From` outputs the content of a database table.
@@ -76,7 +76,7 @@ The parameter `source` could be one of:
 * a `Symbol` value;
 * a `^` object;
 * a `DataFrame` or any Tables.jl-compatible dataset;
-* A `SQLNode` representing a table-valued function.  In this case, `From`
+* A `SQLQuery` representing a table-valued function.  In this case, `From`
   also requires a keyword parameter `columns` with a list of output columns
   produced by the function.
 * `nothing`.
@@ -209,16 +209,15 @@ SELECT CAST("regexp_matches_1"."captures"[1] AS INTEGER) AS "_"
 FROM regexp_matches('2,3,5,7,11', '(\\d+)', 'g') AS "regexp_matches_1" ("captures")
 ```
 """
-From(args...; kws...) =
-    FromNode(args...; kws...) |> SQLNode
+const From = SQLQueryCtor{FromNode}(:From)
 
 const funsql_from = From
 
-dissect(scr::Symbol, ::typeof(From), pats::Vector{Any}) =
-    dissect(scr, FromNode, pats)
+Base.convert(::Type{SQLQuery}, source::SQLTable) =
+    SQLQuery(FromNode(source))
 
-Base.convert(::Type{AbstractSQLNode}, source::SQLTable) =
-    FromNode(source)
+terminal(::Type{FromNode}) =
+    true
 
 function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
     source = n.source
@@ -227,19 +226,19 @@ function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
         if tex === nothing
             tex = quoteof(source, limit = true)
         end
-        Expr(:call, nameof(From), tex)
+        Expr(:call, :From, tex)
     elseif source isa Symbol
-        Expr(:call, nameof(From), QuoteNode(source))
+        Expr(:call, :From, QuoteNode(source))
     elseif source isa IterateSource
-        Expr(:call, nameof(From), :^)
+        Expr(:call, :From, :^)
     elseif source isa ValuesSource
-        Expr(:call, nameof(From), quoteof(source.columns, ctx))
+        Expr(:call, :From, quoteof(source.columns, ctx))
     elseif source isa FunctionSource
-        Expr(:call, nameof(From),
-                    quoteof(source.node, ctx),
+        Expr(:call, :From,
+                    quoteof(source.query, ctx),
                     Expr(:kw, :columns, Expr(:vect, [QuoteNode(col) for col in source.columns]...)))
     else
-        Expr(:call, nameof(From), source)
+        Expr(:call, :From, source)
     end
 end
 
@@ -252,7 +251,7 @@ function label(n::FromNode)
     elseif source isa ValuesSource
         :values
     elseif source isa FunctionSource
-        label(source.node)
+        label(source.query)
     else
         :_
     end

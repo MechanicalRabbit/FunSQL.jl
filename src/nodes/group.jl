@@ -1,15 +1,13 @@
 # Grouping.
 
 function populate_grouping_sets!(n, sets)
-    sets′ = Vector{Int}[]
     for set in sets
         set′ = Int[]
         for el in set
             push!(set′, _grouping_index(el, n))
         end
-        push!(sets′, set′)
+        push!(n.sets, set′)
     end
-    n.sets = sets′
 end
 
 _grouping_index(el::Integer, n) =
@@ -26,24 +24,21 @@ end
 _grouping_index(el::AbstractString, n) =
     _grouping_index(Symbol(el), n)
 
-mutable struct GroupNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    by::Vector{SQLNode}
+struct GroupNode <: TabularNode
+    by::Vector{SQLQuery}
     sets::Union{Vector{Vector{Int}}, GroupingMode, Nothing}
     name::Union{Symbol, Nothing}
     label_map::OrderedDict{Symbol, Int}
 
     function GroupNode(;
-                       over = nothing,
-                       by = SQLNode[],
+                       by = SQLQuery[],
                        sets = nothing,
                        name::Union{Symbol, AbstractString, Nothing} = nothing,
                        label_map = nothing)
         need_to_populate_sets = !(sets isa Union{Vector{Vector{Int}}, GroupingMode, Symbol, Nothing})
         n = new(
-            over,
             by,
-            need_to_populate_sets ? nothing : sets isa Symbol ? convert(GroupingMode, sets) : sets,
+            need_to_populate_sets ? Vector{Int}[] : sets isa Symbol ? convert(GroupingMode, sets) : sets,
             name !== nothing ? Symbol(name) : nothing,
             label_map !== nothing ? label_map : OrderedDict{Symbol, Int}())
         if label_map === nothing
@@ -66,12 +61,12 @@ mutable struct GroupNode <: TabularNode
     end
 end
 
-GroupNode(by...; over = nothing, sets = nothing, name = nothing) =
-    GroupNode(over = over, by = SQLNode[by...], sets = sets, name = name)
+GroupNode(by...; sets = nothing, name = nothing) =
+    GroupNode(by = SQLQuery[by...], sets = sets, name = name)
 
 """
-    Group(; over, by = [], sets = sets, name = nothing)
-    Group(by...; over, sets = sets, name = nothing)
+    Group(; by = [], sets = sets, name = nothing, tail = nothing)
+    Group(by...; sets = sets, name = nothing, tail = nothing)
 
 The `Group` node summarizes the input dataset.
 
@@ -169,25 +164,18 @@ SELECT DISTINCT "location_1"."state"
 FROM "location" AS "location_1"
 ```
 """
-Group(args...; kws...) =
-    GroupNode(args...; kws...) |> SQLNode
+const Group = SQLQueryCtor{GroupNode}(:Group)
 
 const funsql_group = Group
 
-dissect(scr::Symbol, ::typeof(Group), pats::Vector{Any}) =
-    dissect(scr, GroupNode, pats)
-
 function PrettyPrinting.quoteof(n::GroupNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Group), quoteof(n.by, ctx)...)
+    ex = Expr(:call, :Group, quoteof(n.by, ctx)...)
     s = n.sets
     if s !== nothing
         push!(ex.args, Expr(:kw, :sets, s isa GroupingMode ? QuoteNode(Symbol(s)) : s))
     end
     if n.name !== nothing
         push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

@@ -29,7 +29,7 @@ SELECT "p"."person_id"
 FROM "person" AS "p" TABLESAMPLE SYSTEM (50)
 ```
 """
-const NOTE = SQLSyntaxCtor{NoteClause}
+const NOTE = SQLSyntaxCtor{NoteClause}(:NOTE)
 
 function PrettyPrinting.quoteof(c::NoteClause, ctx::QuoteContext)
     ex = Expr(:call, :NOTE, quoteof(c.text))

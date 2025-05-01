@@ -1,33 +1,31 @@
 # Aggregate expression.
 
-mutable struct AggregateNode <: AbstractSQLNode
-    over::Union{SQLNode, Nothing}
+struct AggregateNode <: AbstractSQLNode
     name::Symbol
-    args::Vector{SQLNode}
-    filter::Union{SQLNode, Nothing}
+    args::Vector{SQLQuery}
+    filter::Union{SQLQuery, Nothing}
 
     function AggregateNode(;
-                           over = nothing,
                            name::Union{Symbol, AbstractString},
-                           args = SQLNode[],
+                           args = SQLQuery[],
                            filter = nothing)
-        n = new(over, Symbol(name), args, filter)
+        n = new(Symbol(name), args, filter)
         checkarity!(n)
         n
     end
 end
 
-AggregateNode(name; over = nothing, args = SQLNode[], filter = nothing) =
-    AggregateNode(over = over, name = name, args = args, filter = filter)
+AggregateNode(name; args = SQLQuery[], filter = nothing) =
+    AggregateNode(name = name, args = args, filter = filter)
 
-AggregateNode(name, args...; over = nothing, filter = nothing) =
-    AggregateNode(over = over, name = name, args = SQLNode[args...], filter = filter)
+AggregateNode(name, args...; filter = nothing) =
+    AggregateNode(name = name, args = SQLQuery[args...], filter = filter)
 
 """
-    Agg(; over = nothing, name, args = [], filter = nothing)
-    Agg(name; over = nothing, args = [], filter = nothing)
-    Agg(name, args...; over = nothing, filter = nothing)
-    Agg.name(args...; over = nothing, filter = nothing)
+    Agg(; name, args = [], filter = nothing, tail = nothing)
+    Agg(name; args = [], filter = nothing, tail = nothing)
+    Agg(name, args...; filter = nothing, tail = nothing)
+    Agg.name(args...; filter = nothing, tail = nothing)
 
 An application of an aggregate function.
 
@@ -120,24 +118,17 @@ SELECT
 FROM "visit_occurrence" AS "visit_occurrence_1"
 ```
 """
-Agg(args...; kws...) =
-    AggregateNode(args...; kws...) |> SQLNode
+const Agg = SQLQueryCtor{AggregateNode}(:Agg)
 
 const funsql_agg = Agg
 
-dissect(scr::Symbol, ::typeof(Agg), pats::Vector{Any}) =
-    dissect(scr, AggregateNode, pats)
-
 function PrettyPrinting.quoteof(n::AggregateNode, ctx::QuoteContext)
     ex = Expr(:call,
-              Expr(:., nameof(Agg),
+              Expr(:., :Agg,
                    QuoteNode(Base.isidentifier(n.name) ? n.name : string(n.name))))
     append!(ex.args, quoteof(n.args, ctx))
     if n.filter !== nothing
         push!(ex.args, Expr(:kw, :filter, quoteof(n.filter, ctx)))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
@@ -155,9 +146,8 @@ end
 AggClosure(name::AbstractString) =
     AggClosure(Symbol(name))
 
-Base.show(io::IO, f::AggClosure) =
-    print(io, Expr(:., nameof(Agg),
-                       QuoteNode(Base.isidentifier(f.name) ? f.name : string(f.name))))
+Base.show(io::IO, ctor::AggClosure) =
+    print(io, Expr(:., :Agg, QuoteNode(Base.isidentifier(ctor.name) ? ctor.name : string(ctor.name))))
 
 Base.getproperty(::typeof(Agg), name::Symbol) =
     AggClosure(name)
@@ -165,11 +155,11 @@ Base.getproperty(::typeof(Agg), name::Symbol) =
 Base.getproperty(::typeof(Agg), name::AbstractString) =
     AggClosure(name)
 
-(f::AggClosure)(args...; over = nothing, filter = nothing) =
-    Agg(over = over, name = f.name, args = SQLNode[args...], filter = filter)
+(ctor::AggClosure)(args...; filter = nothing, tail = nothing) =
+    Agg(name = ctor.name, args = SQLQuery[args...], filter = filter, tail = tail)
 
-(f::AggClosure)(; over = nothing, args = SQLNode[], filter = nothing) =
-    Agg(over = over, name = f.name, args = args, filter = filter)
+(ctor::AggClosure)(; args = SQLQuery[], filter = nothing, tail = nothing) =
+    Agg(name = ctor.name, args = args, filter = filter, tail = tail)
 
 
 # Common aggregate and window functions.

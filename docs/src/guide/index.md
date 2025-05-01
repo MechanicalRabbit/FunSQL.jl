@@ -571,7 +571,7 @@ pipelines.  The first pipeline is attached using the `|>` operator and the
 second one is provided as an argument to the `Join` constructor.
 Alternatively, both input pipelines can be specified as keyword arguments:
 
-    Join(over = From(:person),
+    Join(tail = From(:person),
          joinee = :location => From(:location),
          on = Get.location_id .== Get.location.location_id,
          left = true) |>
@@ -645,22 +645,7 @@ admits several equivalent forms:
     Get("year_of_birth")
 
 Such column references are resolved at the place of use against the input
-dataset.  As we mentioned earlier, sometimes column references cannot be
-resolved unambiguously.  To alleviate this problem, we can bind the column
-reference to the node that produces it:
-
-*Show all patients with their state of residence.*
-
-    qₚ = From(:person)
-    qₗ = From(:location)
-    q = qₚ |>
-        LeftJoin(qₗ, on = qₚ.location_id .== qₗ.location_id) |>
-        Select(qₚ.person_id, qₗ.state)
-
-The notation `qₚ.location_id` and `qₗ.location_id` is a syntax sugar for
-
-    Get(:location_id, over = qₚ)
-    Get(:location_id, over = qₗ)
+dataset.
 
 
 ## `Fun`: SQL Functions and Operators

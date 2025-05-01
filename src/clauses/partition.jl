@@ -145,7 +145,7 @@ FROM "person"
 GROUP BY "year_of_birth"
 ```
 """
-const PARTITION = SQLSyntaxCtor{PartitionClause}
+const PARTITION = SQLSyntaxCtor{PartitionClause}(:PARTITION)
 
 function PrettyPrinting.quoteof(c::PartitionClause, ctx::QuoteContext)
     ex = Expr(:call, :PARTITION)

@@ -1,27 +1,26 @@
 # Join node.
 
 mutable struct JoinNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    joinee::SQLNode
-    on::SQLNode
+    joinee::SQLQuery
+    on::SQLQuery
     left::Bool
     right::Bool
     optional::Bool
 
-    JoinNode(; over = nothing, joinee, on, left = false, right = false, optional = false) =
-        new(over, joinee, on, left, right, optional)
+    JoinNode(; joinee, on, left = false, right = false, optional = false) =
+        new(joinee, on, left, right, optional)
 end
 
-JoinNode(joinee; over = nothing, on, left = false, right = false, optional = false) =
-    JoinNode(over = over, joinee = joinee, on = on, left = left, right = right, optional = optional)
+JoinNode(joinee; on, left = false, right = false, optional = false) =
+    JoinNode(; joinee, on, left, right, optional)
 
-JoinNode(joinee, on; over = nothing, left = false, right = false, optional = false) =
-    JoinNode(over = over, joinee = joinee, on = on, left = left, right = right, optional = optional)
+JoinNode(joinee, on; left = false, right = false, optional = false) =
+    JoinNode(; joinee, on, left, right, optional)
 
 """
-    Join(; over = nothing, joinee, on, left = false, right = false, optional = false)
-    Join(joinee; over = nothing, on, left = false, right = false, optional = false)
-    Join(joinee, on; over = nothing, left = false, right = false, optional = false)
+    Join(; joinee, on, left = false, right = false, optional = false)
+    Join(joinee; on, left = false, right = false, optional = false)
+    Join(joinee, on; left = false, right = false, optional = false)
 
 `Join` correlates two input datasets.
 
@@ -68,9 +67,8 @@ SELECT
 FROM "person" AS "person_1"
 JOIN "location" AS "location_1" ON ("person_1"."location_id" = "location_1"."location_id")
 ```
-"""
-Join(args...; kws...) =
-    JoinNode(args...; kws...) |> SQLNode
+    """
+const Join = SQLQueryCtor{JoinNode}(:Join)
 
 """
 An alias for `Join(...; ..., left = true)`.
@@ -90,11 +88,8 @@ const funsql_left_join = LeftJoin
 
 const funsql_cross_join = CrossJoin
 
-dissect(scr::Symbol, ::typeof(Join), pats::Vector{Any}) =
-    dissect(scr, JoinNode, pats)
-
 function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Join))
+    ex = Expr(:call, :Join)
     if !ctx.limit
         push!(ex.args, quoteof(n.joinee, ctx))
         push!(ex.args, quoteof(n.on, ctx))
@@ -109,9 +104,6 @@ function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
         end
     else
         push!(ex.args, :…)
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end
