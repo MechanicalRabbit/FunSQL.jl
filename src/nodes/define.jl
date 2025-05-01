@@ -1,17 +1,16 @@
 # Defining calculated columns.
 
-mutable struct DefineNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    args::Vector{SQLNode}
+struct DefineNode <: TabularNode
+    args::Vector{SQLQuery}
     before::Union{Symbol, Bool}
     after::Union{Symbol, Bool}
     label_map::OrderedDict{Symbol, Int}
 
-    function DefineNode(; over = nothing, args = [], before = nothing, after = nothing, label_map = nothing)
+    function DefineNode(; args = [], before = nothing, after = nothing, label_map = nothing)
         if label_map !== nothing
-            n = new(over, args, something(before, false), something(after, false), label_map)
+            n = new(args, something(before, false), something(after, false), label_map)
         else
-            n = new(over, args, something(before, false), something(after, false), OrderedDict{Symbol, Int}())
+            n = new(args, something(before, false), something(after, false), OrderedDict{Symbol, Int}())
             populate_label_map!(n)
         end
         if (n.before isa Symbol || n.before) && (n.after isa Symbol || n.after)
@@ -21,12 +20,12 @@ mutable struct DefineNode <: TabularNode
     end
 end
 
-DefineNode(args...; over = nothing, before = nothing, after = nothing) =
-    DefineNode(over = over, args = SQLNode[args...], before = before, after = after)
+DefineNode(args...; before = nothing, after = nothing) =
+    DefineNode(args = SQLQuery[args...], before = before, after = after)
 
 """
-    Define(; over; args = [], before = nothing, after = nothing)
-    Define(args...; over, before = nothing, after = nothing)
+    Define(; args = [], before = nothing, after = nothing, tail = nothing)
+    Define(args...; before = nothing, after = nothing, tail = nothing)
 
 The `Define` node adds or replaces output columns.
 
@@ -79,24 +78,17 @@ SELECT
 FROM "person" AS "person_1"
 ```
 """
-Define(args...; kws...) =
-    DefineNode(args...; kws...) |> SQLNode
+const Define = SQLQueryCtor{DefineNode}(:Define)
 
 const funsql_define = Define
 
-dissect(scr::Symbol, ::typeof(Define), pats::Vector{Any}) =
-    dissect(scr, DefineNode, pats)
-
 function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Define), quoteof(n.args, ctx)...)
+    ex = Expr(:call, :Define, quoteof(n.args, ctx)...)
     if n.before !== false
         push!(ex.args, Expr(:kw, :before, n.before isa Symbol ? QuoteNode(n.before) : n.before))
     end
     if n.after !== false
         push!(ex.args, Expr(:kw, :after, n.after isa Symbol ? QuoteNode(n.after) : n.after))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

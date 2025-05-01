@@ -5,7 +5,7 @@
     using FunSQL:
         Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From, Get,
         Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order, Over,
-        Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
+        Partition, SQLQuery, SQLTable, Select, Sort, Var, Where, With,
         WithExternal, ID, render
 
 We start with specifying the database model.
@@ -28,8 +28,8 @@ We start with specifying the database model.
     const observation =
         SQLTable(:observation, columns = [:observation_id, :person_id, :observation_concept_id, :observation_date])
 
-In FunSQL, a SQL query is generated from a tree of `SQLNode` objects.  The
-nodes are created using constructors with familiar SQL names and connected
+In FunSQL, a SQL query is generated from a tree of `SQLQuery` objects.
+The nodes are created using constructors with familiar SQL names and connected
 together using the chain (`|>`) operator.
 
     q = From(person) |>
@@ -37,7 +37,7 @@ together using the chain (`|>`) operator.
         Select(Get.person_id)
     #-> (…) |> Select(…)
 
-Displaying a `SQLNode` object shows how it was constructed.
+Displaying a `SQLQuery` object shows how it was constructed.
 
     display(q)
     #=>
@@ -49,21 +49,17 @@ Displaying a `SQLNode` object shows how it was constructed.
     end
     =#
 
-Each node wraps a concrete node object, which can be accessed using the
-indexing operator.
+A `SQLQuery` object is represented as a linked list, whose components
+could be accessed using attributes `head` and `tail`.
 
-    q[]
-    #-> ((…) |> Select(…))[]
+    q.head
+    #-> (Select(…)).head
 
-    display(q[])
-    #=>
-    let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
-        q3 = q2 |> Select(Get.person_id)
-        q3[]
-    end
-    =#
+    display(q.head)
+    #-> Select(Get.person_id).head
+
+    q.tail
+    #-> (…) |> Where(…)
 
 The SQL query is generated using the function `render()`.
 
@@ -390,33 +386,6 @@ Use backticks to represent a name that is not a valid identifier.
     @funsql `p`.`person_id`
     #-> Get.p.person_id
 
-`Get` can also create bound references.
-
-    q = From(person)
-
-    e = Get(over = q, :year_of_birth)
-    #-> (…) |> Get.year_of_birth
-
-    display(e)
-    #=>
-    let person = SQLTable(:person, …),
-        q1 = From(person)
-        q1.year_of_birth
-    end
-    =#
-
-    q.person_id
-    #-> (…) |> Get.person_id
-
-    q."person_id"
-    #-> (…) |> Get.person_id
-
-    q[:person_id]
-    #-> (…) |> Get.person_id
-
-    q["person_id"]
-    #-> (…) |> Get.person_id
-
 `Get` is used for dereferencing an alias created with `As`.
 
     q = From(person) |>
@@ -510,20 +479,6 @@ reference, will result in an error.
     let person = SQLTable(:person, …),
         q1 = From(person),
         q2 = q1 |> Select(Get.person_id.year_of_birth)
-        q2
-    end
-    =#
-
-A reference bound to any node other than `Get` will cause an error.
-
-    q = (qₚ = From(person)) |> Select(qₚ.person_id)
-
-    print(render(q))
-    #=>
-    ERROR: FunSQL.IllFormedError in:
-    let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> Select(q1.person_id)
         q2
     end
     =#
@@ -849,7 +804,7 @@ are replaced with their SQL equivalents.
 
 A vector of arguments could be passed directly.
 
-    Fun.">"(args = SQLNode[Get.year_of_birth, 2000])
+    Fun.">"(args = SQLQuery[Get.year_of_birth, 2000])
     #-> Fun.:(">")(…)
 
 `Fun` nodes can be generated in `@funsql` notation.
@@ -2662,8 +2617,8 @@ used more than once.
         Join(:visit_group => From(visit_occurrence) |>
                              Group(Get.person_id),
              on = Get.person_id .== Get.visit_group.person_id) |>
-        Where(Agg.count(over = Get.visit_group) .>= 2) |>
-        Select(Get.person_id, Agg.count(over = Get.visit_group))
+        Where(Get.visit_group |> Agg.count() .>= 2) |>
+        Select(Get.person_id, Get.visit_group |> Agg.count())
 
     print(render(q))
     #=>
@@ -4211,24 +4166,23 @@ and determines node types.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = FromTable(table = person),
-    │     q2 = Resolved(RowType(:person_id => ScalarType(),
+    │     q1 = FromTable(person),
+    │     q2 = q1 |>
+    │          Resolved(RowType(:person_id => ScalarType(),
     │                           :gender_concept_id => ScalarType(),
     │                           :year_of_birth => ScalarType(),
     │                           :month_of_birth => ScalarType(),
     │                           :day_of_birth => ScalarType(),
     │                           :birth_datetime => ScalarType(),
-    │                           :location_id => ScalarType()),
-    │                   over = q1) |>
-    │          Where(Resolved(ScalarType(),
-    │                         over = Fun."<="(Resolved(ScalarType(),
-    │                                                  over = Get.year_of_birth),
-    │                                         Resolved(ScalarType(), over = 2000)))),
+    │                           :location_id => ScalarType())) |>
+    │          Where(Fun."<="(Get.year_of_birth |> Resolved(ScalarType()),
+    │                         2000 |> Resolved(ScalarType())) |>
+    │                Resolved(ScalarType())),
     ⋮
-    │     WithContext(over = Resolved(RowType(:person_id => ScalarType(),
-    │                                         :max_visit_start_date => ScalarType()),
-    │                                 over = q9),
-    │                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
+    │     q9 |>
+    │     Resolved(RowType(:person_id => ScalarType(),
+    │                      :max_visit_start_date => ScalarType())) |>
+    │     WithContext(catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
     │ end
     └ @ FunSQL …
     =#
@@ -4245,15 +4199,15 @@ produce.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = FromTable(table = person),
+    │     q1 = FromTable(person),
     │     q2 = Get.person_id,
     │     q3 = Get.person_id,
     │     q4 = Get.location_id,
     │     q5 = Get.year_of_birth,
-    │     q6 = Linked([q2, q3, q4, q5], 3, over = q1),
+    │     q6 = q1 |> Linked([q2, q3, q4, q5], 3),
     ⋮
-    │     WithContext(over = q33,
-    │                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
+    │     q33 |>
+    │     WithContext(catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
     │ end
     └ @ FunSQL …
     =#

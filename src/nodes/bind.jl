@@ -1,27 +1,26 @@
 # Binding query parameters.
 
 mutable struct BindNode <: AbstractSQLNode
-    over::Union{SQLNode, Nothing}
-    args::Vector{SQLNode}
+    args::Vector{SQLQuery}
     label_map::OrderedDict{Symbol, Int}
 
-    function BindNode(; over = nothing, args, label_map = nothing)
+    function BindNode(; args, label_map = nothing)
         if label_map !== nothing
-            new(over, args, label_map)
+            new(args, label_map)
         else
-            n = new(over, args, OrderedDict{Symbol, Int}())
+            n = new(args, OrderedDict{Symbol, Int}())
             populate_label_map!(n)
             n
         end
     end
 end
 
-BindNode(args...; over = nothing) =
-    BindNode(over = over, args = SQLNode[args...])
+BindNode(args...) =
+    BindNode(args = SQLQuery[args...])
 
 """
-    Bind(; over = nothing; args)
-    Bind(args...; over = nothing)
+    Bind(; args, tail = nothing)
+    Bind(args...; tail = nothing)
 
 The `Bind` node evaluates a query with parameters.  Specifically, `Bind`
 provides the values for [`Var`](@ref) parameters contained in the `over` node.
@@ -87,23 +86,16 @@ LEFT JOIN LATERAL (
 ) AS "visit_1" ON TRUE
 ```
 """
-Bind(args...; kws...) =
-    BindNode(args...; kws...) |> SQLNode
+const Bind = SQLQueryCtor{BindNode}(:Bind)
 
 const funsql_bind = Bind
 
-dissect(scr::Symbol, ::typeof(Bind), pats::Vector{Any}) =
-    dissect(scr, BindNode, pats)
-
 function PrettyPrinting.quoteof(n::BindNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Bind))
+    ex = Expr(:call, :Bind)
     if isempty(n.args)
         push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
         append!(ex.args, quoteof(n.args, ctx))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

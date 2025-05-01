@@ -1,27 +1,25 @@
 # Window partition.
 
 mutable struct PartitionNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    by::Vector{SQLNode}
-    order_by::Vector{SQLNode}
+    by::Vector{SQLQuery}
+    order_by::Vector{SQLQuery}
     frame::Union{PartitionFrame, Nothing}
     name::Union{Symbol, Nothing}
 
     PartitionNode(;
-                  over = nothing,
-                  by = SQLNode[],
-                  order_by = SQLNode[],
+                  by = SQLQuery[],
+                  order_by = SQLQuery[],
                   frame = nothing,
                   name::Union{Symbol, AbstractString, Nothing} = nothing) =
-        new(over, by, order_by, frame, name !== nothing ? Symbol(name) : nothing)
+        new(by, order_by, frame, name !== nothing ? Symbol(name) : nothing)
 end
 
-PartitionNode(by...; over = nothing, order_by = SQLNode[], frame = nothing, name = nothing) =
-    PartitionNode(over = over, by = SQLNode[by...], order_by = order_by, frame = frame, name = name)
+PartitionNode(by...; order_by = SQLQuery[], frame = nothing, name = nothing) =
+    PartitionNode(; by = SQLQuery[by...], order_by, frame, name)
 
 """
-    Partition(; over, by = [], order_by = [], frame = nothing, name = nothing)
-    Partition(by...; over, order_by = [], frame = nothing, name = nothing)
+    Partition(; by = [], order_by = [], frame = nothing, name = nothing, tail = nothing)
+    Partition(by...; order_by = [], frame = nothing, name = nothing, tail = nothing)
 
 The `Partition` node relates adjacent rows.
 
@@ -94,16 +92,12 @@ FROM "person" AS "person_1"
 GROUP BY "person_1"."year_of_birth"
 ```
 """
-Partition(args...; kws...) =
-    PartitionNode(args...; kws...) |> SQLNode
+const Partition = SQLQueryCtor{PartitionNode}(:Partition)
 
 const funsql_partition = Partition
 
-dissect(scr::Symbol, ::typeof(Partition), pats::Vector{Any}) =
-    dissect(scr, PartitionNode, pats)
-
 function PrettyPrinting.quoteof(n::PartitionNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Partition), quoteof(n.by, ctx)...)
+    ex = Expr(:call, :Partition, quoteof(n.by, ctx)...)
     if !isempty(n.order_by)
         push!(ex.args, Expr(:kw, :order_by, Expr(:vect, quoteof(n.order_by, ctx)...)))
     end
@@ -112,9 +106,6 @@ function PrettyPrinting.quoteof(n::PartitionNode, ctx::QuoteContext)
     end
     if n.name !== nothing
         push!(ex.args, Expr(:kw, :name, QuoteNode(n.name)))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

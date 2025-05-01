@@ -72,7 +72,7 @@ FROM "person"
 ORDER BY "year_of_birth" DESC
 ```
 """
-SORT = SQLSyntaxCtor{SortClause}
+SORT = SQLSyntaxCtor{SortClause}(:SORT)
 
 """
     ASC(; over = nothing, nulls = nothing, tail = nothing)

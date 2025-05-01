@@ -1,24 +1,23 @@
 # Recursive UNION ALL node.
 
 mutable struct IterateNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    iterator::SQLNode
+    iterator::SQLQuery
 
-    IterateNode(; over = nothing, iterator) =
-        new(over, iterator)
+    IterateNode(; iterator) =
+        new(iterator)
 end
 
-IterateNode(iterator; over = nothing) =
-    IterateNode(over = over, iterator = iterator)
+IterateNode(iterator) =
+    IterateNode(; iterator)
 
 """
-    Iterate(; over = nothing, iterator)
-    Iterate(iterator; over = nothing)
+    Iterate(; iterator, tail = nothing)
+    Iterate(iterator; tail = nothing)
 
 `Iterate` generates the concatenated output of an iterated query.
 
-The `over` query is evaluated first.  Then the `iterator` query is repeatedly
-applied: to the output of `over`, then to the output of its previous run, and
+The `tail` query is evaluated first.  Then the `iterator` query is repeatedly
+applied: to the output of `tail`, then to the output of its previous run, and
 so on, until the iterator produces no data.  All these outputs are concatenated
 to generate the output of `Iterate`.
 
@@ -91,23 +90,16 @@ SELECT
 FROM "__1" AS "__3"
 ```
 """
-Iterate(args...; kws...) =
-    IterateNode(args...; kws...) |> SQLNode
+const Iterate = SQLQueryCtor{IterateNode}(:Iterate)
 
 const funsql_iterate = Iterate
 
-dissect(scr::Symbol, ::typeof(Iterate), pats::Vector{Any}) =
-    dissect(scr, IterateNode, pats)
-
 function PrettyPrinting.quoteof(n::IterateNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Iterate))
+    ex = Expr(:call, :Iterate)
     if !ctx.limit
         push!(ex.args, quoteof(n.iterator, ctx))
     else
         push!(ex.args, :…)
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

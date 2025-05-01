@@ -58,7 +58,7 @@ FROM "person"
 GROUP BY "year_of_birth"
 ```
 """
-const GROUP = SQLSyntaxCtor{GroupClause}
+const GROUP = SQLSyntaxCtor{GroupClause}(:GROUP)
 
 function PrettyPrinting.quoteof(c::GroupClause, ctx::QuoteContext)
     ex = Expr(:call, :GROUP)

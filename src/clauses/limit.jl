@@ -42,7 +42,7 @@ FROM "person"
 FETCH FIRST 1 ROW ONLY
 ```
 """
-const LIMIT = SQLSyntaxCtor{LimitClause}
+const LIMIT = SQLSyntaxCtor{LimitClause}(:LIMIT)
 
 function PrettyPrinting.quoteof(c::LimitClause, ctx::QuoteContext)
     ex = Expr(:call, :LIMIT)

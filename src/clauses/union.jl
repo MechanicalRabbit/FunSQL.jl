@@ -40,7 +40,7 @@ SELECT
 FROM "observation"
 ```
 """
-const UNION = SQLSyntaxCtor{UnionClause}
+const UNION = SQLSyntaxCtor{UnionClause}(:UNION)
 
 function PrettyPrinting.quoteof(c::UnionClause, ctx::QuoteContext)
     ex = Expr(:call, :UNION)

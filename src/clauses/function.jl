@@ -46,7 +46,7 @@ julia> print(render(s))
 SUBSTRING("zip" FROM 1 FOR 3)
 ```
 """
-const FUN = SQLSyntaxCtor{FunctionClause}
+const FUN = SQLSyntaxCtor{FunctionClause}(:FUN)
 
 Base.convert(::Type{SQLSyntax}, ::typeof(*)) =
     FUN(:*)

@@ -36,11 +36,7 @@ FROM "person" AS "person_1"
 WHERE ("person_1"."year_of_birth" > :YEAR)
 ```
 """
-Var(args...; kws...) =
-    VariableNode(args...; kws...) |> SQLNode
-
-dissect(scr::Symbol, ::typeof(Var), pats::Vector{Any}) =
-    dissect(scr, VariableNode, pats)
+const Var = SQLQueryCtor{VariableNode}(:Var)
 
 Base.getproperty(::typeof(Var), name::Symbol) =
     Var(name)
@@ -51,8 +47,11 @@ Base.getproperty(::typeof(Var), name::AbstractString) =
 Base.getindex(::typeof(Var), name::Union{Symbol, AbstractString}) =
     Var(name)
 
+terminal(::Type{VariableNode}) =
+    true
+
 PrettyPrinting.quoteof(n::VariableNode, ctx::QuoteContext) =
-    Expr(:., nameof(Var), quoteof(n.name))
+    Expr(:., :Var, quoteof(n.name))
 
 label(n::VariableNode) =
     n.name

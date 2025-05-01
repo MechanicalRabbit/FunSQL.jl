@@ -34,7 +34,7 @@ WINDOW
   "w2" AS ("w1" ORDER BY "month_of_birth", "day_of_birth")
 ```
 """
-const WINDOW = SQLSyntaxCtor{WindowClause}
+const WINDOW = SQLSyntaxCtor{WindowClause}(:WINDOW)
 
 function PrettyPrinting.quoteof(c::WindowClause, ctx::QuoteContext)
     ex = Expr(:call, :WINDOW)

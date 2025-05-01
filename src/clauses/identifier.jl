@@ -40,22 +40,22 @@ julia> print(render(s))
 "pg_catalog"."pg_database"
 ```
 """
-const ID = SQLSyntaxCtor{IdentifierClause}
+const ID = SQLSyntaxCtor{IdentifierClause}(:ID)
 
-ID(qualifier::Union{Symbol, AbstractString}, name::Union{Symbol, AbstractString}; tail = nothing) =
+(::typeof(ID))(qualifier::Union{Symbol, AbstractString}, name::Union{Symbol, AbstractString}; tail = nothing) =
     ID(tail = ID(qualifier; tail), name = name)
 
-ID(name1::Union{Symbol, AbstractString}, name2::Union{Symbol, AbstractString}, names::Union{Symbol, AbstractString}...; tail = nothing) =
+(::typeof(ID))(name1::Union{Symbol, AbstractString}, name2::Union{Symbol, AbstractString}, names::Union{Symbol, AbstractString}...; tail = nothing) =
     ID(tail = ID(name1; tail), name2, names...)
 
-function ID(qualifiers::AbstractVector{<:Union{Symbol, AbstractString}}, name::Union{Symbol, AbstractString}; tail = nothing)
+function (::typeof(ID))(qualifiers::AbstractVector{<:Union{Symbol, AbstractString}}, name::Union{Symbol, AbstractString}; tail = nothing)
     for q in qualifiers
         tail = ID(tail = tail, name = q)
     end
     ID(; tail, name)
 end
 
-ID(t::SQLTable) =
+(::typeof(ID))(t::SQLTable) =
     ID(t.qualifiers, t.name)
 
 Base.convert(::Type{SQLSyntax}, name::Symbol) =

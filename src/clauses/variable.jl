@@ -25,7 +25,7 @@ julia> print(render(s))
 :year
 ```
 """
-const VAR = SQLSyntaxCtor{VariableClause}
+const VAR = SQLSyntaxCtor{VariableClause}(:VAR)
 
 terminal(::Type{VariableClause}) =
     true

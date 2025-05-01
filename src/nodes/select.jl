@@ -1,27 +1,26 @@
 # Selecting.
 
-mutable struct SelectNode <: TabularNode
-    over::Union{SQLNode, Nothing}
-    args::Vector{SQLNode}
+struct SelectNode <: TabularNode
+    args::Vector{SQLQuery}
     label_map::OrderedDict{Symbol, Int}
 
-    function SelectNode(; over = nothing, args, label_map = nothing)
+    function SelectNode(; args, label_map = nothing)
         if label_map !== nothing
-            new(over, args, label_map)
+            new(args, label_map)
         else
-            n = new(over, args, OrderedDict{Symbol, Int}())
+            n = new(args, OrderedDict{Symbol, Int}())
             populate_label_map!(n)
             n
         end
     end
 end
 
-SelectNode(args...; over = nothing) =
-    SelectNode(over = over, args = SQLNode[args...])
+SelectNode(args...) =
+    SelectNode(args = SQLQuery[args...])
 
 """
-    Select(; over; args)
-    Select(args...; over)
+    Select(; args, tail = nothing)
+    Select(args...; tail = nothing)
 
 The `Select` node specifies the output columns.
 
@@ -50,23 +49,16 @@ SELECT
 FROM "person" AS "person_1"
 ```
 """
-Select(args...; kws...) =
-    SelectNode(args...; kws...) |> SQLNode
+const Select = SQLQueryCtor{SelectNode}(:Select)
 
 const funsql_select = Select
 
-dissect(scr::Symbol, ::typeof(Select), pats::Vector{Any}) =
-    dissect(scr, SelectNode, pats)
-
 function PrettyPrinting.quoteof(n::SelectNode, ctx::QuoteContext)
-    ex = Expr(:call, nameof(Select))
+    ex = Expr(:call, :Select)
     if isempty(n.args)
         push!(ex.args, Expr(:kw, :args, Expr(:vect)))
     else
         append!(ex.args, quoteof(n.args, ctx))
-    end
-    if n.over !== nothing
-        ex = Expr(:call, :|>, quoteof(n.over, ctx), ex)
     end
     ex
 end

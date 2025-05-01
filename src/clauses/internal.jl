@@ -10,7 +10,7 @@ struct WithContextClause <: AbstractSQLClause
         new(dialect, columns)
 end
 
-const WITH_CONTEXT = SQLSyntaxCtor{WithContextClause}
+const WITH_CONTEXT = SQLSyntaxCtor{WithContextClause}(:WITH_CONTEXT)
 
 function PrettyPrinting.quoteof(c::WithContextClause, ctx::QuoteContext)
     ex = Expr(:call, :WITH_CONTEXT)

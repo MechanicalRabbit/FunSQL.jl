@@ -31,7 +31,7 @@ GROUP BY "year_of_birth"
 HAVING (count(*) > 10)
 ```
 """
-const HAVING = SQLSyntaxCtor{HavingClause}
+const HAVING = SQLSyntaxCtor{HavingClause}(:HAVING)
 
 PrettyPrinting.quoteof(c::HavingClause, ctx::QuoteContext) =
     Expr(:call, :HAVING, quoteof(c.condition, ctx))

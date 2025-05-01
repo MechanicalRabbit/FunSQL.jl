@@ -67,7 +67,7 @@ SELECT DISTINCT "zip"
 FROM "location"
 ```
 """
-const SELECT = SQLSyntaxCtor{SelectClause}
+const SELECT = SQLSyntaxCtor{SelectClause}(:SELECT)
 
 function PrettyPrinting.quoteof(c::SelectClause, ctx::QuoteContext)
     ex = Expr(:call, :SELECT)

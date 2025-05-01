@@ -29,7 +29,7 @@ FROM "location"
 WHERE ("zip" = '60614')
 ```
 """
-const WHERE = SQLSyntaxCtor{WhereClause}
+const WHERE = SQLSyntaxCtor{WhereClause}(:WHERE)
 
 PrettyPrinting.quoteof(c::WhereClause, ctx::QuoteContext) =
     Expr(:call, :WHERE, quoteof(c.condition, ctx))

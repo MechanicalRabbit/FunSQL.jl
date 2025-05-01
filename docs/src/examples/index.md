@@ -445,7 +445,7 @@ however we must ensure that all column names are unique.
 
     q = q |>
         Select(Get.(keys(person_table.columns))...,
-               Get.(keys(visit_occurrence_table.columns), over = Get.visit)...)
+               Get.(keys(visit_occurrence_table.columns), tail = Get.visit)...)
     #=>
     ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
     ⋮
@@ -454,7 +454,7 @@ however we must ensure that all column names are unique.
     q = q |>
         Select(Get.(keys(person_table.columns))...,
                Get.(filter(!in(keys(person_table.columns)), collect(keys(visit_occurrence_table.columns))),
-                    over = Get.visit)...)
+                    tail = Get.visit)...)
 
     render(conn, q) |> print
     #=>

@@ -19,9 +19,9 @@ SELECT "p"."person_id"
 FROM "person" AS "p"
 ```
 """
-const FROM = SQLSyntaxCtor{FromClause}
+const FROM = SQLSyntaxCtor{FromClause}(:FROM)
 
-FROM(source) =
+(::typeof(FROM))(source) =
     FROM(tail = source)
 
 PrettyPrinting.quoteof(c::FromClause, ctx::QuoteContext) =

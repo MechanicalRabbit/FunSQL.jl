@@ -2,7 +2,8 @@
 
 struct ResolveContext
     catalog::SQLCatalog
-    path::Vector{SQLNode}
+    tail::Union{SQLQuery, Nothing}
+    path::Vector{SQLQuery}
     row_type::RowType
     cte_types::Base.ImmutableDict{Symbol, Tuple{Int, RowType}}
     var_types::Base.ImmutableDict{Symbol, Tuple{Int, ScalarType}}
@@ -11,7 +12,8 @@ struct ResolveContext
 
     ResolveContext(catalog) =
         new(catalog,
-            SQLNode[],
+            nothing,
+            SQLQuery[],
             EMPTY_ROW,
             Base.ImmutableDict{Symbol, Tuple{Int, RowType}}(),
             Base.ImmutableDict{Symbol, Tuple{Int, ScalarType}}(),
@@ -20,12 +22,14 @@ struct ResolveContext
 
     ResolveContext(
             ctx::ResolveContext;
+            tail = ctx.tail,
             row_type = ctx.row_type,
             cte_types = ctx.cte_types,
             var_types = ctx.var_types,
             knot_type = ctx.knot_type,
             implicit_knot = ctx.implicit_knot) =
         new(ctx.catalog,
+            tail,
             ctx.path,
             row_type,
             cte_types,
@@ -37,90 +41,101 @@ end
 get_path(ctx::ResolveContext) =
     copy(ctx.path)
 
-function row_type(n::SQLNode)
-    @dissect(n, Resolved(type = (local type)::RowType)) || throw(IllFormedError())
+function row_type(q::SQLQuery)
+    @dissect(q, Resolved(type = (local type)::RowType)) || throw(IllFormedError())
     type
 end
 
-function scalar_type(n::SQLNode)
-    @dissect(n, Resolved(type = (local type)::ScalarType)) || throw(IllFormedError())
+function scalar_type(q::SQLQuery)
+    @dissect(q, Resolved(type = (local type)::ScalarType)) || throw(IllFormedError())
     type
 end
 
-function type(n::SQLNode)
-    @dissect(n, Resolved(type = (local t))) || throw(IllFormedError())
+function type(q::SQLQuery)
+    @dissect(q, Resolved(type = (local t))) || throw(IllFormedError())
     t
 end
 
-function resolve(n::SQLNode)
-    @dissect(n, WithContext(over = (local n′), catalog = (local catalog))) || throw(IllFormedError())
+function resolve(q::SQLQuery)
+    @dissect(q, (local q′) |> WithContext(catalog = (local catalog))) || throw(IllFormedError())
     ctx = ResolveContext(catalog)
-    WithContext(over = resolve(n′, ctx), catalog = catalog)
+    WithContext(tail = resolve(q′, ctx), catalog = catalog)
 end
 
-function resolve(n::SQLNode, ctx)
-    push!(ctx.path, n)
+function resolve(ctx::ResolveContext)
+    resolve(ctx.tail, ctx)
+end
+
+function resolve(q::SQLQuery, ctx)
+    !@dissect(q, Resolved()) || return q
+    push!(ctx.path, q)
     try
-        convert(SQLNode, resolve(n[], ctx))
+        convert(SQLQuery, resolve(q.head, ResolveContext(ctx, tail = q.tail)))
     finally
         pop!(ctx.path)
     end
 end
 
-resolve(ns::Vector{SQLNode}, ctx) =
-    SQLNode[resolve(n, ctx) for n in ns]
+resolve(qs::Vector{SQLQuery}, ctx) =
+    SQLQuery[resolve(q, ctx) for q in qs]
 
 function resolve(::Nothing, ctx)
     t = ctx.knot_type
     if t !== nothing && ctx.implicit_knot
-        n = FromIterate()
+        q = FromIterate()
     else
-        n = FromNothing()
+        q = FromNothing()
         t = EMPTY_ROW
     end
-    Resolved(t, over = n)
+    Resolved(t, tail = q)
 end
 
-resolve(n, ctx, t) =
-    resolve(n, ResolveContext(ctx, row_type = t))
+resolve(q, ctx, t) =
+    resolve(q, ResolveContext(ctx, row_type = t))
 
 resolve(n::AbstractSQLNode, ctx) =
     throw(IllFormedError(path = get_path(ctx)))
 
-function resolve_scalar(n::SQLNode, ctx)
-    push!(ctx.path, n)
-    n′ = convert(SQLNode, resolve_scalar(n[], ctx))
-    pop!(ctx.path)
-    n′
+function resolve_scalar(ctx::ResolveContext)
+    resolve_scalar(ctx.tail, ctx)
 end
 
-function resolve_scalar(ns::Vector{SQLNode}, ctx)
-    SQLNode[resolve_scalar(n, ctx) for n in ns]
+function resolve_scalar(q::SQLQuery, ctx)
+    push!(ctx.path, q)
+    try
+        convert(SQLQuery, resolve_scalar(q.head, ResolveContext(ctx, tail = q.tail)))
+    finally
+        pop!(ctx.path)
+    end
 end
 
-resolve_scalar(n, ctx, t) =
-    resolve_scalar(n, ResolveContext(ctx, row_type = t))
+function resolve_scalar(qs::Vector{SQLQuery}, ctx)
+    SQLQuery[resolve_scalar(q, ctx) for q in qs]
+end
+
+resolve_scalar(q, ctx, t) =
+    resolve_scalar(q, ResolveContext(ctx, row_type = t))
 
 function resolve_scalar(n::TabularNode, ctx)
-    n′ = resolve(n, ResolveContext(ctx, implicit_knot = false))
-    Resolved(ScalarType(), over = n′)
+    q′ = resolve(n, ResolveContext(ctx, implicit_knot = false))
+    Resolved(ScalarType(), tail = q′)
 end
 
-function unnest(node, base, ctx)
-    while @dissect(node, (local over) |> Get(name = (local name)))
-        base = Nested(over = base, name = name)
-        node = over
+function unnest(q, base, ctx)
+    while @dissect(q, (local tail) |> Get(name = (local name)))
+        base = Nested(tail = base, name = name)
+        q = tail
     end
-    if node !== nothing
+    if q !== nothing
         throw(IllFormedError(path = get_path(ctx)))
     end
     base
 end
 
 function resolve_scalar(n::AggregateNode, ctx)
-    if n.over !== nothing
-        n′ = unnest(n.over, Agg(name = n.name, args = n.args, filter = n.filter), ctx)
-        return resolve_scalar(n′, ctx)
+    if ctx.tail !== nothing
+        q′ = unnest(ctx.tail, Agg(name = n.name, args = n.args, filter = n.filter), ctx)
+        return resolve_scalar(q′, ctx)
     end
     t = ctx.row_type.group
     if !(t isa RowType)
@@ -133,42 +148,42 @@ function resolve_scalar(n::AggregateNode, ctx)
     if n.filter !== nothing
         filter′ = resolve_scalar(n.filter, ctx′)
     end
-    n′ = Agg(name = n.name, args = args′, filter = filter′)
-    Resolved(ScalarType(), over = n′)
+    q′ = Agg(name = n.name, args = args′, filter = filter′)
+    Resolved(ScalarType(), tail = q′)
 end
 
 function resolve(n::AppendNode, ctx)
-    over = n.over
+    tail = ctx.tail
     args = n.args
-    if over === nothing && !ctx.implicit_knot
+    if tail === nothing && !ctx.implicit_knot
         if !isempty(args)
-            over = args[1]
+            tail = args[1]
             args = args[2:end]
         else
-            over = Where(false)
+            tail = Where(false)
         end
     end
-    over′ = resolve(over, ctx)
+    tail′ = resolve(tail, ctx)
     args′ = resolve(args, ResolveContext(ctx, implicit_knot = false))
-    n′ = Append(over = over′, args = args′)
-    t = row_type(over′)
+    q′ = Append(args = args′, tail = tail′)
+    t = row_type(tail′)
     for arg in args′
         t = intersect(t, row_type(arg))
     end
-    Resolved(t, over = n′)
+    Resolved(t, tail = q′)
 end
 
 function resolve(n::AsNode, ctx)
-    over′ = resolve(n.over, ctx)
-    t = row_type(over′)
-    n′ = As(name = n.name, over = over′)
-    Resolved(RowType(FieldTypeMap(n.name => t)), over = n′)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
+    q′ = As(name = n.name, tail = tail′)
+    Resolved(RowType(FieldTypeMap(n.name => t)), tail = q′)
 end
 
 function resolve_scalar(n::AsNode, ctx)
-    over′ = resolve_scalar(n.over, ctx)
-    n′ = As(name = n.name, over = over′)
-    Resolved(type(over′), over = n′)
+    tail′ = resolve_scalar(ctx)
+    q′ = As(name = n.name, tail = tail′)
+    Resolved(type(tail′), tail = q′)
 end
 
 function resolve(n::BindNode, ctx, scalar = false)
@@ -181,9 +196,9 @@ function resolve(n::BindNode, ctx, scalar = false)
         var_types′ = Base.ImmutableDict(var_types′, name => (depth, t))
     end
     ctx′ = ResolveContext(ctx, var_types = var_types′)
-    over′ = !scalar ? resolve(n.over, ctx′) : resolve_scalar(n.over, ctx′)
-    n′ = Bind(over = over′, args = args′, label_map = n.label_map)
-    Resolved(type(over′), over = n′)
+    tail′ = !scalar ? resolve(ctx′) : resolve_scalar(ctx′)
+    q′ = Bind(args = args′, label_map = n.label_map, tail = tail′)
+    Resolved(type(tail′), tail = q′)
 end
 
 resolve_scalar(n::BindNode, ctx) =
@@ -198,14 +213,14 @@ function resolve_scalar(n::NestedNode, ctx)
                 REFERENCE_ERROR_TYPE.UNEXPECTED_SCALAR_TYPE
         throw(ReferenceError(error_type, name = n.name, path = get_path(ctx)))
     end
-    over′ = resolve_scalar(n.over, ctx, t)
-    n′ = NestedNode(over = over′, name = n.name)
-    Resolved(type(over′), over = n′)
+    tail′ = resolve_scalar(ctx.tail, ctx, t)
+    q′ = Nested(name = n.name, tail = tail′)
+    Resolved(type(tail′), tail = q′)
 end
 
 function resolve(n::DefineNode, ctx)
-    over′ = resolve(n.over, ctx)
-    t = row_type(over′)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
     anchor =
         n.before isa Symbol ? n.before :
         n.before && !isempty(t.fields) ? first(first(t.fields)) :
@@ -246,8 +261,8 @@ function resolve(n::DefineNode, ctx)
             end
         end
     end
-    n′ = Define(over = over′, args = args′, label_map = n.label_map)
-    Resolved(RowType(fields, t.group), over = n′)
+    q′ = Define(args = args′, label_map = n.label_map, tail = tail′)
+    Resolved(RowType(fields, t.group), tail = q′)
 end
 
 function RowType(table::SQLTable)
@@ -261,13 +276,13 @@ end
 function resolve(n::FromNode, ctx)
     source = n.source
     if source isa SQLTable
-        n′ = FromTable(table = source)
+        q′ = FromTable(table = source)
         t = RowType(source)
     elseif source isa Symbol
         v = get(ctx.cte_types, source, nothing)
         if v !== nothing
             (depth, t) = v
-            n′ = FromTableExpression(source, depth)
+            q′ = FromTableExpression(source, depth)
         else
             table = get(ctx.catalog, source, nothing)
             if table === nothing
@@ -277,7 +292,7 @@ function resolve(n::FromNode, ctx)
                         name = source,
                         path = get_path(ctx)))
             end
-            n′ = FromTable(table = table)
+            q′ = FromTable(table = table)
             t = RowType(table)
         end
     elseif source isa IterateSource
@@ -288,40 +303,40 @@ function resolve(n::FromNode, ctx)
                     REFERENCE_ERROR_TYPE.INVALID_SELF_REFERENCE,
                     path = get_path(ctx)))
         end
-        n′ = FromIterate()
+        q′ = FromIterate()
     elseif source isa ValuesSource
-        n′ = FromValues(columns = source.columns)
+        q′ = FromValues(columns = source.columns)
         fields = FieldTypeMap()
         for f in keys(source.columns)
             fields[f] = ScalarType()
         end
         t = RowType(fields)
     elseif source isa FunctionSource
-        n′ = FromFunction(over = resolve_scalar(source.node, ctx), columns = source.columns)
+        q′ = FromFunction(columns = source.columns, tail = resolve_scalar(source.query, ctx))
         fields = FieldTypeMap()
         for f in source.columns
             fields[f] = ScalarType()
         end
         t = RowType(fields)
     elseif source === nothing
-        n′ = FromNothing()
+        q′ = FromNothing()
         t = RowType()
     else
         error()
     end
-    Resolved(t, over = n′)
+    Resolved(t, tail = q′)
 end
 
 function resolve_scalar(n::FunctionNode, ctx)
     args′ = resolve_scalar(n.args, ctx)
-    n′ = Fun(name = n.name, args = args′)
-    Resolved(ScalarType(), over = n′)
+    q′ = Fun(name = n.name, args = args′)
+    Resolved(ScalarType(), tail = q′)
 end
 
 function resolve_scalar(n::GetNode, ctx)
-    if n.over !== nothing
-        n′ = unnest(n.over, Get(name = n.name), ctx)
-        return resolve_scalar(n′, ctx)
+    if ctx.tail !== nothing
+        q′ = unnest(ctx.tail, Get(n.name), ctx)
+        return resolve_scalar(q′, ctx)
     end
     t = get(ctx.row_type.fields, n.name, EmptyType())
     if !(t isa ScalarType)
@@ -331,12 +346,12 @@ function resolve_scalar(n::GetNode, ctx)
                 REFERENCE_ERROR_TYPE.UNEXPECTED_ROW_TYPE
         throw(ReferenceError(error_type, name = n.name, path = get_path(ctx)))
     end
-    Resolved(t, over = n)
+    Resolved(t, tail = convert(SQLQuery, n))
 end
 
 function resolve(n::GroupNode, ctx)
-    over′ = resolve(n.over, ctx)
-    t = row_type(over′)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
     by′ = resolve_scalar(n.by, ctx, t)
     fields = FieldTypeMap()
     for (name, i) in n.label_map
@@ -347,19 +362,19 @@ function resolve(n::GroupNode, ctx)
         fields[n.name] = RowType(FieldTypeMap(), group)
         group = EmptyType()
     end
-    n′ = Group(over = over′, by = by′, sets = n.sets, label_map = n.label_map)
-    Resolved(RowType(fields, group), over = n′)
+    q′ = Group(by = by′, sets = n.sets, label_map = n.label_map, tail = tail′)
+    Resolved(RowType(fields, group), tail = q′)
 end
 
-resolve(n::HighlightNode, ctx) =
-    resolve(n.over, ctx)
+resolve(::HighlightNode, ctx) =
+    resolve(ctx)
 
-resolve_scalar(n::HighlightNode, ctx) =
-    resolve_scalar(n.over, ctx)
+resolve_scalar(::HighlightNode, ctx) =
+    resolve_scalar(ctx)
 
 function resolve(n::IterateNode, ctx)
-    over′ = resolve(n.over, ResolveContext(ctx, knot_type = nothing, implicit_knot = false))
-    t = row_type(over′)
+    tail′ = resolve(ResolveContext(ctx, knot_type = nothing, implicit_knot = false))
+    t = row_type(tail′)
     iterator′ = resolve(n.iterator, ResolveContext(ctx, knot_type = t, implicit_knot = true))
     iterator_t = row_type(iterator′)
     while !issubset(t, iterator_t)
@@ -367,13 +382,13 @@ function resolve(n::IterateNode, ctx)
         iterator′ = resolve(n.iterator, ResolveContext(ctx, knot_type = t, implicit_knot = true))
         iterator_t = row_type(iterator′)
     end
-    n′ = IterateNode(over = over′, iterator = iterator′)
-    Resolved(t, over = n′)
+    q′ = Iterate(iterator = iterator′, tail = tail′)
+    Resolved(t, tail = q′)
 end
 
 function resolve(n::JoinNode, ctx)
-    over′ = resolve(n.over, ctx)
-    lt = row_type(over′)
+    tail′ = resolve(ctx)
+    lt = row_type(tail′)
     joinee′ = resolve(n.joinee, ResolveContext(ctx, row_type = lt, implicit_knot = false))
     rt = row_type(joinee′)
     fields = FieldTypeMap()
@@ -388,41 +403,41 @@ function resolve(n::JoinNode, ctx)
     group = rt.group isa EmptyType ? lt.group : rt.group
     t = RowType(fields, group)
     on′ = resolve_scalar(n.on, ctx, t)
-    n′ = Join(over = over′, joinee = joinee′, on = on′, left = n.left, right = n.right, optional = n.optional)
-    Resolved(t, over = n′)
+    q′ = Join(joinee = joinee′, on = on′, left = n.left, right = n.right, optional = n.optional, tail = tail′)
+    Resolved(t, tail = q′)
 end
 
 function resolve(n::LimitNode, ctx)
-    over′ = resolve(n.over, ctx)
+    tail′ = resolve(ctx)
     if n.offset === nothing && n.limit === nothing
-        return over′
+        return tail′
     end
-    t = row_type(over′)
-    n′ = Limit(over = over′, offset = n.offset, limit = n.limit)
-    Resolved(t, over = n′)
+    t = row_type(tail′)
+    q′ = Limit(offset = n.offset, limit = n.limit, tail = tail′)
+    Resolved(t, tail = q′)
 end
 
 function resolve_scalar(n::LiteralNode, ctx)
-    Resolved(ScalarType(), over = n)
+    Resolved(ScalarType(), tail = convert(SQLQuery, n))
 end
 
 function resolve(n::OrderNode, ctx)
-    over′ = resolve(n.over, ctx)
+    tail′ = resolve(ctx)
     if isempty(n.by)
-        return over′
+        return tail′
     end
-    t = row_type(over′)
+    t = row_type(tail′)
     by′ = resolve_scalar(n.by, ctx, t)
-    n′ = Order(over = over′, by = by′)
-    Resolved(t, over = n′)
+    q′ = Order(by = by′, tail = tail′)
+    Resolved(t, tail = q′)
 end
 
 resolve(n::OverNode, ctx) =
-    resolve(With(over = n.arg, args = n.over !== nothing ? SQLNode[n.over] : SQLNode[]), ctx)
+    resolve(With(tail = n.arg, args = ctx.tail !== nothing ? SQLQuery[ctx.tail] : SQLQuery[]), ctx)
 
 function resolve(n::PartitionNode, ctx)
-    over′ = resolve(n.over, ctx)
-    t = row_type(over′)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
     ctx′ = ResolveContext(ctx, row_type = t)
     by′ = resolve_scalar(n.by, ctx′)
     order_by′ = resolve_scalar(n.order_by, ctx′)
@@ -439,48 +454,45 @@ function resolve(n::PartitionNode, ctx)
         end
         fields[n.name] = RowType(FieldTypeMap(), t)
     end
-    n′ = Partition(over = over′, by = by′, order_by = order_by′, frame = n.frame, name = n.name)
-    Resolved(RowType(fields, group), over = n′)
+    q′ = Partition(by = by′, order_by = order_by′, frame = n.frame, name = n.name, tail = tail′)
+    Resolved(RowType(fields, group), tail = q′)
 end
 
-resolve(n::ResolvedNode, ctx) =
-    n
-
 function resolve(n::SelectNode, ctx)
-    over′ = resolve(n.over, ctx)
-    t = row_type(over′)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
     args′ = resolve_scalar(n.args, ctx, t)
     fields = FieldTypeMap()
     for (name, i) in n.label_map
         fields[name] = type(args′[i])
     end
-    n′ = Select(over = over′, args = args′, label_map = n.label_map)
-    Resolved(RowType(fields), over = n′)
+    q′ = Select(args = args′, label_map = n.label_map, tail = tail′)
+    Resolved(RowType(fields), tail = q′)
 end
 
 function resolve_scalar(n::SortNode, ctx)
-    over′ = resolve_scalar(n.over, ctx)
-    n′ = Sort(over = over′, value = n.value, nulls = n.nulls)
-    Resolved(type(over′), over = n′)
+    tail′ = resolve_scalar(ctx)
+    q′ = Sort(value = n.value, nulls = n.nulls, tail = tail′)
+    Resolved(type(tail′), tail = q′)
 end
 
 function resolve_scalar(n::VariableNode, ctx)
     v = get(ctx.var_types, n.name, nothing)
     if v !== nothing
         depth, t = v
-        n′ = BoundVariable(n.name, depth)
-        Resolved(t, over = n′)
+        q′ = BoundVariable(n.name, depth)
+        Resolved(t, tail = q′)
     else
-        Resolved(ScalarType(), over = n)
+        Resolved(ScalarType(), tail = convert(SQLQuery, n))
     end
 end
 
 function resolve(n::WhereNode, ctx)
-    over′ = resolve(n.over, ctx)
-    t = row_type(over′)
+    tail′ = resolve(ctx)
+    t = row_type(tail′)
     condition′ = resolve_scalar(n.condition, ctx, t)
-    n′ = Where(over = over′, condition = condition′)
-    Resolved(t, over = n′)
+    q′ = Where(condition = condition′, tail = tail′)
+    Resolved(t, tail = q′)
 end
 
 function resolve(n::Union{WithNode, WithExternalNode}, ctx)
@@ -503,11 +515,11 @@ function resolve(n::Union{WithNode, WithExternalNode}, ctx)
         cte_types′ = Base.ImmutableDict(cte_types′, name => (depth, cte_t))
     end
     ctx′ = ResolveContext(ctx, cte_types = cte_types′)
-    over′ = resolve(n.over, ctx′)
+    tail′ = resolve(ctx′)
     if n isa WithNode
-        n′ = With(over = over′, args = args′, materialized = n.materialized, label_map = n.label_map)
+        q′ = With(args = args′, materialized = n.materialized, label_map = n.label_map, tail = tail′)
     else
-        n′ = WithExternal(over = over′, args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map)
+        q′ = WithExternal(args = args′, qualifiers = n.qualifiers, handler = n.handler, label_map = n.label_map, tail = tail′)
     end
-    Resolved(row_type(over′), over = n′)
+    Resolved(row_type(tail′), tail = q′)
 end
