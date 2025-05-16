@@ -2,25 +2,31 @@
 
 const default_reflect_clause =
     FROM(:c => (:information_schema, :columns)) |>
-    WHERE(FUN("=", (:c, :table_schema), VAR(:schema))) |>
-    ORDER((:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
-    SELECT(:schema => (:c, :table_schema),
+    WHERE(FUN(:and, FUN("=", (:c, :table_catalog), VAR(:catalog)),
+                    FUN("=", (:c, :table_schema), VAR(:schema))
+                   )) |>
+    ORDER((:c, :table_catalog), (:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
+    SELECT(:catalog => (:c, :table_catalog),
+           :schema => (:c, :table_schema),
            :name => (:c, :table_name),
            :column => (:c, :column_name))
 const duckdb_reflect_clause =
     FROM(:c => (:information_schema, :columns)) |>
-    WHERE(FUN(:and, FUN("=", (:c, :table_schema), FUN(:coalesce, VAR(:schema), "main")),
+    WHERE(FUN(:and, FUN("=", (:c, :table_catalog), FUN(:coalesce, VAR(:catalog), FUN(:current_catalog))),
+                    FUN("=", (:c, :table_schema), FUN(:coalesce, VAR(:schema), FUN(:current_schema))),
                     FUN(:not_like, (:c, :table_name), "sqlite_%"),
                     FUN(:not_like, (:c, :table_name), "pragma_database_list"))) |>
-    ORDER((:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
-    SELECT(:schema => (:c, :table_schema),
+    ORDER((:c, :table_catalog), (:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
+    SELECT(:catalog => (:c, :table_catalog),
+           :schema => (:c, :table_schema),
            :name => (:c, :table_name),
            :column => (:c, :column_name))
 const mysql_reflect_clause =
     FROM(:c => (:information_schema, :columns)) |>
     WHERE(FUN("=", (:c, :table_schema), FUN(:coalesce, VAR(:schema), FUN("DATABASE")))) |>
     ORDER((:c, :table_schema), (:c, :table_name), (:c, :ordinal_position)) |>
-    SELECT(:schema => (:c, :table_schema),
+    SELECT(:catalog => missing,
+           :schema => (:c, :table_schema),
            :name => (:c, :table_name),
            :column => (:c, :column_name))
 const postgresql_reflect_clause =
@@ -32,7 +38,8 @@ const postgresql_reflect_clause =
                     FUN(">", (:a, :attnum), 0),
                     FUN(:not, (:a, :attisdropped)))) |>
     ORDER((:n, :nspname), (:c, :relname), (:a, :attnum)) |>
-    SELECT(:schema => (:n, :nspname),
+    SELECT(:catalog => missing,
+           :schema => (:n, :nspname),
            :name => (:c, :relname),
            :column => (:a, :attname))
 const redshift_reflect_clause = postgresql_reflect_clause
@@ -42,7 +49,8 @@ const sqlite_reflect_clause =
     WHERE(FUN(:and, FUN(:in, (:sm, :type), "table", "view"),
                     FUN(:not_like, (:sm, :name), "sqlite_%"))) |>
     ORDER((:sm, :name), (:pti, :cid)) |>
-    SELECT(:schema => missing,
+    SELECT(:catalog => missing,
+           :schema => missing,
            :name => (:sm, :name),
            :column => (:pti, :name))
 const sqlserver_reflect_clause =
@@ -52,7 +60,8 @@ const sqlserver_reflect_clause =
     WHERE(FUN(:and, FUN("=", (:s, :name), FUN(:coalesce, VAR(:schema), "dbo")),
                     FUN(:in, (:o, :type), "U", "V"))) |>
     ORDER((:s, :name), (:o, :name), (:c, :column_id)) |>
-    SELECT(:schema => (:s, :name),
+    SELECT(:catalog => missing,
+           :schema => (:s, :name),
            :name => (:o, :name),
            :column => (:c, :name))
 const standard_reflect_clauses = [
@@ -92,10 +101,10 @@ Parameter `dialect` specifies the target [`SQLDialect`](@ref).  If not set,
 `dialect` will be inferred from the type of the connection object.
 
 """
-function reflect(conn; schema = nothing, dialect = nothing, cache = default_cache_maxsize)
+function reflect(conn; catalog = nothing, schema = nothing, dialect = nothing, cache = default_cache_maxsize)
     dialect = dialect === nothing ? SQLDialect(typeof(conn)) : convert(SQLDialect, dialect)
     sql = reflect_sql(dialect)
-    params = pack(sql, (; schema = something(schema, missing)))
+    params = pack(sql, (; catalog = something(catalog, missing), schema = something(schema, missing)))
     stmt = DBInterface.prepare(conn, String(sql))
     cr = DBInterface.execute(stmt, params)
     SQLCatalog(tables = tables_from_column_list(Tables.rows(cr)),
@@ -106,22 +115,30 @@ end
 function tables_from_column_list(rows)
     tables = SQLTable[]
     qualifiers = Symbol[]
-    schema = name = nothing
+    catalog = schema = name = nothing
     columns = Symbol[]
-    for (s, n, c) in rows
+    for (g, s, n, c) in rows
+        g = g !== missing ? Symbol(g) : nothing
         s = s !== missing ? Symbol(s) : nothing
         n = Symbol(n)
         c = Symbol(c)
-        if s === schema && n === name
+        if g === catalog && s === schema && n === name
             push!(columns, c)
         else
             if !isempty(columns)
                 t = SQLTable(qualifiers = qualifiers, name = name, columns = columns)
                 push!(tables, t)
             end
-            if s !== schema
-                qualifiers = s !== nothing ? [s] : Symbol[]
+            if s !== schema || g !== catalog
+                qualifiers = Symbol[]
+                if !isnothing(g)
+                    push!(qualifiers, g)
+                end
+                if !isnothing(s)
+                    push!(qualifiers, s)
+                end
             end
+            catalog = g
             schema = s
             name = n
             columns = [c]
