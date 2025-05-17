@@ -6,7 +6,7 @@
         Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From, Get,
         Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order, Over,
         Partition, SQLQuery, SQLTable, Select, Sort, Var, Where, With,
-        WithExternal, ID, render
+        WithExternal, ID, render, unwrap_funsql_macro
 
 We start with specifying the database model.
 
@@ -56,7 +56,7 @@ could be accessed using attributes `head` and `tail`.
     #-> (Select(…)).head
 
     display(q.head)
-    #-> Select(Get.person_id).head
+    #-> Select(…).head
 
     q.tail
     #-> (…) |> Where(…)
@@ -77,8 +77,8 @@ Ill-formed queries are detected.
     #=>
     ERROR: FunSQL.IllFormedError in:
     let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> Agg.count() |> Select(Get.person_id)
+        q1 = From(person) |> Agg.count(),
+        q2 = q1 |> Select(Get.person_id)
         q2
     end
     =#
@@ -92,15 +92,24 @@ Ill-formed queries are detected.
 
 ## `@funsql`
 
-The `@funsql` macro provides alternative notation for specifying FunSQL queries.
+The `@funsql` macro provides alternative notation for assembling FunSQL queries.
 
     q = @funsql begin
         from(person)
         filter(year_of_birth > 2000)
         select(person_id)
     end
+    #-> #= … =# @funsql …
 
     display(q)
+    #=>
+    #= … =#
+    @funsql (from(person); filter(year_of_birth > 2000); select(person_id))
+    =#
+
+We can access the underlying structure of a query:
+
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
@@ -119,11 +128,8 @@ We can combine `@funsql` notation with regular Julia code.
 
     display(q)
     #=>
-    let q1 = From(:person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
-        q3 = q2 |> Select(Get.person_id)
-        q3
-    end
+    #= … =#
+    @funsql (from(person); $(Where(Get.year_of_birth .> 2000)); select(person_id))
     =#
 
     q = From(:person) |>
@@ -133,7 +139,7 @@ We can combine `@funsql` notation with regular Julia code.
     display(q)
     #=>
     let q1 = From(:person),
-        q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000)),
+        q2 = q1 |> @funsql(filter(year_of_birth > 2000)),
         q3 = q2 |> Select(Get.person_id)
         q3
     end
@@ -146,11 +152,12 @@ functions.
 
     display(@funsql adults())
     #=>
-    let q1 = From(:person),
-        q2 = q1 |> Where(Fun.">="(Fun."-"(2020, Get.year_of_birth), 16))
-        q2
-    end
+    #= … =#
+    @funsql adults()
     =#
+
+    display(unwrap_funsql_macro(@funsql(adults()), depth = 1))
+    #-> @funsql from(person).filter(2020 - year_of_birth >= 16)
 
 Query functions defined with `@funsql` can accept parameters.
 
@@ -160,7 +167,7 @@ Query functions defined with `@funsql` can accept parameters.
             filter(vocabulary_id == $v && concept_code == $c)
         end
 
-    display(@funsql concept_by_code("SNOMED", "22298006"))
+    display(unwrap_funsql_macro(@funsql concept_by_code("SNOMED", "22298006")))
     #=>
     let q1 = From(:concept),
         q2 = q1 |>
@@ -178,7 +185,7 @@ Query functions support `...` notation.
             filter(vocabulary_id == $v && in(concept_code, $(cs...)))
         end
 
-    display(@funsql concept_by_code("Visit", "IP", "ER"))
+    display(unwrap_funsql_macro(@funsql concept_by_code("Visit", "IP", "ER")))
     #=>
     let q1 = From(:concept),
         q2 = q1 |>
@@ -200,7 +207,7 @@ Query functions support keyword arguments and default values.
             age_in_2000 => age(at = 2000))
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |>
@@ -220,23 +227,11 @@ A parameter of a query function accepts a type declaration.
     @funsql concept(id::Int) =
         from(concept).filter(concept_id == $id)
 
-    display(@funsql concept("22298006"))
-    #=>
-    let q1 = From(:concept),
-        q2 = q1 |>
-             Where(Fun.and(Fun."="(Get.vocabulary_id, "SNOMED"),
-                           Fun."="(Get.concept_code, "22298006")))
-        q2
-    end
-    =#
+    display(unwrap_funsql_macro(@funsql(concept("22298006")), depth = 1))
+    #-> @funsql concept_by_code($(v), $(c))
 
-    display(@funsql concept(4329847))
-    #=>
-    let q1 = From(:concept),
-        q2 = q1 |> Where(Fun."="(Get.concept_id, 4329847))
-        q2
-    end
-    =#
+    display(unwrap_funsql_macro(@funsql(concept(4329847)), depth = 1))
+    #-> @funsql from(concept).filter(concept_id == $(id))
 
 A single `@funsql` macro can wrap multiple definitions.
 
@@ -246,15 +241,8 @@ A single `@funsql` macro can wrap multiple definitions.
         `MYOCARDIAL INFARCTION`() = SNOMED("22298006")
     end
 
-    display(@funsql `MYOCARDIAL INFARCTION`())
-    #=>
-    let q1 = From(:concept),
-        q2 = q1 |>
-             Where(Fun.and(Fun."="(Get.vocabulary_id, "SNOMED"),
-                           Fun."="(Get.concept_code, "22298006")))
-        q2
-    end
-    =#
+    display(unwrap_funsql_macro(@funsql(`MYOCARDIAL INFARCTION`()), depth = 1))
+    #-> @funsql SNOMED("22298006")
 
 A query function may have a docstring.
 
@@ -276,7 +264,7 @@ An ill-formed `@funsql` query triggers an error.
 
     @funsql for p in person; end
     #=>
-    ERROR: LoadError: FunSQL.TransliterationError: ill-formed @funsql notation:
+    ERROR: LoadError: FunSQL.TransliterationError: ill-formed @funsql notation at …:
     quote
         for p = person
         end
@@ -320,7 +308,7 @@ Such plain literals could also be used in `@funsql` notation.
                        text => "SQL is fun!",
                        date => $(Date(2000)))
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     Select(missing |> As(:null),
            true |> As(:boolean),
@@ -375,7 +363,9 @@ this symbol will be translated to a column reference.
 
 `@funsql` notation supports hierarchical references.
 
-    @funsql p.person_id
+    e = @funsql p.person_id
+
+    display(unwrap_funsql_macro(e))
     #-> Get.p.person_id
 
 Use backticks to represent a name that is not a valid identifier.
@@ -383,7 +373,9 @@ Use backticks to represent a name that is not a valid identifier.
     @funsql `person_id`
     #-> :person_id
 
-    @funsql `p`.`person_id`
+    e = @funsql `p`.`person_id`
+
+    display(unwrap_funsql_macro(e))
     #-> Get.p.person_id
 
 `Get` is used for dereferencing an alias created with `As`.
@@ -433,8 +425,8 @@ When `Get` refers to an unknown attribute, an error is reported.
     #=>
     ERROR: FunSQL.ReferenceError: cannot find `q` in:
     let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> As(:p) |> Select(Get.q.person_id)
+        q1 = From(person) |> As(:p),
+        q2 = q1 |> Select(Get.q.person_id)
         q2
     end
     =#
@@ -464,8 +456,8 @@ reference, will result in an error.
     #=>
     ERROR: FunSQL.ReferenceError: incomplete reference `p` in:
     let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = q1 |> As(:p) |> Select(Get.p)
+        q1 = From(person) |> As(:p),
+        q2 = q1 |> Select(Get.p)
         q2
     end
     =#
@@ -546,7 +538,7 @@ A `Define` node can be created using `@funsql` notation.
 
     q = @funsql from(person).define(age => 2000 - year_of_birth)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Define(Fun."-"(2000, Get.year_of_birth) |> As(:age))
@@ -714,9 +706,7 @@ column.
     print(render(q))
     #=>
     ERROR: FunSQL.ReferenceError: cannot find `person_id` in:
-    let q1 = Define(before = :person_id)
-        q1
-    end
+    Define(before = :person_id)
     =#
 
 `Define` has no effect if none of the defined fields are used in the query.
@@ -811,7 +801,7 @@ A vector of arguments could be passed directly.
 
     e = @funsql fun(>, year_of_birth, 2000)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.">"(Get.year_of_birth, 2000)
 
 In order to generate `Fun` nodes using regular function and operator calls,
@@ -819,22 +809,22 @@ we need to declare these functions and operators in advance.
 
     e = @funsql concat(location.city, ", ", location.state)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.concat(Get.location.city, ", ", Get.location.state)
 
     e = @funsql 1950 < year_of_birth < 1990
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.and(Fun."<"(1950, Get.year_of_birth), Fun."<"(Get.year_of_birth, 1990))
 
     e = @funsql location.state != "IL" || location.zip != 60615
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.or(Fun."<>"(Get.location.state, "IL"), Fun."<>"(Get.location.zip, 60615))
 
     e = @funsql location.state == "IL" && location.zip == 60615
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.and(Fun."="(Get.location.state, "IL"), Fun."="(Get.location.zip, 60615))
 
 In `@funsql` notation, use backticks to represent a name that is not
@@ -842,12 +832,12 @@ a valid identifier.
 
     e = @funsql fun(`SUBSTRING(? FROM ? FOR ?)`, city, 1, 1)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun."SUBSTRING(? FROM ? FOR ?)"(Get.city, 1, 1)
 
     q = @funsql `from`(person).`filter`(year_of_birth <= 1964)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Where(Fun."<="(Get.year_of_birth, 1964))
@@ -859,13 +849,13 @@ In `@funsql` notation, an `if` statement is converted to a `CASE` expression.
 
     e = @funsql year_of_birth <= 1964 ? "Boomers" : "Millenials"
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.case(Fun."<="(Get.year_of_birth, 1964), "Boomers", "Millenials")
 
     e = @funsql year_of_birth <= 1964 ? "Boomers" :
                 year_of_birth <= 1980 ? "Generation X" : "Millenials"
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #=>
     Fun.case(Fun."<="(Get.year_of_birth, 1964),
              "Boomers",
@@ -876,7 +866,7 @@ In `@funsql` notation, an `if` statement is converted to a `CASE` expression.
 
     e = @funsql if year_of_birth <= 1964; "Boomers"; end
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Fun.case(Fun."<="(Get.year_of_birth, 1964), "Boomers")
 
     e = @funsql begin
@@ -887,7 +877,7 @@ In `@funsql` notation, an `if` statement is converted to a `CASE` expression.
         end
     end
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #=>
     Fun.case(Fun."<="(Get.year_of_birth, 1964),
              "Boomers",
@@ -907,7 +897,7 @@ In `@funsql` notation, an `if` statement is converted to a `CASE` expression.
         end
     end
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #=>
     Fun.case(Fun."<="(Get.year_of_birth, 1964),
              "Boomers",
@@ -1285,7 +1275,9 @@ Alternatively, use shorthand notation.
 
 A variable could be created with `@funsql` notation.
 
-    @funsql :YEAR
+    e = @funsql :YEAR
+
+    display(unwrap_funsql_macro(e))
     #-> Var.YEAR
 
 Unbound query variables are serialized as query parameters.
@@ -1322,8 +1314,10 @@ Query variables could be bound using the `Bind` constructor.
     #=>
     let visit_occurrence = SQLTable(:visit_occurrence, …),
         q1 = From(visit_occurrence),
-        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
-        q2 |> Bind(1 |> As(:PERSON_ID))
+        q2 = q1 |>
+             Where(Fun."="(Get.person_id, Var.PERSON_ID)) |>
+             Bind(1 |> As(:PERSON_ID))
+        q2
     end
     =#
 
@@ -1347,11 +1341,12 @@ A `Bind` node can be created with `@funsql` notation.
         bind(:PERSON_ID => person_id)
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:visit_occurrence),
-        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID))
-        q2 |> Bind(Get.person_id |> As(:PERSON_ID))
+        q2 = q1 |> Where(Fun."="(Get.person_id, Var.PERSON_ID)),
+        q3 = q2 |> Bind(Get.person_id |> As(:PERSON_ID))
+        q3
     end
     =#
 
@@ -1438,9 +1433,8 @@ multiple queries.
         q1 = From(measurement),
         q2 = q1 |> Define(Get.measurement_date |> As(:date)),
         q3 = From(observation),
-        q4 = q3 |> Define(Get.observation_date |> As(:date)),
-        q5 = q2 |> Append(q4)
-        q5
+        q4 = q2 |> Append(q3 |> Define(Get.observation_date |> As(:date)))
+        q4
     end
     =#
 
@@ -1495,14 +1489,13 @@ An `Append` node can be created using `@funsql` notation.
         append(from(observation).define(date => observation_date))
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:measurement),
         q2 = q1 |> Define(Get.measurement_date |> As(:date)),
         q3 = From(:observation),
-        q4 = q3 |> Define(Get.observation_date |> As(:date)),
-        q5 = q2 |> Append(q4)
-        q5
+        q4 = q2 |> Append(q3 |> Define(Get.observation_date |> As(:date)))
+        q4
     end
     =#
 
@@ -1704,9 +1697,8 @@ We could use `Iterate` and `From(^)` to create a factorial table.
         q3 = q2 |>
              Define(Fun."+"(Get.n, 1) |> As(:n),
                     Fun."*"(Get.f, Fun."+"(Get.n, 1)) |> As(:f)),
-        q4 = q3 |> Where(Fun."<="(Get.n, 10)),
-        q5 = q1 |> Iterate(q4)
-        q5
+        q4 = q1 |> Iterate(q3 |> Where(Fun."<="(Get.n, 10)))
+        q4
     end
     =#
 
@@ -1741,14 +1733,13 @@ An `Iterate` node can be created using `@funsql` notation.
         iterate(define(n => n + 1, f => f * (n + 1)).filter(n <= 10))
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = Define(1 |> As(:n), 1 |> As(:f)),
         q2 = Define(Fun."+"(Get.n, 1) |> As(:n),
                     Fun."*"(Get.f, Fun."+"(Get.n, 1)) |> As(:f)),
-        q3 = q2 |> Where(Fun."<="(Get.n, 10)),
-        q4 = q1 |> Iterate(q3)
-        q4
+        q3 = q1 |> Iterate(q2 |> Where(Fun."<="(Get.n, 10)))
+        q3
     end
     =#
 
@@ -1826,9 +1817,7 @@ It is an error to use `From(^)` outside of `Iterate`.
     print(render(q))
     #=>
     ERROR: FunSQL.ReferenceError: self-reference outside of Iterate in:
-    let q1 = From(^)
-        q1
-    end
+    From(^)
     =#
 
 The set of columns produced by `Iterate` is the intersection of the columns
@@ -1903,7 +1892,7 @@ An alias to an expression can be added with the `As` constructor.
 
     e = @funsql (42).as(integer)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> 42 |> As(:integer)
 
 The `=>` shorthand is supported by `@funsql`.
@@ -1945,7 +1934,12 @@ given table.
     #-> From(…)
 
     display(q)
-    #-> From(SQLTable(:person, …))
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person)
+        q1
+    end
+    =#
 
 By default, `From` selects all columns from the table.
 
@@ -2144,34 +2138,39 @@ A `From` node can be created with `@funsql` notation.
 
     q = @funsql from(person)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #-> From(:person)
 
     q = @funsql from(nothing)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #-> From(nothing)
 
     q = @funsql from(^)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #-> From(^)
 
     q = @funsql from($person)
 
-    display(q)
-    #-> From(SQLTable(:person, …))
+    display(unwrap_funsql_macro(q))
+    #=>
+    let person = SQLTable(:person, …),
+        q1 = From(person)
+        q1
+    end
+    =#
 
     q = @funsql from($df)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #-> From((name = ["SQL", …], year = [1974, …]))
 
     funsql_generate_series = FunSQL.FunClosure(:generate_series)
 
     q = @funsql from(generate_series(0, 100, 10), columns = [value])
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #-> From(Fun.generate_series(0, 100, 10), columns = [:value])
 
 When `From` with a tabular function is attached to the right branch of
@@ -2200,10 +2199,8 @@ All the columns of a tabular function must have distinct names.
          columns = [:index, :index])
     #=>
     ERROR: FunSQL.DuplicateLabelError: `index` is used more than once in:
-    let q1 = From(Fun."? WITH ORDINALITY"(Fun.generate_series(0, 100, 10)),
-                  columns = [:index, :index])
-        q1
-    end
+    From(Fun."? WITH ORDINALITY"(Fun.generate_series(0, 100, 10)),
+         columns = [:index, :index])
     =#
 
 `From(nothing)` will generate a *unit* dataset with one row.
@@ -2233,9 +2230,9 @@ We can create a temporary dataset using `With` and refer to it with `From`.
     let person = SQLTable(:person, …),
         q1 = From(:male),
         q2 = From(person),
-        q3 = q2 |> Where(Fun."="(Get.gender_concept_id, 8507)),
-        q4 = q1 |> With(q3 |> As(:male))
-        q4
+        q3 = q1 |>
+             With(q2 |> Where(Fun."="(Get.gender_concept_id, 8507)) |> As(:male))
+        q3
     end
     =#
 
@@ -2362,13 +2359,14 @@ A `With` node can be created using `@funsql`.
              materialized = false)
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:male),
         q2 = From(:person),
-        q3 = q2 |> Where(Fun."="(Get.gender_concept_id, 8507)),
-        q4 = q1 |> With(q3 |> As(:male), materialized = false)
-        q4
+        q3 = q1 |>
+             With(q2 |> Where(Fun."="(Get.gender_concept_id, 8507)) |> As(:male),
+                  materialized = false)
+        q3
     end
     =#
 
@@ -2382,9 +2380,8 @@ A dataset defined by `With` must have an explicit label assigned to it.
     ERROR: FunSQL.ReferenceError: table reference `person` requires As in:
     let person = SQLTable(:person, …),
         q1 = From(:person),
-        q2 = From(person),
-        q3 = q1 |> With(q2)
-        q3
+        q2 = q1 |> With(From(person))
+        q2
     end
     =#
 
@@ -2396,10 +2393,8 @@ Datasets defined by `With` must have a unique label.
     #=>
     ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
     let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = From(person),
-        q3 = With(q1 |> As(:p), q2 |> As(:p))
-        q3
+        q1 = With(From(person) |> As(:p), From(person) |> As(:p))
+        q1
     end
     =#
 
@@ -2410,9 +2405,7 @@ It is an error for `From` to refer to an undefined dataset.
     print(render(q))
     #=>
     ERROR: FunSQL.ReferenceError: cannot find `p` in:
-    let q1 = From(:p)
-        q1
-    end
+    From(:p)
     =#
 
 A variant of `With` called `Over` exchanges the positions of the definition
@@ -2428,10 +2421,9 @@ and the query that uses it.
     #=>
     let person = SQLTable(:person, …),
         q1 = From(person),
-        q2 = q1 |> Where(Fun."="(Get.gender_concept_id, 8507)),
-        q3 = From(:male),
-        q4 = q2 |> As(:male) |> Over(q3)
-        q4
+        q2 = q1 |> Where(Fun."="(Get.gender_concept_id, 8507)) |> As(:male),
+        q3 = q2 |> Over(From(:male))
+        q3
     end
     =#
 
@@ -2459,13 +2451,12 @@ An `Over` node can be created using `@funsql`.
         over(from(male), materialized = true)
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
-        q2 = q1 |> Where(Fun."="(Get.gender_concept_id, 8507)),
-        q3 = From(:male),
-        q4 = q2 |> As(:male) |> Over(q3, materialized = true)
-        q4
+        q2 = q1 |> Where(Fun."="(Get.gender_concept_id, 8507)) |> As(:male),
+        q3 = q2 |> Over(From(:male), materialized = true)
+        q3
     end
     =#
 
@@ -2511,10 +2502,8 @@ Datasets defined by `WithExternal` must have a unique label.
     #=>
     ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
     let person = SQLTable(:person, …),
-        q1 = From(person),
-        q2 = From(person),
-        q3 = WithExternal(q1 |> As(:p), q2 |> As(:p))
-        q3
+        q1 = WithExternal(From(person) |> As(:p), From(person) |> As(:p))
+        q1
     end
     =#
 
@@ -2547,7 +2536,7 @@ A `Group` node can be created using `@funsql` notation.
 
     q = @funsql from(person).group(year_of_birth)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Group(Get.year_of_birth)
@@ -2577,37 +2566,37 @@ Aggregate functions can be created with `@funsql`.
 
     e = @funsql agg(min, year_of_birth)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Agg.min(Get.year_of_birth)
 
     e = @funsql min(year_of_birth)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Agg.min(Get.year_of_birth)
 
     e = @funsql count(filter = year_of_birth > 1950)
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Agg.count(filter = Fun.">"(Get.year_of_birth, 1950))
 
     e = @funsql visit_group.count()
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Get.visit_group |> Agg.count()
 
     e = @funsql `count`()
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Agg.count()
 
     e = @funsql visit_group.`count`()
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Get.visit_group |> Agg.count()
 
     e = @funsql `visit_group`.`count`()
 
-    display(e)
+    display(unwrap_funsql_macro(e))
     #-> Get.visit_group |> Agg.count()
 
 `Group` will create a single instance of an aggregate function even if it is
@@ -2809,9 +2798,7 @@ indicators `:cube` or `:rollup`, or by explicit enumeration.
     Group(Get.year_of_birth, sets = [[1, 2], [1], []])
     #=>
     ERROR: FunSQL.InvalidGroupingSetsError: `2` is out of bounds in:
-    let q1 = Group(Get.year_of_birth, sets = [[1, 2], [1], []])
-        q1
-    end
+    Group(Get.year_of_birth, sets = [[1, 2], [1], []])
     =#
 
     From(person) |>
@@ -2819,9 +2806,7 @@ indicators `:cube` or `:rollup`, or by explicit enumeration.
           sets = [[1], []])
     #=>
     ERROR: FunSQL.InvalidGroupingSetsError: missing keys `[:year_of_birth]` in:
-    let q1 = Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], []])
-        q1
-    end
+    Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], []])
     =#
 
 `Group` allows specifying the name of a group field.
@@ -3018,7 +3003,7 @@ A `Partition` node can be created with `@funsql` notation.
         partition(year_of_birth, order_by = [month_of_birth, day_of_birth])
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |>
@@ -3107,12 +3092,12 @@ A window frame can be specified in `@funsql` notation.
 
     q = @funsql partition(order_by = [year_of_birth], frame = groups)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #-> Partition(order_by = [Get.year_of_birth], frame = :GROUPS)
 
     q = @funsql partition(order_by = [year_of_birth], frame = (mode = range, start = -1, finish = 1))
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     Partition(order_by = [Get.year_of_birth],
               frame = (mode = :RANGE, start = -1, finish = 1))
@@ -3120,7 +3105,7 @@ A window frame can be specified in `@funsql` notation.
 
     q = @funsql partition(; order_by = [year_of_birth], frame = (mode = range, start = -Inf, finish = Inf, exclude = current_row))
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     Partition(
         order_by = [Get.year_of_birth],
@@ -3237,12 +3222,11 @@ The `Join` constructor creates a subquery that correlates two nested subqueries.
     let person = SQLTable(:person, …),
         location = SQLTable(:location, …),
         q1 = From(person),
-        q2 = From(location),
-        q3 = q1 |>
-             Join(q2 |> As(:location),
+        q2 = q1 |>
+             Join(From(location) |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
-        q3
+        q2
     end
     =#
 
@@ -3267,12 +3251,11 @@ The `Join` constructor creates a subquery that correlates two nested subqueries.
     let person = SQLTable(:person, …),
         location = SQLTable(:location, …),
         q1 = From(person),
-        q2 = From(location),
-        q3 = q1 |>
-             Join(q2 |> As(:location),
+        q2 = q1 |>
+             Join(From(location) |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
-        q3
+        q2
     end
     =#
 
@@ -3285,15 +3268,14 @@ Various `Join` nodes can be created with `@funsql` notation.
              left = true)
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
-        q2 = From(:location),
-        q3 = q1 |>
-             Join(q2 |> As(:location),
+        q2 = q1 |>
+             Join(From(:location) |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
-        q3
+        q2
     end
     =#
 
@@ -3303,15 +3285,14 @@ Various `Join` nodes can be created with `@funsql` notation.
                   location_id == location.location_id)
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
-        q2 = From(:location),
-        q3 = q1 |>
-             Join(q2 |> As(:location),
+        q2 = q1 |>
+             Join(From(:location) |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id),
                   left = true)
-        q3
+        q2
     end
     =#
 
@@ -3320,12 +3301,11 @@ Various `Join` nodes can be created with `@funsql` notation.
         cross_join(other => from(person))
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
-        q2 = From(:person),
-        q3 = q1 |> Join(q2 |> As(:other), true)
-        q3
+        q2 = q1 |> Join(From(:person) |> As(:other), true)
+        q2
     end
     =#
 
@@ -3567,13 +3547,12 @@ its right branch.
     let person = SQLTable(:person, …),
         location = SQLTable(:location, …),
         q1 = From(person),
-        q2 = From(location),
-        q3 = q1 |>
-             Join(q2 |> As(:location),
+        q2 = q1 |>
+             Join(From(location) |> As(:location),
                   Fun."="(Get.location_id, Get.location.location_id),
                   left = true,
                   optional = true)
-        q3
+        q2
     end
     =#
 
@@ -3627,7 +3606,7 @@ An `Order` node can be created with `@funsql` notation.
         order(year_of_birth)
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Order(Get.year_of_birth)
@@ -3730,7 +3709,7 @@ Sort decorations can be created with `@funsql`.
         order(year_of_birth.desc(nulls = first), person_id.asc())
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |>
@@ -3745,7 +3724,7 @@ Sort decorations can be created with `@funsql`.
         order(year_of_birth.sort(desc, nulls = first), person_id.sort(asc))
     end
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |>
@@ -3868,7 +3847,7 @@ A `Limit` node can be created with `@funsql` notation.
 
     q = @funsql from(person).order(person_id).limit(10)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Order(Get.person_id),
@@ -3879,7 +3858,7 @@ A `Limit` node can be created with `@funsql` notation.
 
     q = @funsql from(person).order(person_id).limit(100, 10)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Order(Get.person_id),
@@ -3890,7 +3869,7 @@ A `Limit` node can be created with `@funsql` notation.
 
     q = @funsql from(person).order(person_id).limit(101:110)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Order(Get.person_id),
@@ -3927,7 +3906,7 @@ A `Select` node can be created with `@funsql` notation.
 
     q = @funsql from(person).select(person_id)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Select(Get.person_id)
@@ -3993,7 +3972,7 @@ A `Where` node can be created with `@funsql` notation.
 
     q = @funsql from(person).filter(year_of_birth > 2000)
 
-    display(q)
+    display(unwrap_funsql_macro(q))
     #=>
     let q1 = From(:person),
         q2 = q1 |> Where(Fun.">"(Get.year_of_birth, 2000))
@@ -4125,12 +4104,8 @@ A `Highlight` node can be created with `@funsql` notation.
 
     q = @funsql from(person).highlight(red)
 
-    display(q)
-    #=>
-    let q1 = From(:person)
-        q1
-    end
-    =#
+    display(unwrap_funsql_macro(q))
+    #-> From(:person)
 
 
 ## Debugging
@@ -4166,23 +4141,39 @@ and determines node types.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = FromTable(person),
-    │     q2 = q1 |>
+    │     q1 = FromTable(person) |>
     │          Resolved(RowType(:person_id => ScalarType(),
     │                           :gender_concept_id => ScalarType(),
     │                           :year_of_birth => ScalarType(),
     │                           :month_of_birth => ScalarType(),
     │                           :day_of_birth => ScalarType(),
     │                           :birth_datetime => ScalarType(),
-    │                           :location_id => ScalarType())) |>
+    │                           :location_id => ScalarType())),
+    │     q2 = q1 |>
     │          Where(Fun."<="(Get.year_of_birth |> Resolved(ScalarType()),
     │                         2000 |> Resolved(ScalarType())) |>
-    │                Resolved(ScalarType())),
+    │                Resolved(ScalarType())) |>
+    │          Resolved(RowType(:person_id => ScalarType(),
+    │                           :gender_concept_id => ScalarType(),
+    │                           :year_of_birth => ScalarType(),
+    │                           :month_of_birth => ScalarType(),
+    │                           :day_of_birth => ScalarType(),
+    │                           :birth_datetime => ScalarType(),
+    │                           :location_id => ScalarType())),
     ⋮
-    │     q9 |>
-    │     Resolved(RowType(:person_id => ScalarType(),
-    │                      :max_visit_start_date => ScalarType())) |>
-    │     WithContext(catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
+    │     q7 = q6 |>
+    │          Select(Get.person_id |> Resolved(ScalarType()),
+    │                 Agg.max(Get.visit_start_date |> Resolved(ScalarType())) |>
+    │                 Resolved(ScalarType()) |>
+    │                 Nested(:visit_group) |>
+    │                 Resolved(ScalarType()) |>
+    │                 As(:max_visit_start_date) |>
+    │                 Resolved(ScalarType())) |>
+    │          Resolved(RowType(:person_id => ScalarType(),
+    │                           :max_visit_start_date => ScalarType())) |>
+    │          WithContext(catalog = SQLCatalog(dialect = SQLDialect(),
+    │                                           cache = nothing))
+    │     q7
     │ end
     └ @ FunSQL …
     =#
@@ -4199,15 +4190,18 @@ produce.
     │ let person = SQLTable(:person, …),
     │     location = SQLTable(:location, …),
     │     visit_occurrence = SQLTable(:visit_occurrence, …),
-    │     q1 = FromTable(person),
+    │     q1 = Get.person_id,
     │     q2 = Get.person_id,
-    │     q3 = Get.person_id,
-    │     q4 = Get.location_id,
-    │     q5 = Get.year_of_birth,
-    │     q6 = q1 |> Linked([q2, q3, q4, q5], 3),
+    │     q3 = Get.location_id,
+    │     q4 = Get.year_of_birth,
+    │     q5 = FromTable(person) |> Linked([q1, q2, q3, q4], 3),
     ⋮
-    │     q33 |>
-    │     WithContext(catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
+    │     q19 = q18 |>
+    │           Select(q1, q16 |> As(:max_visit_start_date)) |>
+    │           Linked([Get.person_id, Get.max_visit_start_date]) |>
+    │           WithContext(catalog = SQLCatalog(dialect = SQLDialect(),
+    │                                            cache = nothing))
+    │     q19
     │ end
     └ @ FunSQL …
     =#

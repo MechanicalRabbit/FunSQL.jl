@@ -219,10 +219,16 @@ Base.convert(::Type{SQLQuery}, source::SQLTable) =
 terminal(::Type{FromNode}) =
     true
 
+function children!(n::FromNode, children::Vector{SQLQuery})
+    if n.source isa FunctionSource
+        push!(children, n.source.query)
+    end
+end
+
 function PrettyPrinting.quoteof(n::FromNode, ctx::QuoteContext)
     source = n.source
     if source isa SQLTable
-        tex = get(ctx.vars, source, nothing)
+        tex = get(ctx.repl, source, nothing)
         if tex === nothing
             tex = quoteof(source, limit = true)
         end

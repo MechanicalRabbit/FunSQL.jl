@@ -2,14 +2,12 @@
 
 struct QuoteContext
     limit::Bool
-    vars::IdDict{Any, Symbol}
-    colors::Vector{Symbol}
+    repl::IdDict{Any, Any}
 
     QuoteContext(;
                  limit = false,
-                 vars = IdDict{Any, Symbol}(),
-                 colors = [:normal]) =
-        new(limit, vars, colors)
+                 repl = IdDict{Any, Any}()) =
+        new(limit, repl)
 end
 
 # Compact representation of a column table.
