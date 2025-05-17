@@ -38,7 +38,7 @@ function PrettyPrinting.quoteof(n::ResolvedNode, ctx::QuoteContext)
 end
 
 # Annotations added by "link" pass.
-struct LinkedNode <: TabularNode
+struct LinkedNode <: AbstractSQLNode
     refs::Vector{SQLQuery}
     n_ext_refs::Int
 
@@ -129,7 +129,7 @@ terminal(::Type{FromTableNode}) =
     true
 
 function PrettyPrinting.quoteof(n::FromTableNode, ctx::QuoteContext)
-    tex = get(ctx.vars, n.table, nothing)
+    tex = get(ctx.repl, n.table, nothing)
     if tex === nothing
         tex = quoteof(n.table, limit = true)
     end
@@ -283,3 +283,71 @@ terminal(::Type{IsolatedNode}) =
 
 PrettyPrinting.quoteof(n::IsolatedNode, ctx::QuoteContext) =
     Expr(:call, :Isolated, n.idx, quoteof(n.type))
+
+
+# Wraps a query generated with @funsql macro.
+struct FunSQLMacroNode <: AbstractSQLNode
+    query::SQLQuery
+    ex
+    mod::Module
+    def::Union{Symbol, Nothing}
+    base::LineNumberNode
+    line::LineNumberNode
+
+    FunSQLMacroNode(; query, ex, mod, def, base, line) =
+        new(query, ex, mod, def, base, line)
+end
+
+FunSQLMacroNode(query, ex, mod, def, base, line) =
+    FunSQLMacroNode(; query, ex, mod, def, base, line)
+
+const FunSQLMacro = SQLQueryCtor{FunSQLMacroNode}(:FunSQLMacro)
+
+terminal(n::FunSQLMacroNode) =
+    terminal(n.query)
+
+PrettyPrinting.quoteof(n::FunSQLMacroNode, ctx::QuoteContext) =
+    Expr(:macrocall, Symbol("@funsql"), n.line, !ctx.limit ? n.ex : :…)
+
+
+# Unwrap @funsql macro when displaying the query.
+struct UnwrapFunSQLMacroNode <: AbstractSQLNode
+    depth::Union{Int}
+
+    UnwrapFunSQLMacroNode(; depth = -1) =
+        new(depth)
+end
+
+UnwrapFunSQLMacroNode(depth) =
+    UnwrapFunSQLMacroNode(; depth)
+
+const UnwrapFunSQLMacro = SQLQueryCtor{UnwrapFunSQLMacroNode}(:UnwrapFunSQLMacro)
+
+function PrettyPrinting.quoteof(n::UnwrapFunSQLMacroNode, ctx::QuoteContext)
+    ex = Expr(:call, :UnwrapFunSQLMacro)
+    if n.depth != -1
+        push!(ex.args, n.depth)
+    end
+    ex
+end
+
+unwrap_funsql_macro(q; depth = -1) =
+    q |> UnwrapFunSQLMacro(depth)
+
+
+# Highlight a target node for error reporting.
+struct HighlightTargetNode <: AbstractSQLNode
+    target::Any
+    color::Symbol
+
+    HighlightTargetNode(; target, color) =
+        new(target, color)
+end
+
+HighlightTargetNode(target, color) =
+    HighlightTargetNode(; target, color)
+
+const HighlightTarget = SQLQueryCtor{HighlightTargetNode}(:HighlightTarget)
+
+PrettyPrinting.quoteof(n::HighlightTargetNode, ctx::QuoteContext) =
+    Expr(:call, :HighlightTarget, :…, QuoteNode(n.color))

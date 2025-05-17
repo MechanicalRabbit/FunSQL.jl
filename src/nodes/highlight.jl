@@ -11,6 +11,16 @@ Base.show(io::IO, esc::Esc) =
         print(io, esc.val)
     end
 
+struct NormalWrapper
+    content::Any
+end
+
+PrettyPrinting.tile(w::NormalWrapper) =
+    tile_expr(w.content) * literal(Esc(:normal), 0)
+
+PrettyPrinting.tile_expr_or_repr(w::NormalWrapper, pr = -1) =
+    PrettyPrinting.tile(w)
+
 struct EscWrapper
     content::Any
     color::Symbol

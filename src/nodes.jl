@@ -105,181 +105,195 @@ function PrettyPrinting.quoteof(q::SQLGetQuery)
     end
     ex = :Get
     while !isempty(path)
-        ex = Expr(:., ex, QuoteNode(pop!(path)))
+        name = pop!(path)
+        ex = Expr(:., ex, QuoteNode(Base.isidentifier(name) ? name : string(name)))
     end
     ex
 end
 
-function _tosqlgetquery(q)
-    q.head isa GetNode || return
-    tail′ = nothing
+
+# Traversing query tree.
+
+function children(q::SQLQuery)
+    cs = SQLQuery[]
     if q.tail !== nothing
-        tail′ = _tosqlgetquery(q.tail)
-        tail′ !== nothing || return
+        push!(cs, q.tail)
     end
-    SQLGetQuery(tail′, q.head.name)
+    children!(q.head, cs)
+    cs
 end
 
-
-# Generic traversal and substitution.
-
-function visit(f, q::SQLQuery, visiting = Set{SQLQuery}())
-    !(q in visiting) || return
-    push!(visiting, q)
-    visit(f, q.tail, visiting)
-    visit(f, q.head, visiting)
-    f(q)
-    pop!(visiting, q)
-    nothing
-end
-
-function visit(f, qs::Vector{SQLQuery}, visiting)
-    for q in qs
-        visit(f, q, visiting)
-    end
-end
-
-visit(f, ::Nothing, visiting) =
-    nothing
-
-@generated function visit(f, n::AbstractSQLNode, visiting)
+@generated function children!(n::AbstractSQLNode, children::Vector{SQLQuery})
     exs = Expr[]
     for f in fieldnames(n)
         t = fieldtype(n, f)
-        if t === SQLQuery || t === Union{SQLQuery, Nothing} || t === Vector{SQLQuery}
-            ex = quote
-                visit(f, n.$(f), visiting)
-            end
-            push!(exs, ex)
+        if t === SQLQuery
+            push!(exs, quote push!(children, n.$(f)) end)
+        elseif t === Union{SQLQuery, Nothing}
+            push!(
+                exs,
+                quote
+                    if n.$(f) !== nothing
+                        push!(children, n.$(f))
+                    end
+                end)
+        elseif t === Vector{SQLQuery}
+            push!(exs, quote append!(children, n.$(f)) end)
         end
     end
     push!(exs, :(return nothing))
     Expr(:block, exs...)
 end
 
-substitute(q::SQLQuery, c::SQLQuery, c′::SQLQuery) =
-    if q.tail === c
-        SQLQuery(c′, q.head)
-    else
-        SQLQuery(q.tail, substitute(q.head, c, c′))
-    end
-
-function substitute(qs::Vector{SQLQuery}, c::SQLQuery, c′::SQLQuery)
-    i = findfirst(q -> q === c, qs)
-    i !== nothing || return qs
-    qs′ = copy(qs)
-    qs′[i] = c′
-    qs′
-end
-
-substitute(::Nothing, ::SQLQuery, ::SQLQuery) =
-    nothing
-
-@generated function substitute(n::AbstractSQLNode, c::SQLQuery, c′::SQLQuery)
-    exs = Expr[]
-    fs = fieldnames(n)
-    for f in fs
-        t = fieldtype(n, f)
-        if t === SQLQuery || t === Union{SQLQuery, Nothing}
-            ex = quote
-                if n.$(f) === c
-                    return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(c′))
-                                    for f′ in fs]...))
-                end
-            end
-            push!(exs, ex)
-        elseif t === Vector{SQLQuery}
-            ex = quote
-                let cs′ = substitute(n.$(f), c, c′)
-                    if cs′ !== n.$(f)
-                        return $n($(Any[Expr(:kw, f′, f′ !== f ? :(n.$(f′)) : :(cs′))
-                                        for f′ in fs]...))
-                    end
-                end
-            end
-            push!(exs, ex)
-        end
-    end
-    push!(exs, :(return n))
-    Expr(:block, exs...)
-end
-
 
 # Pretty-printing.
 
-Base.show(io::IO, n::Union{AbstractSQLNode, SQLQuery}) =
-    print(io, quoteof(n, limit = true))
+Base.show(io::IO, q::SQLQuery) =
+    print(io, quoteof(q, limit = true))
 
-Base.show(io::IO, ::MIME"text/plain", n::Union{AbstractSQLNode, SQLQuery}) =
-    pprint(io, n)
-
-function PrettyPrinting.quoteof(q::SQLQuery; limit::Bool = false, head_only::Bool = false)
-    if q.head isa GetNode && !head_only
-        q′ = _tosqlgetquery(q)
-        if q′ !== nothing
-            return quoteof(q′)
-        end
+function Base.show(io::IO, ::MIME"text/plain", q::SQLQuery)
+    if q isa SQLQuery && q.tail === nothing && q.head isa FunSQLMacroNode
+        println(io, q.head.line)
     end
+    pprint(io, q)
+end
+
+function PrettyPrinting.quoteof(q::SQLQuery; limit::Bool = false)
     if limit
         ctx = QuoteContext(limit = true)
         ex = quoteof(q.head, ctx)
-        if head_only
-            ex = Expr(:., ex, QuoteNode(:head))
-        elseif q.tail !== nothing
+        if q.tail !== nothing
             ex = Expr(:call, :|>, quoteof(q.tail, ctx), ex)
         end
         return ex
     end
+    skip_to = Dict{SQLQuery, SQLQuery}()
     tables_seen = OrderedSet{SQLTable}()
     queries_seen = OrderedSet{SQLQuery}()
     queries_toplevel = Set{SQLQuery}()
-    visit(q) do q
-        head = q.head
-        if head isa FromNode
-            source = head.source
-            if source isa SQLTable
-                push!(tables_seen, source)
+    highlight_targets = Dict{SQLQuery, Symbol}()
+    highlight_colors = Dict{SQLQuery, Vector{Symbol}}()
+    color_stack = [:normal]
+    unwrap_depth = [0]
+    unwrapped = Set{SQLQuery}()
+    stack = [(q, true)]
+    while !isempty(stack)
+        top, fwd = pop!(stack)
+        head = top.head
+        if fwd
+            push!(stack, (top, false))
+            if head isa HighlightNode && top.tail !== nothing
+                highlight_targets[top.tail] = head.color
+            elseif head isa HighlightTargetNode && head.target isa SQLQuery
+                highlight_targets[head.target] = head.color
+            elseif head isa UnwrapFunSQLMacroNode
+                push!(unwrap_depth, head.depth)
+            elseif head isa FunSQLMacroNode
+                push!(unwrap_depth, unwrap_depth[end] != 0 ? unwrap_depth[end]-1 : 0)
             end
-        end
-        if head isa FromTableNode
-            push!(tables_seen, head.table)
-        end
-        if head isa TabularNode
-            push!(queries_seen, q)
-            push!(queries_toplevel, q)
-        elseif q in queries_seen
-            push!(queries_toplevel, q)
+            color = get(highlight_targets, top, nothing)
+            if color !== nothing
+                push!(color_stack, color)
+                highlight_colors[top] = copy(color_stack)
+            end
+            if !(top in queries_seen)
+                if head isa FunSQLMacroNode
+                    if unwrap_depth[end-1] != 0
+                        push!(stack, (head.query, true))
+                    end
+                    if top.tail !== nothing
+                        push!(stack, (top.tail, true))
+                    end
+                else
+                    for c in reverse(children(top))
+                        push!(stack, (c, true))
+                    end
+                end
+            end
         else
-            push!(queries_seen, q)
+            if head isa Union{HighlightNode, HighlightTargetNode, UnwrapFunSQLMacroNode} && top.tail !== nothing
+                skip_to[top] = get(skip_to, top.tail, top.tail)
+                if top in keys(highlight_colors)
+                    highlight_colors[skip_to[top]] = highlight_colors[top]
+                end
+            end
+            if head isa Union{FunSQLMacroNode, UnwrapFunSQLMacroNode}
+                pop!(unwrap_depth)
+            end
+            if head isa FunSQLMacroNode && unwrap_depth[end] != 0
+                push!(unwrapped, top)
+                if top.tail === nothing
+                    skip_to[top] = get(skip_to, head.query, head.query)
+                end
+            end
+            if top in keys(highlight_targets)
+                pop!(color_stack)
+            end
+            if head isa FromNode && head.source isa SQLTable
+                push!(tables_seen, head.source)
+            elseif head isa FromTableNode
+                push!(tables_seen, head.table)
+            end
+            if head isa FunSQLMacroNode
+                push!(queries_toplevel, top)
+                if top.tail !== nothing
+                    push!(queries_toplevel, get(skip_to, top.tail, top.tail))
+                end
+            elseif head isa TabularNode && top.tail !== nothing
+                push!(queries_toplevel, get(skip_to, top.tail, top.tail))
+            end
+            if top in queries_seen || isempty(stack)
+                push!(queries_toplevel, get(skip_to, top, top))
+            end
+            push!(queries_seen, top)
         end
     end
     ctx = QuoteContext()
     defs = Any[]
-    if length(queries_toplevel) >= 2 || (length(queries_toplevel) == 1 && !(q in queries_toplevel))
-        for t in tables_seen
-            def = quoteof(t, limit = true)
-            name = t.name
-            push!(defs, Expr(:(=), name, def))
-            ctx.vars[t] = name
-        end
-        qidx = 0
-        for q in queries_seen
-            q in queries_toplevel || continue
-            qidx += 1
-            ctx.vars[q] = Symbol('q', qidx)
-        end
-        qidx = 0
-        for q in queries_seen
-            q in queries_toplevel || continue
-            qidx += 1
-            name = Symbol('q', qidx)
-            def = quoteof(q, ctx, true, true)
-            push!(defs, Expr(:(=), name, def))
+    for t in collect(tables_seen)
+        def = quoteof(t, limit = true)
+        name = t.name
+        push!(defs, Expr(:(=), name, def))
+        ctx.repl[t] = name
+    end
+    qidx = 0
+    for q in queries_seen
+        if q in keys(skip_to)
+            ex = ctx.repl[skip_to[q]]
+            ctx.repl[q] = ex
+        else
+            toplevel = q in queries_toplevel
+            if !toplevel && q.tail === nothing && q.head isa LiteralNode && q.head.val isa SQLLiteralType
+                ex = quoteof(q.head.val)
+            elseif q.head isa GetNode && q.tail !== nothing && (local tail_ex = ctx.repl[q.tail]; tail_ex isa Expr && tail_ex.head === :.)
+                ex = Expr(:., tail_ex, QuoteNode(Base.isidentifier(q.head.name) ? q.head.name : string(q.head.name)))
+            elseif q.head isa FunSQLMacroNode && q in unwrapped
+                ex = ctx.repl[q.head.query]
+                if q.tail !== nothing
+                    ex = Expr(:call, :|>, quoteof(q.tail, ctx), ex)
+                end
+            else
+                ex = quoteof(q, ctx)
+            end
+            colors = get(highlight_colors, q, nothing)
+            if colors !== nothing
+                ex = EscWrapper(ex, colors[end], colors[1:end-1])
+                if toplevel
+                    ex = NormalWrapper(ex)
+                end
+            end
+            if toplevel
+                qidx += 1
+                name = Symbol('q', qidx)
+                push!(defs, Expr(:(=), name, ex))
+                ex = name
+            end
+            ctx.repl[q] = ex
         end
     end
-    ex = quoteof(q, ctx, true, false)
-    if head_only
-        ex = Expr(:., ex, QuoteNode(:head))
+    ex = ctx.repl[q]
+    if length(defs) == 1
+        ex = pop!(defs).args[2]
     end
     if !isempty(defs)
         ex = Expr(:let, Expr(:block, defs...), ex)
@@ -287,23 +301,10 @@ function PrettyPrinting.quoteof(q::SQLQuery; limit::Bool = false, head_only::Boo
     ex
 end
 
-PrettyPrinting.quoteof(n::AbstractSQLNode; limit::Bool = false) =
-    quoteof(convert(SQLQuery, n), limit = limit, head_only = true)
-
-function PrettyPrinting.quoteof(q::SQLQuery, ctx::QuoteContext, top::Bool = false, full::Bool = false)
+function PrettyPrinting.quoteof(q::SQLQuery, ctx::QuoteContext)
     if !ctx.limit
-        if q.head isa HighlightNode && q.tail !== nothing
-            color = q.head.color
-            push!(ctx.colors, color)
-            ex = quoteof(q.tail, ctx)
-            pop!(ctx.colors)
-            EscWrapper(ex, color, copy(ctx.colors))
-        elseif !full && (local var = get(ctx.vars, q, nothing); var !== nothing)
-            var
-        elseif !full && !top && q.tail === nothing && q.head isa LiteralNode && q.head.val isa SQLLiteralType
-            quoteof(q.head.val)
-        elseif q.head isa GetNode && (local q′ = _tosqlgetquery(q); q′) !== nothing
-            quoteof(q′)
+        if (local ex = get(ctx.repl, q, nothing); ex !== nothing)
+            ex
         else
             ex = quoteof(q.head, ctx)
             if q.tail !== nothing
@@ -324,6 +325,19 @@ PrettyPrinting.quoteof(qs::Vector{SQLQuery}, ctx::QuoteContext) =
     else
         Any[:…]
     end
+
+Base.show(io::IO, n::AbstractSQLNode) =
+    print(io, quoteof(n))
+
+function Base.show(io::IO, ::MIME"text/plain", n::AbstractSQLNode)
+    if n isa FunSQLMacroNode
+        println(io, n.line)
+    end
+    pprint(io, n)
+end
+
+PrettyPrinting.quoteof(@nospecialize n::AbstractSQLNode) =
+    Expr(:., quoteof(convert(SQLQuery, n), limit = true), QuoteNode(:head))
 
 
 # Errors.
@@ -487,20 +501,52 @@ function Base.showerror(io::IO, err::ReferenceError)
 end
 
 function showpath(io, path::Vector{SQLQuery})
-    if !isempty(path)
-        q = highlight(path)
-        println(io, " in:")
+    stack = SQLQuery[]
+    while !isempty(path)
+        top = path[1]
+        if top.head isa FunSQLMacroNode
+            k = 1
+            for (i, q) in enumerate(path)
+                if q.head isa FunSQLMacroNode && q.head.base === top.head.base
+                    if q.tail === nothing || !(q.tail in path)
+                        top = q
+                        k = i
+                    end
+                end
+            end
+            push!(stack, SQLQuery(top.head))
+            path = path[k+1:end]
+        else
+            push!(stack, top |> HighlightTarget(path[end], :red))
+            k = lastindex(path)+1
+            for (i, q) in enumerate(path)
+                if q.head isa FunSQLMacroNode
+                    if q.tail === nothing || !(q.tail in path)
+                        k = i
+                        break
+                    end
+                end
+            end
+            path = path[k:end]
+        end
+    end
+    while !isempty(stack)
+        q = pop!(stack)
+        if q.head isa FunSQLMacroNode
+            print(io, " at $(relpath(string(q.head.line.file))):$(q.head.line.line)")
+            if q.head.def !== nothing
+                print(io, " in $(q.head.def)")
+            end
+            println(io, ":")
+        else
+            println(io, " in:")
+        end
         pprint(io, q)
+        if !isempty(stack)
+            println(io)
+            print(io, "#")
+        end
     end
-end
-
-function highlight(path::Vector{SQLQuery}, color = Base.error_color())
-    @assert !isempty(path)
-    q = Highlight(tail = path[end], color = color)
-    for k = lastindex(path):-1:2
-        q = substitute(path[k - 1], path[k], q)
-    end
-    q
 end
 
 """
@@ -512,7 +558,7 @@ struct TransliterationError <: FunSQLError
 end
 
 function Base.showerror(io::IO, err::TransliterationError)
-    println(io, "FunSQL.TransliterationError: ill-formed @funsql notation:")
+    println(io, "FunSQL.TransliterationError: ill-formed @funsql notation at $(relpath(string(err.src.file))):$(err.src.line):")
     pprint(io, err.expr)
 end
 
@@ -569,21 +615,43 @@ end
 
 struct TransliterateContext
     mod::Module
-    src::LineNumberNode
+    def::Union{Symbol, Nothing}
+    base::LineNumberNode
+    line::LineNumberNode
     decl::Bool
 
-    TransliterateContext(mod::Module, src::LineNumberNode, decl::Bool = false) =
-        new(mod, src, decl)
+    TransliterateContext(mod::Module, line::LineNumberNode, decl::Bool = false) =
+        new(mod, nothing, line, line, decl)
 
-    TransliterateContext(ctx::TransliterateContext; src = ctx.src, decl = ctx.decl) =
-        new(ctx.mod, src, decl)
+    TransliterateContext(ctx::TransliterateContext; def = ctx.def, base = ctx.base, line = ctx.line, decl = ctx.decl) =
+        new(ctx.mod, def, base, line, decl)
 end
 
 """
 Convenient notation for assembling FunSQL queries.
 """
 macro funsql(ex)
-    transliterate(ex, TransliterateContext(__module__, __source__))
+    ctx = TransliterateContext(__module__, __source__)
+    transliterate_toplevel(ex, ctx)
+end
+
+function transliterate_toplevel(@nospecialize(ex), ctx)
+    ex′ = transliterate(ex, ctx)
+    quote
+        let q = $ex′
+            if q isa Union{SQLQuery, SQLGetQuery}
+                FunSQLMacro(
+                    q,
+                    $(QuoteNode(ex)),
+                    $(ctx.mod),
+                    $(ctx.def !== nothing ? QuoteNode(ctx.def) : nothing),
+                    $(QuoteNode(ctx.base)),
+                    $(QuoteNode(ctx.line)))
+            else
+                q
+            end
+        end
+    end
 end
 
 function transliterate(@nospecialize(ex), ctx::TransliterateContext)
@@ -609,7 +677,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             if @dissect(arg, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String))
                 arg = Symbol("funsql_$name")
             else
-                ctx = TransliterateContext(ctx, src = ln)
+                ctx = TransliterateContext(ctx, line = ln)
                 arg = transliterate(arg, ctx)
             end
             return Expr(:macrocall, ref, ln, doc, arg)
@@ -617,10 +685,10 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # name(args...) = body
             ctx = TransliterateContext(ctx, decl = true)
             trs = Any[transliterate(arg, ctx) for arg in args]
-            ctx = TransliterateContext(ctx, decl = false)
+            ctx = TransliterateContext(ctx, def = Symbol(name), decl = false)
             return Expr(:(=),
                         :($(esc(Symbol("funsql_$name")))($(trs...))),
-                        transliterate(body, ctx))
+                        transliterate_toplevel(body, ctx))
         elseif @dissect(ex, Expr(:(=), (local name)::Symbol, (local arg)))
             # name = arg
             return Expr(:(=), esc(name), transliterate(arg, ctx))
@@ -728,7 +796,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
                 trs = Any[]
                 for arg in args
                     if arg isa LineNumberNode
-                        ctx = TransliterateContext(ctx, src = arg)
+                        ctx = TransliterateContext(ctx, base = arg, line = arg)
                         push!(trs, arg)
                     else
                         push!(trs, transliterate(arg, ctx))
@@ -739,9 +807,9 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
                 tr = nothing
                 for arg in args
                     if arg isa LineNumberNode
-                        ctx = TransliterateContext(ctx, src = arg)
+                        ctx = TransliterateContext(ctx, line = arg)
                     else
-                        tr′ = Expr(:block, ctx.src, transliterate(arg, ctx))
+                        tr′ = Expr(:block, ctx.line, transliterate_toplevel(arg, ctx))
                         tr = tr !== nothing ? :(Chain($tr, $tr′)) : tr′
                     end
                 end
@@ -770,7 +838,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return :(Fun(:case, $(trs...)))
         end
     end
-    throw(TransliterationError(ex, ctx.src))
+    throw(TransliterationError(ex, ctx.line))
 end
 
 

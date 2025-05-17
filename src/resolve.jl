@@ -4,6 +4,7 @@ struct ResolveContext
     catalog::SQLCatalog
     tail::Union{SQLQuery, Nothing}
     path::Vector{SQLQuery}
+    path_subs::Dict{SQLQuery, SQLQuery}
     row_type::RowType
     cte_types::Base.ImmutableDict{Symbol, Tuple{Int, RowType}}
     var_types::Base.ImmutableDict{Symbol, Tuple{Int, ScalarType}}
@@ -14,6 +15,7 @@ struct ResolveContext
         new(catalog,
             nothing,
             SQLQuery[],
+            Dict{SQLQuery, SQLQuery}(),
             EMPTY_ROW,
             Base.ImmutableDict{Symbol, Tuple{Int, RowType}}(),
             Base.ImmutableDict{Symbol, Tuple{Int, ScalarType}}(),
@@ -31,6 +33,7 @@ struct ResolveContext
         new(ctx.catalog,
             tail,
             ctx.path,
+            ctx.path_subs,
             row_type,
             cte_types,
             var_types,
@@ -39,7 +42,7 @@ struct ResolveContext
 end
 
 get_path(ctx::ResolveContext) =
-    copy(ctx.path)
+    SQLQuery[get(ctx.path_subs, q, q) for q in ctx.path]
 
 function row_type(q::SQLQuery)
     @dissect(q, Resolved(type = (local type)::RowType)) || throw(IllFormedError())
@@ -332,6 +335,24 @@ function resolve_scalar(n::FunctionNode, ctx)
     q′ = Fun(name = n.name, args = args′)
     Resolved(ScalarType(), tail = q′)
 end
+
+function rebase(q::SQLQuery, ctx::ResolveContext)
+    ctx.tail !== nothing || return q
+    q′ =
+        if q.tail !== nothing
+            SQLQuery(rebase(q.tail, ctx), q.head)
+        else
+            SQLQuery(ctx.tail, q.head)
+        end
+    ctx.path_subs[q′] = q
+    q′
+end
+
+resolve(n::FunSQLMacroNode, ctx) =
+    resolve(ResolveContext(ctx, tail = rebase(n.query, ctx)))
+
+resolve_scalar(n::FunSQLMacroNode, ctx) =
+    resolve_scalar(ResolveContext(ctx, tail = rebase(n.query, ctx)))
 
 function resolve_scalar(n::GetNode, ctx)
     if ctx.tail !== nothing
