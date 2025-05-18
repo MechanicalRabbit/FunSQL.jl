@@ -86,15 +86,16 @@ reflect_sql(d::SQLDialect) =
 
 """
     reflect(conn;
+            catalog = nothing,
             schema = nothing,
             dialect = nothing,
             cache = $default_cache_maxsize)::SQLCatalog
 
 Retrieve the information about available database tables.
 
-The function returns a [`SQLCatalog`](@ref) object.  The catalog
-will be populated with the tables from the given database `schema`, or,
-if parameter `schema` is not set, from the default database schema
+The function returns a [`SQLCatalog`](@ref) object.  The catalog will be
+populated with the tables from the given database `catalog` and `schema`.
+If these parameters are not set, the default catalog and schema are assumed
 (e.g., schema `public` for PostgreSQL).
 
 Parameter `dialect` specifies the target [`SQLDialect`](@ref).  If not set,
