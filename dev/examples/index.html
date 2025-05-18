@@ -18,7 +18,7 @@ DBInterface.prepare(conn::LibPQ.Connection, args...; kws...) =
     LibPQ.prepare(conn, args...; kws...)
 
 DBInterface.execute(conn::Union{LibPQ.Connection, LibPQ.Statement}, args...; kws...) =
-    LibPQ.execute(conn, args...; kws...)</code></pre><p>Now we can create a FunSQL connection using <code>DBInterface.connect</code>.</p><pre><code class="language-julia hljs">const conn = DBInterface.connect(FunSQL.DB{LibPQ.Connection}, …)</code></pre><h2 id="SELECT-*-FROM-table"><a class="docs-heading-anchor" href="#SELECT-*-FROM-table"><code>SELECT * FROM table</code></a><a id="SELECT-*-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-*-FROM-table" title="Permalink"></a></h2><p>FunSQL does not require that a query object contains <code>Select</code>, so a minimal FunSQL query consists of a single <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node.</p><p><em>Show all patient records.</em></p><pre><code class="language-julia hljs">q = From(:person)</code></pre><p>We use the function <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a> to serialize the query node as a SQL statement.</p><pre><code class="language-julia hljs">sql = render(conn, q)
+    LibPQ.execute(conn, args...; kws...)</code></pre><p>Now we can create a FunSQL connection using <code>DBInterface.connect</code>.</p><pre><code class="language-julia hljs">const conn = DBInterface.connect(FunSQL.DB{LibPQ.Connection}, …)</code></pre><h2 id="SELECT-*-FROM-table"><a class="docs-heading-anchor" href="#SELECT-*-FROM-table"><code>SELECT * FROM table</code></a><a id="SELECT-*-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-*-FROM-table" title="Permalink"></a></h2><p>FunSQL does not require that a query object contains <code>Select</code>, so a minimal FunSQL query consists of a single <a href="../reference/#FunSQL.From"><code>From</code></a> node.</p><p><em>Show all patient records.</em></p><pre><code class="language-julia hljs">q = From(:person)</code></pre><p>We use the function <a href="../reference/#FunSQL.render-Tuple{Any}"><code>render</code></a> to serialize the query node as a SQL statement.</p><pre><code class="language-julia hljs">sql = render(conn, q)
 
 print(sql)
 #=&gt;
@@ -50,7 +50,7 @@ DataFrame(res)
 #=&gt;
 10×18 DataFrame
 ⋮
-=#</code></pre><h2 id="WHERE,-ORDER,-LIMIT"><a class="docs-heading-anchor" href="#WHERE,-ORDER,-LIMIT"><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></a><a id="WHERE,-ORDER,-LIMIT-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE,-ORDER,-LIMIT" title="Permalink"></a></h2><p>Tabular operations such as <a href="../reference/#FunSQL.Where-Tuple"><code>Where</code></a>, <a href="../reference/#FunSQL.Order-Tuple"><code>Order</code></a>, and <a href="../reference/#FunSQL.Limit-Tuple"><code>Limit</code></a> are available in FunSQL.  Unlike SQL, FunSQL lets you apply them in any order.</p><p><em>Show the top 3 oldest male patients.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+=#</code></pre><h2 id="WHERE,-ORDER,-LIMIT"><a class="docs-heading-anchor" href="#WHERE,-ORDER,-LIMIT"><code>WHERE</code>, <code>ORDER</code>, <code>LIMIT</code></a><a id="WHERE,-ORDER,-LIMIT-1"></a><a class="docs-heading-anchor-permalink" href="#WHERE,-ORDER,-LIMIT" title="Permalink"></a></h2><p>Tabular operations such as <a href="../reference/#FunSQL.Where"><code>Where</code></a>, <a href="../reference/#FunSQL.Order"><code>Order</code></a>, and <a href="../reference/#FunSQL.Limit"><code>Limit</code></a> are available in FunSQL.  Unlike SQL, FunSQL lets you apply them in any order.</p><p><em>Show the top 3 oldest male patients.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     Where(Get.gender_concept_id .== 8507) |&gt;
     Order(Get.year_of_birth) |&gt;
     Limit(3)
@@ -109,7 +109,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    1 │    110862               8507           1911               4             ⋯
    2 │     42383               8507           1922               2
                                                               14 columns omitted
-=#</code></pre><h2 id="SELECT-COUNT(*)-FROM-table"><a class="docs-heading-anchor" href="#SELECT-COUNT(*)-FROM-table"><code>SELECT COUNT(*) FROM table</code></a><a id="SELECT-COUNT(*)-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-COUNT(*)-FROM-table" title="Permalink"></a></h2><p>To calculate an aggregate value for the whole dataset, we apply a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node without arguments.</p><p><em>Show the number of patient records.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+=#</code></pre><h2 id="SELECT-COUNT(*)-FROM-table"><a class="docs-heading-anchor" href="#SELECT-COUNT(*)-FROM-table"><code>SELECT COUNT(*) FROM table</code></a><a id="SELECT-COUNT(*)-FROM-table-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-COUNT(*)-FROM-table" title="Permalink"></a></h2><p>To calculate an aggregate value for the whole dataset, we apply a <a href="../reference/#FunSQL.Group"><code>Group</code></a> node without arguments.</p><p><em>Show the number of patient records.</em></p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     Group() |&gt;
     Select(Agg.count())
 
@@ -126,7 +126,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
      │ Int64
 ─────┼───────
    1 │    10
-=#</code></pre><h2 id="SELECT-DISTINCT"><a class="docs-heading-anchor" href="#SELECT-DISTINCT"><code>SELECT DISTINCT</code></a><a id="SELECT-DISTINCT-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-DISTINCT" title="Permalink"></a></h2><p>If we use a <a href="../reference/#FunSQL.Group-Tuple"><code>Group</code></a> node, but do not apply any aggregate functions, FunSQL will render it as a <code>SELECT DISTINCT</code> clause.</p><p><em>Show all US states present in the location records.</em></p><pre><code class="language-julia hljs">q = From(:location) |&gt;
+=#</code></pre><h2 id="SELECT-DISTINCT"><a class="docs-heading-anchor" href="#SELECT-DISTINCT"><code>SELECT DISTINCT</code></a><a id="SELECT-DISTINCT-1"></a><a class="docs-heading-anchor-permalink" href="#SELECT-DISTINCT" title="Permalink"></a></h2><p>If we use a <a href="../reference/#FunSQL.Group"><code>Group</code></a> node, but do not apply any aggregate functions, FunSQL will render it as a <code>SELECT DISTINCT</code> clause.</p><p><em>Show all US states present in the location records.</em></p><pre><code class="language-julia hljs">q = From(:location) |&gt;
     Group(Get.state)
 
 render(conn, q) |&gt; print
@@ -191,7 +191,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    4 │ 85 - 89        1
    5 │ 95 - 99        2
    6 │ ≥ 100          2
-=#</code></pre><h2 id="Filtering-output-columns"><a class="docs-heading-anchor" href="#Filtering-output-columns">Filtering output columns</a><a id="Filtering-output-columns-1"></a><a class="docs-heading-anchor-permalink" href="#Filtering-output-columns" title="Permalink"></a></h2><p>By default, the <a href="../reference/#FunSQL.From-Tuple"><code>From</code></a> node outputs all columns of a table, but we could restrict or change the list of output columns using <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a>. Typically, we would directly pass the definitions of output columns as individual arguments of <code>Select</code>, but occasionally it is convenient to generate the definitions programmatically.</p><p><em>Filter out all &quot;source&quot; columns from patient records.</em></p><pre><code class="language-julia hljs">const person_table = conn.catalog[:person]
+=#</code></pre><h2 id="Filtering-output-columns"><a class="docs-heading-anchor" href="#Filtering-output-columns">Filtering output columns</a><a id="Filtering-output-columns-1"></a><a class="docs-heading-anchor-permalink" href="#Filtering-output-columns" title="Permalink"></a></h2><p>By default, the <a href="../reference/#FunSQL.From"><code>From</code></a> node outputs all columns of a table, but we could restrict or change the list of output columns using <a href="../reference/#FunSQL.Select"><code>Select</code></a>. Typically, we would directly pass the definitions of output columns as individual arguments of <code>Select</code>, but occasionally it is convenient to generate the definitions programmatically.</p><p><em>Filter out all &quot;source&quot; columns from patient records.</em></p><pre><code class="language-julia hljs">const person_table = conn.catalog[:person]
 
 is_not_source_column(c::Symbol) =
     !contains(String(c), &quot;source&quot;)
@@ -252,7 +252,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
    9 │    107680               8532           1963              12             ⋯
   10 │    110862               8507           1911               4
                                                                7 columns omitted
-=#</code></pre><h2 id="Output-columns-of-a-Join"><a class="docs-heading-anchor" href="#Output-columns-of-a-Join">Output columns of a <code>Join</code></a><a id="Output-columns-of-a-Join-1"></a><a class="docs-heading-anchor-permalink" href="#Output-columns-of-a-Join" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.As-Tuple"><code>As</code></a> is often used to disambiguate the columns of the two input branches of the <a href="../reference/#FunSQL.Join-Tuple"><code>Join</code></a> node.  By default, columns fenced by <code>As</code> are not present in the output.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
+=#</code></pre><h2 id="Output-columns-of-a-Join"><a class="docs-heading-anchor" href="#Output-columns-of-a-Join">Output columns of a <code>Join</code></a><a id="Output-columns-of-a-Join-1"></a><a class="docs-heading-anchor-permalink" href="#Output-columns-of-a-Join" title="Permalink"></a></h2><p><a href="../reference/#FunSQL.As"><code>As</code></a> is often used to disambiguate the columns of the two input branches of the <a href="../reference/#FunSQL.Join"><code>Join</code></a> node.  By default, columns fenced by <code>As</code> are not present in the output.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     Join(From(:visit_occurrence) |&gt; As(:visit),
          on = Get.person_id .== Get.visit.person_id)
 
@@ -278,11 +278,11 @@ SELECT
   &quot;visit_occurrence_1&quot;.&quot;visit_source_concept_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 JOIN &quot;visit_occurrence&quot; AS &quot;visit_occurrence_1&quot; ON (&quot;person_1&quot;.&quot;person_id&quot; = &quot;visit_occurrence_1&quot;.&quot;person_id&quot;)
-=#</code></pre><p>We could use a <a href="../reference/#FunSQL.Select-Tuple"><code>Select</code></a> node to output the columns of both branches, however we must ensure that all column names are unique.</p><pre><code class="language-julia hljs">const visit_occurrence_table = conn.catalog[:visit_occurrence]
+=#</code></pre><p>We could use a <a href="../reference/#FunSQL.Select"><code>Select</code></a> node to output the columns of both branches, however we must ensure that all column names are unique.</p><pre><code class="language-julia hljs">const visit_occurrence_table = conn.catalog[:visit_occurrence]
 
 q = q |&gt;
     Select(Get.(keys(person_table.columns))...,
-           Get.(keys(visit_occurrence_table.columns), over = Get.visit)...)
+           Get.(keys(visit_occurrence_table.columns), tail = Get.visit)...)
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
 ⋮
@@ -291,7 +291,7 @@ ERROR: FunSQL.DuplicateLabelError: `person_id` is used more than once in:
 q = q |&gt;
     Select(Get.(keys(person_table.columns))...,
            Get.(filter(!in(keys(person_table.columns)), collect(keys(visit_occurrence_table.columns))),
-                over = Get.visit)...)
+                tail = Get.visit)...)
 
 render(conn, q) |&gt; print
 #=&gt;
@@ -346,7 +346,7 @@ DBInterface.execute(conn, q) |&gt; DataFrame
 ─────┼──────────────────────────────────────────────────────────────────────────
    1 │     312327  Acute myocardial infarction  Condition  SNOMED         Clin ⋯
                                                                6 columns omitted
-=#</code></pre><p>Recursively applying <code>ImmediateSubtypes</code> with <a href="../reference/#FunSQL.Iterate-Tuple"><code>Iterate</code></a> gives us the concept set together will all subtypes.</p><pre><code class="language-julia hljs">WithSubtypes() =
+=#</code></pre><p>Recursively applying <code>ImmediateSubtypes</code> with <a href="../reference/#FunSQL.Iterate"><code>Iterate</code></a> gives us the concept set together will all subtypes.</p><pre><code class="language-julia hljs">WithSubtypes() =
     Iterate(ImmediateSubtypes())
 
 q = SNOMED(&quot;22298006&quot;) |&gt;       # Myocardial infarction
@@ -822,4 +822,4 @@ DBInterface.execute(conn, q) |&gt; DataFrame
   10 │     95538  2009-03-30  2009-09-02
   11 │    107680  2009-06-07  2009-07-30
   12 │    110862  2008-09-07  2010-06-07
-=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Sunday 18 May 2025 22:37">Sunday 18 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../reference/">« API Reference</a><a class="docs-footer-nextpage" href="../test/">Test Suite »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Sunday 18 May 2025 22:53">Sunday 18 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

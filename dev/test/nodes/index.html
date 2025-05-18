@@ -4,8 +4,8 @@
 using FunSQL:
     Agg, Append, As, Asc, Bind, CrossJoin, Define, Desc, Fun, From, Get,
     Group, Highlight, Iterate, Join, LeftJoin, Limit, Lit, Order, Over,
-    Partition, SQLNode, SQLTable, Select, Sort, Var, Where, With,
-    WithExternal, ID, render</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia hljs">const concept =
+    Partition, SQLQuery, SQLTable, Select, Sort, Var, Where, With,
+    WithExternal, ID, render, unwrap_funsql_macro</code></pre><p>We start with specifying the database model.</p><pre><code class="language-julia hljs">const concept =
     SQLTable(:concept, columns = [:concept_id, :vocabulary_id, :concept_code, :concept_name])
 
 const location =
@@ -21,10 +21,10 @@ const measurement =
     SQLTable(:measurement, columns = [:measurement_id, :person_id, :measurement_concept_id, :measurement_date])
 
 const observation =
-    SQLTable(:observation, columns = [:observation_id, :person_id, :observation_concept_id, :observation_date])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLNode</code> objects.  The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+    SQLTable(:observation, columns = [:observation_id, :person_id, :observation_concept_id, :observation_date])</code></pre><p>In FunSQL, a SQL query is generated from a tree of <code>SQLQuery</code> objects. The nodes are created using constructors with familiar SQL names and connected together using the chain (<code>|&gt;</code>) operator.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)) |&gt;
     Select(Get.person_id)
-#-&gt; (…) |&gt; Select(…)</code></pre><p>Displaying a <code>SQLNode</code> object shows how it was constructed.</p><pre><code class="language-julia hljs">display(q)
+#-&gt; (…) |&gt; Select(…)</code></pre><p>Displaying a <code>SQLQuery</code> object shows how it was constructed.</p><pre><code class="language-julia hljs">display(q)
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
@@ -32,18 +32,14 @@ let person = SQLTable(:person, …),
     q3 = q2 |&gt; Select(Get.person_id)
     q3
 end
-=#</code></pre><p>Each node wraps a concrete node object, which can be accessed using the indexing operator.</p><pre><code class="language-julia hljs">q[]
-#-&gt; ((…) |&gt; Select(…))[]
+=#</code></pre><p>A <code>SQLQuery</code> object is represented as a linked list, whose components could be accessed using attributes <code>head</code> and <code>tail</code>.</p><pre><code class="language-julia hljs">q.head
+#-&gt; (Select(…)).head
 
-display(q[])
-#=&gt;
-let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
-    q3 = q2 |&gt; Select(Get.person_id)
-    q3[]
-end
-=#</code></pre><p>The SQL query is generated using the function <code>render()</code>.</p><pre><code class="language-julia hljs">print(render(q))
+display(q.head)
+#-&gt; Select(…).head
+
+q.tail
+#-&gt; (…) |&gt; Where(…)</code></pre><p>The SQL query is generated using the function <code>render()</code>.</p><pre><code class="language-julia hljs">print(render(q))
 #=&gt;
 SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
@@ -53,8 +49,8 @@ render(q)
 #=&gt;
 ERROR: FunSQL.IllFormedError in:
 let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = q1 |&gt; Agg.count() |&gt; Select(Get.person_id)
+    q1 = From(person) |&gt; Agg.count(),
+    q2 = q1 |&gt; Select(Get.person_id)
     q2
 end
 =#
@@ -63,13 +59,18 @@ q = From(person) |&gt; Fun.current_date()
 #=&gt;
 ERROR: FunSQL.RebaseError in:
 Fun.current_date()
-=#</code></pre><h2 id="@funsql"><a class="docs-heading-anchor" href="#@funsql"><code>@funsql</code></a><a id="@funsql-1"></a><a class="docs-heading-anchor-permalink" href="#@funsql" title="Permalink"></a></h2><p>The <code>@funsql</code> macro provides alternative notation for specifying FunSQL queries.</p><pre><code class="language-julia hljs">q = @funsql begin
+=#</code></pre><h2 id="@funsql"><a class="docs-heading-anchor" href="#@funsql"><code>@funsql</code></a><a id="@funsql-1"></a><a class="docs-heading-anchor-permalink" href="#@funsql" title="Permalink"></a></h2><p>The <code>@funsql</code> macro provides alternative notation for assembling FunSQL queries.</p><pre><code class="language-julia hljs">q = @funsql begin
     from(person)
     filter(year_of_birth &gt; 2000)
     select(person_id)
 end
+#-&gt; #= … =# @funsql …
 
 display(q)
+#=&gt;
+#= … =#
+@funsql (from(person); filter(year_of_birth &gt; 2000); select(person_id))
+=#</code></pre><p>We can access the underlying structure of a query:</p><pre><code class="language-julia hljs">display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
@@ -84,11 +85,8 @@ end
 
 display(q)
 #=&gt;
-let q1 = From(:person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
-    q3 = q2 |&gt; Select(Get.person_id)
-    q3
-end
+#= … =#
+@funsql (from(person); $(Where(Get.year_of_birth .&gt; 2000)); select(person_id))
 =#
 
 q = From(:person) |&gt;
@@ -98,7 +96,7 @@ q = From(:person) |&gt;
 display(q)
 #=&gt;
 let q1 = From(:person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)),
+    q2 = q1 |&gt; @funsql(filter(year_of_birth &gt; 2000)),
     q3 = q2 |&gt; Select(Get.person_id)
     q3
 end
@@ -106,17 +104,18 @@ end
 
 display(@funsql adults())
 #=&gt;
-let q1 = From(:person),
-    q2 = q1 |&gt; Where(Fun.&quot;&gt;=&quot;(Fun.&quot;-&quot;(2020, Get.year_of_birth), 16))
-    q2
-end
-=#</code></pre><p>Query functions defined with <code>@funsql</code> can accept parameters.</p><pre><code class="language-julia hljs">@funsql concept_by_code(v, c) =
+#= … =#
+@funsql adults()
+=#
+
+display(unwrap_funsql_macro(@funsql(adults()), depth = 1))
+#-&gt; @funsql from(person).filter(2020 - year_of_birth &gt;= 16)</code></pre><p>Query functions defined with <code>@funsql</code> can accept parameters.</p><pre><code class="language-julia hljs">@funsql concept_by_code(v, c) =
     begin
         from(concept)
         filter(vocabulary_id == $v &amp;&amp; concept_code == $c)
     end
 
-display(@funsql concept_by_code(&quot;SNOMED&quot;, &quot;22298006&quot;))
+display(unwrap_funsql_macro(@funsql concept_by_code(&quot;SNOMED&quot;, &quot;22298006&quot;)))
 #=&gt;
 let q1 = From(:concept),
     q2 = q1 |&gt;
@@ -130,7 +129,7 @@ end
         filter(vocabulary_id == $v &amp;&amp; in(concept_code, $(cs...)))
     end
 
-display(@funsql concept_by_code(&quot;Visit&quot;, &quot;IP&quot;, &quot;ER&quot;))
+display(unwrap_funsql_macro(@funsql concept_by_code(&quot;Visit&quot;, &quot;IP&quot;, &quot;ER&quot;)))
 #=&gt;
 let q1 = From(:concept),
     q2 = q1 |&gt;
@@ -148,7 +147,7 @@ q = @funsql begin
         age_in_2000 =&gt; age(at = 2000))
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt;
@@ -164,37 +163,18 @@ end
 @funsql concept(id::Int) =
     from(concept).filter(concept_id == $id)
 
-display(@funsql concept(&quot;22298006&quot;))
-#=&gt;
-let q1 = From(:concept),
-    q2 = q1 |&gt;
-         Where(Fun.and(Fun.&quot;=&quot;(Get.vocabulary_id, &quot;SNOMED&quot;),
-                       Fun.&quot;=&quot;(Get.concept_code, &quot;22298006&quot;)))
-    q2
-end
-=#
+display(unwrap_funsql_macro(@funsql(concept(&quot;22298006&quot;)), depth = 1))
+#-&gt; @funsql concept_by_code($(v), $(c))
 
-display(@funsql concept(4329847))
-#=&gt;
-let q1 = From(:concept),
-    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.concept_id, 4329847))
-    q2
-end
-=#</code></pre><p>A single <code>@funsql</code> macro can wrap multiple definitions.</p><pre><code class="language-julia hljs">@funsql begin
+display(unwrap_funsql_macro(@funsql(concept(4329847)), depth = 1))
+#-&gt; @funsql from(concept).filter(concept_id == $(id))</code></pre><p>A single <code>@funsql</code> macro can wrap multiple definitions.</p><pre><code class="language-julia hljs">@funsql begin
     SNOMED(codes...) = concept_by_code(&quot;SNOMED&quot;, $(codes...))
 
     `MYOCARDIAL INFARCTION`() = SNOMED(&quot;22298006&quot;)
 end
 
-display(@funsql `MYOCARDIAL INFARCTION`())
-#=&gt;
-let q1 = From(:concept),
-    q2 = q1 |&gt;
-         Where(Fun.and(Fun.&quot;=&quot;(Get.vocabulary_id, &quot;SNOMED&quot;),
-                       Fun.&quot;=&quot;(Get.concept_code, &quot;22298006&quot;)))
-    q2
-end
-=#</code></pre><p>A query function may have a docstring.</p><pre><code class="language-julia hljs">@funsql begin
+display(unwrap_funsql_macro(@funsql(`MYOCARDIAL INFARCTION`()), depth = 1))
+#-&gt; @funsql SNOMED(&quot;22298006&quot;)</code></pre><p>A query function may have a docstring.</p><pre><code class="language-julia hljs">@funsql begin
     &quot;SNOMED concept set with the given `codes`&quot;
     SNOMED
 
@@ -208,7 +188,7 @@ end
 @doc funsql_Visit
 #-&gt; Visit concept set with the given `codes`</code></pre><p>An ill-formed <code>@funsql</code> query triggers an error.</p><pre><code class="language-julia hljs">@funsql for p in person; end
 #=&gt;
-ERROR: LoadError: FunSQL.TransliterationError: ill-formed @funsql notation:
+ERROR: LoadError: FunSQL.TransliterationError: ill-formed @funsql notation at …:
 quote
     for p = person
     end
@@ -232,7 +212,7 @@ q = Select(&quot;null&quot; =&gt; missing,
                    text =&gt; &quot;SQL is fun!&quot;,
                    date =&gt; $(Date(2000)))
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 Select(missing |&gt; As(:null),
        true |&gt; As(:boolean),
@@ -258,35 +238,16 @@ Get.p |&gt; Get.person_id
 
 display(q)
 #-&gt; Select(Get.person_id)</code></pre><p><code>@funsql</code> macro translates an identifier to a symbol.  In suitable context, this symbol will be translated to a column reference.</p><pre><code class="language-julia hljs">@funsql person_id
-#-&gt; :person_id</code></pre><p><code>@funsql</code> notation supports hierarchical references.</p><pre><code class="language-julia hljs">@funsql p.person_id
+#-&gt; :person_id</code></pre><p><code>@funsql</code> notation supports hierarchical references.</p><pre><code class="language-julia hljs">e = @funsql p.person_id
+
+display(unwrap_funsql_macro(e))
 #-&gt; Get.p.person_id</code></pre><p>Use backticks to represent a name that is not a valid identifier.</p><pre><code class="language-julia hljs">@funsql `person_id`
 #-&gt; :person_id
 
-@funsql `p`.`person_id`
-#-&gt; Get.p.person_id</code></pre><p><code>Get</code> can also create bound references.</p><pre><code class="language-julia hljs">q = From(person)
+e = @funsql `p`.`person_id`
 
-e = Get(over = q, :year_of_birth)
-#-&gt; (…) |&gt; Get.year_of_birth
-
-display(e)
-#=&gt;
-let person = SQLTable(:person, …),
-    q1 = From(person)
-    q1.year_of_birth
-end
-=#
-
-q.person_id
-#-&gt; (…) |&gt; Get.person_id
-
-q.&quot;person_id&quot;
-#-&gt; (…) |&gt; Get.person_id
-
-q[:person_id]
-#-&gt; (…) |&gt; Get.person_id
-
-q[&quot;person_id&quot;]
-#-&gt; (…) |&gt; Get.person_id</code></pre><p><code>Get</code> is used for dereferencing an alias created with <code>As</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+display(unwrap_funsql_macro(e))
+#-&gt; Get.p.person_id</code></pre><p><code>Get</code> is used for dereferencing an alias created with <code>As</code>.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     As(:p) |&gt;
     Select(Get.p.person_id)
 
@@ -323,8 +284,8 @@ print(render(q))
 #=&gt;
 ERROR: FunSQL.ReferenceError: cannot find `q` in:
 let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = q1 |&gt; As(:p) |&gt; Select(Get.q.person_id)
+    q1 = From(person) |&gt; As(:p),
+    q2 = q1 |&gt; Select(Get.q.person_id)
     q2
 end
 =#</code></pre><p>An attribute defined in a <code>Join</code> shadows any previously defined attributes with the same name.</p><pre><code class="language-julia hljs">q = person |&gt;
@@ -344,8 +305,8 @@ print(render(q))
 #=&gt;
 ERROR: FunSQL.ReferenceError: incomplete reference `p` in:
 let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = q1 |&gt; As(:p) |&gt; Select(Get.p)
+    q1 = From(person) |&gt; As(:p),
+    q2 = q1 |&gt; Select(Get.p)
     q2
 end
 =#
@@ -359,16 +320,6 @@ ERROR: FunSQL.ReferenceError: unexpected reference after `person_id` in:
 let person = SQLTable(:person, …),
     q1 = From(person),
     q2 = q1 |&gt; Select(Get.person_id.year_of_birth)
-    q2
-end
-=#</code></pre><p>A reference bound to any node other than <code>Get</code> will cause an error.</p><pre><code class="language-julia hljs">q = (qₚ = From(person)) |&gt; Select(qₚ.person_id)
-
-print(render(q))
-#=&gt;
-ERROR: FunSQL.IllFormedError in:
-let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = q1 |&gt; Select(q1.person_id)
     q2
 end
 =#</code></pre><p>Any expression could be given a name and attached to a query using the <code>Define</code> constructor.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
@@ -422,7 +373,7 @@ FROM (
 WHERE (&quot;person_2&quot;.&quot;age&quot; &gt; &#39;16 years&#39;)
 =#</code></pre><p>A <code>Define</code> node can be created using <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person).define(age =&gt; 2000 - year_of_birth)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Define(Fun.&quot;-&quot;(2000, Get.year_of_birth) |&gt; As(:age))
@@ -567,9 +518,7 @@ q = Define(before = :person_id)
 print(render(q))
 #=&gt;
 ERROR: FunSQL.ReferenceError: cannot find `person_id` in:
-let q1 = Define(before = :person_id)
-    q1
-end
+Define(before = :person_id)
 =#</code></pre><p><code>Define</code> has no effect if none of the defined fields are used in the query.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Define(:age =&gt; 2020 .- Get.year_of_birth) |&gt;
     Select(Get.person_id, Get.year_of_birth)
@@ -629,36 +578,36 @@ Fun.not(Fun.and(Fun.or(Fun.&quot;=&quot;(Get.location.state, &quot;IL&quot;),
                        Fun.&quot;&lt;&gt;&quot;(Get.location.zip, &quot;60615&quot;)),
                 Fun.and(Fun.&quot;&gt;&quot;(Get.year_of_birth, 1950),
                         Fun.&quot;&lt;&quot;(Get.year_of_birth, 1990))))
-=#</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;(args = SQLNode[Get.year_of_birth, 2000])
+=#</code></pre><p>A vector of arguments could be passed directly.</p><pre><code class="language-julia hljs">Fun.&quot;&gt;&quot;(args = SQLQuery[Get.year_of_birth, 2000])
 #-&gt; Fun.:(&quot;&gt;&quot;)(…)</code></pre><p><code>Fun</code> nodes can be generated in <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">e = @funsql fun(&gt;, year_of_birth, 2000)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000)</code></pre><p>In order to generate <code>Fun</code> nodes using regular function and operator calls, we need to declare these functions and operators in advance.</p><pre><code class="language-julia hljs">e = @funsql concat(location.city, &quot;, &quot;, location.state)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.concat(Get.location.city, &quot;, &quot;, Get.location.state)
 
 e = @funsql 1950 &lt; year_of_birth &lt; 1990
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.and(Fun.&quot;&lt;&quot;(1950, Get.year_of_birth), Fun.&quot;&lt;&quot;(Get.year_of_birth, 1990))
 
 e = @funsql location.state != &quot;IL&quot; || location.zip != 60615
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.or(Fun.&quot;&lt;&gt;&quot;(Get.location.state, &quot;IL&quot;), Fun.&quot;&lt;&gt;&quot;(Get.location.zip, 60615))
 
 e = @funsql location.state == &quot;IL&quot; &amp;&amp; location.zip == 60615
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.and(Fun.&quot;=&quot;(Get.location.state, &quot;IL&quot;), Fun.&quot;=&quot;(Get.location.zip, 60615))</code></pre><p>In <code>@funsql</code> notation, use backticks to represent a name that is not a valid identifier.</p><pre><code class="language-julia hljs">e = @funsql fun(`SUBSTRING(? FROM ? FOR ?)`, city, 1, 1)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.&quot;SUBSTRING(? FROM ? FOR ?)&quot;(Get.city, 1, 1)
 
 q = @funsql `from`(person).`filter`(year_of_birth &lt;= 1964)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964))
@@ -666,13 +615,13 @@ let q1 = From(:person),
 end
 =#</code></pre><p>In <code>@funsql</code> notation, an <code>if</code> statement is converted to a <code>CASE</code> expression.</p><pre><code class="language-julia hljs">e = @funsql year_of_birth &lt;= 1964 ? &quot;Boomers&quot; : &quot;Millenials&quot;
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.case(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964), &quot;Boomers&quot;, &quot;Millenials&quot;)
 
 e = @funsql year_of_birth &lt;= 1964 ? &quot;Boomers&quot; :
             year_of_birth &lt;= 1980 ? &quot;Generation X&quot; : &quot;Millenials&quot;
 
-display(e)
+display(unwrap_funsql_macro(e))
 #=&gt;
 Fun.case(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964),
          &quot;Boomers&quot;,
@@ -683,7 +632,7 @@ Fun.case(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964),
 
 e = @funsql if year_of_birth &lt;= 1964; &quot;Boomers&quot;; end
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Fun.case(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964), &quot;Boomers&quot;)
 
 e = @funsql begin
@@ -694,7 +643,7 @@ e = @funsql begin
     end
 end
 
-display(e)
+display(unwrap_funsql_macro(e))
 #=&gt;
 Fun.case(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964),
          &quot;Boomers&quot;,
@@ -714,7 +663,7 @@ e = @funsql begin
     end
 end
 
-display(e)
+display(unwrap_funsql_macro(e))
 #=&gt;
 Fun.case(Fun.&quot;&lt;=&quot;(Get.year_of_birth, 1964),
          &quot;Boomers&quot;,
@@ -1024,7 +973,9 @@ Var[:YEAR]
 #-&gt; Var.YEAR
 
 Var[&quot;YEAR&quot;]
-#-&gt; Var.YEAR</code></pre><p>A variable could be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">@funsql :YEAR
+#-&gt; Var.YEAR</code></pre><p>A variable could be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">e = @funsql :YEAR
+
+display(unwrap_funsql_macro(e))
 #-&gt; Var.YEAR</code></pre><p>Unbound query variables are serialized as query parameters.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Get.year_of_birth .&gt; Var.YEAR)
 
@@ -1053,8 +1004,10 @@ display(q0(1))
 #=&gt;
 let visit_occurrence = SQLTable(:visit_occurrence, …),
     q1 = From(visit_occurrence),
-    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.person_id, Var.PERSON_ID))
-    q2 |&gt; Bind(1 |&gt; As(:PERSON_ID))
+    q2 = q1 |&gt;
+         Where(Fun.&quot;=&quot;(Get.person_id, Var.PERSON_ID)) |&gt;
+         Bind(1 |&gt; As(:PERSON_ID))
+    q2
 end
 =#
 
@@ -1074,11 +1027,12 @@ WHERE (&quot;visit_occurrence_1&quot;.&quot;person_id&quot; = 1)
     bind(:PERSON_ID =&gt; person_id)
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:visit_occurrence),
-    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.person_id, Var.PERSON_ID))
-    q2 |&gt; Bind(Get.person_id |&gt; As(:PERSON_ID))
+    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.person_id, Var.PERSON_ID)),
+    q3 = q2 |&gt; Bind(Get.person_id |&gt; As(:PERSON_ID))
+    q3
 end
 =#</code></pre><p><code>Bind</code> lets us create correlated subqueries.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Fun.exists(q0(Get.person_id)))
@@ -1140,9 +1094,8 @@ let measurement = SQLTable(:measurement, …),
     q1 = From(measurement),
     q2 = q1 |&gt; Define(Get.measurement_date |&gt; As(:date)),
     q3 = From(observation),
-    q4 = q3 |&gt; Define(Get.observation_date |&gt; As(:date)),
-    q5 = q2 |&gt; Append(q4)
-    q5
+    q4 = q2 |&gt; Append(q3 |&gt; Define(Get.observation_date |&gt; As(:date)))
+    q4
 end
 =#
 
@@ -1189,14 +1142,13 @@ FROM (
     append(from(observation).define(date =&gt; observation_date))
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:measurement),
     q2 = q1 |&gt; Define(Get.measurement_date |&gt; As(:date)),
     q3 = From(:observation),
-    q4 = q3 |&gt; Define(Get.observation_date |&gt; As(:date)),
-    q5 = q2 |&gt; Append(q4)
-    q5
+    q4 = q2 |&gt; Append(q3 |&gt; Define(Get.observation_date |&gt; As(:date)))
+    q4
 end
 =#</code></pre><p><code>Append</code> will automatically assign unique aliases to the exported columns.</p><pre><code class="language-julia hljs">q = From(measurement) |&gt;
     Define(:concept_id =&gt; Get.measurement_concept_id) |&gt;
@@ -1362,9 +1314,8 @@ let q1 = Define(1 |&gt; As(:n), 1 |&gt; As(:f)),
     q3 = q2 |&gt;
          Define(Fun.&quot;+&quot;(Get.n, 1) |&gt; As(:n),
                 Fun.&quot;*&quot;(Get.f, Fun.&quot;+&quot;(Get.n, 1)) |&gt; As(:f)),
-    q4 = q3 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, 10)),
-    q5 = q1 |&gt; Iterate(q4)
-    q5
+    q4 = q1 |&gt; Iterate(q3 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, 10)))
+    q4
 end
 =#
 
@@ -1395,14 +1346,13 @@ FROM &quot;__1&quot; AS &quot;__4&quot;
     iterate(define(n =&gt; n + 1, f =&gt; f * (n + 1)).filter(n &lt;= 10))
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = Define(1 |&gt; As(:n), 1 |&gt; As(:f)),
     q2 = Define(Fun.&quot;+&quot;(Get.n, 1) |&gt; As(:n),
                 Fun.&quot;*&quot;(Get.f, Fun.&quot;+&quot;(Get.n, 1)) |&gt; As(:f)),
-    q3 = q2 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, 10)),
-    q4 = q1 |&gt; Iterate(q3)
-    q4
+    q3 = q1 |&gt; Iterate(q2 |&gt; Where(Fun.&quot;&lt;=&quot;(Get.n, 10)))
+    q3
 end
 =#</code></pre><p>The <code>From(^)</code> node in front of the iterator query can be omitted.</p><pre><code class="language-julia hljs">q = Define(:n =&gt; 1, :f =&gt; 1) |&gt;
     Iterate(Define(:n =&gt; Get.n .+ 1, :f =&gt; Get.f .* (Get.n .+ 1)) |&gt;
@@ -1468,9 +1418,7 @@ FROM &quot;__1&quot; AS &quot;__4&quot;
 print(render(q))
 #=&gt;
 ERROR: FunSQL.ReferenceError: self-reference outside of Iterate in:
-let q1 = From(^)
-    q1
-end
+From(^)
 =#</code></pre><p>The set of columns produced by <code>Iterate</code> is the intersection of the columns produced by the base query and the iterator query.</p><pre><code class="language-julia hljs">q = Define(:k =&gt; 0, :m =&gt; 0) |&gt;
     Iterate(As(:previous) |&gt;
             Where(Get.previous.m .&lt; 10) |&gt;
@@ -1525,7 +1473,7 @@ print(render(Select(e)))
 SELECT 42 AS &quot;integer&quot;
 =#</code></pre><p><code>As</code> node can be created with <code>@funsql</code>.</p><pre><code class="language-julia hljs">e = @funsql (42).as(integer)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; 42 |&gt; As(:integer)</code></pre><p>The <code>=&gt;</code> shorthand is supported by <code>@funsql</code>.</p><pre><code class="language-julia hljs">e = @funsql integer =&gt; 42
 
 display(e)
@@ -1547,7 +1495,12 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 #-&gt; From(…)
 
 display(q)
-#-&gt; From(SQLTable(:person, …))</code></pre><p>By default, <code>From</code> selects all columns from the table.</p><pre><code class="language-julia hljs">print(render(q))
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person)
+    q1
+end
+=#</code></pre><p>By default, <code>From</code> selects all columns from the table.</p><pre><code class="language-julia hljs">print(render(q))
 #=&gt;
 SELECT
   &quot;person_1&quot;.&quot;person_id&quot;,
@@ -1688,34 +1641,39 @@ SELECT
 FROM generate_series(0, 100, 10) WITH ORDINALITY AS &quot;__1&quot; (&quot;value&quot;, &quot;index&quot;)
 =#</code></pre><p>A <code>From</code> node can be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #-&gt; From(:person)
 
 q = @funsql from(nothing)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #-&gt; From(nothing)
 
 q = @funsql from(^)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #-&gt; From(^)
 
 q = @funsql from($person)
 
-display(q)
-#-&gt; From(SQLTable(:person, …))
+display(unwrap_funsql_macro(q))
+#=&gt;
+let person = SQLTable(:person, …),
+    q1 = From(person)
+    q1
+end
+=#
 
 q = @funsql from($df)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #-&gt; From((name = [&quot;SQL&quot;, …], year = [1974, …]))
 
 funsql_generate_series = FunSQL.FunClosure(:generate_series)
 
 q = @funsql from(generate_series(0, 100, 10), columns = [value])
 
-display(q)
+display(unwrap_funsql_macro(q))
 #-&gt; From(Fun.generate_series(0, 100, 10), columns = [:value])</code></pre><p>When <code>From</code> with a tabular function is attached to the right branch of a <code>Join</code> node, the function may use data from the left branch of <code>Join</code>, even without being wrapped in a <code>Bind</code> node.</p><pre><code class="language-julia hljs">q = From(Fun.regexp_split_to_table(&quot;(10,20)-(30,40)-(50,60)&quot;, &quot;-&quot;),
          columns = [:point]) |&gt;
     CrossJoin(From(Fun.regexp_matches(Get.point, &quot;(\\d+),(\\d+)&quot;),
@@ -1734,10 +1692,8 @@ CROSS JOIN regexp_matches(&quot;regexp_split_to_table_1&quot;.&quot;point&quot;,
      columns = [:index, :index])
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: `index` is used more than once in:
-let q1 = From(Fun.&quot;? WITH ORDINALITY&quot;(Fun.generate_series(0, 100, 10)),
-              columns = [:index, :index])
-    q1
-end
+From(Fun.&quot;? WITH ORDINALITY&quot;(Fun.generate_series(0, 100, 10)),
+     columns = [:index, :index])
 =#</code></pre><p><code>From(nothing)</code> will generate a <em>unit</em> dataset with one row.</p><pre><code class="language-julia hljs">q = From(nothing)
 
 display(q)
@@ -1756,9 +1712,9 @@ display(q)
 let person = SQLTable(:person, …),
     q1 = From(:male),
     q2 = From(person),
-    q3 = q2 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)),
-    q4 = q1 |&gt; With(q3 |&gt; As(:male))
-    q4
+    q3 = q1 |&gt;
+         With(q2 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)) |&gt; As(:male))
+    q3
 end
 =#
 
@@ -1869,13 +1825,14 @@ FROM &quot;cohort_5&quot; AS &quot;cohort_6&quot;
          materialized = false)
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:male),
     q2 = From(:person),
-    q3 = q2 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)),
-    q4 = q1 |&gt; With(q3 |&gt; As(:male), materialized = false)
-    q4
+    q3 = q1 |&gt;
+         With(q2 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)) |&gt; As(:male),
+              materialized = false)
+    q3
 end
 =#</code></pre><p>A dataset defined by <code>With</code> must have an explicit label assigned to it.</p><pre><code class="language-julia hljs">q = From(:person) |&gt;
     With(From(person))
@@ -1885,9 +1842,8 @@ print(render(q))
 ERROR: FunSQL.ReferenceError: table reference `person` requires As in:
 let person = SQLTable(:person, …),
     q1 = From(:person),
-    q2 = From(person),
-    q3 = q1 |&gt; With(q2)
-    q3
+    q2 = q1 |&gt; With(From(person))
+    q2
 end
 =#</code></pre><p>Datasets defined by <code>With</code> must have a unique label.</p><pre><code class="language-julia hljs">From(:p) |&gt;
 With(:p =&gt; From(person),
@@ -1895,19 +1851,15 @@ With(:p =&gt; From(person),
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
 let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = From(person),
-    q3 = With(q1 |&gt; As(:p), q2 |&gt; As(:p))
-    q3
+    q1 = With(From(person) |&gt; As(:p), From(person) |&gt; As(:p))
+    q1
 end
 =#</code></pre><p>It is an error for <code>From</code> to refer to an undefined dataset.</p><pre><code class="language-julia hljs">q = From(:p)
 
 print(render(q))
 #=&gt;
 ERROR: FunSQL.ReferenceError: cannot find `p` in:
-let q1 = From(:p)
-    q1
-end
+From(:p)
 =#</code></pre><p>A variant of <code>With</code> called <code>Over</code> exchanges the positions of the definition and the query that uses it.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Get.gender_concept_id .== 8507) |&gt;
     As(:male) |&gt;
@@ -1918,10 +1870,9 @@ display(q)
 #=&gt;
 let person = SQLTable(:person, …),
     q1 = From(person),
-    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)),
-    q3 = From(:male),
-    q4 = q2 |&gt; As(:male) |&gt; Over(q3)
-    q4
+    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)) |&gt; As(:male),
+    q3 = q2 |&gt; Over(From(:male))
+    q3
 end
 =#
 
@@ -1945,17 +1896,16 @@ FROM &quot;male_1&quot; AS &quot;male_2&quot;
     over(from(male), materialized = true)
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
-    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)),
-    q3 = From(:male),
-    q4 = q2 |&gt; As(:male) |&gt; Over(q3, materialized = true)
-    q4
+    q2 = q1 |&gt; Where(Fun.&quot;=&quot;(Get.gender_concept_id, 8507)) |&gt; As(:male),
+    q3 = q2 |&gt; Over(From(:male), materialized = true)
+    q3
 end
 =#</code></pre><p>A variant of <code>With</code> called <code>WithExternal</code> can be used to prepare a definition for a <code>CREATE TABLE AS</code> or <code>SELECT INTO</code> statement.</p><pre><code class="language-julia hljs">with_external_handler((tbl, def)) =
     println(&quot;CREATE TEMP TABLE &quot;,
-            render(ID(tbl.qualifiers, tbl.name)),
+            render(ID(tbl)),
             &quot; (&quot;, join([render(ID(c.name)) for (n, c) in tbl.columns], &quot;, &quot;), &quot;) AS\n&quot;,
             render(def), &quot;;\n&quot;)
 
@@ -1988,10 +1938,8 @@ WithExternal(:p =&gt; From(person),
 #=&gt;
 ERROR: FunSQL.DuplicateLabelError: `p` is used more than once in:
 let person = SQLTable(:person, …),
-    q1 = From(person),
-    q2 = From(person),
-    q3 = WithExternal(q1 |&gt; As(:p), q2 |&gt; As(:p))
-    q3
+    q1 = WithExternal(From(person) |&gt; As(:p), From(person) |&gt; As(:p))
+    q1
 end
 =#</code></pre><h2 id="Group"><a class="docs-heading-anchor" href="#Group"><code>Group</code></a><a id="Group-1"></a><a class="docs-heading-anchor-permalink" href="#Group" title="Permalink"></a></h2><p>The <code>Group</code> constructor creates a subquery that summarizes the rows partitioned by the given keys.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.year_of_birth)
@@ -2012,7 +1960,7 @@ SELECT DISTINCT &quot;person_1&quot;.&quot;year_of_birth&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>A <code>Group</code> node can be created using <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person).group(year_of_birth)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Group(Get.year_of_birth)
@@ -2034,43 +1982,43 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#</code></pre><p>Aggregate functions can be created with <code>@funsql</code>.</p><pre><code class="language-julia hljs">e = @funsql agg(min, year_of_birth)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Agg.min(Get.year_of_birth)
 
 e = @funsql min(year_of_birth)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Agg.min(Get.year_of_birth)
 
 e = @funsql count(filter = year_of_birth &gt; 1950)
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Agg.count(filter = Fun.&quot;&gt;&quot;(Get.year_of_birth, 1950))
 
 e = @funsql visit_group.count()
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Get.visit_group |&gt; Agg.count()
 
 e = @funsql `count`()
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Agg.count()
 
 e = @funsql visit_group.`count`()
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Get.visit_group |&gt; Agg.count()
 
 e = @funsql `visit_group`.`count`()
 
-display(e)
+display(unwrap_funsql_macro(e))
 #-&gt; Get.visit_group |&gt; Agg.count()</code></pre><p><code>Group</code> will create a single instance of an aggregate function even if it is used more than once.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Join(:visit_group =&gt; From(visit_occurrence) |&gt;
                          Group(Get.person_id),
          on = Get.person_id .== Get.visit_group.person_id) |&gt;
-    Where(Agg.count(over = Get.visit_group) .&gt;= 2) |&gt;
-    Select(Get.person_id, Agg.count(over = Get.visit_group))
+    Where(Get.visit_group |&gt; Agg.count() .&gt;= 2) |&gt;
+    Select(Get.person_id, Get.visit_group |&gt; Agg.count())
 
 print(render(q))
 #=&gt;
@@ -2222,9 +2170,7 @@ ERROR: FunSQL.InvalidGroupingSetsError: `gender_concept_id` is not a valid key
 Group(Get.year_of_birth, sets = [[1, 2], [1], []])
 #=&gt;
 ERROR: FunSQL.InvalidGroupingSetsError: `2` is out of bounds in:
-let q1 = Group(Get.year_of_birth, sets = [[1, 2], [1], []])
-    q1
-end
+Group(Get.year_of_birth, sets = [[1, 2], [1], []])
 =#
 
 From(person) |&gt;
@@ -2232,9 +2178,7 @@ Group(Get.year_of_birth, Get.gender_concept_id,
       sets = [[1], []])
 #=&gt;
 ERROR: FunSQL.InvalidGroupingSetsError: missing keys `[:year_of_birth]` in:
-let q1 = Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], []])
-    q1
-end
+Group(Get.year_of_birth, Get.gender_concept_id, sets = [[1], []])
 =#</code></pre><p><code>Group</code> allows specifying the name of a group field.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Group(Get.year_of_birth, name = :person) |&gt;
     Define(Get.person |&gt; Agg.count())
@@ -2386,7 +2330,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
     partition(year_of_birth, order_by = [month_of_birth, day_of_birth])
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt;
@@ -2462,12 +2406,12 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 GROUP BY &quot;person_1&quot;.&quot;year_of_birth&quot;
 =#</code></pre><p>A window frame can be specified in <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql partition(order_by = [year_of_birth], frame = groups)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #-&gt; Partition(order_by = [Get.year_of_birth], frame = :GROUPS)
 
 q = @funsql partition(order_by = [year_of_birth], frame = (mode = range, start = -1, finish = 1))
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 Partition(order_by = [Get.year_of_birth],
           frame = (mode = :RANGE, start = -1, finish = 1))
@@ -2475,7 +2419,7 @@ Partition(order_by = [Get.year_of_birth],
 
 q = @funsql partition(; order_by = [year_of_birth], frame = (mode = range, start = -Inf, finish = Inf, exclude = current_row))
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 Partition(
     order_by = [Get.year_of_birth],
@@ -2572,12 +2516,11 @@ display(q)
 let person = SQLTable(:person, …),
     location = SQLTable(:location, …),
     q1 = From(person),
-    q2 = From(location),
-    q3 = q1 |&gt;
-         Join(q2 |&gt; As(:location),
+    q2 = q1 |&gt;
+         Join(From(location) |&gt; As(:location),
               Fun.&quot;=&quot;(Get.location_id, Get.location.location_id),
               left = true)
-    q3
+    q2
 end
 =#
 
@@ -2598,12 +2541,11 @@ display(q)
 let person = SQLTable(:person, …),
     location = SQLTable(:location, …),
     q1 = From(person),
-    q2 = From(location),
-    q3 = q1 |&gt;
-         Join(q2 |&gt; As(:location),
+    q2 = q1 |&gt;
+         Join(From(location) |&gt; As(:location),
               Fun.&quot;=&quot;(Get.location_id, Get.location.location_id),
               left = true)
-    q3
+    q2
 end
 =#</code></pre><p>Various <code>Join</code> nodes can be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql begin
     from(person)
@@ -2612,15 +2554,14 @@ end
          left = true)
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
-    q2 = From(:location),
-    q3 = q1 |&gt;
-         Join(q2 |&gt; As(:location),
+    q2 = q1 |&gt;
+         Join(From(:location) |&gt; As(:location),
               Fun.&quot;=&quot;(Get.location_id, Get.location.location_id),
               left = true)
-    q3
+    q2
 end
 =#
 
@@ -2630,15 +2571,14 @@ q = @funsql begin
               location_id == location.location_id)
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
-    q2 = From(:location),
-    q3 = q1 |&gt;
-         Join(q2 |&gt; As(:location),
+    q2 = q1 |&gt;
+         Join(From(:location) |&gt; As(:location),
               Fun.&quot;=&quot;(Get.location_id, Get.location.location_id),
               left = true)
-    q3
+    q2
 end
 =#
 
@@ -2647,12 +2587,11 @@ q = @funsql begin
     cross_join(other =&gt; from(person))
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
-    q2 = From(:person),
-    q3 = q1 |&gt; Join(q2 |&gt; As(:other), true)
-    q3
+    q2 = q1 |&gt; Join(From(:person) |&gt; As(:other), true)
+    q2
 end
 =#</code></pre><p>Nested subqueries that are combined with <code>Join</code> may fail to collapse.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Get.year_of_birth .&gt; 1970) |&gt;
@@ -2867,13 +2806,12 @@ display(q)
 let person = SQLTable(:person, …),
     location = SQLTable(:location, …),
     q1 = From(person),
-    q2 = From(location),
-    q3 = q1 |&gt;
-         Join(q2 |&gt; As(:location),
+    q2 = q1 |&gt;
+         Join(From(location) |&gt; As(:location),
               Fun.&quot;=&quot;(Get.location_id, Get.location.location_id),
               left = true,
               optional = true)
-    q3
+    q2
 end
 =#
 
@@ -2916,7 +2854,7 @@ ORDER BY &quot;person_1&quot;.&quot;year_of_birth&quot;
     order(year_of_birth)
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Order(Get.year_of_birth)
@@ -2998,7 +2936,7 @@ ORDER BY
     order(year_of_birth.desc(nulls = first), person_id.asc())
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt;
@@ -3013,7 +2951,7 @@ q = @funsql begin
     order(year_of_birth.sort(desc, nulls = first), person_id.sort(asc))
 end
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt;
@@ -3120,7 +3058,7 @@ SELECT
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>A <code>Limit</code> node can be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person).order(person_id).limit(10)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Order(Get.person_id),
@@ -3131,7 +3069,7 @@ end
 
 q = @funsql from(person).order(person_id).limit(100, 10)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Order(Get.person_id),
@@ -3142,7 +3080,7 @@ end
 
 q = @funsql from(person).order(person_id).limit(101:110)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Order(Get.person_id),
@@ -3168,7 +3106,7 @@ SELECT &quot;person_1&quot;.&quot;person_id&quot;
 FROM &quot;person&quot; AS &quot;person_1&quot;
 =#</code></pre><p>A <code>Select</code> node can be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person).select(person_id)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Select(Get.person_id)
@@ -3214,7 +3152,7 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 =#</code></pre><p>A <code>Where</code> node can be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person).filter(year_of_birth &gt; 2000)
 
-display(q)
+display(unwrap_funsql_macro(q))
 #=&gt;
 let q1 = From(:person),
     q2 = q1 |&gt; Where(Fun.&quot;&gt;&quot;(Get.year_of_birth, 2000))
@@ -3318,12 +3256,8 @@ FROM &quot;person&quot; AS &quot;person_1&quot;
 WHERE (&quot;person_1&quot;.&quot;year_of_birth&quot; &gt; 2000)
 =#</code></pre><p>A <code>Highlight</code> node can be created with <code>@funsql</code> notation.</p><pre><code class="language-julia hljs">q = @funsql from(person).highlight(red)
 
-display(q)
-#=&gt;
-let q1 = From(:person)
-    q1
-end
-=#</code></pre><h2 id="Debugging"><a class="docs-heading-anchor" href="#Debugging">Debugging</a><a id="Debugging-1"></a><a class="docs-heading-anchor-permalink" href="#Debugging" title="Permalink"></a></h2><p>Enable debug logging to get some insight on how FunSQL translates a query object into SQL.  Set the <code>JULIA_DEBUG</code> environment variable to the name of a translation stage and <code>render()</code> will print the result of this stage.</p><p>Consider the following query.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
+display(unwrap_funsql_macro(q))
+#-&gt; From(:person)</code></pre><h2 id="Debugging"><a class="docs-heading-anchor" href="#Debugging">Debugging</a><a id="Debugging-1"></a><a class="docs-heading-anchor-permalink" href="#Debugging" title="Permalink"></a></h2><p>Enable debug logging to get some insight on how FunSQL translates a query object into SQL.  Set the <code>JULIA_DEBUG</code> environment variable to the name of a translation stage and <code>render()</code> will print the result of this stage.</p><p>Consider the following query.</p><pre><code class="language-julia hljs">q = From(person) |&gt;
     Where(Get.year_of_birth .&lt;= 2000) |&gt;
     Join(:location =&gt; From(location) |&gt;
                       Where(Get.state .== &quot;IL&quot;),
@@ -3343,24 +3277,39 @@ end;
 │ let person = SQLTable(:person, …),
 │     location = SQLTable(:location, …),
 │     visit_occurrence = SQLTable(:visit_occurrence, …),
-│     q1 = FromTable(table = person),
-│     q2 = Resolved(RowType(:person_id =&gt; ScalarType(),
+│     q1 = FromTable(person) |&gt;
+│          Resolved(RowType(:person_id =&gt; ScalarType(),
 │                           :gender_concept_id =&gt; ScalarType(),
 │                           :year_of_birth =&gt; ScalarType(),
 │                           :month_of_birth =&gt; ScalarType(),
 │                           :day_of_birth =&gt; ScalarType(),
 │                           :birth_datetime =&gt; ScalarType(),
-│                           :location_id =&gt; ScalarType()),
-│                   over = q1) |&gt;
-│          Where(Resolved(ScalarType(),
-│                         over = Fun.&quot;&lt;=&quot;(Resolved(ScalarType(),
-│                                                  over = Get.year_of_birth),
-│                                         Resolved(ScalarType(), over = 2000)))),
+│                           :location_id =&gt; ScalarType())),
+│     q2 = q1 |&gt;
+│          Where(Fun.&quot;&lt;=&quot;(Get.year_of_birth |&gt; Resolved(ScalarType()),
+│                         2000 |&gt; Resolved(ScalarType())) |&gt;
+│                Resolved(ScalarType())) |&gt;
+│          Resolved(RowType(:person_id =&gt; ScalarType(),
+│                           :gender_concept_id =&gt; ScalarType(),
+│                           :year_of_birth =&gt; ScalarType(),
+│                           :month_of_birth =&gt; ScalarType(),
+│                           :day_of_birth =&gt; ScalarType(),
+│                           :birth_datetime =&gt; ScalarType(),
+│                           :location_id =&gt; ScalarType())),
 ⋮
-│     WithContext(over = Resolved(RowType(:person_id =&gt; ScalarType(),
-│                                         :max_visit_start_date =&gt; ScalarType()),
-│                                 over = q9),
-│                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
+│     q7 = q6 |&gt;
+│          Select(Get.person_id |&gt; Resolved(ScalarType()),
+│                 Agg.max(Get.visit_start_date |&gt; Resolved(ScalarType())) |&gt;
+│                 Resolved(ScalarType()) |&gt;
+│                 Nested(:visit_group) |&gt;
+│                 Resolved(ScalarType()) |&gt;
+│                 As(:max_visit_start_date) |&gt;
+│                 Resolved(ScalarType())) |&gt;
+│          Resolved(RowType(:person_id =&gt; ScalarType(),
+│                           :max_visit_start_date =&gt; ScalarType())) |&gt;
+│          WithContext(catalog = SQLCatalog(dialect = SQLDialect(),
+│                                           cache = nothing))
+│     q7
 │ end
 └ @ FunSQL …
 =#</code></pre><p>Next, <code>render()</code> determines, for each tabular node, the data that it must produce.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
@@ -3372,15 +3321,18 @@ end;
 │ let person = SQLTable(:person, …),
 │     location = SQLTable(:location, …),
 │     visit_occurrence = SQLTable(:visit_occurrence, …),
-│     q1 = FromTable(table = person),
+│     q1 = Get.person_id,
 │     q2 = Get.person_id,
-│     q3 = Get.person_id,
-│     q4 = Get.location_id,
-│     q5 = Get.year_of_birth,
-│     q6 = Linked([q2, q3, q4, q5], 3, over = q1),
+│     q3 = Get.location_id,
+│     q4 = Get.year_of_birth,
+│     q5 = FromTable(person) |&gt; Linked([q1, q2, q3, q4], 3),
 ⋮
-│     WithContext(over = q33,
-│                 catalog = SQLCatalog(dialect = SQLDialect(), cache = nothing))
+│     q19 = q18 |&gt;
+│           Select(q1, q16 |&gt; As(:max_visit_start_date)) |&gt;
+│           Linked([Get.person_id, Get.max_visit_start_date]) |&gt;
+│           WithContext(catalog = SQLCatalog(dialect = SQLDialect(),
+│                                            cache = nothing))
+│     q19
 │ end
 └ @ FunSQL …
 =#</code></pre><p>On the next stage, the query object is converted to a SQL syntax tree.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
@@ -3389,40 +3341,38 @@ withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.translate&quot;) do
 end;
 #=&gt;
 ┌ Debug: FunSQL.translate
-│ WITH_CONTEXT(
-│     over = ID(:person) |&gt;
-│            AS(:person_1) |&gt;
-│            FROM() |&gt;
-│            WHERE(FUN(&quot;&lt;=&quot;, ID(:person_1) |&gt; ID(:year_of_birth), LIT(2000))) |&gt;
-│            SELECT(ID(:person_1) |&gt; ID(:person_id),
-│                   ID(:person_1) |&gt; ID(:location_id)) |&gt;
-│            AS(:person_2) |&gt;
-│            FROM() |&gt;
-│            JOIN(ID(:location) |&gt;
-│                 AS(:location_1) |&gt;
-│                 FROM() |&gt;
-│                 WHERE(FUN(&quot;=&quot;, ID(:location_1) |&gt; ID(:state), LIT(&quot;IL&quot;))) |&gt;
-│                 SELECT(ID(:location_1) |&gt; ID(:location_id)) |&gt;
-│                 AS(:location_2),
-│                 FUN(&quot;=&quot;,
-│                     ID(:person_2) |&gt; ID(:location_id),
-│                     ID(:location_2) |&gt; ID(:location_id))) |&gt;
-│            JOIN(ID(:visit_occurrence) |&gt;
-│                 AS(:visit_occurrence_1) |&gt;
-│                 FROM() |&gt;
-│                 GROUP(ID(:visit_occurrence_1) |&gt; ID(:person_id)) |&gt;
-│                 SELECT(AGG(&quot;max&quot;,
-│                            ID(:visit_occurrence_1) |&gt; ID(:visit_start_date)) |&gt;
-│                        AS(:max),
-│                        ID(:visit_occurrence_1) |&gt; ID(:person_id)) |&gt;
-│                 AS(:visit_group_1),
-│                 FUN(&quot;=&quot;,
-│                     ID(:person_2) |&gt; ID(:person_id),
-│                     ID(:visit_group_1) |&gt; ID(:person_id)),
-│                 left = true) |&gt;
-│            SELECT(ID(:person_2) |&gt; ID(:person_id),
-│                   ID(:visit_group_1) |&gt; ID(:max) |&gt; AS(:max_visit_start_date)),
-│     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
+│ ID(:person) |&gt;
+│ AS(:person_1) |&gt;
+│ FROM() |&gt;
+│ WHERE(FUN(&quot;&lt;=&quot;, ID(:person_1) |&gt; ID(:year_of_birth), LIT(2000))) |&gt;
+│ SELECT(ID(:person_1) |&gt; ID(:person_id), ID(:person_1) |&gt; ID(:location_id)) |&gt;
+│ AS(:person_2) |&gt;
+│ FROM() |&gt;
+│ JOIN(ID(:location) |&gt;
+│      AS(:location_1) |&gt;
+│      FROM() |&gt;
+│      WHERE(FUN(&quot;=&quot;, ID(:location_1) |&gt; ID(:state), LIT(&quot;IL&quot;))) |&gt;
+│      SELECT(ID(:location_1) |&gt; ID(:location_id)) |&gt;
+│      AS(:location_2),
+│      FUN(&quot;=&quot;,
+│          ID(:person_2) |&gt; ID(:location_id),
+│          ID(:location_2) |&gt; ID(:location_id))) |&gt;
+│ JOIN(ID(:visit_occurrence) |&gt;
+│      AS(:visit_occurrence_1) |&gt;
+│      FROM() |&gt;
+│      GROUP(ID(:visit_occurrence_1) |&gt; ID(:person_id)) |&gt;
+│      SELECT(AGG(&quot;max&quot;, ID(:visit_occurrence_1) |&gt; ID(:visit_start_date)) |&gt;
+│             AS(:max),
+│             ID(:visit_occurrence_1) |&gt; ID(:person_id)) |&gt;
+│      AS(:visit_group_1),
+│      FUN(&quot;=&quot;,
+│          ID(:person_2) |&gt; ID(:person_id),
+│          ID(:visit_group_1) |&gt; ID(:person_id)),
+│      left = true) |&gt;
+│ SELECT(ID(:person_2) |&gt; ID(:person_id),
+│        ID(:visit_group_1) |&gt; ID(:max) |&gt; AS(:max_visit_start_date)) |&gt;
+│ WITH_CONTEXT(columns = [SQLColumn(:person_id),
+│                         SQLColumn(:max_visit_start_date)])
 └ @ FunSQL …
 =#</code></pre><p>Finally, the SQL tree is serialized into SQL.</p><pre><code class="language-julia hljs">#? VERSION &gt;= v&quot;1.7&quot;
 withenv(&quot;JULIA_DEBUG&quot; =&gt; &quot;FunSQL.serialize&quot;) do
@@ -3456,4 +3406,4 @@ end;
 │     ) AS &quot;visit_group_1&quot; ON (&quot;person_2&quot;.&quot;person_id&quot; = &quot;visit_group_1&quot;.&quot;person_id&quot;)&quot;&quot;&quot;,
 │     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
 └ @ FunSQL …
-=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Sunday 18 May 2025 22:37">Sunday 18 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+=#</code></pre></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.11.4 on <span class="colophon-date" title="Sunday 18 May 2025 22:53">Sunday 18 May 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
