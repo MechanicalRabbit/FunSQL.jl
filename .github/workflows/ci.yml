@@ -15,11 +15,11 @@ jobs:
       matrix:
         include:
         - name: Julia LTS / Linux 64bit
-          version: '1.6'
+          version: '1.10'
           os: ubuntu-latest
           arch: x64
         - name: Julia LTS / Linux 32bit
-          version: '1.6'
+          version: '1.10'
           os: ubuntu-latest
           arch: x86
         - name: Julia Stable / Linux 64bit
