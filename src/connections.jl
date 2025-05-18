@@ -62,6 +62,7 @@ const DB = SQLConnection
 """
     DBInterface.connect(DB{RawConnType},
                         args...;
+                        catalog = nothing,
                         schema = nothing,
                         dialect = nothing,
                         cache = $default_cache_maxsize,
@@ -75,13 +76,13 @@ Extra parameters `args` and `kws` are passed to the call:
     DBInterface.connect(RawConnType, args...; kws...)
 """
 function DBInterface.connect(::Type{SQLConnection{RawConnType}}, args...;
+                             catalog = nothing,
                              schema = nothing,
                              dialect = nothing,
                              cache = default_cache_maxsize,
                              kws...) where {RawConnType}
     raw = DBInterface.connect(RawConnType, args...; kws...)
-    catalog = reflect(raw, schema = schema, dialect = dialect, cache = cache)
-    SQLConnection{RawConnType}(raw, catalog = catalog)
+    SQLConnection{RawConnType}(raw; catalog = reflect(raw; catalog, schema, dialect, cache))
 end
 
 """
