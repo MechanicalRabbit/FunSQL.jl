@@ -639,8 +639,8 @@ function transliterate_toplevel(@nospecialize(ex), ctx)
     ex′ = transliterate(ex, ctx)
     quote
         let q = $ex′
-            if q isa Union{SQLQuery, SQLGetQuery}
-                FunSQLMacro(
+            if q isa $(Union{SQLQuery, SQLGetQuery})
+                $FunSQLMacro(
                     q,
                     $(QuoteNode(ex)),
                     $(ctx.mod),
@@ -667,7 +667,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         end
     elseif @dissect(ex, QuoteNode((local name)::Symbol))
         # :name
-        return :(Var($ex))
+        return :($Var($ex))
     elseif ex isa Expr
         if @dissect(ex, Expr(:($), (local arg)))
             # $(...)
@@ -713,32 +713,32 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # over.name(args...)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, name, args...), ctx)
-            return :(Chain($tr1, $tr2))
+            return :($Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:macrocall, Expr(:., (local over), Expr(:quote, (local ex′))), (local args)...))
             # over.`name`
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:macrocall, ex′, args...), ctx)
-            return :(Chain($tr1, $tr2))
+            return :($Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:., (local over), Expr(:quote, (local arg))))
             # over.`name` (Julia ≥ 1.10)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(arg, ctx)
-            return :(Chain($tr1, $tr2))
+            return :($Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:call, Expr(:macrocall, Expr(:., (local over), Expr(:quote, (local ex′))), (local args)...), (local args′)...))
             # over.`name`(args...)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, Expr(:macrocall, ex′, args...), args′...), ctx)
-            return :(Chain($tr1, $tr2))
+            return :($Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:call, Expr(:., (local over), Expr(:quote, (local arg))), (local args)...))
             # over.`name`(args...) (Julia ≥ 1.10)
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(Expr(:call, arg, args...), ctx)
-            return :(Chain($tr1, $tr2))
+            return :($Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:., (local over), QuoteNode((local name))))
             # over.name
             tr1 = transliterate(over, ctx)
             tr2 = transliterate(name, ctx)
-            return :(Chain($tr1, $tr2))
+            return :($Chain($tr1, $tr2))
         elseif @dissect(ex, Expr(:call, :(=>), (local name = QuoteNode(_::Symbol)), (local arg)))
             # :name => arg
             tr = transliterate(arg, ctx)
@@ -768,15 +768,15 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg3, ctx)
             tr3 = transliterate(Expr(:comparison, arg3, args...), ctx)
-            return :(Fun(:and, $(esc(Symbol("funsql_$arg2")))($tr1, $tr2), $tr3))
+            return :($Fun(:and, $(esc(Symbol("funsql_$arg2")))($tr1, $tr2), $tr3))
         elseif @dissect(ex, Expr(:(&&), (local args)...))
             # &&(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
-            return :(Fun(:and, args = [$(trs...)]))
+            return :($Fun(:and, args = [$(trs...)]))
         elseif @dissect(ex, Expr(:(||), (local args)...))
             # ||(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
-            return :(Fun(:or, args = [$(trs...)]))
+            return :($Fun(:or, args = [$(trs...)]))
         elseif @dissect(ex, Expr(:call, (local op = :+ || :-), (local arg = :Inf)))
             # ±Inf
             tr = transliterate(arg, ctx)
@@ -810,7 +810,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
                         ctx = TransliterateContext(ctx, line = arg)
                     else
                         tr′ = Expr(:block, ctx.line, transliterate_toplevel(arg, ctx))
-                        tr = tr !== nothing ? :(Chain($tr, $tr′)) : tr′
+                        tr = tr !== nothing ? :($Chain($tr, $tr′)) : tr′
                     end
                 end
                 return tr
@@ -818,7 +818,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         elseif @dissect(ex, Expr(:if, (local arg1), (local arg2)))
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg2, ctx)
-            return :(Fun(:case, $tr1, $tr2))
+            return :($Fun(:case, $tr1, $tr2))
         elseif @dissect(ex, Expr(:if, (local arg1), (local arg2), (local arg3)))
             trs = Any[transliterate(arg1, ctx),
                       transliterate(arg2, ctx)]
@@ -835,7 +835,7 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             else
                 push!(trs, transliterate(arg3, ctx))
             end
-            return :(Fun(:case, $(trs...)))
+            return :($Fun(:case, $(trs...)))
         end
     end
     throw(TransliterationError(ex, ctx.line))
