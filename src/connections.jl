@@ -60,6 +60,57 @@ Shorthand for [`SQLConnection`](@ref).
 const DB = SQLConnection
 
 """
+    SQLCursor(raw)
+
+Wraps the query result.
+"""
+struct SQLCursor{RawCrType} <: DBInterface.Cursor
+    raw::RawCrType
+
+    SQLCursor{RawCrType}(raw::RawCrType) where {RawCrType} =
+        new(raw)
+end
+
+SQLCursor(raw::RawCrType) where {RawCrType} =
+    SQLCursor{RawCrType}(raw)
+
+function Base.show(io::IO, cr::SQLCursor)
+    print(io, "SQLCursor(")
+    show(io, cr.raw)
+    print(io, ")")
+end
+
+Base.eltype(cr::SQLCursor) =
+   eltype(cr.raw)
+
+Base.IteratorSize(::Type{SQLCursor{RawCrType}}) where {RawCrType} =
+    Base.IteratorSize(RawCrType)
+
+Base.length(cr::SQLCursor) =
+    length(cr.raw)
+
+Base.iterate(cr::SQLCursor, state...) =
+    iterate(cr.raw, state...)
+
+Tables.istable(::Type{SQLCursor{RawCrType}}) where {RawCrType} =
+    Tables.istable(RawCrType)
+
+Tables.rowaccess(::Type{SQLCursor{RawCrType}}) where {RawCrType} =
+    Tables.rowaccess(RawCrType)
+
+Tables.rows(cr::SQLCursor) =
+    Tables.rows(cr.raw)
+
+Tables.columnaccess(::Type{SQLCursor{RawCrType}}) where {RawCrType} =
+    Tables.columnaccess(RawCrType)
+
+Tables.columns(cr::SQLCursor) =
+    Tables.columns(cr.raw)
+
+Tables.schema(cr::SQLCursor) =
+    Tables.schema(cr.raw)
+
+"""
     DBInterface.connect(DB{RawConnType},
                         args...;
                         catalog = nothing,
@@ -132,10 +183,16 @@ DBInterface.close!(conn::SQLConnection) =
 Execute the prepared SQL statement.
 """
 DBInterface.execute(stmt::SQLStatement, params) =
-    DBInterface.execute(stmt.raw, pack(stmt.vars, params))
+    SQLCursor(DBInterface.execute(stmt.raw, pack(stmt.vars, params)))
 
 DBInterface.getconnection(stmt::SQLStatement) =
     stmt.conn
 
 DBInterface.close!(stmt::SQLStatement) =
     DBInterface.close!(stmt.raw)
+
+DBInterface.lastrowid(cr::SQLCursor) =
+    DBInterface.lastrowid(cr.raw)
+
+DBInterface.close!(cr::SQLCursor) =
+    DBInterface.close!(cr.raw)

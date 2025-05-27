@@ -9,6 +9,7 @@ with the database catalog.
     using FunSQL: SQLConnection, SQLCatalog, SQLTable
     using Pkg.Artifacts, LazyArtifacts
     using SQLite
+    using Tables
 
     const DATABASE = joinpath(artifact"synpuf-10p", "synpuf-10p.sqlite")
 
@@ -42,10 +43,49 @@ a FunSQL-specific `SQLStatement` object.
     DBInterface.getconnection(stmt)
     #-> SQLConnection( … )
 
-    DBInterface.execute(stmt)
-    #-> SQLite.Query{false}( … )
+The output of the statement is wrapped in a FunSQL-specific `SQLCursor`
+object.
+
+    cr = DBInterface.execute(stmt)
+    #-> SQLCursor(SQLite.Query{false}( … ))
+
+`SQLCursor` implements standard interfaces by delegating supported methods
+to the wrapped cursor object.
+
+    eltype(cr)
+    #-> SQLite.Row
+
+    for row in cr
+        println(row)
+    end
+    #=>
+    SQLite.Row{false}:
+     :person_id      1780
+     :year_of_birth  1940
+    ⋮
+    =#
+
+    DBInterface.lastrowid(cr)
+    #-> 0
+
+    Tables.schema(cr)
+    #=>
+    Tables.Schema:
+     :person_id      Union{Missing, Int64}
+     :year_of_birth  Union{Missing, Int64}
+    =#
+
+    cr = DBInterface.execute(stmt)
+    Tables.rowtable(cr)
+    #-> @NamedTuple{ … }[(person_id = 1780, year_of_birth = 1940), … ]
+
+    cr = DBInterface.execute(stmt)
+    Tables.columntable(cr)
+    #-> (person_id = [1780, … ], year_of_birth = [1940, … ])
 
     DBInterface.close!(stmt)
+
+    DBInterface.close!(cr)
 
 For a query with parameters, this allows us to specify the parameter values
 by name.
@@ -59,7 +99,7 @@ by name.
     #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR])
 
     DBInterface.execute(stmt, YEAR = 1950)
-    #-> SQLite.Query{false}( … )
+    #-> SQLCursor(SQLite.Query{false}( … ))
 
     DBInterface.close!(stmt)
 
