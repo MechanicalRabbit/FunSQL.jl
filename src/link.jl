@@ -26,7 +26,7 @@ struct LinkContext
 end
 
 function link(q::SQLQuery)
-    @dissect(q, (local tail) |> WithContext(catalog = (local catalog))) || throw(ILLFormedError())
+    @dissect(q, (local tail) |> WithContext(catalog = (local catalog))) || throw(IllFormedError())
     ctx = LinkContext(catalog)
     t = row_type(tail)
     refs = SQLQuery[]
