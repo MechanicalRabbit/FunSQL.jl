@@ -628,11 +628,51 @@ struct TransliterateContext
 end
 
 """
-Convenient notation for assembling FunSQL queries.
+    @funsql ex
+
+Assemble a FunSQL query using convenient macro notation.
 """
 macro funsql(ex)
     ctx = TransliterateContext(__module__, __source__)
-    transliterate_toplevel(ex, ctx)
+    if transliterate_is_definition(ex)
+        transliterate_definition(ex, ctx)
+    else
+        transliterate_toplevel(ex, ctx)
+    end
+end
+
+"""
+    @funsql db ex args...
+
+Assemble and execute a FunSQL query using convenient macro notation.
+"""
+macro funsql(db, ex, args...)
+    ctx = TransliterateContext(__module__, __source__)
+    q = transliterate_toplevel(ex, ctx)
+    args = Any[transliterate_parameter(arg, ctx) for arg in args]
+    Expr(:call, DBInterface.execute, esc(db), q, args...)
+end
+
+function transliterate_is_definition(@nospecialize(ex))
+    ex isa Expr || return false
+    if @dissect(ex, Expr(:(=), Expr(:call, _...), _))
+        return true
+    end
+    if @dissect(ex, Expr(:macrocall, GlobalRef($Core, $(Symbol("@doc"))), _, _, (local arg)))
+        if @dissect(arg, ::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), _, _))
+            return true
+        end
+        if @dissect(arg, Expr(:(=), Expr(:call, _...), _))
+            return true
+        end
+    end
+    if @dissect(ex, Expr(:block, (local args)...))
+        for arg in args
+            !(arg isa LineNumberNode) || continue
+            return transliterate_is_definition(arg)
+        end
+    end
+    return false
 end
 
 function transliterate_toplevel(@nospecialize(ex), ctx)
@@ -672,23 +712,6 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         if @dissect(ex, Expr(:($), (local arg)))
             # $(...)
             return esc(arg)
-        elseif @dissect(ex, Expr(:macrocall, (local ref = GlobalRef($Core, $(Symbol("@doc")))), (local ln)::LineNumberNode, (local doc), (local arg)))
-            # "..." ...
-            if @dissect(arg, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String))
-                arg = Symbol("funsql_$name")
-            else
-                ctx = TransliterateContext(ctx, line = ln)
-                arg = transliterate(arg, ctx)
-            end
-            return Expr(:macrocall, ref, ln, doc, arg)
-        elseif @dissect(ex, Expr(:(=), Expr(:call, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String), (local args)...), (local body)))
-            # name(args...) = body
-            ctx = TransliterateContext(ctx, decl = true)
-            trs = Any[transliterate(arg, ctx) for arg in args]
-            ctx = TransliterateContext(ctx, def = Symbol(name), decl = false)
-            return Expr(:(=),
-                        :($(esc(Symbol("funsql_$name")))($(trs...))),
-                        transliterate_toplevel(body, ctx))
         elseif @dissect(ex, Expr(:(=), (local name)::Symbol, (local arg)))
             # name = arg
             return Expr(:(=), esc(name), transliterate(arg, ctx))
@@ -777,6 +800,11 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             # ||(args...)
             trs = Any[transliterate(arg, ctx) for arg in args]
             return :($Fun(:or, args = [$(trs...)]))
+        elseif @dissect(ex, Expr(:(:=), (local arg1), (local arg2)))
+            # arg1 := arg2
+            tr1 = transliterate(arg1, ctx)
+            tr2 = transliterate(arg2, ctx)
+            return :($(esc(Symbol("funsql_:=")))($tr1, $tr2))
         elseif @dissect(ex, Expr(:call, (local op = :+ || :-), (local arg = :Inf)))
             # ±Inf
             tr = transliterate(arg, ctx)
@@ -791,30 +819,16 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
             return :($(esc(Symbol("funsql_$name")))($(trs...)))
         elseif @dissect(ex, Expr(:block, (local args)...))
             # begin; args...; end
-            if all(@dissect(arg, ::LineNumberNode || Expr(:(=), _...) || Expr(:macrocall, GlobalRef($Core, $(Symbol("@doc"))), _...))
-                   for arg in args)
-                trs = Any[]
-                for arg in args
-                    if arg isa LineNumberNode
-                        ctx = TransliterateContext(ctx, base = arg, line = arg)
-                        push!(trs, arg)
-                    else
-                        push!(trs, transliterate(arg, ctx))
-                    end
+            tr = nothing
+            for arg in args
+                if arg isa LineNumberNode
+                    ctx = TransliterateContext(ctx, line = arg)
+                else
+                    tr′ = Expr(:block, ctx.line, transliterate_toplevel(arg, ctx))
+                    tr = tr !== nothing ? :($Chain($tr, $tr′)) : tr′
                 end
-                return Expr(:block, trs...)
-            else
-                tr = nothing
-                for arg in args
-                    if arg isa LineNumberNode
-                        ctx = TransliterateContext(ctx, line = arg)
-                    else
-                        tr′ = Expr(:block, ctx.line, transliterate_toplevel(arg, ctx))
-                        tr = tr !== nothing ? :($Chain($tr, $tr′)) : tr′
-                    end
-                end
-                return tr
             end
+            return tr
         elseif @dissect(ex, Expr(:if, (local arg1), (local arg2)))
             tr1 = transliterate(arg1, ctx)
             tr2 = transliterate(arg2, ctx)
@@ -839,6 +853,50 @@ function transliterate(@nospecialize(ex), ctx::TransliterateContext)
         end
     end
     throw(TransliterationError(ex, ctx.line))
+end
+
+function transliterate_definition(@nospecialize(ex), ctx)
+    if ex isa Expr
+        if @dissect(ex, Expr(:macrocall, (local ref = GlobalRef($Core, $(Symbol("@doc")))), (local ln)::LineNumberNode, (local doc), (local arg)))
+            # "..." ...
+            if @dissect(arg, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String))
+                arg = Symbol("funsql_$name")
+            else
+                ctx = TransliterateContext(ctx, line = ln)
+                arg = transliterate_definition(arg, ctx)
+            end
+            return Expr(:macrocall, ref, ln, doc, arg)
+        elseif @dissect(ex, Expr(:(=), Expr(:call, (local name)::Symbol || Expr(:macrocall, GlobalRef($Core, $(Symbol("@cmd"))), ::LineNumberNode, (local name)::String), (local args)...), (local body)))
+            # name(args...) = body
+            ctx = TransliterateContext(ctx, decl = true)
+            trs = Any[transliterate(arg, ctx) for arg in args]
+            ctx = TransliterateContext(ctx, def = Symbol(name), decl = false)
+            return Expr(:(=),
+                        :($(esc(Symbol("funsql_$name")))($(trs...))),
+                        transliterate_toplevel(body, ctx))
+        elseif @dissect(ex, Expr(:block, (local args)...))
+            # begin; args...; end
+            trs = Any[]
+            for arg in args
+                if arg isa LineNumberNode
+                    ctx = TransliterateContext(ctx, base = arg, line = arg)
+                    push!(trs, arg)
+                else
+                    push!(trs, transliterate_definition(arg, ctx))
+                end
+            end
+            return Expr(:block, trs...)
+        end
+    end
+    throw(TransliterationError(ex, ctx.line))
+end
+
+function transliterate_parameter(@nospecialize(ex), ctx)
+    if @dissect(ex, Expr(:kw || :(=), (local key), (local arg)))
+        Expr(:kw, esc(key), esc(arg))
+    else
+        esc(ex)
+    end
 end
 
 
