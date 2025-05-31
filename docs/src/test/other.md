@@ -76,12 +76,16 @@ to the wrapped cursor object.
     =#
 
     cr = DBInterface.execute(stmt)
-    Tables.rowtable(cr)
-    #-> @NamedTuple{ … }[(person_id = 1780, year_of_birth = 1940), … ]
+    display(Tables.rowtable(cr))
+    #=>
+    10-element Vector{@NamedTuple{  … }}:
+     (person_id = 1780, year_of_birth = 1940)
+     ⋮
+    =#
 
     cr = DBInterface.execute(stmt)
-    Tables.columntable(cr)
-    #-> (person_id = [1780, … ], year_of_birth = [1940, … ])
+    display(Tables.columntable(cr))
+    #-> (person_id = …[1780, … ], year_of_birth = …[1940, … ])
 
     DBInterface.close!(stmt)
 
