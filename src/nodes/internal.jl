@@ -309,6 +309,9 @@ terminal(n::FunSQLMacroNode) =
 PrettyPrinting.quoteof(n::FunSQLMacroNode, ctx::QuoteContext) =
     Expr(:macrocall, Symbol("@funsql"), n.line, !ctx.limit ? n.ex : :…)
 
+label(n::FunSQLMacroNode) =
+    label(n.query)
+
 
 # Unwrap @funsql macro when displaying the query.
 struct UnwrapFunSQLMacroNode <: AbstractSQLNode
