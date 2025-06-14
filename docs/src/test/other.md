@@ -1,7 +1,7 @@
 # Other Tests
 
 
-## `SQLConnection` and `SQLStatement`
+## `SQLConnection`, `SQLStatement`, and `SQLCursor`
 
 A `SQLConnection` object encapsulates a raw database connection together
 with the database catalog.
@@ -38,7 +38,7 @@ a FunSQL-specific `SQLStatement` object.
     q = From(:person)
 
     stmt = DBInterface.prepare(conn, q)
-    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ))
+    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), shape = SQLTable( … ))
 
     DBInterface.getconnection(stmt)
     #-> SQLConnection( … )
@@ -47,7 +47,7 @@ The output of the statement is wrapped in a FunSQL-specific `SQLCursor`
 object.
 
     cr = DBInterface.execute(stmt)
-    #-> SQLCursor(SQLite.Query{false}( … ))
+    #-> SQLCursor(SQLite.Query{false}( … ), shape = SQLTable( … ))
 
 `SQLCursor` implements standard interfaces by delegating supported methods
 to the wrapped cursor object.
@@ -100,10 +100,10 @@ by name.
         Where(Get.year_of_birth .>= Var.YEAR)
 
     stmt = DBInterface.prepare(conn, q)
-    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR])
+    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR], shape = SQLTable( … ))
 
     DBInterface.execute(stmt, YEAR = 1950)
-    #-> SQLCursor(SQLite.Query{false}( … ))
+    #-> SQLCursor(SQLite.Query{false}( … ), shape = SQLTable( … ))
 
     DBInterface.close!(stmt)
 
