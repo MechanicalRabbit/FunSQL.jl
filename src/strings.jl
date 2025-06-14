@@ -1,14 +1,15 @@
 # Serialized SQL query with parameter mapping.
 
 """
-    SQLString(raw; columns = nothing, vars = Symbol[])
+    SQLString(raw; vars = Symbol[], shape = SQLTable(:_))
 
 Serialized SQL query.
 
-Parameter `columns` is a vector describing the output columns.
-
 Parameter `vars` is a vector of query parameters (created with [`Var`](@ref))
 in the order they are expected by the `DBInterface.execute()` function.
+
+Parameter `shape` describes the shape of the query output as a table
+definition.
 
 # Examples
 
@@ -23,7 +24,9 @@ SQLString(\"""
             "person_1"."person_id",
             "person_1"."year_of_birth"
           FROM "person" AS "person_1\\"\""",
-          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)])
+          shape = SQLTable(:person,
+                           SQLColumn(:person_id),
+                           SQLColumn(:year_of_birth)))
 
 julia> q = From(person) |> Where(Fun.and(Get.year_of_birth .>= Var.YEAR,
                                          Get.year_of_birth .< Var.YEAR .+ 10));
@@ -37,8 +40,10 @@ SQLString(\"""
           WHERE
             (`person_1`.`year_of_birth` >= ?) AND
             (`person_1`.`year_of_birth` < (? + 10))\""",
-          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)],
-          vars = [:YEAR, :YEAR])
+          vars = [:YEAR, :YEAR],
+          shape = SQLTable(:person,
+                           SQLColumn(:person_id),
+                           SQLColumn(:year_of_birth)))
 
 julia> render(q, dialect = :postgresql)
 SQLString(\"""
@@ -49,17 +54,19 @@ SQLString(\"""
           WHERE
             ("person_1"."year_of_birth" >= \$1) AND
             ("person_1"."year_of_birth" < (\$1 + 10))\""",
-          columns = [SQLColumn(:person_id), SQLColumn(:year_of_birth)],
-          vars = [:YEAR])
+          vars = [:YEAR],
+          shape = SQLTable(:person,
+                           SQLColumn(:person_id),
+                           SQLColumn(:year_of_birth)))
 ```
 """
 struct SQLString <: AbstractString
     raw::String
-    columns::Union{Vector{SQLColumn}, Nothing}
     vars::Vector{Symbol}
+    shape::SQLTable
 
-    SQLString(raw; columns = nothing, vars = Symbol[]) =
-        new(raw, columns, vars)
+    SQLString(raw; vars = Symbol[], shape = SQLTable(name = :_, columns = [])) =
+        new(raw, vars, shape)
 end
 
 Base.ncodeunits(sql::SQLString) =
@@ -88,11 +95,11 @@ Base.write(io::IO, sql::SQLString) =
 
 function PrettyPrinting.quoteof(sql::SQLString)
     ex = Expr(:call, nameof(SQLString), sql.raw)
-    if sql.columns !== nothing
-        push!(ex.args, Expr(:kw, :columns, Expr(:vect, Any[quoteof(col) for col in sql.columns]...)))
-    end
     if !isempty(sql.vars)
         push!(ex.args, Expr(:kw, :vars, quoteof(sql.vars)))
+    end
+    if sql.shape.name !== :_ || !isempty(sql.shape.columns) || !isempty(sql.shape.metadata)
+        push!(ex.args, Expr(:kw, :shape, quoteof(sql.shape)))
     end
     ex
 end
@@ -100,14 +107,14 @@ end
 function Base.show(io::IO, sql::SQLString)
     print(io, "SQLString(")
     show(io, sql.raw)
-    if sql.columns !== nothing
-        print(io, ", columns = ")
-        l = length(sql.columns)
-        print(io, l == 0 ? "[]" : l == 1 ? "[…1 column…]" : "[…$l columns…]")
-    end
     if !isempty(sql.vars)
         print(io, ", vars = ")
         show(io, sql.vars)
+    end
+    if sql.shape.name !== :_ || !isempty(sql.shape.columns)
+        print(io, ", shape = SQLTable(", sql.shape.name)
+        l = length(sql.shape.columns)
+        print(io, l == 0 ? ")" : l == 1 ? ", …1 column…)" : ", …$l columns…)")
     end
     print(io, ')')
     nothing
@@ -159,4 +166,3 @@ pack(vars::Vector{Symbol}, d::AbstractDict{<:AbstractString}) =
 
 pack(vars::Vector{Symbol}, nt::NamedTuple) =
     Any[getproperty(nt, var) for var in vars]
-

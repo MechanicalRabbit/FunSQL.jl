@@ -425,14 +425,16 @@ A completely custom dialect can be specified.
     String(sql)
     #-> "SELECT * FROM person"
 
-`SQLString` may carry a vector `columns` describing the output columns of
-the query.
+`SQLString` may specify the `shape` describing the output columns of the query.
 
-    sql = SQLString("SELECT person_id FROM person", columns = [SQLColumn(:person_id)])
-    #-> SQLString("SELECT person_id FROM person", columns = […1 column…])
+    sql = SQLString("SELECT person_id FROM person", shape = SQLTable(:person, SQLColumn(:person_id)))
+    #-> SQLString("SELECT person_id FROM person", shape = SQLTable(person, …1 column…))
 
     display(sql)
-    #-> SQLString("SELECT person_id FROM person", columns = [SQLColumn(:person_id)])
+    #=>
+    SQLString("SELECT person_id FROM person",
+              shape = SQLTable(:person, SQLColumn(:person_id)))
+    =#
 
 When the query has parameters, `SQLString` should include a vector of
 parameter names in the order they should appear in `DBInterface.execute` call.

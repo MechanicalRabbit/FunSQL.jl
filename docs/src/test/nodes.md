@@ -4244,8 +4244,9 @@ On the next stage, the query object is converted to a SQL syntax tree.
     │      left = true) |>
     │ SELECT(ID(:person_2) |> ID(:person_id),
     │        ID(:visit_group_1) |> ID(:max) |> AS(:max_visit_start_date)) |>
-    │ WITH_CONTEXT(columns = [SQLColumn(:person_id),
-    │                         SQLColumn(:max_visit_start_date)])
+    │ WITH_CONTEXT(shape = SQLTable(:person,
+    │                               SQLColumn(:person_id),
+    │                               SQLColumn(:max_visit_start_date)))
     └ @ FunSQL …
     =#
 
@@ -4281,6 +4282,8 @@ Finally, the SQL tree is serialized into SQL.
     │       FROM "visit_occurrence" AS "visit_occurrence_1"
     │       GROUP BY "visit_occurrence_1"."person_id"
     │     ) AS "visit_group_1" ON ("person_2"."person_id" = "visit_group_1"."person_id")""",
-    │     columns = [SQLColumn(:person_id), SQLColumn(:max_visit_start_date)])
+    │     shape = SQLTable(:person,
+    │                      SQLColumn(:person_id),
+    │                      SQLColumn(:max_visit_start_date)))
     └ @ FunSQL …
     =#
