@@ -34,13 +34,14 @@ struct SQLStatement{RawConnType, RawStmtType} <: DBInterface.Statement
     conn::SQLConnection{RawConnType}
     raw::RawStmtType
     vars::Vector{Symbol}
+    shape::SQLTable
 
-    SQLStatement{RawConnType, RawStmtType}(conn::SQLConnection{RawConnType}, raw::RawStmtType; vars = Symbol[]) where {RawConnType, RawStmtType} =
-        new(conn, raw, vars)
+    SQLStatement{RawConnType, RawStmtType}(conn::SQLConnection{RawConnType}, raw::RawStmtType; vars = Symbol[], shape = SQLTable(name = :_, columns = [])) where {RawConnType, RawStmtType} =
+        new(conn, raw, vars, shape)
 end
 
-SQLStatement(conn::SQLConnection{RawConnType}, raw::RawStmtType; vars = Symbol[]) where {RawConnType, RawStmtType} =
-    SQLStatement{RawConnType, RawStmtType}(conn, raw, vars = vars)
+SQLStatement(conn::SQLConnection{RawConnType}, raw::RawStmtType; vars = Symbol[], shape = SQLTable(name = :_, columns = [])) where {RawConnType, RawStmtType} =
+    SQLStatement{RawConnType, RawStmtType}(conn, raw, vars = vars, shape = shape)
 
 function Base.show(io::IO, stmt::SQLStatement)
     print(io, "SQLStatement(")
@@ -51,8 +52,40 @@ function Base.show(io::IO, stmt::SQLStatement)
         print(io, ", vars = ")
         show(io, stmt.vars)
     end
+    if stmt.shape.name !== :_ || !isempty(stmt.shape.columns)
+        print(io, ", shape = SQLTable(", stmt.shape.name)
+        l = length(stmt.shape.columns)
+        print(io, l == 0 ? ")" : l == 1 ? ", …1 column…)" : ", …$l columns…)")
+    end
     print(io, ')')
 end
+
+DataAPI.metadatasupport(::Type{:SQLStatement}) =
+    DataAPI.metadatasupport(SQLTable)
+
+DataAPI.metadata(stmt::SQLStatement, key; style = false) =
+    DataAPI.metadata(stmt.shape, key; style)
+
+DataAPI.metadata(stmt::SQLStatement, key, default; style = false) =
+    DataAPI.metadata(stmt.shape, key, default; style)
+
+DataAPI.metadatakeys(stmt::SQLStatement) =
+    DataAPI.metadatakeys(stmt.shape)
+
+DataAPI.colmetadatasupport(::Type{:SQLStatement}) =
+    DataAPI.colmetadatasupport(SQLTable)
+
+DataAPI.colmetadata(stmt::SQLStatement, col, key; style = false) =
+    DataAPI.colmetadata(stmt.shape, col, key; style)
+
+DataAPI.colmetadata(stmt::SQLStatement, col, key, default; style = false) =
+    DataAPI.colmetadata(stmt.shape, col, key, default; style)
+
+DataAPI.colmetadatakeys(stmt::SQLStatement) =
+    DataAPI.colmetadatakeys(stmt.shape)
+
+DataAPI.colmetadatakeys(stmt::SQLStatement, col) =
+    DataAPI.colmetadatakeys(stmt.shape, col)
 
 """
 Shorthand for [`SQLConnection`](@ref).
@@ -60,23 +93,29 @@ Shorthand for [`SQLConnection`](@ref).
 const DB = SQLConnection
 
 """
-    SQLCursor(raw)
+    SQLCursor(raw; shape)
 
 Wraps the query result.
 """
 struct SQLCursor{RawCrType} <: DBInterface.Cursor
     raw::RawCrType
+    shape::SQLTable
 
-    SQLCursor{RawCrType}(raw::RawCrType) where {RawCrType} =
-        new(raw)
+    SQLCursor{RawCrType}(raw::RawCrType; shape = SQLTable(name = :_, columns = [])) where {RawCrType} =
+        new(raw, shape)
 end
 
-SQLCursor(raw::RawCrType) where {RawCrType} =
-    SQLCursor{RawCrType}(raw)
+SQLCursor(raw::RawCrType; shape = SQLTable(name = :_, columns = [])) where {RawCrType} =
+    SQLCursor{RawCrType}(raw; shape)
 
 function Base.show(io::IO, cr::SQLCursor)
     print(io, "SQLCursor(")
     show(io, cr.raw)
+    if cr.shape.name !== :_ || !isempty(cr.shape.columns)
+        print(io, ", shape = SQLTable(", cr.shape.name)
+        l = length(cr.shape.columns)
+        print(io, l == 0 ? ")" : l == 1 ? ", …1 column…)" : ", …$l columns…)")
+    end
     print(io, ")")
 end
 
@@ -109,6 +148,33 @@ Tables.columns(cr::SQLCursor) =
 
 Tables.schema(cr::SQLCursor) =
     Tables.schema(cr.raw)
+
+DataAPI.metadatasupport(::Type{<:SQLCursor}) =
+    DataAPI.metadatasupport(SQLTable)
+
+DataAPI.metadata(cr::SQLCursor, key; style = false) =
+    DataAPI.metadata(cr.shape, key; style)
+
+DataAPI.metadata(cr::SQLCursor, key, default; style = false) =
+    DataAPI.metadata(cr.shape, key, default; style)
+
+DataAPI.metadatakeys(cr::SQLCursor) =
+    DataAPI.metadatakeys(cr.shape)
+
+DataAPI.colmetadatasupport(::Type{<:SQLCursor}) =
+    DataAPI.colmetadatasupport(SQLTable)
+
+DataAPI.colmetadata(cr::SQLCursor, col, key; style = false) =
+    DataAPI.colmetadata(cr.shape, col, key; style)
+
+DataAPI.colmetadata(cr::SQLCursor, col, key, default; style = false) =
+    DataAPI.colmetadata(cr.shape, col, key, default; style)
+
+DataAPI.colmetadatakeys(cr::SQLCursor) =
+    DataAPI.colmetadatakeys(cr.shape)
+
+DataAPI.colmetadatakeys(cr::SQLCursor, col) =
+    DataAPI.colmetadatakeys(cr.shape, col)
 
 """
     DBInterface.connect(DB{RawConnType},
@@ -150,8 +216,8 @@ DBInterface.prepare(conn::SQLConnection, sql::Union{SQLQuery, SQLSyntax}) =
 
 Generate a prepared SQL statement.
 """
-DBInterface.prepare(conn::SQLConnection, str::SQLString) =
-    SQLStatement(conn, DBInterface.prepare(conn.raw, str.raw), vars = str.vars)
+DBInterface.prepare(conn::SQLConnection, sql::SQLString) =
+    SQLStatement(conn, DBInterface.prepare(conn.raw, sql.raw), vars = sql.vars, shape = sql.shape)
 
 DBInterface.prepare(conn::SQLConnection, str::AbstractString) =
     DBInterface.prepare(conn.raw, str)
@@ -183,7 +249,7 @@ DBInterface.close!(conn::SQLConnection) =
 Execute the prepared SQL statement.
 """
 DBInterface.execute(stmt::SQLStatement, params) =
-    SQLCursor(DBInterface.execute(stmt.raw, pack(stmt.vars, params)))
+    SQLCursor(DBInterface.execute(stmt.raw, pack(stmt.vars, params)), shape = stmt.shape)
 
 DBInterface.getconnection(stmt::SQLStatement) =
     stmt.conn
