@@ -354,6 +354,14 @@ resolve(n::FunSQLMacroNode, ctx) =
 resolve_scalar(n::FunSQLMacroNode, ctx) =
     resolve_scalar(ResolveContext(ctx, tail = rebase(n.query, ctx)))
 
+function resolve(n::GetNode, ctx)
+    if ctx.tail !== nothing
+        q′ = unnest(ctx.tail, Get(n.name), ctx)
+        return resolve(q′, ctx)
+    end
+    resolve(FromNode(n.name), ctx)
+end
+
 function resolve_scalar(n::GetNode, ctx)
     if ctx.tail !== nothing
         q′ = unnest(ctx.tail, Get(n.name), ctx)
