@@ -25,16 +25,28 @@ struct LinkContext
             knot_refs)
 end
 
+function _select(t::RowType)
+    refs = SQLQuery[]
+    t.visible || return refs
+    for (f, ft) in t.fields
+        if ft isa ScalarType
+            ft.visible || continue
+            push!(refs, Get(f))
+        else
+            nested_refs = _select(ft)
+            for nested_ref in nested_refs
+                push!(refs, Nested(name = f, tail = nested_ref))
+            end
+        end
+    end
+    refs
+end
+
 function link(q::SQLQuery)
     @dissect(q, (local tail) |> WithContext(catalog = (local catalog))) || throw(IllFormedError())
     ctx = LinkContext(catalog)
     t = row_type(tail)
-    refs = SQLQuery[]
-    for (f, ft) in t.fields
-        if ft isa ScalarType
-            push!(refs, Get(f))
-        end
-    end
+    refs = _select(t)
     tail′ = Linked(refs, tail = link(dismantle(tail, ctx), ctx, refs))
     WithContext(tail = tail′, catalog = catalog, defs = ctx.defs)
 end
@@ -123,19 +135,15 @@ function dismantle(n::GroupNode, ctx)
     Group(by = by′, sets = n.sets, name = n.name, label_map = n.label_map, tail = tail′)
 end
 
+function dismantle(n::IntoNode, ctx)
+    tail′ = dismantle(ctx)
+    Into(name = n.name, tail = tail′)
+end
+
 function dismantle(n::IterateNode, ctx)
     tail′ = dismantle(ctx)
     iterator′ = dismantle(n.iterator, ctx)
     Iterate(iterator = iterator′, tail = tail′)
-end
-
-function dismantle(n::JoinNode, ctx)
-    rt = row_type(n.joinee)
-    router = JoinRouter(Set(keys(rt.fields)), !isa(rt.group, EmptyType))
-    tail′ = dismantle(ctx)
-    joinee′ = dismantle(n.joinee, ctx)
-    on′ = dismantle_scalar(n.on, ctx)
-    RoutedJoin(joinee = joinee′, on = on′, router = router, left = n.left, right = n.right, optional = n.optional, tail = tail′)
 end
 
 function dismantle(n::LimitNode, ctx)
@@ -179,6 +187,13 @@ function dismantle_scalar(n::ResolvedNode, ctx)
     else
         dismantle_scalar(ctx)
     end
+end
+
+function dismantle(n::RoutedJoinNode, ctx)
+    tail′ = dismantle(ctx)
+    joinee′ = dismantle(n.joinee, ctx)
+    on′ = dismantle_scalar(n.on, ctx)
+    RoutedJoin(joinee = joinee′, on = on′, name = n.name, left = n.left, right = n.right, optional = n.optional, tail = tail′)
 end
 
 function dismantle(n::SelectNode, ctx)
@@ -232,16 +247,7 @@ function link(n::AppendNode, ctx)
 end
 
 function link(n::AsNode, ctx)
-    refs = SQLQuery[]
-    for ref in ctx.refs
-        if @dissect(ref, (local tail) |> Nested(name = (local name)))
-            @assert name == n.name
-            push!(refs, tail)
-        else
-            error()
-        end
-    end
-    tail′ = link(ctx.tail, ctx, refs)
+    tail′ = link(ctx)
     As(name = n.name, tail = tail′)
 end
 
@@ -289,10 +295,8 @@ function link(n::FromIterateNode, ctx)
 end
 
 function link(n::FromTableExpressionNode, ctx)
-    refs = ctx.cte_refs[(n.name, n.depth)]
-    for ref in ctx.refs
-        push!(refs, Nested(name = n.name, tail = ref))
-    end
+    cte_refs = ctx.cte_refs[(n.name, n.depth)]
+    append!(cte_refs, ctx.refs)
     n
 end
 
@@ -333,6 +337,20 @@ function link(n::GroupNode, ctx)
     Group(by = n.by, sets = n.sets, name = n.name, label_map = n.label_map, tail = tail′)
 end
 
+function link(n::IntoNode, ctx)
+    refs = SQLQuery[]
+    for ref in ctx.refs
+        if @dissect(ref, (local tail) |> Nested(name = (local name)))
+            @assert name == n.name
+            push!(refs, tail)
+        else
+            error()
+        end
+    end
+    tail′ = link(ctx.tail, ctx, refs)
+    Into(name = n.name, tail = tail′)
+end
+
 function link(n::IterateNode, ctx)
     iterator′ = n.iterator
     defs = copy(ctx.defs)
@@ -362,53 +380,6 @@ function link(n::IterateNode, ctx)
     tail′ = Linked(refs, tail = link(ctx.tail, ctx, refs))
     q′ = Linked(refs, tail = Iterate(iterator = iterator′, tail = tail′))
     Padding(tail = q′)
-end
-
-function route(r::JoinRouter, ref::SQLQuery)
-    if @dissect(ref, Nested(name = (local name))) && name in r.label_set
-        return 1
-    end
-    if @dissect(ref, Get(name = (local name))) && name in r.label_set
-        return 1
-    end
-    if @dissect(ref, Agg()) && r.group
-        return 1
-    end
-    return -1
-end
-
-function link(n::RoutedJoinNode, ctx)
-    lrefs = SQLQuery[]
-    rrefs = SQLQuery[]
-    for ref in ctx.refs
-        turn = route(n.router, ref)
-        push!(turn < 0 ? lrefs : rrefs, ref)
-    end
-    if n.optional && isempty(rrefs)
-        return link(ctx)
-    end
-    ln_ext_refs = length(lrefs)
-    rn_ext_refs = length(rrefs)
-    refs′ = SQLQuery[]
-    lateral_refs = SQLQuery[]
-    gather!(n.joinee, ctx, lateral_refs)
-    append!(lrefs, lateral_refs)
-    lateral = !isempty(lateral_refs)
-    gather!(n.on, ctx, refs′)
-    for ref in refs′
-        turn = route(n.router, ref)
-        push!(turn < 0 ? lrefs : rrefs, ref)
-    end
-    tail′ = Linked(lrefs, ln_ext_refs, tail = link(ctx.tail, ctx, lrefs))
-    joinee′ = Linked(rrefs, rn_ext_refs, tail = link(n.joinee, ctx, rrefs))
-    RoutedJoin(
-        joinee = joinee′,
-        on = n.on,
-        router = n.router,
-        left = n.left,
-        right = n.right,
-        lateral = lateral,
-        tail = tail′)
 end
 
 function link(n::LimitNode, ctx)
@@ -457,6 +428,46 @@ function link(n::PartitionNode, ctx)
     append!(refs, imm_refs)
     tail′ = Linked(refs, n_ext_refs, tail = link(ctx.tail, ctx, refs))
     Partition(by = n.by, order_by = n.order_by, frame = n.frame, name = n.name, tail = tail′)
+end
+
+function link(n::RoutedJoinNode, ctx)
+    lrefs = SQLQuery[]
+    rrefs = SQLQuery[]
+    for ref in ctx.refs
+        if @dissect(ref, Nested(name = (local name))) && name === n.name
+            push!(rrefs, ref)
+        else
+            push!(lrefs, ref)
+        end
+    end
+    if n.optional && isempty(rrefs)
+        return link(ctx)
+    end
+    ln_ext_refs = length(lrefs)
+    rn_ext_refs = length(rrefs)
+    refs′ = SQLQuery[]
+    lateral_refs = SQLQuery[]
+    gather!(n.joinee, ctx, lateral_refs)
+    append!(lrefs, lateral_refs)
+    lateral = !isempty(lateral_refs)
+    gather!(n.on, ctx, refs′)
+    for ref in refs′
+        if @dissect(ref, Nested(name = (local name))) && name === n.name
+            push!(rrefs, ref)
+        else
+            push!(lrefs, ref)
+        end
+    end
+    tail′ = Linked(lrefs, ln_ext_refs, tail = link(ctx.tail, ctx, lrefs))
+    joinee′ = Linked(rrefs, rn_ext_refs, tail = link(Into(name = n.name, tail = n.joinee), ctx, rrefs))
+    RoutedJoin(
+        joinee = joinee′,
+        on = n.on,
+        name = n.name,
+        left = n.left,
+        right = n.right,
+        lateral = lateral,
+        tail = tail′)
 end
 
 function link(n::SelectNode, ctx)
@@ -556,12 +567,9 @@ end
 function gather!(n::IsolatedNode, ctx)
     def = ctx.defs[n.idx]
     !@dissect(def, Linked()) || return
-    refs = SQLQuery[]
-    for (f, ft) in n.type.fields
-        if ft isa ScalarType
-            push!(refs, Get(f))
-            break
-        end
+    refs = _select(n.type)
+    if !isempty(refs)
+        refs = refs[1:1]
     end
     def′ = Linked(refs, tail = link(def, ctx, refs))
     ctx.defs[n.idx] = def′
