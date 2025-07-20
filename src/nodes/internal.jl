@@ -310,7 +310,7 @@ PrettyPrinting.quoteof(n::FunSQLMacroNode, ctx::QuoteContext) =
     Expr(:macrocall, Symbol("@funsql"), n.line, !ctx.limit ? n.ex : :…)
 
 label(n::FunSQLMacroNode) =
-    label(n.query)
+    label(n.query; default = nothing)
 
 
 # Unwrap @funsql macro when displaying the query.
