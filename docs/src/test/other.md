@@ -1,7 +1,7 @@
 # Other Tests
 
 
-## `SQLConnection` and `SQLStatement`
+## `SQLConnection`, `SQLStatement`, and `SQLCursor`
 
 A `SQLConnection` object encapsulates a raw database connection together
 with the database catalog.
@@ -38,7 +38,7 @@ a FunSQL-specific `SQLStatement` object.
     q = From(:person)
 
     stmt = DBInterface.prepare(conn, q)
-    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ))
+    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), shape = SQLTable( … ))
 
     DBInterface.getconnection(stmt)
     #-> SQLConnection( … )
@@ -47,7 +47,7 @@ The output of the statement is wrapped in a FunSQL-specific `SQLCursor`
 object.
 
     cr = DBInterface.execute(stmt)
-    #-> SQLCursor(SQLite.Query{false}( … ))
+    #-> SQLCursor(SQLite.Query{false}( … ), shape = SQLTable( … ))
 
 `SQLCursor` implements standard interfaces by delegating supported methods
 to the wrapped cursor object.
@@ -100,10 +100,10 @@ by name.
         Where(Get.year_of_birth .>= Var.YEAR)
 
     stmt = DBInterface.prepare(conn, q)
-    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR])
+    #-> SQLStatement(SQLConnection( … ), SQLite.Stmt( … ), vars = [:YEAR], shape = SQLTable( … ))
 
     DBInterface.execute(stmt, YEAR = 1950)
-    #-> SQLCursor(SQLite.Query{false}( … ))
+    #-> SQLCursor(SQLite.Query{false}( … ), shape = SQLTable( … ))
 
     DBInterface.close!(stmt)
 
@@ -425,14 +425,16 @@ A completely custom dialect can be specified.
     String(sql)
     #-> "SELECT * FROM person"
 
-`SQLString` may carry a vector `columns` describing the output columns of
-the query.
+`SQLString` may specify the `shape` describing the output columns of the query.
 
-    sql = SQLString("SELECT person_id FROM person", columns = [SQLColumn(:person_id)])
-    #-> SQLString("SELECT person_id FROM person", columns = […1 column…])
+    sql = SQLString("SELECT person_id FROM person", shape = SQLTable(:person, SQLColumn(:person_id)))
+    #-> SQLString("SELECT person_id FROM person", shape = SQLTable(person, …1 column…))
 
     display(sql)
-    #-> SQLString("SELECT person_id FROM person", columns = [SQLColumn(:person_id)])
+    #=>
+    SQLString("SELECT person_id FROM person",
+              shape = SQLTable(:person, SQLColumn(:person_id)))
+    =#
 
 When the query has parameters, `SQLString` should include a vector of
 parameter names in the order they should appear in `DBInterface.execute` call.
