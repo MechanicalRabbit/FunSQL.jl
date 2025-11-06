@@ -4,13 +4,14 @@ struct DefineNode <: TabularNode
     args::Vector{SQLQuery}
     before::Union{Symbol, Bool}
     after::Union{Symbol, Bool}
+    private::Bool
     label_map::OrderedDict{Symbol, Int}
 
-    function DefineNode(; args = [], before = nothing, after = nothing, label_map = nothing)
+    function DefineNode(; args = [], before = nothing, after = nothing, private = false, label_map = nothing)
         if label_map !== nothing
-            n = new(args, something(before, false), something(after, false), label_map)
+            n = new(args, something(before, false), something(after, false), private, label_map)
         else
-            n = new(args, something(before, false), something(after, false), OrderedDict{Symbol, Int}())
+            n = new(args, something(before, false), something(after, false), private, OrderedDict{Symbol, Int}())
             populate_label_map!(n)
         end
         if (n.before isa Symbol || n.before) && (n.after isa Symbol || n.after)
@@ -20,12 +21,12 @@ struct DefineNode <: TabularNode
     end
 end
 
-DefineNode(args...; before = nothing, after = nothing) =
-    DefineNode(args = SQLQuery[args...], before = before, after = after)
+DefineNode(args...; before = nothing, after = nothing, private = false) =
+    DefineNode(args = SQLQuery[args...], before = before, after = after, private = private)
 
 """
-    Define(; args = [], before = nothing, after = nothing, tail = nothing)
-    Define(args...; before = nothing, after = nothing, tail = nothing)
+    Define(; args = [], before = nothing, after = nothing, private = false, tail = nothing)
+    Define(args...; before = nothing, after = nothing, private = false, tail = nothing)
 
 The `Define` node adds or replaces output columns.
 
@@ -34,6 +35,8 @@ columns retain their position.  Set `after = true` (`after = <column>`) to add
 both new and replaced columns at the end (after a specified column).
 Alternatively, set `before = true` (`before = <column>`) to add both new and
 replaced columns at the front (before the specified column).
+
+If `private` is set, the columns will be excluded from the query output.
 
 # Examples
 
@@ -89,6 +92,9 @@ function PrettyPrinting.quoteof(n::DefineNode, ctx::QuoteContext)
     end
     if n.after !== false
         push!(ex.args, Expr(:kw, :after, n.after isa Symbol ? QuoteNode(n.after) : n.after))
+    end
+    if n.private !== false
+        push!(ex.args, Expr(:kw, :private, n.private))
     end
     ex
 end

@@ -7,21 +7,22 @@ mutable struct JoinNode <: TabularNode
     right::Bool
     optional::Bool
     swap::Bool
+    private::Bool
 
-    JoinNode(; joinee, on, left = false, right = false, optional = false, swap = false) =
-        new(joinee, on, left, right, optional, swap)
+    JoinNode(; joinee, on, left = false, right = false, optional = false, swap = false, private = false) =
+        new(joinee, on, left, right, optional, swap, private)
 end
 
-JoinNode(joinee; on, left = false, right = false, optional = false, swap = false) =
-    JoinNode(; joinee, on, left, right, optional, swap)
+JoinNode(joinee; on, left = false, right = false, optional = false, swap = false, private = false) =
+    JoinNode(; joinee, on, left, right, optional, swap, private)
 
-JoinNode(joinee, on; left = false, right = false, optional = false, swap = false) =
-    JoinNode(; joinee, on, left, right, optional, swap)
+JoinNode(joinee, on; left = false, right = false, optional = false, swap = false, private = false) =
+    JoinNode(; joinee, on, left, right, optional, swap, private)
 
 """
-    Join(; joinee, on, left = false, right = false, optional = false, swap = false)
-    Join(joinee; on, left = false, right = false, optional = false, swap = false)
-    Join(joinee, on; left = false, right = false, optional = false, swap = false)
+    Join(; joinee, on, left = false, right = false, optional = false, swap = false, private = false)
+    Join(joinee; on, left = false, right = false, optional = false, swap = false, private = false)
+    Join(joinee, on; left = false, right = false, optional = false, swap = false, private = false)
 
 `Join` correlates two input datasets.
 
@@ -106,6 +107,9 @@ function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
         if n.swap
             push!(ex.args, Expr(:kw, :swap, n.swap))
         end
+        if n.private
+            push!(ex.args, Expr(:kw, :private, n.private))
+        end
     else
         push!(ex.args, :…)
     end
@@ -113,4 +117,4 @@ function PrettyPrinting.quoteof(n::JoinNode, ctx::QuoteContext)
 end
 
 label(n::JoinNode) =
-    n.swap ? label(n.joinee) : label(n.over)
+    n.swap ? label(n.joinee) : nothing
