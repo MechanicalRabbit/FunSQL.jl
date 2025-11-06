@@ -27,10 +27,9 @@ end
 
 function _select(t::RowType)
     refs = SQLQuery[]
-    t.visible || return refs
     for (f, ft) in t.fields
+        !(f in t.private_fields) || continue
         if ft isa ScalarType
-            ft.visible || continue
             push!(refs, Get(f))
         else
             nested_refs = _select(ft)

@@ -263,16 +263,28 @@ function resolve(n::DefineNode, ctx)
             end
         end
     end
+    private_fields = copy(t.private_fields)
+    for l in keys(n.label_map)
+        if n.private
+            push!(private_fields, l)
+        else
+            delete!(private_fields, l)
+        end
+    end
     q′ = Define(args = args′, label_map = n.label_map, tail = tail′)
-    Resolved(RowType(fields, t.group), tail = q′)
+    Resolved(RowType(fields, t.group, private_fields), tail = q′)
 end
 
 function RowType(table::SQLTable)
     fields = FieldTypeMap()
-    for f in keys(table.columns)
+    private_fields = Set{Symbol}()
+    for (f, c) in table.columns
         fields[f] = ScalarType()
+        if c.private
+            push!(private_fields, f)
+        end
     end
-    RowType(fields)
+    RowType(fields, EmptyType(), private_fields)
 end
 
 function resolve(n::FromNode, ctx)
@@ -390,8 +402,12 @@ function resolve(n::GroupNode, ctx)
         fields[n.name] = RowType(FieldTypeMap(), group)
         group = EmptyType()
     end
+    private_fields = Set{Symbol}()
+    if n.name !== nothing
+        push!(private_fields, n.name)
+    end
     q′ = Group(by = by′, sets = n.sets, label_map = n.label_map, tail = tail′)
-    Resolved(RowType(fields, group), tail = q′)
+    Resolved(RowType(fields, group, private_fields), tail = q′)
 end
 
 resolve(::HighlightNode, ctx) =
@@ -404,7 +420,8 @@ function resolve(n::IntoNode, ctx)
     tail′ = resolve(ctx)
     t = row_type(tail′)
     q′ = Into(name = n.name, tail = tail′)
-    Resolved(RowType(FieldTypeMap(n.name => t)), tail = q′)
+    t′ = RowType(FieldTypeMap(n.name => t), EmptyType(), n.private ? Set([n.name]) : Set{Symbol}())
+    Resolved(t′, tail = q′)
 end
 
 function resolve(n::IterateNode, ctx)
@@ -424,7 +441,7 @@ end
 function resolve(n::JoinNode, ctx)
     if n.swap
         ctx′ = ResolveContext(ctx, tail = n.joinee)
-        return resolve(JoinNode(joinee = ctx.tail, on = n.on, left = n.right, right = n.left, optional = n.optional), ctx′)
+        return resolve(JoinNode(joinee = ctx.tail, on = n.on, left = n.right, right = n.left, optional = n.optional, private = n.private), ctx′)
     end
     tail′ = resolve(ctx)
     lt = row_type(tail′)
@@ -437,7 +454,13 @@ function resolve(n::JoinNode, ctx)
     end
     fields[name] = rt
     group = lt.group
-    t = RowType(fields, group)
+    private_fields = copy(lt.private_fields)
+    if n.private
+        push!(private_fields, name)
+    else
+        delete!(private_fields, name)
+    end
+    t = RowType(fields, group, private_fields)
     on′ = resolve_scalar(n.on, ctx, t)
     q′ = RoutedJoin(joinee = joinee′, on = on′, name = name, left = n.left, right = n.right, optional = n.optional, tail = tail′)
     Resolved(t, tail = q′)
@@ -490,8 +513,12 @@ function resolve(n::PartitionNode, ctx)
         end
         fields[n.name] = RowType(FieldTypeMap(), t)
     end
+    private_fields = copy(t.private_fields)
+    if n.name !== nothing
+        push!(private_fields, n.name)
+    end
     q′ = Partition(by = by′, order_by = order_by′, frame = n.frame, name = n.name, tail = tail′)
-    Resolved(RowType(fields, group), tail = q′)
+    Resolved(RowType(fields, group, private_fields), tail = q′)
 end
 
 function resolve(n::SelectNode, ctx)
@@ -504,33 +531,6 @@ function resolve(n::SelectNode, ctx)
     end
     q′ = Select(args = args′, label_map = n.label_map, tail = tail′)
     Resolved(RowType(fields), tail = q′)
-end
-
-function resolve(n::ShowNode, ctx)
-    tail′ = resolve(ctx)
-    t = row_type(tail′)
-    for name in n.names
-        ft = get(t.fields, name, EmptyType())
-        if ft isa EmptyType
-            throw(
-                ReferenceError(
-                    REFERENCE_ERROR_TYPE.UNDEFINED_NAME,
-                    name = name,
-                    path = get_path(ctx)))
-        end
-    end
-    fields = FieldTypeMap()
-    for (f, ft) in t.fields
-        if f in keys(n.label_map)
-            if ft isa ScalarType
-                ft = ScalarType(visible = n.visible)
-            else
-                ft = RowType(ft.fields, ft.group, visible = n.visible)
-            end
-        end
-        fields[f] = ft
-    end
-    Resolved(RowType(fields, t.group, visible = t.visible), tail = tail′)
 end
 
 function resolve_scalar(n::SortNode, ctx)

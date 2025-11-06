@@ -31,22 +31,24 @@ _metadata_get(dict::SQLMetadata, key::Union{Symbol, AbstractString}, default; st
     end
 
 """
-    SQLColumn(; name, metadata = nothing)
-    SQLColumn(name; metadata = nothing)
+    SQLColumn(; name, private = false, metadata = nothing)
+    SQLColumn(name; private = false, metadata = nothing)
 
 `SQLColumn` represents a column with the given `name` and optional `metadata`.
+If `private` is `true`, the column is excluded from the default query output.
 """
 struct SQLColumn
     name::Symbol
+    private::Bool
     metadata::SQLMetadata
 
-    function SQLColumn(; name::Union{Symbol, AbstractString}, metadata = nothing)
-        new(Symbol(name), _metadata(metadata))
+    function SQLColumn(; name::Union{Symbol, AbstractString}, private = false, metadata = nothing)
+        new(Symbol(name), private, _metadata(metadata))
     end
 end
 
-SQLColumn(name; metadata = nothing) =
-    SQLColumn(name = name, metadata = metadata)
+SQLColumn(name; private = false, metadata = nothing) =
+    SQLColumn(; name, private, metadata)
 
 Base.show(io::IO, col::SQLColumn) =
     print(io, quoteof(col, limit = true))
@@ -56,6 +58,9 @@ Base.show(io::IO, ::MIME"text/plain", col::SQLColumn) =
 
 function PrettyPrinting.quoteof(col::SQLColumn; limit::Bool = false)
     ex = Expr(:call, nameof(SQLColumn), QuoteNode(col.name))
+    if col.private
+        push(ex.args, Expr(:kw, :private, col.private))
+    end
     if !isempty(col.metadata)
         push!(ex.args, Expr(:kw, :metadata, limit ? :… : quoteof(reverse!(collect(col.metadata)))))
     end
@@ -122,10 +127,10 @@ struct SQLTable <: AbstractDict{Symbol, SQLColumn}
 end
 
 SQLTable(name; qualifiers = Symbol[], columns, metadata = nothing) =
-    SQLTable(qualifiers = qualifiers, name = name, columns = columns, metadata = metadata)
+    SQLTable(; qualifiers, name, columns, metadata)
 
 SQLTable(name, columns...; qualifiers = Symbol[], metadata = nothing) =
-    SQLTable(qualifiers = qualifiers, name = name, columns = [columns...], metadata = metadata)
+    SQLTable(; qualifiers, name, columns = [columns...], metadata)
 
 _column_map(columns::OrderedDict{Symbol, SQLColumn}) =
     columns
@@ -280,7 +285,7 @@ struct SQLCatalog <: AbstractDict{Symbol, SQLTable}
 end
 
 SQLCatalog(tables...; dialect = :default, cache = default_cache_maxsize, metadata = nothing) =
-    SQLCatalog(tables = tables, dialect = dialect, cache = cache, metadata = metadata)
+    SQLCatalog(; tables, dialect, cache, metadata)
 
 _table_map(tables::Dict{Symbol, SQLTable}) =
     tables
