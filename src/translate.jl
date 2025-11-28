@@ -39,10 +39,13 @@ function complete(a::Assemblage)
 end
 
 # Add a SELECT clause aligned with the exported references.
-function complete_aligned(a::Assemblage, ctx)
+function complete_aligned(a::Assemblage, ctx, expected_names = nothing)
+    names = collect(keys(a.cols))
+    expected_names = something(expected_names, names)
     aligned =
         length(a.cols) == length(ctx.refs) &&
-        all(a.repl[ref] === name for (name, ref) in zip(keys(a.cols), ctx.refs))
+        all(a.repl[ref] === name for (name, ref) in zip(names, ctx.refs)) &&
+        names == expected_names
     !aligned || return complete(a)
     if !@dissect(a.syntax, SELECT() || UNION())
         alias = nothing
@@ -54,9 +57,9 @@ function complete_aligned(a::Assemblage, ctx)
     subs = make_subs(a, alias)
     repl = Dict{SQLQuery, Symbol}()
     cols = OrderedDict{Symbol, SQLSyntax}()
-    for ref in ctx.refs
-        name = repl[ref] = a.repl[ref]
-        cols[name] = subs[ref]
+    for (expected_name, ref) in zip(expected_names, ctx.refs)
+        cols[expected_name] = subs[ref]
+        repl[ref] = expected_name
     end
     a′ = Assemblage(a.name, syntax, repl = repl, cols = cols)
     complete(a′)
@@ -211,15 +214,11 @@ function allocate_alias(ctx::TranslateContext, alias::Symbol)
 end
 
 function translate(q::SQLQuery)
-    @dissect(q, (local q′) |> Linked(refs = (local refs)) |> WithContext(catalog = (local catalog), defs = (local defs))) || throw(IllFormedError())
+    @dissect(q, (local q′) |> Linked(refs = (local refs)) |> WithContext(catalog = (local catalog), table = (local table), defs = (local defs))) || throw(IllFormedError())
     ctx = TranslateContext(catalog = catalog, defs = defs)
     ctx′ = TranslateContext(ctx, refs = refs)
     base = assemble(q′, ctx′)
-    columns = nothing
-    if !isempty(refs)
-        columns = [SQLColumn(base.repl[ref]) for ref in refs]
-    end
-    c = complete_aligned(base, ctx′)
+    c = complete_aligned(base, ctx′, collect(keys(table)))
     with_args = SQLSyntax[]
     for cte_a in ctx.ctes
         !cte_a.external || continue
@@ -238,7 +237,7 @@ function translate(q::SQLQuery)
     if !isempty(with_args)
         c = WITH(tail = c, args = with_args, recursive = ctx.recursive[])
     end
-    WITH_CONTEXT(tail = c, dialect = ctx.catalog.dialect, columns = columns)
+    WITH_CONTEXT(tail = c, dialect = ctx.catalog.dialect, table = table)
 end
 
 function translate(q::SQLQuery, ctx)

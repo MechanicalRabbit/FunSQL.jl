@@ -4,10 +4,10 @@
 
 struct WithContextClause <: AbstractSQLClause
     dialect::SQLDialect
-    columns::Union{Vector{SQLColumn}, Nothing}
+    table::Union{SQLTable, Nothing}
 
-    WithContextClause(; dialect, columns = nothing) =
-        new(dialect, columns)
+    WithContextClause(; dialect, table = nothing) =
+        new(dialect, table)
 end
 
 const WITH_CONTEXT = SQLSyntaxCtor{WithContextClause}(:WITH_CONTEXT)
@@ -17,8 +17,8 @@ function PrettyPrinting.quoteof(c::WithContextClause, ctx::QuoteContext)
     if c.dialect !== default_dialect
         push!(ex.args, Expr(:kw, :dialect, quoteof(c.dialect)))
     end
-    if c.columns !== nothing
-        push!(ex.args, Expr(:kw, :columns, Expr(:vect, Any[quoteof(col) for col in c.columns]...)))
+    if c.table !== nothing
+        push!(ex.args, Expr(:kw, :table, quoteof(c.table)))
     end
     ex
 end

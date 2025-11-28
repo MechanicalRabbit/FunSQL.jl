@@ -95,6 +95,7 @@ using Tables
 using DBInterface
 using LRUCache
 using DataAPI
+using URIs
 
 const SQLLiteralType =
     Union{Missing, Bool, Number, AbstractString, Dates.AbstractTime}
