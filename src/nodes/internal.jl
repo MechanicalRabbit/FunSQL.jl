@@ -4,9 +4,10 @@
 struct WithContextNode <: AbstractSQLNode
     catalog::SQLCatalog
     defs::Vector{SQLQuery}
+    table::Union{SQLTable, Nothing}
 
-    WithContextNode(; catalog = SQLCatalog(), defs = SQLQuery[]) =
-        new(catalog, defs)
+    WithContextNode(; catalog = SQLCatalog(), defs = SQLQuery[], table = nothing) =
+        new(catalog, defs, table)
 end
 
 const WithContext = SQLQueryCtor{WithContextNode}(:WithContext)
@@ -16,6 +17,9 @@ function PrettyPrinting.quoteof(n::WithContextNode, ctx::QuoteContext)
     push!(ex.args, Expr(:kw, :catalog, quoteof(n.catalog)))
     if !isempty(n.defs)
         push!(ex.args, Expr(:kw, :defs, Expr(:vect, Any[quoteof(def, ctx) for def in n.defs]...)))
+    end
+    if n.table !== nothing
+        push!(ex.args, Expr(:kw, :table, quoteof(n.table)))
     end
     ex
 end

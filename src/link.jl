@@ -26,28 +26,43 @@ struct LinkContext
 end
 
 function _select(t::RowType)
-    refs = SQLQuery[]
+    args = Pair{SQLColumn, SQLQuery}[]
     for (f, ft) in t.fields
         !(f in t.private_fields) || continue
+        lbl = escapefield(f)
         if ft isa ScalarType
-            push!(refs, Get(f))
+            push!(args, SQLColumn(lbl) => Get(f))
         else
-            nested_refs = _select(ft)
-            for nested_ref in nested_refs
-                push!(refs, Nested(name = f, tail = nested_ref))
+            nested_args = _select(ft)
+            for (nested_col, nested_ref) in nested_args
+                nested_lbl = Symbol(lbl, '.', nested_col.name)
+                nested_col = SQLColumn(nested_lbl)
+                push!(args, nested_col => Nested(name = f, tail = nested_ref))
             end
         end
     end
-    refs
+    args
 end
+
+escapefield(f::Symbol) =
+    Symbol(escapefield(string(f)))
+
+escapefield(f) =
+    escapeuri(f, c -> c == ' ' || c != '.' && URIs.issafe(c))
 
 function link(q::SQLQuery)
     @dissect(q, (local tail) |> WithContext(catalog = (local catalog))) || throw(IllFormedError())
     ctx = LinkContext(catalog)
     t = row_type(tail)
-    refs = _select(t)
+    col_refs = _select(t)
+    columns = first.(col_refs)
+    if isempty(columns)
+        columns = [SQLColumn(:_)]
+    end
+    table = SQLTable(escapefield(label(q)), columns = columns)
+    refs = last.(col_refs)
     tail′ = Linked(refs, tail = link(dismantle(tail, ctx), ctx, refs))
-    WithContext(tail = tail′, catalog = catalog, defs = ctx.defs)
+    WithContext(tail = tail′, catalog = catalog, table = table, defs = ctx.defs)
 end
 
 function dismantle(q::SQLQuery, ctx)
@@ -566,7 +581,7 @@ end
 function gather!(n::IsolatedNode, ctx)
     def = ctx.defs[n.idx]
     !@dissect(def, Linked()) || return
-    refs = _select(n.type)
+    refs = last.(_select(n.type))
     if !isempty(refs)
         refs = refs[1:1]
     end

@@ -5,7 +5,8 @@
 
 Serialized SQL query.
 
-Parameter `columns` is a vector describing the output columns.
+Parameter `table` is an optional `SQLTable` object describing the output of
+the query.
 
 Parameter `vars` is a vector of query parameters (created with [`Var`](@ref))
 in the order they are expected by the `DBInterface.execute()` function.
@@ -55,11 +56,11 @@ SQLString(\"""
 """
 struct SQLString <: AbstractString
     raw::String
-    columns::Union{Vector{SQLColumn}, Nothing}
+    table::Union{SQLTable, Nothing}
     vars::Vector{Symbol}
 
-    SQLString(raw; columns = nothing, vars = Symbol[]) =
-        new(raw, columns, vars)
+    SQLString(raw; table = nothing, vars = Symbol[]) =
+        new(raw, table, vars)
 end
 
 Base.ncodeunits(sql::SQLString) =
@@ -88,8 +89,8 @@ Base.write(io::IO, sql::SQLString) =
 
 function PrettyPrinting.quoteof(sql::SQLString)
     ex = Expr(:call, nameof(SQLString), sql.raw)
-    if sql.columns !== nothing
-        push!(ex.args, Expr(:kw, :columns, Expr(:vect, Any[quoteof(col) for col in sql.columns]...)))
+    if sql.table !== nothing
+        push!(ex.args, Expr(:kw, :table, quoteof(sql.table)))
     end
     if !isempty(sql.vars)
         push!(ex.args, Expr(:kw, :vars, quoteof(sql.vars)))
@@ -100,10 +101,11 @@ end
 function Base.show(io::IO, sql::SQLString)
     print(io, "SQLString(")
     show(io, sql.raw)
-    if sql.columns !== nothing
-        print(io, ", columns = ")
-        l = length(sql.columns)
-        print(io, l == 0 ? "[]" : l == 1 ? "[…1 column…]" : "[…$l columns…]")
+    if sql.table !== nothing
+        print(io, ", table = SQLTable(")
+        show(io, sql.table.name)
+        l = length(sql.table.columns)
+        print(io, ", ", l == 0 ? "[]" : l == 1 ? "[…1 column…]" : "[…$l columns…]", ")")
     end
     if !isempty(sql.vars)
         print(io, ", vars = ")
