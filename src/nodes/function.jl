@@ -160,9 +160,6 @@ const funsql_fun = Fun
 transliterate(::typeof(Fun), name::Symbol, ctx::TransliterateContext, @nospecialize(args...)) =
     Fun(name, args = [transliterate(SQLQuery, arg, ctx) for arg in args])
 
-terminal(::Type{FunctionNode}) =
-    true
-
 PrettyPrinting.quoteof(n::FunctionNode, ctx::QuoteContext) =
     Expr(:call,
          Expr(:., :Fun,

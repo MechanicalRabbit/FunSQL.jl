@@ -315,9 +315,22 @@ function link(n::FromTableExpressionNode, ctx)
 end
 
 function link(n::GroupNode, ctx)
-    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Nested()), ctx.refs)
-    if !has_aggregates && isempty(n.by)
-        return link(FromNothing(), ctx)
+    krefs = SQLQuery[]
+    arefs = SQLQuery[]
+    has_aggregates = false
+    for ref in ctx.refs
+        if @dissect(ref, (local tail) |> Nested(name = (local name))) && name === n.name
+            gather!(tail, ctx, arefs)
+            has_aggregates = true
+        elseif @dissect(ref, Agg()) && n.name === nothing
+            push!(arefs, ref)
+            has_aggregates = true
+        else
+            push!(krefs, ref)
+        end
+    end
+    if isempty(arefs) && isempty(n.by)
+        return link(n.name !== nothing ? Into(n.name, tail = FromNothing()) : FromNothing(), ctx)
     end
     # Some group keys are added both to SELECT and to GROUP BY.
     # To avoid duplicate SQL, they must be evaluated in a nested subquery.
@@ -330,16 +343,16 @@ function link(n::GroupNode, ctx)
     # Ignore `SELECT DISTINCT` case.
     if has_aggregates
         ctx′ = LinkContext(ctx, refs = refs)
-        for ref in ctx.refs
-            if (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter)) |> Nested(name = (local name))) && name === n.name) ||
-               (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter))) && n.name === nothing)
-                gather!(args, ctx′)
-                if filter !== nothing
-                    gather!(filter, ctx′)
-                end
-            elseif @dissect(ref, nothing |> Get(name = (local name))) && name in keys(n.label_map)
-                # Force evaluation in a nested subquery.
-                push!(refs, n.by[n.label_map[name]])
+        for ref in krefs
+            @dissect(ref, Get(name = (local name))) && name in keys(n.label_map) || error()
+            # Force evaluation in a nested subquery.
+            push!(refs, n.by[n.label_map[name]])
+        end
+        for ref in arefs
+            @dissect(ref, Agg(args = (local args), filter = (local filter))) || error()
+            gather!(args, ctx′)
+            if filter !== nothing
+                gather!(filter, ctx′)
             end
         end
     end
@@ -356,12 +369,12 @@ function link(n::IntoNode, ctx)
     for ref in ctx.refs
         if @dissect(ref, (local tail) |> Nested(name = (local name)))
             @assert name == n.name
-            push!(refs, tail)
+            gather!(tail, ctx, refs)
         else
             error()
         end
     end
-    tail′ = link(ctx.tail, ctx, refs)
+    tail′ = Linked(refs, 0, tail = link(ctx.tail, ctx, refs))
     Into(name = n.name, tail = tail′)
 end
 
@@ -418,16 +431,14 @@ end
 
 function link(n::PartitionNode, ctx)
     refs = SQLQuery[]
-    imm_refs = SQLQuery[]
-    ctx′ = LinkContext(ctx, refs = imm_refs)
+    arefs = SQLQuery[]
     has_aggregates = false
     for ref in ctx.refs
-        if (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter)) |> Nested(name = (local name))) && name === n.name) ||
-            (@dissect(ref, nothing |> Agg(args = (local args), filter = (local filter))) && n.name === nothing)
-            gather!(args, ctx′)
-            if filter !== nothing
-                gather!(filter, ctx′)
-            end
+        if @dissect(ref, (local tail) |> Nested(name = (local name))) && name === n.name
+            gather!(tail, ctx, arefs)
+            has_aggregates = true
+        elseif @dissect(ref, Agg()) && n.name === nothing
+            push!(arefs, ref)
             has_aggregates = true
         else
             push!(refs, ref)
@@ -435,6 +446,15 @@ function link(n::PartitionNode, ctx)
     end
     if !has_aggregates
         return link(ctx)
+    end
+    imm_refs = SQLQuery[]
+    ctx′ = LinkContext(ctx, refs = imm_refs)
+    for ref in arefs
+        @dissect(ref, Agg(args = (local args), filter = (local filter))) || error()
+        gather!(args, ctx′)
+        if filter !== nothing
+            gather!(filter, ctx′)
+        end
     end
     gather!(n.by, ctx′)
     gather!(n.order_by, ctx′)
