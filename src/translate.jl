@@ -175,6 +175,7 @@ struct TranslateContext
     refs::Vector{SQLQuery}
     vars::Base.ImmutableDict{Tuple{Symbol, Int}, SQLSyntax}
     subs::Dict{SQLQuery, SQLSyntax}
+    partition::Union{SQLSyntax, Nothing}
 
     TranslateContext(; catalog, defs) =
         new(catalog,
@@ -187,9 +188,10 @@ struct TranslateContext
             0,
             SQLQuery[],
             Base.ImmutableDict{Tuple{Symbol, Int}, SQLSyntax}(),
-            Dict{Int, SQLSyntax}())
+            Dict{Int, SQLSyntax}(),
+            nothing)
 
-    function TranslateContext(ctx::TranslateContext; tail = ctx.tail, cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs)
+    function TranslateContext(ctx::TranslateContext; tail = ctx.tail, cte_map = ctx.cte_map, knot = ctx.knot, refs = ctx.refs, vars = ctx.vars, subs = ctx.subs, partition = ctx.partition)
         new(ctx.catalog,
             tail,
             ctx.defs,
@@ -200,7 +202,8 @@ struct TranslateContext
             knot,
             refs,
             vars,
-            subs)
+            subs,
+            partition)
     end
 end
 
@@ -265,9 +268,10 @@ function translate(q, ctx::TranslateContext, subs::Dict{SQLQuery, SQLSyntax})
 end
 
 function translate(n::AggregateNode, ctx)
-    args = translate(n.args, ctx)
-    filter = translate(n.filter, ctx)
-    AGG(n.name, args = args, filter = filter)
+    ctx′ = ctx.partition !== nothing ? TranslateContext(ctx, partition = nothing) : ctx
+    args = translate(n.args, ctx′)
+    filter = translate(n.filter, ctx′)
+    AGG(n.name, args = args, filter = filter, over = ctx.partition)
 end
 
 function translate(n::AsNode, ctx)
@@ -453,7 +457,6 @@ function assemble(n::DefineNode, ctx)
     for (f, i) in n.label_map
         tr_cache[f] = translate(n.args[i], ctx, subs)
     end
-    repl = Dict{SQLQuery, Symbol}()
     trns = Pair{SQLQuery, SQLSyntax}[]
     for ref in ctx.refs
         if @dissect(ref, nothing |> Get(name = (local name))) && name in keys(tr_cache)
@@ -606,7 +609,9 @@ function assemble(n::FromValuesNode, ctx)
 end
 
 function assemble(n::GroupNode, ctx)
-    has_aggregates = any(ref -> @dissect(ref, Agg() || Agg() |> Nested()), ctx.refs)
+    has_aggregates =
+        n.name === nothing && any(ref -> @dissect(ref, Agg()), ctx.refs) ||
+        any(ref -> @dissect(ref, Nested(name = (local name))) && name == n.name, ctx.refs)
     if isempty(n.by) && !has_aggregates # NOOP: already processed in link()
         return assemble(nothing, ctx)
     end
@@ -624,9 +629,9 @@ function assemble(n::GroupNode, ctx)
         if @dissect(ref, nothing |> Get(name = (local name)))
             @assert name in keys(n.label_map)
             push!(trns, ref => by[n.label_map[name]])
-        elseif @dissect(ref, nothing |> Agg())
+        elseif n.name === nothing && @dissect(ref, nothing |> Agg())
             push!(trns, ref => translate(ref, ctx, subs))
-        elseif @dissect(ref, (local tail = nothing |> Agg()) |> Nested())
+        elseif @dissect(ref, (local tail) |> Nested(name = (local name))) && name == n.name
             push!(trns, ref => translate(tail, ctx, subs))
         end
     end
@@ -648,24 +653,30 @@ function assemble(n::GroupNode, ctx)
 end
 
 function assemble(n::IntoNode, ctx)
-    refs′ = SQLQuery[]
-    for ref in ctx.refs
-        if @dissect(ref, (local tail) |> Nested())
-            push!(refs′, tail)
-        else
-            push!(refs′, ref)
-        end
-    end
-    base = assemble(TranslateContext(ctx, refs = refs′))
-    repl′ = Dict{SQLQuery, Symbol}()
-    for ref in ctx.refs
-        if @dissect(ref, (local tail) |> Nested())
+    base = assemble(ctx)
+    if all(@dissect(ref, (local tail) |> Nested()) && tail in keys(base.repl) for ref in ctx.refs)
+        repl′ = Dict{SQLQuery, Symbol}()
+        for ref in ctx.refs
+            @dissect(ref, (local tail) |> Nested()) || error()
             repl′[ref] = base.repl[tail]
-        else
-            repl′[ref] = base.repl[ref]
         end
+        return Assemblage(n.name, base.syntax, cols = base.cols, repl = repl′)
     end
-    Assemblage(n.name, base.syntax, cols = base.cols, repl = repl′)
+    if !@dissect(base.syntax, SELECT() || UNION())
+        base_alias = nothing
+        s = base.syntax
+    else
+        base_alias = allocate_alias(ctx, base)
+        s = FROM(AS(name = base_alias, tail = complete(base)))
+    end
+    subs = make_subs(base, base_alias)
+    trns = Pair{SQLQuery, SQLSyntax}[]
+    for ref in ctx.refs
+        @dissect(ref, (local tail) |> Nested()) || error()
+        push!(trns, ref => translate(tail, ctx, subs))
+    end
+    repl, cols = make_repl_cols(trns)
+    Assemblage(base.name, s, cols = cols, repl = repl)
 end
 
 function assemble(n::IterateNode, ctx)
@@ -839,14 +850,13 @@ function assemble(n::PartitionNode, ctx)
     partition = PARTITION(by = by, order_by = order_by, frame = n.frame)
     trns = Pair{SQLQuery, SQLSyntax}[]
     has_aggregates = false
+    ctx′′ = TranslateContext(ctx′, partition = partition)
     for ref in ctx.refs
         if @dissect(ref, nothing |> Agg()) && n.name === nothing
-            @dissect(translate(ref, ctx′), AGG(name = (local name), args = (local args), filter = (local filter))) || error()
-            push!(trns, ref => AGG(; name, args, filter, over = partition))
+            push!(trns, ref => translate(ref, ctx′′))
             has_aggregates = true
-        elseif @dissect(ref, (local tail = nothing |> Agg()) |> Nested(name = (local name))) && name === n.name
-            @dissect(translate(tail, ctx′), AGG(name = (local name), args = (local args), filter = (local filter))) || error()
-            push!(trns, ref => AGG(; name, args, filter, over = partition))
+        elseif @dissect(ref, (local tail) |> Nested(name = (local name))) && name === n.name
+            push!(trns, ref => translate(tail, ctx′′))
             has_aggregates = true
         else
             push!(trns, ref => subs[ref])

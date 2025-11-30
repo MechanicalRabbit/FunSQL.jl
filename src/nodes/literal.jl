@@ -45,8 +45,5 @@ Base.convert(::Type{SQLQuery}, val::SQLLiteralType) =
 Base.convert(::Type{SQLQuery}, ref::Base.RefValue) =
     Lit(ref.x)
 
-terminal(::Type{LiteralNode}) =
-    true
-
 PrettyPrinting.quoteof(n::LiteralNode, ctx::QuoteContext) =
     Expr(:call, :Lit, n.val)

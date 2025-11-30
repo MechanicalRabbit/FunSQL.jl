@@ -342,6 +342,10 @@ function resolve(n::FromNode, ctx)
 end
 
 function resolve_scalar(n::FunctionNode, ctx)
+    if ctx.tail !== nothing
+        q′ = unnest(ctx.tail, convert(SQLQuery, n), ctx)
+        return resolve_scalar(q′, ctx)
+    end
     args′ = resolve_scalar(n.args, ctx)
     q′ = Fun(name = n.name, args = args′)
     Resolved(ScalarType(), tail = q′)
@@ -367,7 +371,7 @@ resolve_scalar(n::FunSQLMacroNode, ctx) =
 
 function resolve(n::GetNode, ctx)
     if ctx.tail !== nothing
-        q′ = unnest(ctx.tail, Get(n.name), ctx)
+        q′ = unnest(ctx.tail, convert(SQLQuery, n), ctx)
         return resolve(q′, ctx)
     end
     resolve(FromNode(n.name), ctx)
@@ -375,7 +379,7 @@ end
 
 function resolve_scalar(n::GetNode, ctx)
     if ctx.tail !== nothing
-        q′ = unnest(ctx.tail, Get(n.name), ctx)
+        q′ = unnest(ctx.tail, convert(SQLQuery, n), ctx)
         return resolve_scalar(q′, ctx)
     end
     t = get(ctx.row_type.fields, n.name, EmptyType())
@@ -406,7 +410,7 @@ function resolve(n::GroupNode, ctx)
     if n.name !== nothing
         push!(private_fields, n.name)
     end
-    q′ = Group(by = by′, sets = n.sets, label_map = n.label_map, tail = tail′)
+    q′ = Group(by = by′, sets = n.sets, name = n.name, label_map = n.label_map, tail = tail′)
     Resolved(RowType(fields, group, private_fields), tail = q′)
 end
 
@@ -477,6 +481,10 @@ function resolve(n::LimitNode, ctx)
 end
 
 function resolve_scalar(n::LiteralNode, ctx)
+    if ctx.tail !== nothing
+        q′ = unnest(ctx.tail, convert(SQLQuery, n), ctx)
+        return resolve_scalar(q′, ctx)
+    end
     Resolved(ScalarType(), tail = convert(SQLQuery, n))
 end
 
