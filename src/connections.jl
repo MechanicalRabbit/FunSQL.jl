@@ -17,6 +17,9 @@ end
 SQLConnection(raw::RawConnType; catalog) where {RawConnType} =
     SQLConnection{RawConnType}(raw, catalog = catalog)
 
+SQLDialect(::Type{SQLConnection{RawConnType}}) where {RawConnType} =
+    SQLDialect(RawConnType)
+
 function Base.show(io::IO, conn::SQLConnection)
     print(io, "SQLConnection(")
     show(io, conn.raw)
