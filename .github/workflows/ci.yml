@@ -33,7 +33,7 @@ jobs:
         - name: Julia Stable / MacOS 64bit
           version: '1'
           os: macos-latest
-          arch: x64
+          arch: aarch64
         - name: Julia Stable / Windows 64bit
           version: '1'
           os: windows-latest
@@ -51,24 +51,24 @@ jobs:
           os: ubuntu-latest
           arch: x86
     steps:
-    - uses: actions/checkout@v4
-    - uses: julia-actions/setup-julia@v1
+    - uses: actions/checkout@v7
+    - uses: julia-actions/setup-julia@v3
       with:
         version: ${{ matrix.version }}
         arch: ${{ matrix.arch }}
-    - uses: julia-actions/cache@v1
+    - uses: julia-actions/cache@v3
     - uses: julia-actions/julia-buildpkg@v1
     - uses: julia-actions/julia-runtest@v1
     - uses: julia-actions/julia-processcoverage@v1
-    - uses: codecov/codecov-action@v3
+    - uses: codecov/codecov-action@v7
       with:
         file: lcov.info
   docs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: julia-actions/setup-julia@v1
+    - uses: actions/checkout@v7
+    - uses: julia-actions/setup-julia@v3
     - uses: julia-actions/julia-buildpkg@v1
     - uses: julia-actions/julia-docdeploy@v1
       env:
