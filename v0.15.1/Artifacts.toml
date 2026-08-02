@@ -1,0 +1,7 @@
+[synpuf-10p]
+git-tree-sha1 = "ef549272d9949230c2eb77c23ef93a568cd0dd02"
+lazy = true
+
+    [[synpuf-10p.download]]
+    sha256 = "b0e854faea7524bbcf7d913394d86191bf01bd7f22d061007e5efa00f8dd2d05"
+    url = "https://github.com/MechanicalRabbit/ohdsi-synpuf-demo/releases/download/20210412/synpuf-10p.tgz"
