@@ -90,7 +90,7 @@ Ill-formed queries are detected.
     =#
 
 
-## `@funsql`
+## `@funsql` Tests
 
 The `@funsql` macro provides alternative notation for assembling FunSQL queries.
 
@@ -273,7 +273,7 @@ An ill-formed `@funsql` query triggers an error.
     =#
 
 
-## Literals
+## Tests for Literals
 
 A SQL value is created with `Lit()` constructor.
 
@@ -318,7 +318,7 @@ Such plain literals could also be used in `@funsql` notation.
     =#
 
 
-## Attributes
+## Tests for Attributes
 
 To reference a table attribute, we use the `Get` constructor.
 
@@ -755,7 +755,7 @@ column.
     =#
 
 
-## Functions and Operators
+## Tests for Functions and Operators
 
 A function or an operator invocation is created with the `Fun` constructor.
 
@@ -1135,7 +1135,7 @@ FunSQL can simplify logical expressions.
     =#
 
 
-## Scalar Subqueries
+## Tests for Scalar Subqueries
 
 In SQL, a scalar expression may contain a subquery.  This subquery should select
 one column and should produce zero or one row (unless used as an argument of
@@ -1252,7 +1252,7 @@ If no columns are selected, a column containing `NULL` is added.
     =#
 
 
-## Variables
+## Tests for Variables
 
 A query variable is created with the `Var` constructor.
 
@@ -1415,7 +1415,7 @@ An empty `Bind` can be created.
     =#
 
 
-## `Append`
+## Tests for `Append`
 
 The `Append` constructor creates a subquery that concatenates the output of
 multiple queries.
@@ -1678,7 +1678,7 @@ columns of the nested queries.
     =#
 
 
-## `Iterate`
+## Tests for `Iterate`
 
 The `Iterate` constructor creates an iteration query.  In the argument of
 `Iterate`, the `From(^)` node refers to the output of the previous iteration.
@@ -1873,7 +1873,7 @@ produced by the base query and the iterator query.
     =#
 
 
-## `As`
+## Tests for `As`
 
 An alias to an expression can be added with the `As` constructor.
 
@@ -1925,7 +1925,7 @@ The `=>` shorthand is supported by `@funsql`.
     =#
 
 
-## `From`
+## Tests for `From`
 
 The `From` constructor creates a subquery that selects columns from the
 given table.
@@ -2216,7 +2216,7 @@ All the columns of a tabular function must have distinct names.
     =#
 
 
-## `With`, `Over`, and `WithExternal`
+## Tests for `With`, `Over`, and `WithExternal`
 
 We can create a temporary dataset using `With` and refer to it with `From`.
 
@@ -2508,7 +2508,7 @@ Datasets defined by `WithExternal` must have a unique label.
     =#
 
 
-## `Group`
+## Tests for `Group`
 
 The `Group` constructor creates a subquery that summarizes the rows partitioned
 by the given keys.
@@ -2967,7 +2967,7 @@ corresponding `Group` could be determined unambiguously.
     =#
 
 
-## `Partition`
+## Tests for `Partition`
 
 The `Partition` constructor creates a subquery that partitions the rows by the
 given keys.
@@ -3207,7 +3207,7 @@ example which calculates non-overlapping visits.
     =#
 
 
-## `Join`
+## Tests for `Join`
 
 The `Join` constructor creates a subquery that correlates two nested subqueries.
 
@@ -3572,7 +3572,7 @@ its right branch.
     =#
 
 
-## `Order`
+## Tests for `Order`
 
 The `Order` constructor creates a subquery for sorting the data.
 
@@ -3735,7 +3735,7 @@ Sort decorations can be created with `@funsql`.
     =#
 
 
-## `Limit`
+## Tests for `Limit`
 
 The `Limit` constructor creates a subquery that takes a fixed-size slice of the
 dataset.
@@ -3879,7 +3879,7 @@ A `Limit` node can be created with `@funsql` notation.
     =#
 
 
-## `Select`
+## Tests for `Select`
 
 The `Select` constructor creates a subquery that fixes the output columns.
 
@@ -3941,7 +3941,7 @@ creates a complete subquery.
     =#
 
 
-## `Where`
+## Tests for `Where`
 
 The `Where` constructor creates a subquery that filters by the given condition.
 
@@ -4066,7 +4066,7 @@ Several `Where` operations in a row are collapsed to a single `WHERE` clause.
     =#
 
 
-## Highlighting
+## Tests for Highlighting
 
 To highlight a node on the output, wrap it with `Highlight`.
 
@@ -4108,7 +4108,7 @@ A `Highlight` node can be created with `@funsql` notation.
     #-> From(:person)
 
 
-## Debugging
+## Tests for Debug Logging
 
 Enable debug logging to get some insight on how FunSQL translates a query
 object into SQL.  Set the `JULIA_DEBUG` environment variable to the name of

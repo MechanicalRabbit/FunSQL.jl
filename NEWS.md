@@ -1,5 +1,10 @@
 # Release Notes
 
+## v0.15.1
+
+* Support OrderedCollections v2.
+
+
 ## v0.15.0
 
 * **Breaking change:** when a query is used in a scalar context, such as

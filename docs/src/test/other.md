@@ -1,7 +1,7 @@
 # Other Tests
 
 
-## `SQLConnection` and `SQLStatement`
+## Tests for `SQLConnection` and `SQLStatement`
 
 A `SQLConnection` object encapsulates a raw database connection together
 with the database catalog.
@@ -110,7 +110,7 @@ by name.
     DBInterface.close!(conn)
 
 
-## `SQLCatalog`, `SQLTable`, and `SQLColumn`
+## Tests for `SQLCatalog`, `SQLTable`, and `SQLColumn`
 
 In FunSQL, tables and table-like entities are represented using `SQLTable`
 objects.  Their columns are represented using `SQLColumn` objects.
@@ -345,7 +345,7 @@ FunSQL metadata supports DataAPI metadata interface.
     #-> "Person ID"
 
 
-## `SQLDialect`
+## Tests for `SQLDialect`
 
 In FunSQL, properties and capabilities of a particular SQL dialect
 are encapsulated in a `SQLDialect` object.
@@ -387,7 +387,7 @@ A completely custom dialect can be specified.
     #-> SQLDialect(name = :my, identifier_quotes = ('<', '>'))
 
 
-## `SQLString`
+## Tests for `SQLString`
 
 `SQLString` represents a serialized SQL query.
 

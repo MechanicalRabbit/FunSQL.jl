@@ -403,7 +403,7 @@ The following tabular operations are available in FunSQL.
 | [`With`](@ref)        | assign a name to a temporary dataset              |
 
 
-## `From`, `Select`, and `Define`
+## Using `From`, `Select`, and `Define`
 
 The [`From`](@ref) node outputs the content of a database table.  The
 constructor takes one argument, the name of the table.
@@ -539,7 +539,7 @@ To add a new column while preserving existing output columns, we use the
     =#
 
 
-## `Join`
+## Using `Join`
 
 The [`Join`](@ref) node correlates the rows of two input datasets.
 Predominantly, `Join` is used for looking up table records by key.  In the
