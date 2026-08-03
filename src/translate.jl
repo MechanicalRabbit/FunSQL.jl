@@ -215,10 +215,7 @@ function translate(q::SQLQuery)
     ctx = TranslateContext(catalog = catalog, defs = defs)
     ctx′ = TranslateContext(ctx, refs = refs)
     base = assemble(q′, ctx′)
-    columns = nothing
-    if !isempty(refs)
-        columns = [SQLColumn(base.repl[ref]) for ref in refs]
-    end
+    shape = SQLTable(name = base.name, columns = [base.repl[ref] for ref in refs])
     c = complete_aligned(base, ctx′)
     with_args = SQLSyntax[]
     for cte_a in ctx.ctes
@@ -238,7 +235,7 @@ function translate(q::SQLQuery)
     if !isempty(with_args)
         c = WITH(tail = c, args = with_args, recursive = ctx.recursive[])
     end
-    WITH_CONTEXT(tail = c, dialect = ctx.catalog.dialect, columns = columns)
+    WITH_CONTEXT(tail = c, dialect = ctx.catalog.dialect, shape = shape)
 end
 
 function translate(q::SQLQuery, ctx)
